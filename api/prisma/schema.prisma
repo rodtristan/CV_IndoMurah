@@ -1,0 +1,39 @@
+// ============================================================
+// Toko CV IndoMurah — Prisma Schema
+// ============================================================
+// Skema ini baru berisi infrastruktur dasar (audit log).
+// Tambahkan model bisnis (User, Product, Order, Attendance, dll)
+// sesuai kebutuhan modul yang akan dikembangkan.
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Log ────────────────────────────────────────────────────
+// Dipakai oleh LoggingInterceptor (src/common/interceptors) untuk
+// mencatat setiap request HTTP ke database.
+
+model Log {
+  id                   Int       @id @default(autoincrement())
+  method               String?
+  endpoint             String?
+  headers              Json?
+  payload              Json?
+  response_status      Int?
+  message              String?
+  requester_login_id   Int?
+  requester_full_name  String?
+  ip_address           String?
+  user_agent           String?
+  duration_ms          Int?
+  log_datetime         DateTime  @default(now())
+  createdAt            DateTime  @default(now())
+
+  @@map("logs")
+}
