@@ -1,0 +1,117 @@
+@import "tailwindcss";
+
+/* Enable class-based dark mode (driven by next-themes adding `.dark` to <html>) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: var(--font-public-sans), "Public Sans", sans-serif;
+
+  /* Brand green scale, ported from website/app/assets/css/main.css */
+  --color-green-50: #EFFDF5;
+  --color-green-100: #D9FBE8;
+  --color-green-200: #B3F5D1;
+  --color-green-300: #75EDAE;
+  --color-green-400: #00DC82;
+  --color-green-500: #00C16A;
+  --color-green-600: #00A155;
+  --color-green-700: #007F45;
+  --color-green-800: #016538;
+  --color-green-900: #0A5331;
+  --color-green-950: #052E16;
+
+  /* Semantic tokens, matching Nuxt UI's naming (default, muted, elevated, ...)
+     IMPORTANT: color-default and color-accented are used ONLY for border, ring, divide;
+     color-dimmed, color-muted, color-toned, color-highlighted are used ONLY for text;
+     color-bg, color-elevated, color-inverted are used ONLY for backgrounds and rings.
+     This avoids collisions since Tailwind v4 generates bg, text and border
+     utilities from the same color variable. */
+  --color-primary: var(--color-green-500);
+
+  --color-success: var(--color-green-500);
+  --color-error: var(--color-red-500);
+  --color-warning: var(--color-amber-500);
+  --color-info: var(--color-blue-500);
+
+  --color-bg: #ffffff;
+  --color-elevated: var(--color-zinc-100);
+  --color-inverted: var(--color-zinc-900);
+  --color-inverted-text: #ffffff;
+
+  --color-default: var(--color-zinc-200);
+  --color-accented: var(--color-zinc-300);
+
+  --color-dimmed: var(--color-zinc-400);
+  --color-muted: var(--color-zinc-500);
+  --color-toned: var(--color-zinc-700);
+  --color-highlighted: var(--color-zinc-900);
+}
+
+:root:not([data-theme="light"]) {
+  @media (prefers-color-scheme: dark) {
+    --color-bg: var(--color-zinc-900);
+    --color-elevated: color-mix(in oklab, var(--color-zinc-800) 60%, transparent);
+    --color-inverted: #ffffff;
+
+    --color-default: var(--color-zinc-800);
+    --color-accented: var(--color-zinc-700);
+
+    --color-dimmed: var(--color-zinc-500);
+    --color-muted: var(--color-zinc-400);
+    --color-toned: var(--color-zinc-300);
+    --color-highlighted: #ffffff;
+    --color-inverted-text: var(--color-zinc-900);
+
+    --color-primary: var(--color-green-400);
+  }
+}
+
+.dark {
+  --color-bg: var(--color-zinc-900);
+  --color-elevated: color-mix(in oklab, var(--color-zinc-800) 60%, transparent);
+  --color-inverted: #ffffff;
+
+  --color-default: var(--color-zinc-800);
+  --color-accented: var(--color-zinc-700);
+
+  --color-dimmed: var(--color-zinc-500);
+  --color-muted: var(--color-zinc-400);
+  --color-toned: var(--color-zinc-300);
+  --color-highlighted: #ffffff;
+  --color-inverted-text: var(--color-zinc-900);
+
+  --color-primary: var(--color-green-400);
+}
+
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-toned);
+}
+
+* {
+  border-color: var(--color-default);
+}
+
+::selection {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+/* Thin scrollbars, closer to the Nuxt UI dashboard look */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: var(--color-accented);
+  border-radius: 9999px;
+}
