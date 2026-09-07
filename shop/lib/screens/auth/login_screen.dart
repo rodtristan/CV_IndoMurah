@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import '../../core/constants/api_endpoints.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
+import '../../core/services/api_service.dart';
+import '../../core/services/auth_storage_service.dart';
 import '../../widgets/custom_button.dart';
 import '../home/main_navigation_screen.dart';
 import 'register_screen.dart';
 
-/// UI login. Belum terhubung ke `ApiService`/`AuthStorageService` —
-/// tinggal panggil `ApiEndpoints.login` di [_handleLogin] setelah endpoint
-/// auth tersedia di backend.
+/// Login form wired to the real backend (`POST /auth/login`). This is the
+/// only way into [MainNavigationScreen] — see `_SplashGate` in main.dart,
+/// there is no guest/browse-without-login path.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -21,6 +24,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
+  String? _errorText;
 
   @override
   void dispose() {
@@ -32,17 +36,37 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
-    // TODO: panggil ApiService.instance.post(ApiEndpoints.login, {...}),
-    // simpan token via AuthStorageService.instance.saveToken(token).
-    await Future.delayed(const Duration(milliseconds: 600));
-    setState(() => _isLoading = false);
+    setState(() {
+      _isLoading = true;
+      _errorText = null;
+    });
 
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
-      (route) => false,
-    );
+    try {
+      final response = await ApiService.instance.post(
+        ApiEndpoints.login,
+        {
+          'email': _emailController.text.trim(),
+          'password': _passwordController.text,
+        },
+        withAuth: false,
+      );
+
+      final data = response['data'] as Map<String, dynamic>;
+      await AuthStorageService.instance.saveToken(data['token'] as String);
+      await AuthStorageService.instance.saveUser(data['user'] as Map<String, dynamic>);
+
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
+        (route) => false,
+      );
+    } on ApiException catch (e) {
+      setState(() => _errorText = e.message);
+    } catch (_) {
+      setState(() => _errorText = 'Tidak bisa terhubung ke server.');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -72,6 +96,17 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: TextStyle(color: AppColors.textSecondary),
                   ),
                   const SizedBox(height: 32),
+                  if (_errorText != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(_errorText!, style: const TextStyle(color: AppColors.error)),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,

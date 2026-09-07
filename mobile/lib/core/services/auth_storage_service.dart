@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// Wraps [FlutterSecureStorage] to persist auth-related data
@@ -16,6 +18,7 @@ class AuthStorageService {
   static const String _tokenKey = 'auth_token';
   static const String _refreshTokenKey = 'refresh_token';
   static const String _userIdKey = 'user_id';
+  static const String _userKey = 'auth_user';
 
   Future<void> saveToken(String token) => _storage.write(key: _tokenKey, value: token);
 
@@ -30,6 +33,21 @@ class AuthStorageService {
 
   Future<String?> getUserId() => _storage.read(key: _userIdKey);
 
+  /// Persists the user object returned by `POST /auth/login` so screens
+  /// (Profile, etc.) can show real data without an extra network call.
+  Future<void> saveUser(Map<String, dynamic> user) =>
+      _storage.write(key: _userKey, value: jsonEncode(user));
+
+  Future<Map<String, dynamic>?> getUser() async {
+    final raw = await _storage.read(key: _userKey);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      return jsonDecode(raw) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Returns true if a token is currently stored (basic "logged in" check).
   /// NOTE: This does not validate token expiry — that should be handled
   /// by the API layer (e.g. reacting to 401 responses).
@@ -42,5 +60,6 @@ class AuthStorageService {
     await _storage.delete(key: _tokenKey);
     await _storage.delete(key: _refreshTokenKey);
     await _storage.delete(key: _userIdKey);
+    await _storage.delete(key: _userKey);
   }
 }

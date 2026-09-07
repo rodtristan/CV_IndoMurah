@@ -1,15 +1,17 @@
-# # Environment
-# .env
-# .env.local
-# .env.*.local
+# Environment
+.env
+.env.local
+.env.*.local
 
 # Dependencies
 node_modules/
 package-lock.json
 
 # Prisma
+# NOTE: prisma/migrations/ is intentionally NOT ignored — those .sql files
+# must be committed so `prisma migrate deploy` (run on every boot, see
+# Dockerfile) has something to apply on Railway/production.
 /generated/prisma
-prisma/migrations/
 
 # Logs
 logs

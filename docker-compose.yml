@@ -115,6 +115,8 @@ services:
       context: ./shop
       dockerfile: Dockerfile
       target: web
+      args:
+        API_BASE_URL: ${API_BASE_URL:-http://localhost:5000/api/v1}
     container_name: indomurah-ecommerce
     restart: unless-stopped
     ports:
@@ -122,7 +124,9 @@ services:
     networks:
       - indomurah-network
 
-  # One-off container: builds the ecommerce APK and copies it to the host.
+  # One-off container: builds the ecommerce APK and copies it to the host,
+  # pointed at the PRODUCTION API (Railway) by default — this is a build
+  # meant for real devices/distribution, not local testing.
   # Not started by `docker compose up`. Run explicitly:
   #   docker compose --profile build run --rm shop-apk-builder
   shop-apk-builder:
@@ -130,6 +134,8 @@ services:
       context: ./shop
       dockerfile: Dockerfile
       target: apk-build
+      args:
+        API_BASE_URL: ${API_BASE_URL_RELEASE:-https://cvindomurah.up.railway.app/api/v1}
     container_name: indomurah-ecommerce-apk-builder
     profiles: ["build"]
     volumes:
@@ -141,6 +147,8 @@ services:
       context: ./mobile
       dockerfile: Dockerfile
       target: web
+      args:
+        API_BASE_URL: ${API_BASE_URL:-http://localhost:5000/api/v1}
     container_name: indomurah-hr
     restart: unless-stopped
     ports:
@@ -148,7 +156,8 @@ services:
     networks:
       - indomurah-network
 
-  # One-off container: builds the HR/absensi APK and copies it to the host.
+  # One-off container: builds the HR/absensi APK and copies it to the host,
+  # pointed at the PRODUCTION API (Railway) by default — see shop-apk-builder.
   # Not started by `docker compose up`. Run explicitly:
   #   docker compose --profile build run --rm mobile-apk-builder
   mobile-apk-builder:
@@ -156,6 +165,8 @@ services:
       context: ./mobile
       dockerfile: Dockerfile
       target: apk-build
+      args:
+        API_BASE_URL: ${API_BASE_URL_RELEASE:-https://cvindomurah.up.railway.app/api/v1}
     container_name: indomurah-hr-apk-builder
     profiles: ["build"]
     volumes:

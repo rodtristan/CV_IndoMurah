@@ -47,13 +47,22 @@ export class SanitizePipe implements PipeTransform {
       // Proses tiap field di dalam object/body JSON
       const result: Record<string, unknown> = {};
       for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
-        result[key] = this.sanitize(val);
+        // Field password TIDAK boleh disanitasi/di-trim: query password selalu
+        // lewat Prisma (parameterized), jadi tidak butuh anti-SQLi, dan
+        // memotong karakter (--, /*, spasi di ujung, dll) diam-diam mengubah
+        // password asli user sebelum di-hash — user login dengan password
+        // yang berbeda dari yang mereka kira mereka daftarkan.
+        result[key] = this.isPasswordField(key) ? val : this.sanitize(val);
       }
       return result;
     }
 
     // Tipe lain (number, boolean, null) langsung dikembalikan tanpa diubah
     return value;
+  }
+
+  private isPasswordField(key: string): boolean {
+    return /password/i.test(key);
   }
 
   private cleanString(str: string): string {

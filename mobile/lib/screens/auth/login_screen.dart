@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../../core/constants/api_endpoints.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
+import '../../core/services/api_service.dart';
+import '../../core/services/auth_storage_service.dart';
 import '../../widgets/custom_button.dart';
-import '../home/home_screen.dart';
+import '../home/main_shell.dart';
 
-/// Simple login form UI.
-///
-/// TODO: Wire this up to `ApiService` (POST [ApiEndpoints.login]) and
-/// persist the returned JWT via `AuthStorageService` once the backend
-/// contract is finalized. For now this is UI + placeholder logic only.
+/// Login form wired to the real backend (`POST /auth/login`). A user
+/// cannot reach [MainShell] without a valid token — this is the only
+/// entry point into the app (see `_SplashGate` in main.dart).
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -24,6 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _isLoading = false;
   bool _obscurePassword = true;
+  String? _errorText;
 
   @override
   void dispose() {
@@ -35,23 +37,37 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _errorText = null;
+    });
 
-    // TODO: Replace with real API call, e.g.:
-    // final response = await ApiService.instance.post(
-    //   ApiEndpoints.login,
-    //   body: {'email': _emailController.text, 'password': _passwordController.text},
-    //   withAuth: false,
-    // );
-    // await AuthStorageService.instance.saveToken(response['token']);
-    await Future.delayed(const Duration(milliseconds: 800));
+    try {
+      final response = await ApiService.instance.post(
+        ApiEndpoints.login,
+        body: {
+          'email': _emailController.text.trim(),
+          'password': _passwordController.text,
+        },
+        withAuth: false,
+      );
 
-    if (!mounted) return;
-    setState(() => _isLoading = false);
+      final data = response['data'] as Map<String, dynamic>;
+      await AuthStorageService.instance.saveToken(data['token'] as String);
+      await AuthStorageService.instance.saveUser(data['user'] as Map<String, dynamic>);
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
-    );
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MainShell()),
+        (route) => false,
+      );
+    } on ApiException catch (e) {
+      setState(() => _errorText = e.message);
+    } catch (_) {
+      setState(() => _errorText = AppStrings.connectionError);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -80,6 +96,20 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 32),
+                  if (_errorText != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        _errorText!,
+                        style: const TextStyle(color: AppColors.error),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,

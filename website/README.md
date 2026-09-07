@@ -37,6 +37,17 @@ Lint:
 npm run lint
 ```
 
+## Deploy ke Vercel
+
+Project ini ada di monorepo (`website/` adalah salah satu dari beberapa folder), jadi saat membuat Project baru di Vercel:
+
+1. Import repo ini, lalu set **Root Directory** = `website` (Project Settings -> General).
+2. Framework Preset otomatis terdeteksi sebagai Next.js — tidak perlu build command custom.
+3. Tambahkan Environment Variable: `NEXT_PUBLIC_API_URL=https://cvindomurah.up.railway.app/api/v1` (backend di Railway — lihat `api/README.md`).
+4. Deploy. Domain default akan berupa `<nama-project>.vercel.app` — pakai nama project `cvindomurah` agar URL-nya `cvindomurah.vercel.app`.
+
+Karena backend (Railway) hanya mengizinkan origin yang di-set lewat `CORS_ORIGIN`, pastikan domain Vercel ini (`https://cvindomurah.vercel.app`) juga sudah diset di environment variable `CORS_ORIGIN` pada service `api` di Railway.
+
 ## Catatan Penting: Data Masih Dummy
 
 **Semua data di dashboard ini adalah data statis/dummy**, di-port apa adanya dari mock data asli template Nuxt (`website/server/api/*.ts`) ke `src/lib/mock-data.ts`. Belum ada koneksi ke backend NestJS di folder `api/`. Sebelum dashboard ini dipakai secara nyata:
@@ -44,7 +55,7 @@ npm run lint
 - Ganti `src/lib/mock-data.ts` (customers, mails, members, notifications) dengan fetch ke endpoint asli di `api/`.
 - Statistik di Home (`HomeStats`, `HomeChart`, `HomeSales`) masih menghasilkan angka acak (`randomInt`) di client — sambungkan ke data penjualan/analitik asli.
 - Form Settings (General, Notifications, Security) hanya menampilkan toast sukses tanpa benar-benar menyimpan apa pun — sambungkan ke API.
-- Autentikasi/otorisasi belum ada — dashboard ini masih 100% publik secara struktur route.
+- Login (`/login`) **sudah** terhubung ke API sungguhan (`POST /auth/login`) dan menjadi gate wajib — lihat `src/lib/auth-context.tsx` dan `DashboardShell`. Halaman lain di atas masih dummy seperti dijelaskan.
 
 ## Struktur Penting
 

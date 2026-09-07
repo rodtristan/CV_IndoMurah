@@ -2,15 +2,17 @@
 
 Aplikasi mobile absensi karyawan untuk bisnis **Toko CV IndoMurah**, dibangun dengan Flutter.
 
-> **Status: Scaffold awal.** Struktur folder, UI, dan model data sudah siap dikembangkan,
-> tetapi **belum terhubung ke backend API sungguhan**. Aksi login dan absen saat ini
-> menggunakan data/logic dummy (placeholder) agar alur UI bisa dicoba end-to-end.
+> **Status.** Login sudah terhubung ke backend sungguhan (`POST /api/v1/auth/login`) dan
+> menjadi satu-satunya pintu masuk ke aplikasi — tanpa token valid, tidak bisa masuk
+> (lihat `_SplashGate` di `main.dart`). Absensi (check-in/out) dan slip gaji (Payroll)
+> masih memakai data/logic dummy karena modulnya belum ada di backend — lihat komentar
+> `TODO` di `check_in_screen.dart`, `history_screen.dart`, dan `payroll_model.dart`.
 
 ## Struktur Folder
 
 ```
 lib/
-├── main.dart                          # Entry point, setup MaterialApp + tema, route awal ke Login
+├── main.dart                          # Entry point + `_SplashGate` (cek token -> MainShell/Login)
 ├── core/
 │   ├── constants/
 │   │   ├── app_colors.dart            # Palet warna aplikasi
@@ -19,18 +21,26 @@ lib/
 │   └── services/
 │       ├── api_service.dart           # Wrapper HTTP client (package `http`) + Bearer token
 │       ├── location_service.dart      # Wrapper `geolocator` untuk ambil GPS
-│       └── auth_storage_service.dart  # Wrapper `flutter_secure_storage` untuk token JWT
+│       └── auth_storage_service.dart  # Wrapper `flutter_secure_storage` untuk token JWT + user
 ├── models/
-│   ├── user_model.dart                # Model data user/karyawan
-│   └── attendance_model.dart          # Model data absensi (checkIn/checkOut, lokasi, status)
+│   ├── user_model.dart                # Model data user/karyawan (field cocok dengan API)
+│   ├── attendance_model.dart          # Model data absensi (checkIn/checkOut, lokasi, status)
+│   └── payroll_model.dart             # Model slip gaji (dummy, belum ada endpoint backend)
 ├── screens/
 │   ├── auth/
-│   │   └── login_screen.dart          # Form login (UI + placeholder logic)
+│   │   └── login_screen.dart          # Form login, terhubung ke POST /auth/login
 │   ├── home/
+│   │   ├── main_shell.dart            # Bottom nav: Beranda/Gaji/Profil/Pengaturan
 │   │   └── home_screen.dart           # Status absen hari ini + tombol Absen Masuk/Keluar
-│   └── attendance/
-│       ├── check_in_screen.dart       # Ambil foto selfie + lokasi GPS sebelum submit absen
-│       └── history_screen.dart        # Daftar riwayat absensi (dummy)
+│   ├── attendance/
+│   │   ├── check_in_screen.dart       # Ambil foto selfie + lokasi GPS sebelum submit absen
+│   │   └── history_screen.dart        # Riwayat absensi + filter hari/minggu/bulan/tahun (dummy)
+│   ├── payroll/
+│   │   └── payroll_screen.dart        # Daftar & detail slip gaji per bulan (dummy)
+│   ├── profile/
+│   │   └── profile_screen.dart        # Info user yang login (dari data login tersimpan)
+│   └── settings/
+│       └── settings_screen.dart       # Toggle notifikasi/dark mode (dummy) + Logout
 └── widgets/
     ├── custom_button.dart             # Tombol reusable dengan state loading
     └── attendance_card.dart           # Kartu untuk menampilkan satu record absensi
@@ -48,21 +58,20 @@ Jalankan `flutter analyze` untuk memastikan tidak ada error kompilasi, dan
 
 ## Konfigurasi Backend
 
-Base URL API diatur di `lib/core/constants/api_endpoints.dart`:
+Base URL API diatur di `lib/core/constants/api_endpoints.dart` lewat
+`String.fromEnvironment('API_BASE_URL', defaultValue: 'http://localhost:5000/api/v1')`
+— defaultnya localhost untuk `flutter run` sehari-hari, di-override saat build
+lewat `--dart-define`, **tanpa perlu ubah kode**:
 
-```dart
-static const String baseUrl = 'http://localhost:5000/api/v1';
-```
-
-Sesuaikan nilai ini dengan environment tempat backend (folder `api`, NestJS, port 5000,
-prefix `/api/v1`) berjalan:
-
-- **Android emulator**: gunakan `http://10.0.2.2:5000/api/v1` (localhost host tidak
-  bisa diakses langsung dari emulator).
-- **iOS simulator**: `http://localhost:5000/api/v1` sudah bisa langsung dipakai.
-- **Perangkat fisik**: gunakan IP LAN mesin development, mis. `http://192.168.x.x:5000/api/v1`.
-- **Production**: ganti dengan URL API yang sudah di-deploy. Sebaiknya gunakan
-  `--dart-define=API_BASE_URL=...` atau build flavors, bukan hardcode.
+- **Android emulator**: `flutter run --dart-define=API_BASE_URL=http://10.0.2.2:5000/api/v1`
+  (localhost host tidak bisa diakses langsung dari emulator).
+- **iOS simulator**: default (`localhost`) sudah bisa langsung dipakai.
+- **Perangkat fisik**: pakai IP LAN mesin development,
+  `flutter run --dart-define=API_BASE_URL=http://192.168.x.x:5000/api/v1`.
+- **Build release (production, Railway)**:
+  `flutter build apk --release --dart-define=API_BASE_URL=https://cvindomurah.up.railway.app/api/v1`
+  — ini persis yang dijalankan otomatis oleh service `mobile-apk-builder` di
+  root `docker-compose.yml` (lihat `API_BASE_URL_RELEASE` di root `.env.example`).
 
 ## Dependency Utama
 

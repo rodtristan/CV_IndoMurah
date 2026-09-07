@@ -91,11 +91,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       log: process.env.NODE_ENV === 'development'
         ? ['error', 'warn']
         : ['error'],
-      // TODO: setelah model User (atau model dengan field password/secret)
-      // ditambahkan ke schema.prisma, tambahkan `omit` di sini agar field
-      // sensitif TIDAK PERNAH ikut ter-return lewat select/include/query polos:
-      //
-      //   omit: { user: { password: true } },
+      // `password` di-omit secara global supaya tidak pernah bocor lewat
+      // select/include/query polos. AuthService.login meng-override ini
+      // secara eksplisit (`omit: { password: false }`) karena login butuh
+      // hash-nya untuk verifikasi.
+      omit: { user: { password: true } },
     });
   }
 

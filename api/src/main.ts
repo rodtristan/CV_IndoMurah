@@ -138,6 +138,10 @@ All GET endpoints support a powerful query syntax via query parameters:
     )
     .setVersion('1.0')
     .addBearerAuth()
+    .addTag('Auth', 'Login, register, profil (JWT)')
+    .addTag('Users', 'Manajemen akun & UserRole (role tambahan per user)')
+    .addTag('Roles', 'Role/jabatan')
+    .addTag('Menus', 'Menu sidebar & kontrol akses (RoleMenu/UserMenu)')
     .addTag('Health', 'Health check endpoint')
     .build();
 

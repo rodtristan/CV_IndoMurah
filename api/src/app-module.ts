@@ -14,12 +14,18 @@
 //      - RedisModule    : koneksi ke cache Redis
 //      - QueryModule    : helper untuk query database yang fleksibel
 //      - HashIdModule   : encode/decode ID di URL (keamanan)
-//      - PassportModule + JwtModule + JwtStrategy : infrastruktur JWT auth,
-//        siap dipakai oleh modul fitur (mis. AuthModule) yang akan ditambahkan
 //
-//  [2] FITUR — Modul bisnis sesuai domain aplikasi (Product, Order, Attendance,
-//      User, dll). BELUM ditambahkan di scaffold ini — tambahkan sesuai
-//      kebutuhan Toko CV IndoMurah.
+//      JWT/Passport TIDAK didaftarkan di sini lagi — AuthModule
+//      sudah membawanya sendiri (PassportModule + JwtModule +
+//      JwtStrategy), jadi tidak perlu didaftarkan dua kali.
+//
+//  [2] FITUR — Modul bisnis sesuai domain aplikasi:
+//      - AuthModule  : login, register, JWT
+//      - UserModule  : data akun + UserRole (role tambahan per user)
+//      - RoleModule  : role/jabatan
+//      - MenuModule  : menu sidebar + RoleMenu/UserMenu (kontrol akses)
+//      Tambahkan modul bisnis lain (Product, Order, Attendance, dll)
+//      sesuai kebutuhan Toko CV IndoMurah.
 //
 //  [3] PROVIDER GLOBAL — Dijalankan untuk setiap request:
 //      - ThrottlerGuard    : cek rate limit
@@ -28,11 +34,9 @@
 // ================================================================
 
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
-import { PassportModule } from '@nestjs/passport';
-import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 
 // Configs — membaca semua konfigurasi dari .env
 import { appConfig, databaseConfig, jwtConfig, redisConfig, securityConfig } from './config';
@@ -42,9 +46,12 @@ import { PrismaModule } from './common/prisma/prisma-module';
 import { RedisModule } from './common/redis/redis-module';
 import { QueryModule } from './common/query/query-module';
 import { HashIdModule } from './common/utils/hash-id-module';
-import { JwtStrategy } from './common/strategies/jwt-strategy';
 
 // ── Fitur ──────────────────────────────────────────────────────────────
+import { AuthModule } from './modules/auth/auth-module';
+import { UserModule } from './modules/user/user-module';
+import { RoleModule } from './modules/role/role-module';
+import { MenuModule } from './modules/menu/menu-module';
 import { HealthModule } from './modules/health/health-module';
 
 // ── Provider Global ────────────────────────────────────────────────────
@@ -64,6 +71,7 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     //   short : maks 10 request per detik
     //   medium: maks 50 request per 10 detik
     //   long  : maks 200 request per menit
+    // (AuthController login/register punya limit lebih ketat sendiri)
     ThrottlerModule.forRoot([
       { name: 'short',  ttl: 1000,  limit: 10  },
       { name: 'medium', ttl: 10000, limit: 50  },
@@ -76,26 +84,15 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     QueryModule,    // Smart query builder ($select, $where, $orderBy, dll)
     HashIdModule,   // Obfuscate integer ID di URL
 
-    // ── [4] Infrastruktur JWT Auth ─────────────────────────────────────
-    // Siap dipakai modul fitur (mis. AuthModule) via @UseGuards(JwtAuthGuard)
-    PassportModule.register({ defaultStrategy: 'jwt' }),
-    JwtModule.registerAsync({
-      inject: [ConfigService],
-      useFactory: async (config: ConfigService): Promise<JwtModuleOptions> => ({
-        secret: config.get<string>('JWT_SECRET') || config.get<string>('jwt.secret') || 'fallback-secret',
-        signOptions: {
-          expiresIn: config.get<string>('JWT_EXPIRES_IN') || config.get<string>('jwt.expiresIn') || '8h',
-        } as any,
-      }),
-    }),
-
-    // ── [5] Modul Fitur ───────────────────────────────────────────────
+    // ── [4] Modul Fitur ───────────────────────────────────────────────
+    AuthModule,     // Login, register, JWT
+    UserModule,     // Data akun + UserRole
+    RoleModule,     // Role/jabatan
+    MenuModule,     // Menu sidebar + RoleMenu/UserMenu
     HealthModule,   // Health check endpoint (untuk Docker/monitoring)
   ],
   providers: [
-    JwtStrategy,
-
-    // ── [6] Guard & Interceptor Global ───────────────────────────────
+    // ── [5] Guard & Interceptor Global ───────────────────────────────
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard, // Cek rate limit sebelum request masuk

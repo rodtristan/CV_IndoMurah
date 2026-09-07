@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Public_Sans } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { AuthProvider } from "@/lib/auth-context";
 import { DashboardProvider } from "@/lib/dashboard-context";
 import { ToastProvider } from "@/lib/toast-context";
 import { DashboardShell } from "@/components/layout/DashboardShell";
@@ -34,11 +35,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={`${publicSans.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="h-full font-sans">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <ToastProvider>
-            <DashboardProvider>
-              <DashboardShell>{children}</DashboardShell>
-            </DashboardProvider>
-          </ToastProvider>
+          <AuthProvider>
+            <ToastProvider>
+              <DashboardProvider>
+                <DashboardShell>{children}</DashboardShell>
+              </DashboardProvider>
+            </ToastProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -1,8 +1,8 @@
 // ============================================================
 // Toko CV IndoMurah — Prisma Schema
 // ============================================================
-// Skema ini baru berisi infrastruktur dasar (audit log).
-// Tambahkan model bisnis (User, Product, Order, Attendance, dll)
+// Auth & akses (User, Role, Menu) sudah tersedia di bawah.
+// Tambahkan model bisnis lain (Product, Order, Attendance, dll)
 // sesuai kebutuhan modul yang akan dikembangkan.
 // ============================================================
 
@@ -36,4 +36,121 @@ model Log {
   createdAt            DateTime  @default(now())
 
   @@map("logs")
+}
+
+// ─── User ───────────────────────────────────────────────────
+// Akun login. main_role_id = role utama (dipakai untuk menu/akses
+// default). UserRole memungkinkan user punya role tambahan.
+
+model User {
+  id            Int       @id @default(autoincrement())
+  full_name     String
+  email         String    @unique
+  password      String?
+  phone_number  String?
+  photo_url     String?
+  main_role_id  Int?
+  last_login    DateTime?
+  is_active     Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  role          Role?      @relation("UserMainRole", fields: [main_role_id], references: [id])
+  userRoles     UserRole[]
+  userMenus     UserMenu[]
+
+  @@map("users")
+}
+
+// ─── Role ───────────────────────────────────────────────────
+
+model Role {
+  id                Int       @id @default(autoincrement())
+  role_name         String
+  role_description  String?
+  is_active         Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  users             User[]      @relation("UserMainRole")
+  userRoles         UserRole[]
+  roleMenus         RoleMenu[]
+
+  @@map("roles")
+}
+
+// ─── Menu ───────────────────────────────────────────────────
+// Item sidebar/menu dashboard. Tree via parent_menu_id.
+// Akses menu ditentukan oleh RoleMenu (default per role) dan
+// UserMenu (override per user, prioritas lebih tinggi).
+
+model Menu {
+  id             Int       @id @default(autoincrement())
+  menu_name      String
+  menu_type      String?
+  parent_menu_id Int?
+  is_active      Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  parentMenu     Menu?      @relation("MenuParent", fields: [parent_menu_id], references: [id])
+  childMenus     Menu[]     @relation("MenuParent")
+  userMenus      UserMenu[]
+  roleMenus      RoleMenu[]
+
+  @@map("menus")
+}
+
+// ─── Junction: UserRole ─────────────────────────────────────
+// Role tambahan di luar main_role_id milik User.
+
+model UserRole {
+  id        Int       @id @default(autoincrement())
+  user_id   Int
+  role_id   Int
+  is_active Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user      User      @relation(fields: [user_id], references: [id])
+  role      Role      @relation(fields: [role_id], references: [id])
+
+  @@unique([user_id, role_id])
+  @@map("user_roles")
+}
+
+// ─── Junction: RoleMenu ─────────────────────────────────────
+// Menu default yang bisa diakses semua user dengan role tersebut.
+
+model RoleMenu {
+  id        Int       @id @default(autoincrement())
+  role_id   Int
+  menu_id   Int
+  is_active Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  role      Role      @relation(fields: [role_id], references: [id])
+  menu      Menu      @relation(fields: [menu_id], references: [id])
+
+  @@unique([role_id, menu_id])
+  @@map("role_menus")
+}
+
+// ─── Junction: UserMenu ─────────────────────────────────────
+// Override akses menu per user (prioritas lebih tinggi dari RoleMenu).
+
+model UserMenu {
+  id        Int       @id @default(autoincrement())
+  user_id   Int
+  menu_id   Int
+  is_active Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user      User      @relation(fields: [user_id], references: [id])
+  menu      Menu      @relation(fields: [menu_id], references: [id])
+
+  @@unique([user_id, menu_id])
+  @@map("user_menus")
 }

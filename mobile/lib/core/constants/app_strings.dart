@@ -35,4 +35,34 @@ class AppStrings {
   // History
   static const String history = 'Riwayat Absensi';
   static const String noHistory = 'Belum ada riwayat absensi.';
+  static const String filterDay = 'Hari';
+  static const String filterWeek = 'Minggu';
+  static const String filterMonth = 'Bulan';
+  static const String filterYear = 'Tahun';
+
+  // Bottom navigation
+  static const String payroll = 'Gaji';
+  static const String profile = 'Profil';
+  static const String settings = 'Pengaturan';
+
+  // Payroll
+  static const String payrollTitle = 'Slip Gaji';
+  static const String baseSalary = 'Gaji Pokok';
+  static const String allowance = 'Tunjangan';
+  static const String deduction = 'Potongan';
+  static const String netSalary = 'Total Diterima';
+  static const String payrollPaid = 'Sudah Dibayar';
+  static const String payrollPending = 'Belum Dibayar';
+
+  // Settings
+  static const String notifications = 'Notifikasi';
+  static const String darkMode = 'Mode Gelap';
+  static const String appVersion = 'Versi Aplikasi';
+  static const String logout = 'Keluar';
+  static const String logoutConfirmTitle = 'Keluar dari akun?';
+  static const String logoutConfirmMessage = 'Kamu harus login kembali untuk mengakses aplikasi ini.';
+  static const String cancel = 'Batal';
+
+  // Generic errors
+  static const String connectionError = 'Tidak bisa terhubung ke server. Periksa koneksi internet Anda.';
 }

@@ -1,0 +1,27 @@
+# Railway deploy config for this service.
+# In the Railway dashboard: create the service with "Root Directory" set
+# to `api` (this is a monorepo) — Railway then picks up this file and the
+# Dockerfile automatically.
+#
+# Required environment variables to set on the Railway service (see
+# .env.example in this folder for the full list):
+#   DATABASE_URL   — the Postgres connection string (Railway Postgres
+#                    plugin sets this automatically if you attach one;
+#                    otherwise set it manually)
+#   JWT_SECRET, AUTH_SECRET_KEY, HASH_ID_SALT — long random strings
+#   CORS_ORIGIN    — https://cvindomurah.vercel.app (the dashboard's
+#                    production URL; comma-separate if there's more than one)
+#   NODE_ENV       — production
+#
+# Migrations run automatically on every deploy/restart — see the
+# Dockerfile's CMD (`prisma migrate deploy && node dist/main`).
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/api/v1/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

@@ -55,4 +55,9 @@ EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
   CMD wget -qO- http://127.0.0.1:5000/api/v1/health || exit 1
 
-CMD ["node", "dist/main"]
+# Apply any pending migrations before starting the server. `migrate deploy`
+# only applies migrations already committed under prisma/migrations — it
+# never generates new ones from a schema diff — and is idempotent (skips
+# migrations already recorded as applied), so it's safe to run on every
+# boot/restart (Railway, docker-compose, etc).
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]

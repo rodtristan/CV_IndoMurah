@@ -1,6 +1,7 @@
 "use client";
 
 import { useTheme } from "next-themes";
+import { useRouter } from "next/navigation";
 import {
   BookOpen,
   ChevronsUpDown,
@@ -17,20 +18,22 @@ import {
 import { Dropdown, type DropdownItem } from "@/components/ui/Dropdown";
 import { Avatar } from "@/components/ui/Avatar";
 import { cn } from "@/lib/utils";
-
-const user = {
-  name: "Benjamin Canac",
-  avatar: {
-    src: "https://github.com/benjamincanac.png",
-    alt: "Benjamin Canac",
-  },
-};
+import { useAuth } from "@/lib/auth-context";
 
 export function UserMenu({ collapsed }: { collapsed?: boolean }) {
   const { theme, setTheme } = useTheme();
+  const { user, logout } = useAuth();
+  const router = useRouter();
+
+  const displayName = user?.full_name ?? "Pengguna";
+
+  function handleLogout() {
+    logout();
+    router.replace("/login");
+  }
 
   const sections: DropdownItem[][] = [
-    [{ type: "label", label: user.name }],
+    [{ type: "label", label: displayName }],
     [
       { label: "Profile", icon: User },
       { label: "Billing", icon: CreditCard },
@@ -65,7 +68,7 @@ export function UserMenu({ collapsed }: { collapsed?: boolean }) {
       { label: "GitHub repository", icon: Code2, href: "https://github.com/nuxt-ui-templates/dashboard", target: "_blank" },
       { label: "Templates", icon: LayoutTemplate, href: "https://dashboard-template.nuxt.dev/", target: "_blank" },
     ],
-    [{ label: "Log out", icon: LogOut }],
+    [{ label: "Log out", icon: LogOut, color: "error", onSelect: handleLogout }],
   ];
 
   return (
@@ -77,10 +80,10 @@ export function UserMenu({ collapsed }: { collapsed?: boolean }) {
           collapsed ? "justify-center p-1.5" : "px-2.5",
         )}
       >
-        <Avatar src={user.avatar.src} alt={user.avatar.alt} size="sm" />
+        <Avatar src={user?.photo_url ?? undefined} alt={displayName} size="sm" />
         {!collapsed && (
           <>
-            <span className="flex-1 truncate text-highlighted">{user.name}</span>
+            <span className="flex-1 truncate text-highlighted">{displayName}</span>
             <ChevronsUpDown className="size-4 shrink-0 text-dimmed" />
           </>
         )}

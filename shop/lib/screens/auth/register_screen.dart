@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import '../../core/constants/api_endpoints.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
+import '../../core/services/api_service.dart';
 import '../../widgets/custom_button.dart';
 
-/// UI registrasi akun baru. Belum terhubung ke `ApiEndpoints.register`.
+/// UI registrasi akun baru, wired ke `POST /auth/register`.
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -32,15 +34,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
-    // TODO: panggil ApiService.instance.post(ApiEndpoints.register, {...})
-    await Future.delayed(const Duration(milliseconds: 600));
-    setState(() => _isLoading = false);
 
-    if (!mounted) return;
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Registrasi berhasil, silakan login')),
-    );
+    try {
+      await ApiService.instance.post(
+        ApiEndpoints.register,
+        {
+          'full_name': _nameController.text.trim(),
+          'email': _emailController.text.trim(),
+          'phone_number': _phoneController.text.trim(),
+          'password': _passwordController.text,
+        },
+        withAuth: false,
+      );
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Registrasi berhasil, silakan login')),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message), backgroundColor: AppColors.error),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tidak bisa terhubung ke server.')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override

@@ -31,17 +31,22 @@ flutter pub get
 flutter run
 ```
 
-Base URL API ada di `lib/core/constants/api_endpoints.dart` (default `http://localhost:5000/api/v1`, sesuaikan host untuk emulator Android: `10.0.2.2`, atau domain production).
+Base URL API ada di `lib/core/constants/api_endpoints.dart`, lewat
+`String.fromEnvironment('API_BASE_URL', defaultValue: 'http://localhost:5000/api/v1')`
+— override saat build tanpa ubah kode:
+
+- Emulator Android: `flutter run --dart-define=API_BASE_URL=http://10.0.2.2:5000/api/v1`
+- Build release (production, Railway): `flutter build apk --release --dart-define=API_BASE_URL=https://cvindomurah.up.railway.app/api/v1`
+  (persis yang dijalankan otomatis oleh service `shop-apk-builder` di root `docker-compose.yml`)
 
 ## Status scaffold
 
-Semua layar sudah jadi dengan **data dummy** dan alur UI lengkap (login → beranda → katalog → detail produk → keranjang → checkout → riwayat pesanan → profil/logout). State keranjang sudah berfungsi penuh secara lokal (belum sinkron ke server).
+Login/register **sudah** terhubung ke backend sungguhan (`POST /auth/login`, `POST /auth/register`) dan menjadi gate wajib masuk app (`_SplashGate` di `main.dart`) — tidak ada jalur tanpa login. Katalog/keranjang/checkout/riwayat pesanan masih **data dummy**. State keranjang sudah berfungsi penuh secara lokal (belum sinkron ke server).
 
 ## Langkah lanjutan (butuh endpoint di `api/`)
 
-1. Tambahkan model `Product`, `Category`, `Order`, `User` (dan endpoint auth login/register) di `prisma/schema.prisma` + modul NestJS terkait.
+1. Tambahkan model `Product`, `Category`, `Order` di `prisma/schema.prisma` + modul NestJS terkait.
 2. Ganti data dummy di `home_screen.dart`, `product_list_screen.dart`, `order_history_screen.dart` dengan pemanggilan `ApiService.instance.get(...)`.
-3. Hubungkan `login_screen.dart` / `register_screen.dart` ke `ApiEndpoints.login` / `.register`, simpan token via `AuthStorageService`.
-4. Sinkronkan `CartProvider` ke `ApiEndpoints.cart` (opsional — bisa tetap lokal untuk guest cart sebelum checkout).
-5. Integrasikan payment gateway (mis. Midtrans/Xendit) di `checkout_screen.dart`.
-6. Tambahkan wishlist, alamat tersimpan, dan notifikasi jika dibutuhkan (placeholder tombolnya sudah ada di `profile_screen.dart`).
+3. Sinkronkan `CartProvider` ke `ApiEndpoints.cart` (opsional — bisa tetap lokal untuk guest cart sebelum checkout).
+4. Integrasikan payment gateway (mis. Midtrans/Xendit) di `checkout_screen.dart`.
+5. Tambahkan wishlist, alamat tersimpan, dan notifikasi jika dibutuhkan (placeholder tombolnya sudah ada di `profile_screen.dart`).
