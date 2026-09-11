@@ -1,10 +1,5 @@
-import type { Metadata } from "next";
-import { HomeView } from "@/components/home/HomeView";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "Home",
-};
-
-export default function HomePage() {
-  return <HomeView />;
+export default function RootPage() {
+  redirect("/dashboard");
 }
