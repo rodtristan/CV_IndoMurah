@@ -5,21 +5,21 @@ import {
   DollarSign,
   Package,
   TrendingUp,
-  ArrowUpRight,
-  ArrowDownRight,
-  ArrowRight,
-  AlertTriangle,
+  TrendingDown,
+  Users,
+  ArrowUp,
+  ArrowDown,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { StatCard } from "@/components/pos/ui/StatCard";
 import { Button } from "@/components/ui/Button";
 import { PageTitle } from "@/components/pos/layout/PosLayout";
 import { PageWrapper } from "@/components/pos/layout/PosLayout";
 import {
   mockDashboardSummary,
   mockRecentTransactions,
-  mockSalesChartData,
   mockProducts,
 } from "@/lib/mock-data-pos";
 
@@ -33,206 +33,310 @@ const formatIDR = (amount: number) => {
   }).format(amount);
 };
 
+// Mock data for charts
+const monthlySales = [
+  { month: "Jan", sales: 45000000, profit: 12000000 },
+  { month: "Feb", sales: 52000000, profit: 14500000 },
+  { month: "Mar", sales: 48000000, profit: 13000000 },
+  { month: "Apr", sales: 61000000, profit: 17000000 },
+  { month: "Mei", sales: 55000000, profit: 15000000 },
+  { month: "Jun", sales: 67000000, profit: 18500000 },
+];
+
+const bestSellers = [
+  { name: "Mie Instan", sold: 1250, revenue: 18750000, percent: 35 },
+  { name: "Kopi Sachet", sold: 980, revenue: 9800000, percent: 25 },
+  { name: "Sabun Mandi", sold: 750, revenue: 11250000, percent: 20 },
+  { name: "Shampo", sold: 520, revenue: 7800000, percent: 12 },
+  { name: "Minuman Kaleng", sold: 380, revenue: 3800000, percent: 8 },
+];
+
+const branchSales = [
+  { branch: "Cabang Bandung", sales: 125000000, target: 100000000 },
+  { branch: "Cabang Jakarta", sales: 98000000, target: 120000000 },
+  { branch: "Cabang Surabaya", sales: 87000000, target: 80000000 },
+  { branch: "Cabang Medan", sales: 65000000, target: 75000000 },
+];
+
 export default function POSDashboardPage() {
-  const { todaySales, inventory, receivables } = mockDashboardSummary;
-  const lowStockItems = mockProducts.filter((p) => p.stock <= p.minStock).slice(0, 5);
+  const { todaySales, inventory, receivables, todayPurchases } = mockDashboardSummary;
+
+  // 7-day sales data for the bar chart
+  const weeklySales = [
+    { day: "Sen", sales: 1250000 },
+    { day: "Sel", sales: 980000 },
+    { day: "Rab", sales: 1560000 },
+    { day: "Kam", sales: 1100000 },
+    { day: "Jum", sales: 1890000 },
+    { day: "Sab", sales: 2450000 },
+    { day: "Min", sales: 875000 },
+  ];
+
+  const maxWeeklySales = Math.max(...weeklySales.map(d => d.sales));
 
   return (
-    <PageWrapper>
-      <PageTitle
-        title="Dashboard"
-        subtitle="Selamat datang di sistem POS"
-      />
+    <PageWrapper className="bg-gray-100">
+      {/* Stats Grid - Top Row (Matching Original ketoko) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        {/* Penjualan Hari Ini */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-medium text-gray-600">Penjualan Hari Ini</span>
+            <div className="p-2 bg-[#9C27B0]/10 rounded-lg">
+              <DollarSign className="size-5 text-[#9C27B0]" />
+            </div>
+          </div>
+          <div className="text-lg font-bold text-gray-900 mb-1">{todaySales.count} Transaksi</div>
+          <div className="text-xl font-bold text-[#9C27B0]">{formatIDR(todaySales.total)}</div>
+        </div>
 
-      {/* Stats Grid */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Penjualan Hari Ini"
-          value={formatIDR(todaySales.total)}
-          icon={<DollarSign className="size-5" />}
-          trend={{ value: 12.5, label: "vs yesterday" }}
-        />
-        <StatCard
-          title="Transaksi Hari Ini"
-          value={todaySales.count.toString()}
-          icon={<ShoppingCart className="size-5" />}
-          trend={{ value: 8.2, label: "vs yesterday" }}
-        />
-        <StatCard
-          title="Total Items"
-          value={inventory.totalItems.toString()}
-          icon={<Package className="size-5" />}
-        />
-        <StatCard
-          title="Piutang"
-          value={formatIDR(receivables.total)}
-          icon={<TrendingUp className="size-5" />}
-          trend={{ value: -3.1, label: "vs last week" }}
-        />
+        {/* Pembelian Hari Ini */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-medium text-gray-600">Pembelian Hari Ini</span>
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <ShoppingCart className="size-5 text-orange-600" />
+            </div>
+          </div>
+          <div className="text-lg font-bold text-gray-900 mb-1">{todayPurchases.count} Transaksi</div>
+          <div className="text-xl font-bold text-orange-600">{formatIDR(todayPurchases.total)}</div>
+        </div>
+
+        {/* Total Item */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-medium text-gray-600">Total Item</span>
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Package className="size-5 text-blue-600" />
+            </div>
+          </div>
+          <div className="text-2xl font-bold text-gray-900">{inventory.totalItems}</div>
+          <div className="text-xs text-gray-500 mt-1">Items</div>
+        </div>
+
+        {/* Item Minim Stock */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-medium text-gray-600">Item Minim Stock</span>
+            <div className="p-2 bg-red-100 rounded-lg">
+              <TrendingDown className="size-5 text-red-600" />
+            </div>
+          </div>
+          <div className="text-2xl font-bold text-red-600">{inventory.lowStockCount}</div>
+          <div className="text-xs text-gray-500 mt-1">Items</div>
+        </div>
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Sales Chart */}
-        <div className="lg:col-span-2 rounded-lg border border-default bg-bg p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-highlighted">Grafik Penjualan</h2>
-            <div className="flex items-center gap-4 text-sm">
-              <div className="flex items-center gap-2">
-                <div className="size-3 rounded-full bg-primary" />
-                <span className="text-muted">Penjualan</span>
+      {/* Charts Row (Matching Original ketoko) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Grafik Penjualan 7 Hari Terakhir */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="px-4 py-3 border-b border-gray-100">
+            <h3 className="font-semibold text-gray-900">Grafik Penjualan 7 Hari Terakhir</h3>
+          </div>
+          <div className="p-4">
+            {/* Bar Chart */}
+            <div className="relative h-48 flex items-end justify-around gap-2 px-2">
+              {/* Y-axis labels */}
+              <div className="absolute left-0 top-0 bottom-6 flex flex-col justify-between text-xs text-gray-400">
+                <span>{formatIDR(maxWeeklySales)}</span>
+                <span>{formatIDR(maxWeeklySales * 0.5)}</span>
+                <span>0</span>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="size-3 rounded-full bg-success" />
-                <span className="text-muted">Profit</span>
+
+              {/* Grid lines */}
+              <div className="absolute left-10 right-2 top-0 bottom-6 flex flex-col justify-between">
+                <div className="border-b border-gray-200 w-full"></div>
+                <div className="border-b border-gray-200 w-full"></div>
+                <div className="border-b border-gray-300 w-full"></div>
+              </div>
+
+              {/* Bars */}
+              <div className="flex-1 flex items-end justify-around h-full pb-6 ml-12 gap-2">
+                {weeklySales.map((data, idx) => {
+                  const height = (data.sales / maxWeeklySales) * 100;
+                  return (
+                    <div key={idx} className="flex flex-col items-center gap-1 group flex-1">
+                      <div
+                        className="w-full bg-[#9C27B0] rounded-t transition-all hover:bg-[#7B1FA2] cursor-pointer relative max-w-12"
+                        style={{ height: `${height}%` }}
+                      >
+                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10">
+                          {formatIDR(data.sales)}
+                        </div>
+                      </div>
+                      <span className="text-xs text-gray-500">{data.day}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="h-64">
-            <div className="flex h-full items-end justify-between gap-2">
-              {mockSalesChartData.map((data, index) => {
-                const maxSales = Math.max(...mockSalesChartData.map((d) => d.sales));
-                const height = (data.sales / maxSales) * 100;
-                return (
-                  <div key={index} className="group relative flex flex-1 flex-col items-center">
-                    <div
-                      className="w-full rounded-t bg-primary/20 transition-all hover:bg-primary/30"
-                      style={{ height: `${height}%` }}
-                    >
-                      <div className="absolute bottom-full left-1/2 mb-2 -translate-x-1/2 rounded bg-inverted px-2 py-1 text-xs text-inverted-text opacity-0 shadow transition-opacity group-hover:opacity-100">
-                        {formatIDR(data.sales)}
+        {/* Omzet Penjualan Perbulan */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="px-4 py-3 border-b border-gray-100">
+            <h3 className="font-semibold text-gray-900">Omzet Penjualan Perbulan</h3>
+          </div>
+          <div className="p-4">
+            {/* Bar Chart - Side by Side */}
+            <div className="relative h-48 flex items-end justify-between gap-1 px-2">
+              {/* Y-axis labels */}
+              <div className="absolute left-0 top-0 bottom-6 flex flex-col justify-between text-xs text-gray-400">
+                <span>80M</span>
+                <span>60M</span>
+                <span>40M</span>
+                <span>20M</span>
+                <span>0</span>
+              </div>
+
+              {/* Grid lines */}
+              <div className="absolute left-10 right-2 top-0 bottom-6 flex flex-col justify-between">
+                <div className="border-b border-gray-200 w-full"></div>
+                <div className="border-b border-gray-200 w-full"></div>
+                <div className="border-b border-gray-200 w-full"></div>
+                <div className="border-b border-gray-200 w-full"></div>
+                <div className="border-b border-gray-300 w-full"></div>
+              </div>
+
+              {/* Bars Container */}
+              <div className="flex-1 flex items-end justify-around h-full pb-6 ml-12 gap-1">
+                {monthlySales.map((data, idx) => {
+                  const salesHeight = (data.sales / 80000000) * 100;
+                  return (
+                    <div key={idx} className="flex items-end gap-0.5 group flex-1">
+                      <div
+                        className="w-4 bg-[#7B1FA2] rounded-t transition-all hover:bg-[#6A1B9A] cursor-pointer relative mx-auto"
+                        style={{ height: `${Math.min(salesHeight, 100)}%` }}
+                      >
+                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10">
+                          {formatIDR(data.sales)}
+                        </div>
                       </div>
                     </div>
-                    <div className="mt-2 text-xs text-muted">{data.date.split("-")[2]}</div>
+                  );
+                })}
+              </div>
+
+              {/* X-axis labels */}
+              <div className="absolute bottom-0 left-12 right-2 flex justify-around">
+                {monthlySales.map((data, idx) => (
+                  <span key={idx} className="text-xs text-gray-500 font-medium text-center">
+                    {data.month}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Row - Best Selling & Quick Actions */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+        {/* Best Selling Item */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="px-4 py-3 border-b border-gray-100">
+            <h3 className="font-semibold text-gray-900">Best Selling Item</h3>
+          </div>
+          <div className="p-4">
+            {/* Pie Chart Visual */}
+            <div className="flex items-center justify-center mb-4">
+              <div className="relative w-32 h-32">
+                <svg viewBox="0 0 100 100" className="transform -rotate-90">
+                  {(() => {
+                    let cumulative = 0;
+                    return bestSellers.map((item, idx) => {
+                      const dashArray = item.percent;
+                      const dashOffset = 100 - cumulative;
+                      cumulative += item.percent;
+                      const colors = ["bg-[#9C27B0]", "bg-purple-400", "bg-purple-300", "bg-purple-200", "bg-purple-100"];
+                      return (
+                        <circle
+                          key={idx}
+                          cx="50"
+                          cy="50"
+                          r="40"
+                          fill="none"
+                          strokeWidth="20"
+                          strokeDasharray={`${dashArray} ${100 - dashArray}`}
+                          strokeDashoffset={dashOffset}
+                          className={colors[idx]}
+                        />
+                      );
+                    });
+                  })()}
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-xs text-gray-500">Terjual</span>
+                </div>
+              </div>
+            </div>
+            {/* Legend */}
+            <div className="space-y-2">
+              {bestSellers.map((item, idx) => (
+                <div key={idx} className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <div className={cn("w-2 h-2 rounded-full", ["bg-[#9C27B0]", "bg-purple-400", "bg-purple-300", "bg-purple-200", "bg-purple-100"][idx])}></div>
+                    <span className="text-gray-700">{item.name}</span>
                   </div>
-                );
-              })}
+                  <span className="text-gray-500">{item.percent}%</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
 
         {/* Quick Actions */}
-        <div className="rounded-lg border border-default bg-bg p-6">
-          <h2 className="mb-4 text-lg font-semibold text-highlighted">Aksi Cepat</h2>
-          <div className="space-y-3">
-            <Link href="/sale/pos" className="block">
-              <div className="flex items-center justify-between rounded-lg bg-primary/10 p-4 text-primary transition-all hover:bg-primary/20">
-                <div className="flex items-center gap-3">
-                  <ShoppingCart className="size-6" />
-                  <div>
-                    <div className="font-medium">Kasir POS</div>
-                    <div className="text-sm text-primary/70">Mulai transaksi baru</div>
-                  </div>
-                </div>
-                <ArrowRight className="size-5" />
-              </div>
-            </Link>
-
-            <Link href="/purchase/list/new" className="block">
-              <div className="flex items-center justify-between rounded-lg bg-elevated p-4 text-toned transition-all hover:bg-default">
-                <div className="flex items-center gap-3">
-                  <DollarSign className="size-6" />
-                  <div>
-                    <div className="font-medium">Pembelian Baru</div>
-                    <div className="text-sm text-muted">Catat pembelian</div>
-                  </div>
-                </div>
-                <ArrowRight className="size-5" />
-              </div>
-            </Link>
-
-            <Link href="/inventory/stock-in" className="block">
-              <div className="flex items-center justify-between rounded-lg bg-elevated p-4 text-toned transition-all hover:bg-default">
-                <div className="flex items-center gap-3">
-                  <Package className="size-6" />
-                  <div>
-                    <div className="font-medium">Item Masuk</div>
-                    <div className="text-sm text-muted">Terima barang</div>
-                  </div>
-                </div>
-                <ArrowRight className="size-5" />
-              </div>
-            </Link>
+        <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="px-4 py-3 border-b border-gray-100">
+            <h3 className="font-semibold text-gray-900">Aksi Cepat</h3>
           </div>
-        </div>
-      </div>
-
-      {/* Bottom Section */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        {/* Recent Transactions */}
-        <div className="rounded-lg border border-default bg-bg">
-          <div className="flex items-center justify-between border-b border-default px-6 py-4">
-            <h2 className="text-lg font-semibold text-highlighted">Transaksi Terakhir</h2>
-            <Link href="/sale/list">
-              <Button variant="ghost" size="sm">Lihat Semua</Button>
-            </Link>
-          </div>
-          <div className="divide-y divide-default">
-            {mockRecentTransactions.map((trx) => (
-              <div key={trx.id} className="flex items-center justify-between px-6 py-4">
-                <div className="flex items-center gap-4">
-                  <div className={cn(
-                    "flex size-10 items-center justify-center rounded-full",
-                    trx.type === "sale" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
-                  )}>
-                    {trx.type === "sale" ? <ArrowUpRight className="size-5" /> : <ArrowDownRight className="size-5" />}
-                  </div>
-                  <div>
-                    <div className="font-medium text-highlighted">{trx.code}</div>
-                    <div className="text-sm text-muted">{trx.date}</div>
-                  </div>
+          <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Link href="/sale/pos">
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-[#9C27B0]/10 hover:bg-[#9C27B0]/20 transition-colors cursor-pointer">
+                <div className="p-2 bg-[#9C27B0]/20 rounded-lg">
+                  <ShoppingCart className="size-5 text-[#9C27B0]" />
                 </div>
-                <div className="text-right">
-                  <div className="font-medium text-highlighted">{formatIDR(trx.total)}</div>
-                  <div className={cn(
-                    "text-sm",
-                    trx.status === "paid" ? "text-success" : trx.status === "partial" ? "text-warning" : "text-muted"
-                  )}>
-                    {trx.status === "paid" ? "Lunas" : trx.status === "partial" ? "Sebagian" : "Tertunda"}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Low Stock Alert */}
-        <div className="rounded-lg border border-default bg-bg">
-          <div className="flex items-center justify-between border-b border-default px-6 py-4">
-            <h2 className="text-lg font-semibold text-highlighted">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="size-5 text-warning" />
-                Stok Rendah
-              </div>
-            </h2>
-            <Link href="/inventory/minimum-stock">
-              <Button variant="ghost" size="sm">Lihat Semua</Button>
-            </Link>
-          </div>
-          <div className="divide-y divide-default">
-            {lowStockItems.map((item) => (
-              <div key={item.id} className="flex items-center justify-between px-6 py-4">
                 <div>
-                  <div className="font-medium text-highlighted">{item.name}</div>
-                  <div className="text-sm text-muted">{item.code} • {item.categoryName}</div>
-                </div>
-                <div className="text-right">
-                  <div className={cn(
-                    "font-medium",
-                    item.stock === 0 ? "text-error" : "text-warning"
-                  )}>
-                    {item.stock} {item.unitName}
-                  </div>
-                  <div className="text-sm text-muted">Min: {item.minStock}</div>
+                  <div className="text-sm font-semibold text-gray-900">Kasir POS</div>
+                  <div className="text-xs text-gray-500">Transaksi baru</div>
                 </div>
               </div>
-            ))}
-            {lowStockItems.length === 0 && (
-              <div className="px-6 py-8 text-center text-muted">
-                Semua item memiliki stok yang cukup
+            </Link>
+            <Link href="/purchase/list">
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-orange-50 hover:bg-orange-100 transition-colors cursor-pointer">
+                <div className="p-2 bg-orange-100 rounded-lg">
+                  <DollarSign className="size-5 text-orange-600" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">Pembelian Baru</div>
+                  <div className="text-xs text-gray-500">Catat pembelian</div>
+                </div>
               </div>
-            )}
+            </Link>
+            <Link href="/inventory/stock-in">
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors cursor-pointer">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Package className="size-5 text-blue-600" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">Item Masuk</div>
+                  <div className="text-xs text-gray-500">Terima barang</div>
+                </div>
+              </div>
+            </Link>
+            <Link href="/master/items">
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-green-50 hover:bg-green-100 transition-colors cursor-pointer">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <Package className="size-5 text-green-600" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">Data Item</div>
+                  <div className="text-xs text-gray-500">Kelola barang</div>
+                </div>
+              </div>
+            </Link>
           </div>
         </div>
       </div>

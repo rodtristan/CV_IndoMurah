@@ -11,19 +11,19 @@ interface PosLayoutProps {
   subtitle?: string;
 }
 
-export function PosLayout({ children, title, subtitle }: PosLayoutProps) {
+export function PosLayout({ children }: PosLayoutProps) {
   return (
-    <div className="flex h-dvh overflow-hidden bg-bg">
+    <div className="flex h-dvh overflow-hidden bg-gray-50">
       {/* Sidebar */}
       <PosSidebar />
 
       {/* Main Content Area */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Header */}
-        <PosHeader title={title} subtitle={subtitle} />
+        <PosHeader />
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto scrollbar-thin">
+        <main className="flex-1 overflow-y-auto scrollbar-thin bg-gray-50">
           {children}
         </main>
       </div>
@@ -57,8 +57,8 @@ export function PageTitle({ title, subtitle, actions, className }: PageTitleProp
   return (
     <div className={cn("mb-6 flex items-center justify-between", className)}>
       <div>
-        <h1 className="text-xl font-semibold text-highlighted">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
+        <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
+        {subtitle && <p className="mt-1 text-sm text-gray-500">{subtitle}</p>}
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
     </div>

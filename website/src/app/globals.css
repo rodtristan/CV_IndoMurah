@@ -1,12 +1,11 @@
 @import "tailwindcss";
 
-/* Enable class-based dark mode (driven by next-themes adding `.dark` to <html>) */
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   --font-sans: var(--font-poppins), "Poppins", sans-serif;
 
-  /* Brand purple scale - Dark Purple Gradient theme */
+  /* Brand purple scale - Dark Purple theme (matching original POS) */
   --color-purple-50: #faf5ff;
   --color-purple-100: #f3e8ff;
   --color-purple-200: #e9d5ff;
@@ -19,8 +18,8 @@
   --color-purple-900: #581c87;
   --color-purple-950: #3b0764;
 
-  /* Semantic tokens - Dark Purple as primary */
-  --color-primary: var(--color-purple-800);
+  /* Semantic tokens - Purple as primary (matching original POS - #9C27B0) */
+  --color-primary: #9C27B0;
 
   --color-success: #22c55e;
   --color-error: #ef4444;
@@ -30,83 +29,77 @@
   /* Background colors - White base */
   --color-bg: #ffffff;
   --color-elevated: #f8fafc;
-  --color-inverted: #1e1b4b;
+  --color-inverted: #3b0764;
   --color-inverted-text: #ffffff;
 
   /* Border colors */
-  --color-default: #e2e8f0;
-  --color-accented: #cbd5e1;
+  --color-default: #e5e7eb;
+  --color-accented: #d1d5db;
 
   /* Text colors - Dark tones */
-  --color-dimmed: #94a3b8;
-  --color-muted: #64748b;
-  --color-toned: #334155;
-  --color-highlighted: #0f172a;
+  --color-dimmed: #9ca3af;
+  --color-muted: #6b7280;
+  --color-toned: #374151;
+  --color-highlighted: #111827;
 }
 
 :root:not([data-theme="light"]) {
   @media (prefers-color-scheme: dark) {
-    --color-bg: #020617;
-    --color-elevated: #0f172a;
-    --color-inverted: #f8fafc;
-    --color-inverted-text: #020617;
+    --color-bg: #121212;
+    --color-elevated: #1e1e1e;
+    --color-inverted: #3b0764;
+    --color-inverted-text: #ffffff;
 
-    --color-default: #1e293b;
-    --color-accented: #334155;
+    --color-default: #374151;
+    --color-accented: #4b5563;
 
-    --color-dimmed: #64748b;
-    --color-muted: #94a3b8;
-    --color-toned: #cbd5e1;
-    --color-highlighted: #f8fafc;
+    --color-dimmed: #9ca3af;
+    --color-muted: #d1d5db;
+    --color-toned: #e5e7eb;
+    --color-highlighted: #ffffff;
   }
 }
 
 .dark {
-  --color-bg: #020617;
-  --color-elevated: #0f172a;
-  --color-inverted: #f8fafc;
-  --color-inverted-text: #020617;
+  --color-bg: #121212;
+  --color-elevated: #1e1e1e;
+  --color-inverted: #3b0764;
+  --color-inverted-text: #ffffff;
 
-  --color-default: #1e293b;
-  --color-accented: #334155;
+  --color-default: #374151;
+  --color-accented: #4b5563;
 
-  --color-dimmed: #64748b;
-  --color-muted: #94a3b8;
-  --color-toned: #cbd5e1;
-  --color-highlighted: #f8fafc;
+  --color-dimmed: #9ca3af;
+  --color-muted: #d1d5db;
+  --color-toned: #e5e7eb;
+  --color-highlighted: #ffffff;
 
-  --color-primary: var(--color-purple-400);
+  --color-primary: #a855f7;
 }
 
 html {
-  color-scheme: light;
-}
-html.dark {
-  color-scheme: dark;
+  scroll-behavior: smooth;
 }
 
 body {
   background-color: var(--color-bg);
-  color: var(--color-toned);
-}
-
-* {
-  border-color: var(--color-default);
-}
-
-::selection {
-  background-color: var(--color-primary);
-  color: white;
+  color: var(--color-highlighted);
 }
 
 /* Thin scrollbars */
 .scrollbar-thin {
   scrollbar-width: thin;
 }
+
 .scrollbar-thin::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 .scrollbar-thin::-webkit-scrollbar-thumb {
   background-color: var(--color-accented);
   border-radius: 9999px;
@@ -153,22 +146,16 @@ body {
   background-color: color-mix(in oklab, var(--color-primary) 10%, transparent);
 }
 
-/* Dark Purple Gradient Backgrounds */
-.bg-gradient-dark {
-  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%);
+/* Dark Purple Sidebar Background (matching original POS) */
+.bg-sidebar-dark {
+  background: linear-gradient(180deg, #1e1b4b 0%, #7b1fa2 100%);
 }
 
-.bg-gradient-sidebar {
-  background: linear-gradient(180deg, #0f0a1e 0%, #1a1035 50%, #1e1b4b 100%);
+.bg-sidebar-dark-gradient {
+  background: linear-gradient(180deg, #1e1b4b 0%, #7b1fa2 100%);
 }
 
-.bg-gradient-primary {
-  background: linear-gradient(135deg, #581c87 0%, #7c3aed 50%, #9333ea 100%);
-}
-
-.text-gradient-primary {
-  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+/* POS KETOKO Login gradient - Dark Purple (matching original) */
+.bg-pos-login {
+  background: linear-gradient(180deg, #1e1b4b 0%, #7b1fa2 50%, #9C27B0 100%);
 }

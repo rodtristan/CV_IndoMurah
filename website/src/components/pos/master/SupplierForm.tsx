@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import type { Supplier } from "@/types/pos";
 
 interface SupplierFormProps {
@@ -22,144 +23,182 @@ export function SupplierForm({
   initialData,
   isEditing,
 }: SupplierFormProps) {
-  const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState<Partial<Supplier>>({
-    code: initialData?.code || "",
-    name: initialData?.name || "",
-    contactPerson: initialData?.contactPerson || "",
-    phone: initialData?.phone || "",
-    email: initialData?.email || "",
-    address: initialData?.address || "",
-    city: initialData?.city || "",
-    notes: initialData?.notes || "",
-  });
+  const [formData, setFormData] = useState<Partial<Supplier>>(
+    initialData || {
+      code: "",
+      name: "",
+      contactPerson: "",
+      phone: "",
+      email: "",
+      address: "",
+      city: "",
+    }
+  );
 
   if (!open) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    try {
-      await onSave(formData);
-      onClose();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleChange = (field: keyof Supplier, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    onSave(formData);
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-lg rounded-xl border border-slate-700 bg-slate-900 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-700 px-6 py-4">
-          <h2 className="text-lg font-semibold text-white">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/50"
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <div className="relative z-10 w-full max-w-lg rounded-lg bg-white shadow-xl">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+          <h2 className="text-lg font-semibold text-gray-900">
             {isEditing ? "Edit Supplier" : "Tambah Supplier Baru"}
           </h2>
           <button
             onClick={onClose}
-            className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
+            className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
           >
             <X className="size-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-300">Nama Supplier *</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => handleChange("name", e.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-2.5 text-white placeholder:text-slate-500 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-              placeholder="PT Sumber Makmur"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-300">Contact Person</label>
-              <input
-                type="text"
-                value={formData.contactPerson}
-                onChange={(e) => handleChange("contactPerson", e.target.value)}
-                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-2.5 text-white placeholder:text-slate-500 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-                placeholder="Budi Santoso"
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-6">
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Kode */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Kode *
+              </label>
+              <Input
+                value={formData.code || ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, code: e.target.value })
+                }
+                placeholder="SUP001"
+                className="w-full"
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-300">Telepon</label>
-              <input
-                type="text"
-                value={formData.phone}
-                onChange={(e) => handleChange("phone", e.target.value)}
-                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-2.5 text-white placeholder:text-slate-500 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-                placeholder="021-12345678"
+            {/* Nama */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Nama Supplier *
+              </label>
+              <Input
+                value={formData.name || ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
+                placeholder="Nama supplier"
+                className="w-full"
+              />
+            </div>
+
+            {/* Contact Person */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Contact Person
+              </label>
+              <Input
+                value={formData.contactPerson || ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, contactPerson: e.target.value })
+                }
+                placeholder="Nama kontak"
+                className="w-full"
+              />
+            </div>
+
+            {/* Telepon */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Telepon
+              </label>
+              <Input
+                value={formData.phone || ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, phone: e.target.value })
+                }
+                placeholder="021-xxxx"
+                className="w-full"
+              />
+            </div>
+
+            {/* Email */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Email
+              </label>
+              <Input
+                type="email"
+                value={formData.email || ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+                placeholder="email@supplier.com"
+                className="w-full"
+              />
+            </div>
+
+            {/* Kota */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Kota
+              </label>
+              <Input
+                value={formData.city || ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, city: e.target.value })
+                }
+                placeholder="Jakarta"
+                className="w-full"
+              />
+            </div>
+
+            {/* Alamat */}
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Alamat
+              </label>
+              <textarea
+                value={formData.address || ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, address: e.target.value })
+                }
+                placeholder="Alamat lengkap"
+                rows={2}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-300">Email</label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => handleChange("email", e.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-2.5 text-white placeholder:text-slate-500 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-              placeholder="info@supplier.com"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-300">Alamat</label>
-            <textarea
-              value={formData.address}
-              onChange={(e) => handleChange("address", e.target.value)}
-              rows={2}
-              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-2.5 text-white placeholder:text-slate-500 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-              placeholder="Jl. Industri No. 10"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-300">Kota</label>
-            <input
-              type="text"
-              value={formData.city}
-              onChange={(e) => handleChange("city", e.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-2.5 text-white placeholder:text-slate-500 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-              placeholder="Jakarta"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-300">Catatan</label>
-            <textarea
-              value={formData.notes}
-              onChange={(e) => handleChange("notes", e.target.value)}
-              rows={2}
-              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-2.5 text-white placeholder:text-slate-500 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-              placeholder="Catatan tambahan..."
-            />
-          </div>
-
-          <div className="flex items-center justify-between border-t border-slate-700 pt-4">
+          {/* Actions */}
+          <div className="mt-6 flex items-center justify-between">
             <div>
               {isEditing && onDelete && (
-                <Button type="button" variant="ghost" color="error" onClick={() => onDelete(initialData!.id!)}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                  onClick={() => initialData?.id && onDelete(initialData.id)}
+                >
                   Hapus Supplier
                 </Button>
               )}
             </div>
             <div className="flex gap-3">
-              <Button type="button" variant="outline" onClick={onClose}>Batal</Button>
-              <Button type="submit" loading={loading}>
-                {isEditing ? "Simpan Perubahan" : "Simpan"}
+              <Button type="button" variant="outline" onClick={onClose}>
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                className="bg-blue-500 hover:bg-blue-600"
+              >
+                {isEditing ? "Simpan" : "Tambah"}
               </Button>
             </div>
           </div>

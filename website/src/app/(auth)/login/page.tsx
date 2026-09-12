@@ -3,7 +3,6 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Building2,
   Eye,
   EyeOff,
   Lock,
@@ -12,7 +11,6 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { cn } from "@/lib/utils";
 import { usePOS } from "@/lib/pos-context";
 import type { POSUser } from "@/types/pos";
 
@@ -34,11 +32,8 @@ export default function POSLoginPage() {
     setLoading(true);
 
     try {
-      // TODO: Replace with actual API call
-      // const response = await authApi.login({ companyId, userId, password });
-
       // Mock login - accept any credentials for demo
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 800));
 
       if (!companyId || !userId || !password) {
         setError("Semua field harus diisi");
@@ -72,110 +67,117 @@ export default function POSLoginPage() {
   }
 
   return (
-    <div className="flex min-h-dvh">
-      {/* Left Panel - Dark Gradient Branding */}
-      <div className="hidden flex-1 flex-col justify-between bg-gradient-dark p-8 text-white lg:flex">
+    <div className="flex min-h-screen">
+      {/* Left Panel - Dark Purple Branding (Matching Original POS) */}
+      <div className="hidden flex-1 flex-col justify-between bg-pos-login p-10 text-white lg:flex">
         <div>
-          <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm">
-              <Building2 className="size-6" />
+          {/* Logo */}
+          <div className="mb-8 flex items-center gap-3">
+            <div className="flex size-12 items-center justify-center rounded bg-purple-600 text-white">
+              <span className="text-lg font-bold">POS</span>
             </div>
-            <span className="text-xl font-bold">Ketoko.co.id</span>
+            <span className="text-2xl font-bold">KETOKO</span>
           </div>
         </div>
 
-        <div className="space-y-6">
-          <h1 className="text-3xl font-bold leading-tight">
+        {/* Decorative gradient shapes */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -left-20 -top-20 size-80 rounded-full bg-purple-500/20 blur-3xl" />
+          <div className="absolute -bottom-40 -right-20 size-96 rounded-full bg-purple-400/10 blur-3xl" />
+        </div>
+
+        <div className="relative space-y-6">
+          <h1 className="text-4xl font-bold leading-tight">
             Kendalikan Bisnis Anda dalam Satu Ekosistem
           </h1>
-          <p className="text-lg text-slate-300">
+          <p className="text-lg text-purple-200">
             Tingkatkan efisiensi operasional dengan solusi cloud ERP,
             point-of-sale, dan manajemen inventori terintegrasi.
           </p>
 
           <div className="grid gap-4 pt-4">
-            <div className="flex items-center gap-3 rounded-xl bg-white/10 p-4 backdrop-blur-sm">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-purple-500/30">
+            <div className="flex items-center gap-3 rounded-lg bg-purple-900/30 p-4">
+              <div className="flex size-10 items-center justify-center rounded-lg bg-purple-500/50">
                 <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
               </div>
               <div>
                 <div className="font-medium">Sistem Inventori Terpusat & Akurat</div>
-                <div className="text-sm text-slate-300">Kelola stok real-time</div>
+                <div className="text-sm text-purple-300">Kelola stok real-time</div>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 rounded-xl bg-white/10 p-4 backdrop-blur-sm">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-purple-500/30">
+            <div className="flex items-center gap-3 rounded-lg bg-purple-900/30 p-4">
+              <div className="flex size-10 items-center justify-center rounded-lg bg-purple-500/50">
                 <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
               </div>
               <div>
                 <div className="font-medium">Analitik & Laporan Keuangan Real-time</div>
-                <div className="text-sm text-slate-300">Lihat data kapan saja</div>
+                <div className="text-sm text-purple-300">Lihat data kapan saja</div>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 rounded-xl bg-white/10 p-4 backdrop-blur-sm">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-purple-500/30">
+            <div className="flex items-center gap-3 rounded-lg bg-purple-900/30 p-4">
+              <div className="flex size-10 items-center justify-center rounded-lg bg-purple-500/50">
                 <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                 </svg>
               </div>
               <div>
                 <div className="font-medium">Integrasi Omnichannel & Multi-Cabang</div>
-                <div className="text-sm text-slate-300">Jual di mana saja</div>
+                <div className="text-sm text-purple-300">Jual di mana saja</div>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="text-sm text-slate-400">
+        <div className="relative text-sm text-purple-300">
           © Ketoko.co.id 2.3.1.0 - Inspirasibiz / Inspirasi Media Kreatif
         </div>
       </div>
 
       {/* Right Panel - Login Form */}
-      <div className="flex flex-1 flex-col justify-center px-8 py-12 lg:px-16">
+      <div className="flex flex-1 flex-col justify-center bg-white px-8 py-12 lg:px-16">
         <div className="mx-auto w-full max-w-md">
           {/* Mobile Logo */}
           <div className="mb-8 flex items-center justify-center gap-3 lg:hidden">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-primary text-white">
-              <Building2 className="size-6" />
+            <div className="flex size-10 items-center justify-center rounded bg-purple-600 text-white">
+              <span className="font-bold">POS</span>
             </div>
-            <span className="text-xl font-bold text-highlighted">Ketoko.co.id</span>
+            <span className="text-xl font-bold text-purple-600">KETOKO</span>
           </div>
 
           <div className="mb-8 text-center lg:text-left">
-            <h2 className="text-2xl font-bold text-highlighted">Ketoko.co.id</h2>
-            <p className="mt-2 text-muted">
+            <h2 className="text-2xl font-bold text-gray-900">POS KETOKO</h2>
+            <p className="mt-2 text-sm text-gray-600">
               Masuk untuk mengelola layanan Ketoko.co.id akun Anda
             </p>
           </div>
 
           {/* Error Message */}
           {error && (
-            <div className="mb-4 flex items-center gap-2 rounded-lg bg-error/10 px-4 py-3 text-sm text-error">
+            <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">
               <AlertCircle className="size-5 shrink-0" />
               {error}
             </div>
           )}
 
           {/* Login Form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {/* Company ID */}
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <label
                 htmlFor="companyId"
-                className="block text-sm font-medium text-toned"
+                className="block text-sm font-medium text-gray-700"
               >
                 ID Perusahaan
               </label>
               <div className="relative">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                  <Building className="size-4 text-dimmed" />
+                  <Building className="size-4 text-gray-500" />
                 </div>
                 <input
                   id="companyId"
@@ -183,47 +185,47 @@ export default function POSLoginPage() {
                   value={companyId}
                   onChange={(e) => setCompanyId(e.target.value)}
                   placeholder="Masukkan ID perusahaan Anda"
-                  className="block w-full rounded-md border-0 bg-bg py-2.5 pl-10 pr-3 text-sm text-highlighted ring-1 ring-inset ring-default placeholder:text-dimmed focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="block w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pl-10 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#9C27B0] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#9C27B0]"
                   required
                 />
               </div>
             </div>
 
             {/* User ID */}
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <label
                 htmlFor="userId"
-                className="block text-sm font-medium text-toned"
+                className="block text-sm font-medium text-gray-700"
               >
-                User ID
+                Email
               </label>
               <div className="relative">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                  <User className="size-4 text-dimmed" />
+                  <User className="size-4 text-gray-500" />
                 </div>
                 <input
                   id="userId"
                   type="text"
                   value={userId}
                   onChange={(e) => setUserId(e.target.value)}
-                  placeholder="Masukkan User ID Anda"
-                  className="block w-full rounded-md border-0 bg-bg py-2.5 pl-10 pr-3 text-sm text-highlighted ring-1 ring-inset ring-default placeholder:text-dimmed focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Ketoko.co.id"
+                  className="block w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pl-10 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#9C27B0] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#9C27B0]"
                   required
                 />
               </div>
             </div>
 
             {/* Password */}
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <label
                 htmlFor="password"
-                className="block text-sm font-medium text-toned"
+                className="block text-sm font-medium text-gray-700"
               >
                 Password
               </label>
               <div className="relative">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                  <Lock className="size-4 text-dimmed" />
+                  <Lock className="size-4 text-gray-500" />
                 </div>
                 <input
                   id="password"
@@ -231,13 +233,13 @@ export default function POSLoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Masukkan password Anda"
-                  className="block w-full rounded-md border-0 bg-bg py-2.5 pl-10 pr-10 text-sm text-highlighted ring-1 ring-inset ring-default placeholder:text-dimmed focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="block w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pl-10 pr-10 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#9C27B0] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#9C27B0]"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-dimmed hover:text-toned"
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
                 >
                   {showPassword ? (
                     <EyeOff className="size-4" />
@@ -255,11 +257,11 @@ export default function POSLoginPage() {
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="size-4 rounded-sm border-default text-primary accent-[var(--color-primary)] focus:ring-primary"
+                className="size-4 rounded border-gray-300 text-[#9C27B0] focus:ring-[#9C27B0]"
               />
               <label
                 htmlFor="remember"
-                className="ml-2 text-sm text-muted"
+                className="ml-2 text-sm text-gray-600"
               >
                 Ingatkan saya
               </label>
@@ -270,7 +272,7 @@ export default function POSLoginPage() {
               type="submit"
               block
               loading={loading}
-              className="h-11 bg-primary text-white hover:bg-primary/90"
+              className="h-11 bg-[#9C27B0] text-white hover:bg-[#7B1FA2]"
             >
               Login
             </Button>
@@ -280,23 +282,23 @@ export default function POSLoginPage() {
           <div className="mt-6 space-y-3 text-center text-sm">
             <a
               href="#"
-              className="block text-primary hover:underline"
+              className="block text-purple-600 hover:underline"
             >
               Lupa Password?
             </a>
 
-            <div className="flex items-center justify-center gap-2 text-muted">
+            <div className="flex items-center justify-center gap-2 text-gray-500">
               <span>atau</span>
             </div>
 
-            <Button variant="outline" block className="h-11">
+            <Button variant="outline" block className="h-11 border-gray-300 text-gray-700 hover:bg-gray-50">
               Buat Akun Baru
             </Button>
 
             <div className="pt-4">
               <a
                 href="#"
-                className="text-muted hover:text-primary"
+                className="text-gray-500 hover:text-purple-600"
               >
                 Panduan Pemakaian
               </a>
@@ -304,16 +306,16 @@ export default function POSLoginPage() {
           </div>
 
           {/* Footer Links */}
-          <div className="mt-8 flex items-center justify-center gap-4 text-xs text-muted">
-            <a href="#" className="hover:text-primary">
+          <div className="mt-8 flex items-center justify-center gap-4 text-xs text-gray-500">
+            <a href="#" className="hover:text-purple-600">
               Kebijakan Privasi
             </a>
             <span>•</span>
-            <a href="#" className="hover:text-primary">
+            <a href="#" className="hover:text-purple-600">
               Contact & Support
             </a>
             <span>•</span>
-            <a href="#" className="hover:text-primary">
+            <a href="#" className="hover:text-purple-600">
               Harga Layanan
             </a>
           </div>

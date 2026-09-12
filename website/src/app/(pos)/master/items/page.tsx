@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Filter, ChevronLeft, ChevronRight, Download, Upload, MoreVertical, Check, X } from "lucide-react";
 import { PageWrapper } from "@/components/pos/layout/PosLayout";
 import { PageTitle } from "@/components/pos/layout/PosLayout";
-import { DataTable } from "@/components/pos/ui/DataTable";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { ItemForm } from "@/components/pos/master/ItemForm";
@@ -22,136 +21,210 @@ const formatCurrency = (amount: number) => {
 
 export default function ItemsPage() {
   const [search, setSearch] = useState("");
-  const [items, setItems] = useState<Product[]>(mockProducts);
+  const [items] = useState<Product[]>(mockProducts);
   const [formOpen, setFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Product | null>(null);
-
-  const columns = [
-    { key: "code", label: "Kode", sortable: true },
-    { key: "name", label: "Nama Item", sortable: true },
-    { key: "categoryName", label: "Kategori" },
-    { key: "unitName", label: "Satuan" },
-    {
-      key: "purchasePrice", label: "Harga Beli", align: "right" as const,
-      render: (v: unknown) => formatCurrency(v as number)
-    },
-    {
-      key: "sellPrice", label: "Harga Jual", align: "right" as const,
-      render: (v: unknown) => formatCurrency(v as number)
-    },
-    {
-      key: "stock", label: "Stok", align: "right" as const,
-      render: (v: unknown, row: Product) => (
-        <span className={cn(
-          "font-medium",
-          v === 0 ? "text-red-400" :
-          v as number <= (row as Product).minStock ? "text-amber-400" : "text-slate-300"
-        )}>
-          {v as number}
-        </span>
-      )
-    },
-    {
-      key: "actions",
-      label: "",
-      align: "right" as const,
-      render: (_: unknown, row: Product) => (
-        <div className="flex items-center justify-end gap-1">
-          <button
-            onClick={() => handleEdit(row)}
-            className="rounded p-1.5 text-slate-400 hover:bg-slate-700 hover:text-purple-400"
-          >
-            <Pencil className="size-4" />
-          </button>
-          <button
-            onClick={() => handleDelete(row.id)}
-            className="rounded p-1.5 text-slate-400 hover:bg-slate-700 hover:text-red-400"
-          >
-            <Trash2 className="size-4" />
-          </button>
-        </div>
-      )
-    },
-  ];
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedItems, setSelectedItems] = useState<number[]>([]);
+  const itemsPerPage = 10;
 
   const filteredData = items.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
     p.code.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleAdd = () => {
-    setEditingItem(null);
-    setFormOpen(true);
-  };
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const paginatedData = filteredData.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
-  const handleEdit = (item: Product) => {
-    setEditingItem(item);
-    setFormOpen(true);
-  };
-
-  const handleSave = async (data: Partial<Product>) => {
-    if (editingItem) {
-      setItems((prev) =>
-        prev.map((item) =>
-          item.id === editingItem.id ? { ...item, ...data } : item
-        )
-      );
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedItems(paginatedData.map((item) => item.id));
     } else {
-      const newItem: Product = {
-        ...data as Product,
-        id: Math.max(...items.map((i) => i.id), 0) + 1,
-        code: data.code || "BRG" + String(items.length + 1).padStart(3, "0"),
-        createdAt: new Date().toISOString(),
-        isActive: true,
-      };
-      setItems((prev) => [...prev, newItem]);
+      setSelectedItems([]);
     }
-    setFormOpen(false);
-    setEditingItem(null);
   };
 
-  const handleDelete = (id: number) => {
-    if (confirm("Yakin hapus item ini?")) {
-      setItems((prev) => prev.filter((item) => item.id !== id));
+  const handleSelect = (id: number, checked: boolean) => {
+    if (checked) {
+      setSelectedItems([...selectedItems, id]);
+    } else {
+      setSelectedItems(selectedItems.filter((i) => i !== id));
     }
   };
 
   return (
-    <PageWrapper>
+    <PageWrapper className="bg-gray-100">
       <PageTitle
         title="Item / Barang"
         subtitle="Kelola daftar item barang dagangan"
         actions={
-          <Button icon={Plus} onClick={handleAdd}>
-            Tambah Item
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="border-gray-300">
+              <Download className="size-4 mr-2" /> Export
+            </Button>
+            <Button variant="outline" size="sm" className="border-gray-300">
+              <Upload className="size-4 mr-2" /> Import
+            </Button>
+            <Button size="sm" className="bg-purple-600 hover:bg-purple-700" onClick={() => { setEditingItem(null); setFormOpen(true); }}>
+              <Plus className="size-4 mr-2" /> Tambah
+            </Button>
+          </div>
         }
       />
 
-      <div className="mb-4">
-        <Input
-          icon={Plus}
-          placeholder="Cari kode atau nama item..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full max-w-sm"
-        />
-      </div>
+      {/* Toolbar */}
+      <div className="bg-white rounded-lg border border-gray-200 mb-4">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Cari kode atau nama item..."
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+                className="pl-9 pr-4 py-2 w-64 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+              />
+            </div>
+            <Button variant="outline" size="sm" className="border-gray-200">
+              <Filter className="size-4 mr-2" /> Filter
+            </Button>
+          </div>
+          <div className="text-sm text-gray-500">
+            {selectedItems.length > 0 ? (
+              <span>{selectedItems.length} dipilih</span>
+            ) : (
+              <span>{filteredData.length} data</span>
+            )}
+          </div>
+        </div>
 
-      <DataTable
-        data={filteredData}
-        columns={columns}
-        emptyMessage="Tidak ada item"
-      />
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr className="text-xs text-gray-500 text-left">
+                <th className="px-4 py-3 font-medium w-10">
+                  <input
+                    type="checkbox"
+                    checked={selectedItems.length === paginatedData.length && paginatedData.length > 0}
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                    className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  />
+                </th>
+                <th className="px-4 py-3 font-medium">Kode</th>
+                <th className="px-4 py-3 font-medium">Nama Item</th>
+                <th className="px-4 py-3 font-medium">Kategori</th>
+                <th className="px-4 py-3 font-medium text-right">Harga Beli</th>
+                <th className="px-4 py-3 font-medium text-right">Harga Jual</th>
+                <th className="px-4 py-3 font-medium text-right">Stok</th>
+                <th className="px-4 py-3 font-medium text-right">Min. Stok</th>
+                <th className="px-4 py-3 font-medium text-center w-20">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {paginatedData.map((item) => (
+                <tr key={item.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedItems.includes(item.id)}
+                      onChange={(e) => handleSelect(item.id, e.target.checked)}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                  </td>
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{item.code}</td>
+                  <td className="px-4 py-3 text-sm text-gray-700">{item.name}</td>
+                  <td className="px-4 py-3 text-sm text-gray-500">{item.categoryName}</td>
+                  <td className="px-4 py-3 text-sm text-gray-700 text-right">{formatCurrency(item.purchasePrice)}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">{formatCurrency(item.sellPrice)}</td>
+                  <td className={cn(
+                    "px-4 py-3 text-sm font-medium text-right",
+                    item.stock === 0 ? "text-red-600" :
+                    item.stock <= item.minStock ? "text-orange-600" : "text-gray-700"
+                  )}>
+                    {item.stock} {item.unitName}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-500 text-right">{item.minStock}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-center gap-1">
+                      <button
+                        onClick={() => { setEditingItem(item); setFormOpen(true); }}
+                        className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded"
+                        title="Edit"
+                      >
+                        <Pencil className="size-4" />
+                      </button>
+                      <button
+                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                        title="Hapus"
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {paginatedData.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="px-4 py-12 text-center text-gray-400">
+                    Tidak ada data item
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+          <div className="text-sm text-gray-500">
+            Menampilkan {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredData.length)} dari {filteredData.length}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(currentPage - 1)}
+              className="border-gray-200"
+            >
+              <ChevronLeft className="size-4" />
+            </Button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={cn(
+                  "w-8 h-8 rounded text-sm font-medium transition-colors",
+                  currentPage === page
+                    ? "bg-purple-600 text-white hover:bg-purple-700"
+                    : "border border-gray-200 text-gray-700 hover:bg-gray-50"
+                )}
+              >
+                {page}
+              </button>
+            ))}
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(currentPage + 1)}
+              className="border-gray-200"
+            >
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
 
       <ItemForm
         open={formOpen}
-        onClose={() => {
-          setFormOpen(false);
-          setEditingItem(null);
-        }}
-        onSave={handleSave}
-        onDelete={handleDelete}
+        onClose={() => { setFormOpen(false); setEditingItem(null); }}
+        onSave={() => setFormOpen(false)}
         initialData={editingItem || undefined}
         isEditing={!!editingItem}
       />

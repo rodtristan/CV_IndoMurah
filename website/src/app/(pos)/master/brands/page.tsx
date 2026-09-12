@@ -1,12 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { PageWrapper } from "@/components/pos/layout/PosLayout";
 import { PageTitle } from "@/components/pos/layout/PosLayout";
-import { DataTable } from "@/components/pos/ui/DataTable";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { BrandForm } from "@/components/pos/master/BrandForm";
 import type { Brand } from "@/types/pos";
 
@@ -15,116 +13,78 @@ const mockBrands: Brand[] = [
   { id: 2, name: "Kopi Luwak", description: "Kopi premium Indonesia" },
   { id: 3, name: "Aqua", description: "Air mineral kemasan" },
   { id: 4, name: "Samsung", description: "Elektronik" },
-  { id: 5, name: " Unilever", description: "Barang kebutuhan rumah tangga" },
+  { id: 5, name: "Unilever", description: "Barang kebutuhan rumah tangga" },
+  { id: 6, name: "Mayora", description: "Makanan dan minuman" },
 ];
 
 export default function BrandsPage() {
   const [search, setSearch] = useState("");
-  const [brands, setBrands] = useState<Brand[]>(mockBrands);
+  const [brands] = useState<Brand[]>(mockBrands);
   const [formOpen, setFormOpen] = useState(false);
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
-  const columns = [
-    { key: "id", label: "ID", sortable: true },
-    { key: "name", label: "Nama Merek", sortable: true },
-    { key: "description", label: "Deskripsi" },
-    {
-      key: "actions",
-      label: "",
-      align: "right" as const,
-      render: (_: unknown, row: Brand) => (
-        <div className="flex items-center justify-end gap-1">
-          <button
-            onClick={() => handleEdit(row)}
-            className="rounded p-1.5 text-slate-400 hover:bg-slate-700 hover:text-purple-400"
-          >
-            <Pencil className="size-4" />
-          </button>
-          <button
-            onClick={() => handleDelete(row.id)}
-            className="rounded p-1.5 text-slate-400 hover:bg-slate-700 hover:text-red-400"
-          >
-            <Trash2 className="size-4" />
-          </button>
-        </div>
-      ),
-    },
-  ];
-
-  const filteredData = brands.filter((b) =>
-    b.name.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const handleAdd = () => {
-    setEditingBrand(null);
-    setFormOpen(true);
-  };
-
-  const handleEdit = (brand: Brand) => {
-    setEditingBrand(brand);
-    setFormOpen(true);
-  };
-
-  const handleSave = async (data: Partial<Brand>) => {
-    if (editingBrand) {
-      setBrands((prev) =>
-        prev.map((b) => (b.id === editingBrand.id ? { ...b, ...data } : b))
-      );
-    } else {
-      const newBrand: Brand = {
-        ...data as Brand,
-        id: Math.max(...brands.map((b) => b.id), 0) + 1,
-      };
-      setBrands((prev) => [...prev, newBrand]);
-    }
-    setFormOpen(false);
-    setEditingBrand(null);
-  };
-
-  const handleDelete = (id: number) => {
-    if (confirm("Yakin hapus merek ini?")) {
-      setBrands((prev) => prev.filter((b) => b.id !== id));
-    }
-  };
+  const filteredData = brands.filter((b) => b.name.toLowerCase().includes(search.toLowerCase()));
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const paginatedData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
-    <PageWrapper>
-      <PageTitle
-        title="Merek"
-        subtitle="Kelola merek barang"
-        actions={
-          <Button icon={Plus} onClick={handleAdd}>
-            Tambah Merek
-          </Button>
-        }
-      />
+    <PageWrapper className="bg-gray-100">
+      <PageTitle title="Merek" subtitle="Kelola merek barang" actions={
+        <Button size="sm" className="bg-purple-600 hover:bg-purple-700" onClick={() => { setEditingBrand(null); setFormOpen(true); }}>
+          <Plus className="size-4 mr-2" /> Tambah Merek
+        </Button>
+      } />
 
-      <div className="mb-4">
-        <Input
-          icon={Plus}
-          placeholder="Cari merek..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full max-w-sm"
-        />
+      <div className="bg-white rounded-lg border border-gray-200">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+            <input type="text" placeholder="Cari merek..." value={search} onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }} className="pl-9 pr-4 py-2 w-64 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-purple-500" />
+          </div>
+          <span className="text-sm text-gray-500">{filteredData.length} data</span>
+        </div>
+
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr className="text-xs text-gray-500 text-left">
+              <th className="px-4 py-3 font-medium w-10"><input type="checkbox" className="rounded border-gray-300" /></th>
+              <th className="px-4 py-3 font-medium">ID</th>
+              <th className="px-4 py-3 font-medium">Nama Merek</th>
+              <th className="px-4 py-3 font-medium">Deskripsi</th>
+              <th className="px-4 py-3 font-medium text-center w-20">Aksi</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {paginatedData.map((brand) => (
+              <tr key={brand.id} className="hover:bg-gray-50">
+                <td className="px-4 py-3"><input type="checkbox" className="rounded border-gray-300" /></td>
+                <td className="px-4 py-3 text-sm text-gray-500">{brand.id}</td>
+                <td className="px-4 py-3 text-sm font-medium text-gray-900">{brand.name}</td>
+                <td className="px-4 py-3 text-sm text-gray-500">{brand.description || "-"}</td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center justify-center gap-1">
+                    <button onClick={() => { setEditingBrand(brand); setFormOpen(true); }} className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded"><Pencil className="size-4" /></button>
+                    <button className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="size-4" /></button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+          <span className="text-sm text-gray-500">Menampilkan {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredData.length)} dari {filteredData.length}</span>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage(currentPage - 1)} className="border-gray-200"><ChevronLeft className="size-4" /></Button>
+            <span className="text-sm text-gray-600 px-2">Halaman {currentPage} dari {totalPages || 1}</span>
+            <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage(currentPage + 1)} className="border-gray-200"><ChevronRight className="size-4" /></Button>
+          </div>
+        </div>
       </div>
 
-      <DataTable
-        data={filteredData}
-        columns={columns}
-        emptyMessage="Tidak ada merek"
-      />
-
-      <BrandForm
-        open={formOpen}
-        onClose={() => {
-          setFormOpen(false);
-          setEditingBrand(null);
-        }}
-        onSave={handleSave}
-        initialData={editingBrand || undefined}
-        isEditing={!!editingBrand}
-      />
+      <BrandForm open={formOpen} onClose={() => { setFormOpen(false); setEditingBrand(null); }} onSave={() => setFormOpen(false)} initialData={editingBrand || undefined} isEditing={!!editingBrand} />
     </PageWrapper>
   );
 }
