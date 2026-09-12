@@ -33,7 +33,7 @@ export default function SuppliersPage() {
   return (
     <PageWrapper className="bg-gray-100">
       <PageTitle
-        title="Supplier"
+        title="Master / Supplier"
         subtitle="Kelola daftar supplier"
         actions={
           <div className="flex gap-2">

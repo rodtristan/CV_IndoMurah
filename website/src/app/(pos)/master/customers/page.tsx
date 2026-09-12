@@ -31,7 +31,7 @@ export default function CustomersPage() {
   return (
     <PageWrapper className="bg-gray-100">
       <PageTitle
-        title="Pelanggan"
+        title="Master / Pelanggan"
         subtitle="Kelola daftar pelanggan"
         actions={
           <div className="flex gap-2">
@@ -87,6 +87,7 @@ export default function CustomersPage() {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-sm text-right text-gray-700">{formatCurrency(customer.pointBalance || 0)}</td>
+                <td className="px-4 py-3 text-sm text-right text-gray-700">{formatCurrency(0)}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-center gap-1">
                     <button onClick={() => { setEditingCustomer(customer); setFormOpen(true); }} className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded"><Pencil className="size-4" /></button>

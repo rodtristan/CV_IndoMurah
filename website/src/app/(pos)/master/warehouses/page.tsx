@@ -28,7 +28,7 @@ export default function WarehousesPage() {
 
   return (
     <PageWrapper className="bg-gray-100">
-      <PageTitle title="Gudang" subtitle="Kelola data gudang" actions={
+      <PageTitle title="Master / Gudang" subtitle="Kelola data gudang" actions={
         <Button size="sm" className="bg-purple-600 hover:bg-purple-700" onClick={() => { setEditingWarehouse(null); setFormOpen(true); }}>
           <Plus className="size-4 mr-2" /> Tambah Gudang
         </Button>

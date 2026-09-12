@@ -29,7 +29,7 @@ export default function SalesPage() {
 
   return (
     <PageWrapper className="bg-gray-100">
-      <PageTitle title="Sales" subtitle="Kelola data sales" actions={
+      <PageTitle title="Master / Sales" subtitle="Kelola data sales" actions={
         <Button size="sm" className="bg-purple-600 hover:bg-purple-700" onClick={() => { setEditingSales(null); setFormOpen(true); }}>
           <Plus className="size-4 mr-2" /> Tambah Sales
         </Button>

@@ -7,7 +7,7 @@ import { PageTitle } from "@/components/pos/layout/PosLayout";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { ItemForm } from "@/components/pos/master/ItemForm";
-import { mockProducts } from "@/lib/mock-data-pos";
+import { mockProducts, mockWarehouses } from "@/lib/mock-data-pos";
 import type { Product } from "@/types/pos";
 import { cn } from "@/lib/utils";
 
@@ -118,6 +118,8 @@ export default function ItemsPage() {
                 <th className="px-4 py-3 font-medium">Kode</th>
                 <th className="px-4 py-3 font-medium">Nama Item</th>
                 <th className="px-4 py-3 font-medium">Kategori</th>
+                <th className="px-4 py-3 font-medium">Satuan</th>
+                <th className="px-4 py-3 font-medium">Gudang</th>
                 <th className="px-4 py-3 font-medium text-right">Harga Beli</th>
                 <th className="px-4 py-3 font-medium text-right">Harga Jual</th>
                 <th className="px-4 py-3 font-medium text-right">Stok</th>
@@ -139,6 +141,10 @@ export default function ItemsPage() {
                   <td className="px-4 py-3 text-sm font-medium text-gray-900">{item.code}</td>
                   <td className="px-4 py-3 text-sm text-gray-700">{item.name}</td>
                   <td className="px-4 py-3 text-sm text-gray-500">{item.categoryName}</td>
+                  <td className="px-4 py-3 text-sm text-gray-500">{item.unitName}</td>
+                  <td className="px-4 py-3 text-sm text-gray-500">
+                    {mockWarehouses.find(w => w.id === item.warehouseId)?.name || "-"}
+                  </td>
                   <td className="px-4 py-3 text-sm text-gray-700 text-right">{formatCurrency(item.purchasePrice)}</td>
                   <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">{formatCurrency(item.sellPrice)}</td>
                   <td className={cn(
@@ -170,7 +176,7 @@ export default function ItemsPage() {
               ))}
               {paginatedData.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-gray-400">
+                  <td colSpan={11} className="px-4 py-12 text-center text-gray-400">
                     Tidak ada data item
                   </td>
                 </tr>

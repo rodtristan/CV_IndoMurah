@@ -239,9 +239,9 @@ export function PosSidebar() {
                 </div>
                 <div className="min-w-0">
                   <div className="truncate text-sm font-bold text-white">
-                    {companyName}
+                    KETOKO
                   </div>
-                  <div className="truncate text-xs text-white">{companyId}</div>
+                  <div className="truncate text-xs text-white">POS BETA v1.0</div>
                 </div>
               </div>
               <button
