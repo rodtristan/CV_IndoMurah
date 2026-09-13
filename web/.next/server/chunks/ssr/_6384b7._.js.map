@@ -1,9 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":["file://D%3A/Project%20AFSS/Toko_CV_IndoMurah/web/src/app/page.tsx"],"sourcesContent":["import { redirect } from 'next/navigation';\nimport { cookies } from 'next/headers';\n\nexport default function RootPage() {\n  redirect('/dashboard');\n}\n"],"names":[],"mappings":";;;AAAA;AAAA;;AAGe,SAAS;IACtB,CAAA,GAAA,qLAAA,CAAA,WAAQ,AAAD,EAAE;AACX"}},
-    {"offset": {"line": 16, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
-    {"offset": {"line": 27, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
-    {"offset": {"line": 27, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
-}
