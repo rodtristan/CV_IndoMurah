@@ -15,11 +15,12 @@ import {
   ChevronDown,
   LogOut,
   User,
-  Building2,
+  Menu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePOS, POS_MENU } from "@/lib/pos-context";
 import type { MenuItem } from "@/types/pos";
+import { useState } from "react";
 
 // Icon mapping
 const iconMap: Record<string, typeof Home> = {
@@ -37,11 +38,11 @@ interface NavItemProps {
   item: MenuItem;
   isActive: boolean;
   isExpanded: boolean;
+  isCollapsed?: boolean;
   onToggle: () => void;
-  collapsed?: boolean;
 }
 
-function NavItem({ item, isActive, isExpanded, onToggle, collapsed }: NavItemProps) {
+function NavItem({ item, isActive, isExpanded, isCollapsed, onToggle }: NavItemProps) {
   const pathname = usePathname();
   const hasChildren = item.children && item.children.length > 0;
   const Icon = item.icon ? iconMap[item.icon] : null;
@@ -53,49 +54,31 @@ function NavItem({ item, isActive, isExpanded, onToggle, collapsed }: NavItemPro
 
   const isMenuActive = isActive || isChildActive;
 
-  if (collapsed) {
-    return (
-      <Link
-        href={item.href || "#"}
-        title={item.name}
-        className={cn(
-          "flex size-10 items-center justify-center rounded-md transition-all",
-          isMenuActive
-            ? "bg-purple-500/20 text-purple-300"
-            : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200"
-        )}
-      >
-        {Icon && <Icon className="size-5" />}
-        {hasChildren && !Icon && <Database className="size-5" />}
-      </Link>
-    );
-  }
-
   if (hasChildren) {
     return (
-      <div>
+      <div className="mb-1">
         <button
           onClick={onToggle}
           className={cn(
-            "flex w-full items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-all",
+            "flex w-full items-center justify-between px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
             isMenuActive
-              ? "bg-purple-500/20 text-purple-300"
-              : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200"
+              ? "bg-[#9C27B0] text-white shadow-md"
+              : "text-white hover:bg-[#3a3c3e] hover:text-white"
           )}
         >
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-3">
             {Icon && <Icon className="size-5" />}
-            <span>{item.name}</span>
+            {!isCollapsed && <span className="font-medium">{item.name}</span>}
           </div>
-          {isExpanded ? (
+          {!isCollapsed && (isExpanded ? (
             <ChevronDown className="size-4" />
           ) : (
             <ChevronRight className="size-4" />
-          )}
+          ))}
         </button>
 
-        {isExpanded && (
-          <div className="ml-4 mt-1 flex flex-col gap-0.5 border-l border-slate-700 pl-3">
+        {isExpanded && !isCollapsed && (
+          <div className="mt-1 ml-4 space-y-0.5 border-l-2 border-white/20 pl-3">
             {item.children!.map((child) => {
               const isChildPageActive = pathname === child.href;
               return (
@@ -103,12 +86,13 @@ function NavItem({ item, isActive, isExpanded, onToggle, collapsed }: NavItemPro
                   key={child.id}
                   href={child.href || "#"}
                   className={cn(
-                    "rounded-md px-3 py-1.5 text-sm transition-all",
+                    "flex items-center px-4 py-2 text-sm rounded-lg transition-all duration-150",
                     isChildPageActive
-                      ? "bg-purple-500/20 text-purple-300 font-medium"
-                      : "text-slate-500 hover:bg-slate-800/50 hover:text-slate-300"
+                      ? "bg-[#9C27B0] text-white font-medium shadow-sm"
+                      : "text-white hover:bg-[#3a3c3e] hover:text-white"
                   )}
                 >
+                  <span className="mr-2">›</span>
                   {child.name}
                 </Link>
               );
@@ -123,14 +107,14 @@ function NavItem({ item, isActive, isExpanded, onToggle, collapsed }: NavItemPro
     <Link
       href={item.href || "#"}
       className={cn(
-        "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-all",
+        "flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 mb-1",
         isMenuActive
-          ? "bg-purple-500/20 text-purple-300"
-          : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200"
+          ? "bg-[#9C27B0] text-white shadow-md"
+          : "text-white hover:bg-[#3a3c3e] hover:text-white"
       )}
     >
       {Icon && <Icon className="size-5" />}
-      <span>{item.name}</span>
+      {!isCollapsed && <span className="font-medium">{item.name}</span>}
     </Link>
   );
 }
@@ -144,50 +128,53 @@ export function PosSidebar() {
     expandedMenus,
     toggleMenu,
     user,
-    companyId,
-    companyName,
   } = usePOS();
-
-  const handleLogout = () => {
-    localStorage.removeItem("pos_user");
-    localStorage.removeItem("pos_token");
-    window.location.href = "/login";
-  };
 
   return (
     <>
-      {/* Desktop Sidebar - Dark Gradient */}
+      {/* Desktop Sidebar */}
       <aside
         className={cn(
-          "hidden lg:flex lg:flex-col transition-all duration-200 bg-gradient-sidebar",
-          isSidebarCollapsed ? "w-16" : "w-64"
+          "hidden lg:flex lg:flex-col bg-[#303234] border-r border-[#252628] shadow-sm transition-all duration-300",
+          isSidebarCollapsed ? "lg:w-16" : "lg:w-64"
         )}
       >
         {/* Logo Section */}
-        <div className="flex h-16 shrink-0 items-center border-b border-slate-700/50 px-4">
-          {isSidebarCollapsed ? (
-            <div className="flex size-9 items-center justify-center rounded-lg bg-gradient-primary text-white shadow-lg shadow-purple-900/30">
-              <Building2 className="size-5" />
+        <div className="flex h-14 shrink-0 items-center border-b border-[#252628] px-4">
+          <div className="flex flex-col gap-0.5">
+            <div className="truncate text-base font-bold text-[#9C27B0]">
+              {isSidebarCollapsed ? "" : "XIANGYU"}
             </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <div className="flex size-9 items-center justify-center rounded-lg bg-gradient-primary text-white shadow-lg shadow-purple-900/30">
-                <Building2 className="size-5" />
+            {!isSidebarCollapsed && (
+              <div className="truncate text-xs text-white/70">
+                Toko CV IndoMurah
               </div>
-              <div className="min-w-0">
-                <div className="truncate text-sm font-semibold text-white">
-                  {companyName}
-                </div>
-                <div className="truncate text-xs text-slate-400">{companyId}</div>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-3 scrollbar-thin">
-          <div className="flex flex-col gap-1">
-            {POS_MENU.map((item) => {
+        <nav className="flex-1 overflow-y-auto p-2 scrollbar-thin">
+          {/* Home Link */}
+          <Link
+            href="/dashboard"
+            className={cn(
+              "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 mb-1",
+              pathname === "/dashboard"
+                ? "bg-[#9C27B0] text-white shadow-md"
+                : "text-white hover:bg-[#3a3c3e] hover:text-white"
+            )}
+          >
+            <Home className="size-5" />
+            {!isSidebarCollapsed && <span className="font-medium">Dashboard</span>}
+          </Link>
+
+          {/* Divider */}
+          {!isSidebarCollapsed && <div className="my-2 border-t border-[#252628]" />}
+
+          {/* Menu with accordion effect */}
+          <div className="space-y-0.5">
+            {POS_MENU.filter(item => item.id > 1).map((item) => {
               const isActive = pathname === item.href;
               const isExpanded = expandedMenus.includes(item.id);
               return (
@@ -196,8 +183,8 @@ export function PosSidebar() {
                   item={item}
                   isActive={isActive}
                   isExpanded={isExpanded}
+                  isCollapsed={isSidebarCollapsed}
                   onToggle={() => toggleMenu(item.id)}
-                  collapsed={isSidebarCollapsed}
                 />
               );
             })}
@@ -205,69 +192,85 @@ export function PosSidebar() {
         </nav>
 
         {/* User Section */}
-        <div className="border-t border-slate-700/50 p-3">
-          {isSidebarCollapsed ? (
-            <div className="flex flex-col items-center gap-2">
-              <button
-                onClick={handleLogout}
-                className="flex size-10 items-center justify-center rounded-md text-slate-400 hover:bg-slate-800/50 hover:text-red-400"
-                title="Logout"
-              >
-                <LogOut className="size-5" />
-              </button>
+        <div className="border-t border-[#252628] p-3">
+          <div className="flex items-center gap-3">
+            <div className="flex size-9 items-center justify-center rounded-full bg-[#9C27B0] text-white shadow-sm">
+              <User className="size-4" />
             </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-full bg-purple-500/20 text-purple-300">
-                <User className="size-5" />
-              </div>
+            {!isSidebarCollapsed && (
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-medium text-white">
                   {user?.fullName || "Admin"}
                 </div>
-                <div className="truncate text-xs text-slate-400">Administrator</div>
+                <div className="truncate text-xs text-white">Administrator</div>
               </div>
-              <button
-                onClick={handleLogout}
-                className="rounded p-1.5 text-slate-400 hover:bg-slate-800/50 hover:text-red-400"
-                title="Logout"
-              >
-                <LogOut className="size-4" />
-              </button>
-            </div>
-          )}
+            )}
+            <button
+              onClick={() => {
+                localStorage.removeItem("pos_user");
+                localStorage.removeItem("pos_token");
+                window.location.href = "/login";
+              }}
+              className="rounded-lg p-2 text-white hover:bg-red-500 transition-all"
+              title="Logout"
+            >
+              <LogOut className="size-4" />
+            </button>
+          </div>
         </div>
       </aside>
 
-      {/* Mobile Sidebar Drawer */}
+      {/* Mobile Sidebar Drawer - Light (Matching Original) */}
       {isMobileSidebarOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
+        <div className="fixed inset-0 z-50">
           {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/50"
             onClick={() => setMobileSidebarOpen(false)}
           />
 
           {/* Drawer */}
-          <aside className="absolute inset-y-0 left-0 w-72 bg-gradient-sidebar shadow-2xl">
-            <div className="flex h-16 shrink-0 items-center border-b border-slate-700/50 px-4">
-              <div className="flex items-center gap-2">
-                <div className="flex size-9 items-center justify-center rounded-lg bg-gradient-primary text-white shadow-lg">
-                  <Building2 className="size-5" />
+          <aside className="absolute inset-y-0 left-0 w-72 max-w-[85%] bg-[#303234] shadow-xl">
+            {/* Header with close */}
+            <div className="flex h-14 shrink-0 items-center justify-between border-b border-[#252628] px-4">
+              <div className="flex items-center gap-3">
+                <div className="flex size-9 items-center justify-center rounded-lg bg-[#9C27B0] text-white shadow-md">
+                  <span className="text-sm font-bold">POS</span>
                 </div>
                 <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-white">
-                    {companyName}
+                  <div className="truncate text-sm font-bold text-white">
+                    KETOKO
                   </div>
-                  <div className="truncate text-xs text-slate-400">{companyId}</div>
+                  <div className="truncate text-xs text-white">POS BETA v1.0</div>
                 </div>
               </div>
+              <button
+                onClick={() => setMobileSidebarOpen(false)}
+                className="rounded-lg p-2 text-white hover:bg-[#3a3c3e] hover:text-white"
+              >
+                <span className="text-xl">×</span>
+              </button>
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 overflow-y-auto p-3 scrollbar-thin">
-              <div className="flex flex-col gap-1">
-                {POS_MENU.map((item) => {
+            <nav className="flex-1 overflow-y-auto p-2">
+              <Link
+                href="/dashboard"
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg mb-1",
+                  pathname === "/dashboard"
+                    ? "bg-[#9C27B0] text-white"
+                    : "text-white hover:bg-[#3a3c3e] hover:text-white"
+                )}
+              >
+                <Home className="size-5" />
+                <span className="font-medium">Dashboard</span>
+              </Link>
+
+              <div className="my-2 border-t border-[#252628]" />
+
+              <div className="space-y-0.5">
+                {POS_MENU.filter(item => item.id > 1).map((item) => {
                   const isActive = pathname === item.href;
                   const isExpanded = expandedMenus.includes(item.id);
                   return (
@@ -284,23 +287,17 @@ export function PosSidebar() {
             </nav>
 
             {/* User Section */}
-            <div className="border-t border-slate-700/50 p-3">
+            <div className="border-t border-[#252628] p-3">
               <div className="flex items-center gap-3">
-                <div className="flex size-9 items-center justify-center rounded-full bg-purple-500/20 text-purple-300">
-                  <User className="size-5" />
+                <div className="flex size-9 items-center justify-center rounded-full bg-[#9C27B0] text-white">
+                  <User className="size-4" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-medium text-white">
                     {user?.fullName || "Admin"}
                   </div>
-                  <div className="truncate text-xs text-slate-400">Administrator</div>
+                  <div className="truncate text-xs text-white">Administrator</div>
                 </div>
-                <button
-                  onClick={handleLogout}
-                  className="rounded p-1.5 text-slate-400 hover:bg-slate-800/50 hover:text-red-400"
-                >
-                  <LogOut className="size-4" />
-                </button>
               </div>
             </div>
           </aside>

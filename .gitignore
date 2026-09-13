@@ -6,9 +6,10 @@
 claude.md
 /graphify-out
 /.playwright-mcp
-.env.example
+/comparison
 
 #REFERENCE
 PLAN_POS_IMPLEMENTATION.md
 ketoko-pengenalan-program.png
 pos-login-page.png
+/ketoko

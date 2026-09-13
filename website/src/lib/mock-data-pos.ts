@@ -377,6 +377,7 @@ export const mockDashboardSummary = {
   inventory: {
     totalItems: 245,
     lowStock: 12,
+    lowStockCount: 12,
     outOfStock: 3,
     totalValue: 125000000,
   },

@@ -1,5 +1,6 @@
 "use client";
 
+<<<<<<< HEAD
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Search, Edit, Trash2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -11,6 +12,15 @@ import { PageWrapper, PageTitle } from "@/components/pos/layout/PosLayout";
 import { DataTable } from "@/components/pos/DataTable";
 import { apiClient } from "@/lib/api-client";
 import type { SalePoint, Warehouse } from "@/types/pos";
+=======
+import { useState } from "react";
+import { Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { PageWrapper } from "@/components/pos/layout/PosLayout";
+import { PageTitle } from "@/components/pos/layout/PosLayout";
+import { Button } from "@/components/ui/Button";
+import { SalesForm } from "@/components/pos/master/SalesForm";
+import type { SalesPerson } from "@/types/pos";
+>>>>>>> 63daaa85a51c7e35690b29bd242c859ea670f111
 
 interface SalePointFormData {
   code: string;
@@ -24,6 +34,7 @@ export default function SalesPage() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+<<<<<<< HEAD
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -365,6 +376,82 @@ export default function SalesPage() {
         variant="danger"
         loading={saving}
       />
+=======
+  const [sales] = useState<SalesPerson[]>(mockSales);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingSales, setEditingSales] = useState<SalesPerson | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const filteredData = sales.filter((s) => s.name.toLowerCase().includes(search.toLowerCase()) || s.code.toLowerCase().includes(search.toLowerCase()));
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const paginatedData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  return (
+    <PageWrapper className="bg-gray-100">
+      <PageTitle title="Master / Sales" subtitle="Kelola data sales" actions={
+        <Button size="sm" className="bg-purple-600 hover:bg-purple-700" onClick={() => { setEditingSales(null); setFormOpen(true); }}>
+          <Plus className="size-4 mr-2" /> Tambah Sales
+        </Button>
+      } />
+
+      <div className="bg-white rounded-lg border border-gray-200">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+            <input type="text" placeholder="Cari sales..." value={search} onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }} className="pl-9 pr-4 py-2 w-64 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-purple-500" />
+          </div>
+          <span className="text-sm text-gray-500">{filteredData.length} data</span>
+        </div>
+
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr className="text-xs text-gray-500 text-left">
+              <th className="px-4 py-3 font-medium w-10"><input type="checkbox" className="rounded border-gray-300" /></th>
+              <th className="px-4 py-3 font-medium">Kode</th>
+              <th className="px-4 py-3 font-medium">Nama Sales</th>
+              <th className="px-4 py-3 font-medium">Telepon</th>
+              <th className="px-4 py-3 font-medium">Email</th>
+              <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3 font-medium text-center w-20">Aksi</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {paginatedData.map((s) => (
+              <tr key={s.id} className="hover:bg-gray-50">
+                <td className="px-4 py-3"><input type="checkbox" className="rounded border-gray-300" /></td>
+                <td className="px-4 py-3 text-sm font-medium text-gray-900">{s.code}</td>
+                <td className="px-4 py-3 text-sm font-medium text-purple-600">{s.name}</td>
+                <td className="px-4 py-3 text-sm text-gray-700">{s.phone || "-"}</td>
+                <td className="px-4 py-3 text-sm text-gray-500">{s.email || "-"}</td>
+                <td className="px-4 py-3">
+                  <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${s.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                    {s.isActive ? "Aktif" : "Nonaktif"}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center justify-center gap-1">
+                    <button onClick={() => { setEditingSales(s); setFormOpen(true); }} className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded"><Pencil className="size-4" /></button>
+                    <button className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="size-4" /></button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+          <span className="text-sm text-gray-500">Menampilkan {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, filteredData.length)} dari {filteredData.length}</span>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage(currentPage - 1)} className="border-gray-200"><ChevronLeft className="size-4" /></Button>
+            <span className="text-sm text-gray-600 px-2">Halaman {currentPage} dari {totalPages || 1}</span>
+            <Button variant="outline" size="sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage(currentPage + 1)} className="border-gray-200"><ChevronRight className="size-4" /></Button>
+          </div>
+        </div>
+      </div>
+
+      <SalesForm open={formOpen} onClose={() => { setFormOpen(false); setEditingSales(null); }} onSave={() => setFormOpen(false)} initialData={editingSales || undefined} isEditing={!!editingSales} />
+>>>>>>> 63daaa85a51c7e35690b29bd242c859ea670f111
     </PageWrapper>
   );
 }
