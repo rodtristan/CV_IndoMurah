@@ -54,6 +54,47 @@ import { RoleModule } from './modules/role/role-module';
 import { MenuModule } from './modules/menu/menu-module';
 import { HealthModule } from './modules/health/health-module';
 
+// Purchase Transaction Modules
+import { PurchaseOrderModule } from './modules/purchase-order/purchase-order.module';
+import { PurchaseModule } from './modules/purchase/purchase.module';
+import { PurchasePaymentModule } from './modules/purchase-payment/purchase-payment.module';
+import { PurchaseReturnModule } from './modules/purchase-return/purchase-return.module';
+
+// Sale Transaction Modules
+import { SaleOrderModule } from './modules/sale-order/sale-order.module';
+import { SaleModule } from './modules/sale/sale.module';
+import { SalePaymentModule } from './modules/sale-payment/sale-payment.module';
+import { SaleReturnModule } from './modules/sale-return/sale-return.module';
+import { SalePointModule } from './modules/sale-point/sale-point.module';
+
+// Master Data Modules
+import { CategoryModule } from './modules/category/category.module';
+import { UnitModule } from './modules/unit/unit.module';
+import { BrandModule } from './modules/brand/brand.module';
+import { SupplierModule } from './modules/supplier/supplier.module';
+import { CustomerModule } from './modules/customer/customer.module';
+import { SalesPersonModule } from './modules/sales-person/sales-person.module';
+import { WarehouseModule } from './modules/warehouse/warehouse.module';
+import { ProductModule } from './modules/product/product.module';
+
+// Inventory Modules
+import { StockInModule } from './modules/stock-in/stock-in.module';
+import { StockOutModule } from './modules/stock-out/stock-out.module';
+import { StockTransferModule } from './modules/stock-transfer/stock-transfer.module';
+import { StockOpnameModule } from './modules/stock-opname/stock-opname.module';
+
+// Accounting Modules
+import { AccountModule } from './modules/account/account.module';
+import { CashInModule } from './modules/cash-in/cash-in.module';
+import { CashOutModule } from './modules/cash-out/cash-out.module';
+import { CashTransferModule } from './modules/cash-transfer/cash-transfer.module';
+import { CustomerDepositModule } from './modules/customer-deposit/customer-deposit.module';
+import { SupplierDepositModule } from './modules/supplier-deposit/supplier-deposit.module';
+import { JournalModule } from './modules/journal/journal.module';
+
+// Reports
+import { ReportModule } from './modules/report/report.module';
+
 // ── Provider Global ────────────────────────────────────────────────────
 import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
 
@@ -90,6 +131,41 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     RoleModule,     // Role/jabatan
     MenuModule,     // Menu sidebar + RoleMenu/UserMenu
     HealthModule,   // Health check endpoint (untuk Docker/monitoring)
+
+    // Master Data Modules
+    CategoryModule, // Kategori produk
+    UnitModule,    // Satuan produk
+    BrandModule,   // Merek produk
+    SupplierModule,// Supplier/pemasok
+    CustomerModule,// Pelanggan
+    SalesPersonModule, // Sales person
+    WarehouseModule, // Gudang
+    ProductModule, // Produk dengan stock management
+
+    // Sale Transaction Modules
+    SaleOrderModule,     // Order Penjualan
+    SaleModule,          // Penjualan
+    SalePaymentModule,   // Pembayaran Penjualan
+    SaleReturnModule,    // Retur Penjualan
+    SalePointModule,     // Poin Penjualan
+
+    // Inventory Modules
+    StockInModule,        // Barang Masuk
+    StockOutModule,       // Barang Keluar
+    StockTransferModule,  // Transfer Stock
+    StockOpnameModule,    // Stock Opname
+
+    // Accounting Modules
+    AccountModule,         // Chart of Accounts
+    CashInModule,         // Kas Masuk
+    CashOutModule,        // Kas Keluar
+    CashTransferModule,    // Transfer Kas
+    CustomerDepositModule, // Deposito Pelanggan
+    SupplierDepositModule, // Deposito Supplier
+    JournalModule,        // Jurnal Umum
+
+    // Reports
+    ReportModule,         // Laporan
   ],
   providers: [
     // ── [5] Guard & Interceptor Global ───────────────────────────────
