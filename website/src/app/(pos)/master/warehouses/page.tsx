@@ -35,7 +35,7 @@ export default function WarehousesPage() {
 
       const response = await api.getWarehouses(params as any);
       if (response.success && response.data) {
-        setWarehouses(response.data);
+        setWarehouses(Array.isArray(response.data) ? response.data : []);
         if (response.meta) {
           setTotal(response.meta.total);
           setTotalPages(response.meta.pages);

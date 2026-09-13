@@ -36,7 +36,7 @@ export default function SuppliersPage() {
 
       const response = await api.getSuppliers(params as any);
       if (response.success && response.data) {
-        setSuppliers(response.data);
+        setSuppliers(Array.isArray(response.data) ? response.data : []);
         if (response.meta) {
           setTotal(response.meta.total);
           setTotalPages(response.meta.pages);
@@ -183,7 +183,7 @@ export default function SuppliersPage() {
                     <td className="px-3 py-3 text-sm text-gray-700">{supplier.contactPerson || "-"}</td>
                     <td className="px-3 py-3 text-sm text-gray-700">{supplier.phone || "-"}</td>
                     <td className="px-3 py-3 text-sm text-gray-500">{supplier.email || "-"}</td>
-                    <td className="px-3 py-3 text-sm text-gray-500">{supplier.city || "-"}</td>
+                    <td className="px-3 py-3 text-sm text-gray-500">{(supplier as any).city || "-"}</td>
                     <td className="px-3 py-3">
                       <div className="flex items-center justify-center gap-1">
                         <button

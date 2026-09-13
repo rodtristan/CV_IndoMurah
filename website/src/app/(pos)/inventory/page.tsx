@@ -7,9 +7,8 @@ import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/pos/Modal";
 import { PageWrapper, PageTitle } from "@/components/pos/layout/PosLayout";
-import { StatCard } from "@/components/pos/StatCard";
 import { api } from "@/lib/api";
-import type { Product, Warehouse, ProductStock } from "@/types/pos";
+import type { Product, Warehouse } from "@/types/pos";
 import { cn } from "@/lib/utils";
 
 function formatCurrency(value: number): string {
@@ -54,8 +53,8 @@ export default function InventoryPage() {
   const fetchWarehouses = useCallback(async () => {
     try {
       const res = await api.getWarehouses({ $where: { isActive: true } });
-      if (res.success) {
-        setWarehouses(res.data || []);
+      if (res.success && res.data) {
+        setWarehouses(Array.isArray(res.data) ? res.data : []);
       }
     } catch (error) {
       console.error("Failed to fetch warehouses:", error);
@@ -88,9 +87,10 @@ export default function InventoryPage() {
 
       const response = await api.getProducts(params);
 
-      if (response.success) {
+      if (response.success && response.data) {
         // Calculate total stock across warehouses for each product
-        const productsWithStock = (response.data || []).map((p: Product) => ({
+        const productsData = Array.isArray(response.data) ? response.data as Product[] : [];
+        const productsWithStock = productsData.map((p: Product) => ({
           ...p,
           totalStock: p.stock || 0,
         }));
@@ -101,10 +101,10 @@ export default function InventoryPage() {
 
         // Calculate summary stats
         const allProducts = productsWithStock;
-        const totalItems = allProducts.reduce((sum, p) => sum + (p.stock || 0), 0);
-        const totalValue = allProducts.reduce((sum, p) => sum + ((p.stock || 0) * p.purchasePrice), 0);
-        const lowStock = allProducts.filter((p: Product) => p.stock > 0 && p.stock <= (p.minimumStock || 0)).length;
-        const outOfStock = allProducts.filter((p: Product) => p.stock <= 0).length;
+        const totalItems = allProducts.reduce((sum: number, p: any) => sum + (p.stock || 0), 0);
+        const totalValue = allProducts.reduce((sum: number, p: any) => sum + ((p.stock || 0) * p.purchasePrice), 0);
+        const lowStock = allProducts.filter((p: any) => p.stock > 0 && p.stock <= (p.minimumStock || 0)).length;
+        const outOfStock = allProducts.filter((p: any) => p.stock <= 0).length;
 
         setStats({
           totalItems,
@@ -320,7 +320,8 @@ export default function InventoryPage() {
             />
           </div>
           <Button
-            variant={showFilters ? "default" : "outline"}
+            color="primary"
+            variant={showFilters ? "solid" : "outline"}
             size="sm"
             icon={Filter}
             onClick={() => setShowFilters(!showFilters)}

@@ -29,12 +29,12 @@ export function PurchaseForm({ purchase, onClose, onSave }: PurchaseFormProps) {
   const [formData, setFormData] = useState({
     code: purchase?.code || `BLI${Date.now().toString().slice(-6)}`,
     supplierId: purchase?.supplierId || 0,
-    supplierName: purchase?.supplierName || "",
     date: purchase?.date || new Date().toISOString().split("T")[0],
     dueDate: purchase?.dueDate || "",
     notes: purchase?.notes || "",
-    tax: purchase?.tax || 11,
-    discount: purchase?.discount || 0,
+    taxPercent: purchase?.taxPercent || 11,
+    discountPercent: purchase?.discountPercent || 0,
+    discountAmount: purchase?.discountAmount || 0,
   });
 
   const [items, setItems] = useState<PurchaseItem[]>([
@@ -52,8 +52,8 @@ export function PurchaseForm({ purchase, onClose, onSave }: PurchaseFormProps) {
   ]);
 
   const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
-  const taxAmount = Math.round((subtotal * formData.tax) / 100);
-  const total = subtotal + taxAmount - formData.discount;
+  const taxAmount = Math.round((subtotal * formData.taxPercent) / 100);
+  const total = subtotal + taxAmount - formData.discountAmount;
 
   const handleAddItem = () => {
     const newItem: PurchaseItem = {
@@ -103,7 +103,7 @@ export function PurchaseForm({ purchase, onClose, onSave }: PurchaseFormProps) {
             productId: product.id,
             productCode: product.code,
             productName: product.name,
-            unitName: product.unitName,
+            unitName: (product as any).unitName || "Pcs",
             price: product.purchasePrice || 0,
             subtotal: item.quantity * (product.purchasePrice || 0),
           };
@@ -113,11 +113,9 @@ export function PurchaseForm({ purchase, onClose, onSave }: PurchaseFormProps) {
   };
 
   const handleSupplierChange = (supplierId: number) => {
-    const supplier = mockSuppliers.find((s) => s.id === supplierId);
     setFormData({
       ...formData,
       supplierId,
-      supplierName: supplier?.name || "",
     });
   };
 
@@ -127,18 +125,22 @@ export function PurchaseForm({ purchase, onClose, onSave }: PurchaseFormProps) {
       id: purchase?.id || Date.now(),
       code: formData.code,
       supplierId: formData.supplierId,
-      supplierName: formData.supplierName,
       date: formData.date,
       dueDate: formData.dueDate || undefined,
       subtotal,
-      tax: taxAmount,
-      discount: formData.discount,
+      discountPercent: formData.discountPercent,
+      discountAmount: formData.discountAmount,
+      taxPercent: formData.taxPercent,
+      taxAmount: taxAmount,
       total,
       paid: 0,
       remaining: total,
-      status: "pending",
+      paymentStatus: "PENDING",
+      paymentMethod: "CASH",
+      isReturn: false,
+      status: "PENDING",
       notes: formData.notes,
-      createdBy: "admin",
+      createdById: "admin",
       createdAt: new Date().toISOString(),
     };
     onSave(newPurchase);
@@ -339,8 +341,8 @@ export function PurchaseForm({ purchase, onClose, onSave }: PurchaseFormProps) {
                     <span className="text-gray-600">Pajak (%)</span>
                     <input
                       type="number"
-                      value={formData.tax}
-                      onChange={(e) => setFormData({ ...formData, tax: Number(e.target.value) })}
+                      value={formData.taxPercent}
+                      onChange={(e) => setFormData({ ...formData, taxPercent: Number(e.target.value) })}
                       className="w-16 px-2 py-1 border border-gray-200 rounded text-sm text-right"
                       min="0"
                       max="100"
@@ -353,13 +355,13 @@ export function PurchaseForm({ purchase, onClose, onSave }: PurchaseFormProps) {
                     <span className="text-gray-600">Diskon</span>
                     <input
                       type="number"
-                      value={formData.discount}
-                      onChange={(e) => setFormData({ ...formData, discount: Number(e.target.value) })}
+                      value={formData.discountAmount}
+                      onChange={(e) => setFormData({ ...formData, discountAmount: Number(e.target.value) })}
                       className="w-28 px-2 py-1 border border-gray-200 rounded text-sm text-right"
                       min="0"
                     />
                   </div>
-                  <span className="font-medium text-red-600">-{formatCurrency(formData.discount)}</span>
+                  <span className="font-medium text-red-600">-{formatCurrency(formData.discountAmount)}</span>
                 </div>
                 <div className="flex justify-between pt-2 border-t border-gray-200">
                   <span className="font-semibold text-gray-900">Total</span>

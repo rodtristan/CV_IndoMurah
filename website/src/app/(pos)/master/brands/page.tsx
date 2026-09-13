@@ -35,7 +35,7 @@ export default function BrandsPage() {
 
       const response = await api.getBrands(params as any);
       if (response.success && response.data) {
-        setBrands(response.data);
+        setBrands(Array.isArray(response.data) ? response.data : []);
         if (response.meta) {
           setTotal(response.meta.total);
           setTotalPages(response.meta.pages);

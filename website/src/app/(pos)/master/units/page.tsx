@@ -35,7 +35,7 @@ export default function UnitsPage() {
 
       const response = await api.getUnits(params as any);
       if (response.success && response.data) {
-        setUnits(response.data);
+        setUnits(Array.isArray(response.data) ? response.data : []);
         if (response.meta) {
           setTotal(response.meta.total);
           setTotalPages(response.meta.pages);

@@ -114,18 +114,21 @@ export default function CashReportPage() {
       if (dateTo) params.dateTo = dateTo;
 
       const [inRes, outRes, transferRes] = await Promise.all([
-        api.request<{ data: CashIn[] }>('GET', 'cash-ins', undefined, { ...params, $take: 1000 }),
-        api.request<{ data: CashOut[] }>('GET', 'cash-outs', undefined, { ...params, $take: 1000 }),
-        api.request<{ data: CashTransfer[] }>('GET', 'cash-transfers', undefined, { ...params, $take: 1000 }),
+        api.request<CashIn[]>('GET', 'cash-ins', undefined, { ...params, $take: 1000 }),
+        api.request<CashOut[]>('GET', 'cash-outs', undefined, { ...params, $take: 1000 }),
+        api.request<CashTransfer[]>('GET', 'cash-transfers', undefined, { ...params, $take: 1000 }),
       ]);
 
-      if (inRes.success) setCashIns(inRes.data || []);
-      if (outRes.success) setCashOuts(outRes.data || []);
-      if (transferRes.success) setTransfers(transferRes.data || []);
+      if (inRes.success && inRes.data) setCashIns(Array.isArray(inRes.data) ? inRes.data : []);
+      if (outRes.success && outRes.data) setCashOuts(Array.isArray(outRes.data) ? outRes.data : []);
+      if (transferRes.success && transferRes.data) setTransfers(Array.isArray(transferRes.data) ? transferRes.data : []);
 
-      const totalIn = (inRes.data || []).reduce((sum: number, c: CashIn) => sum + c.amount, 0);
-      const totalOut = (outRes.data || []).reduce((sum: number, c: CashOut) => sum + c.amount, 0);
-      const totalTransfer = (transferRes.data || []).reduce((sum: number, t: CashTransfer) => sum + t.amount, 0);
+      const cashInData = (inRes.data && Array.isArray(inRes.data)) ? inRes.data : [];
+      const cashOutData = (outRes.data && Array.isArray(outRes.data)) ? outRes.data : [];
+      const transferData = (transferRes.data && Array.isArray(transferRes.data)) ? transferRes.data : [];
+      const totalIn = cashInData.reduce((sum: number, c: CashIn) => sum + c.amount, 0);
+      const totalOut = cashOutData.reduce((sum: number, c: CashOut) => sum + c.amount, 0);
+      const totalTransfer = transferData.reduce((sum: number, t: CashTransfer) => sum + t.amount, 0);
       const balance = totalIn - totalOut;
 
       setStats({

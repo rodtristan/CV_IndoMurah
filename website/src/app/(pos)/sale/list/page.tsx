@@ -9,7 +9,7 @@ import { Modal } from "@/components/pos/Modal";
 import { ConfirmDialog } from "@/components/pos/ConfirmDialog";
 import { PageWrapper, PageTitle } from "@/components/pos/layout/PosLayout";
 import { DataTable } from "@/components/pos/DataTable";
-import { DateRangePicker } from "@/components/pos/DateRangePicker";
+import { DateRangePicker } from "@/components/pos/ui/DateRangePicker";
 import { api } from "@/lib/api";
 import type { Sale, Customer } from "@/types/pos";
 import { cn } from "@/lib/utils";
@@ -90,8 +90,8 @@ export default function SaleListPage() {
 
       const response = await api.getSales(params);
 
-      if (response.success) {
-        setSales(response.data || []);
+      if (response.success && response.data) {
+        setSales(Array.isArray(response.data) ? response.data : []);
         setTotal(response.meta?.total || 0);
         setTotalPages(response.meta?.pages || 1);
       }
@@ -108,8 +108,8 @@ export default function SaleListPage() {
         $where: { isActive: true },
         $take: 100,
       });
-      if (res.success) {
-        setCustomers(res.data || []);
+      if (res.success && res.data) {
+        setCustomers(Array.isArray(res.data) ? res.data : []);
       }
     } catch (error) {
       console.error("Failed to fetch customers:", error);
@@ -138,8 +138,8 @@ export default function SaleListPage() {
     setShowDetailModal(true);
     try {
       const res = await api.getSale(sale.id);
-      if (res.success) {
-        setSelectedSale(res.data);
+      if (res.success && res.data) {
+        setSelectedSale(res.data as Sale);
       }
     } catch (error) {
       console.error("Failed to fetch sale detail:", error);
@@ -321,7 +321,7 @@ Kembalian: ${formatCurrency(sale.changeAmount || 0)}
           TRANSFER: 'Transfer',
           CREDIT: 'Kredit',
         };
-        return <span className="text-sm">{methods[v as string] || v}</span>;
+        return <span className="text-sm">{methods[v as string] || String(v)}</span>;
       }
     },
     {
@@ -396,12 +396,12 @@ Kembalian: ${formatCurrency(sale.changeAmount || 0)}
             />
           </div>
           <Button
-            variant={showFilters ? "default" : "outline"}
+            variant={showFilters ? "solid" : "outline"}
             size="sm"
             icon={Filter}
             onClick={() => setShowFilters(!showFilters)}
           >
-            Filter {hasActiveFilters && `(${1 + (!!dateFrom) + (!!dateTo) + (!!statusFilter) + (!!customerFilter)})`}
+            Filter {hasActiveFilters && `(${Number(!!dateFrom) + Number(!!dateTo) + Number(!!statusFilter) + Number(!!customerFilter)})`}
           </Button>
           <Button
             variant="outline"
@@ -610,7 +610,7 @@ Kembalian: ${formatCurrency(sale.changeAmount || 0)}
         message={`Yakin ingin me-refund transaksi "${refundSale?.code}"? Total: ${formatCurrency(refundSale?.total || 0)}`}
         confirmText="Refund"
         cancelText="Batal"
-        variant="warning"
+        variant="danger"
         loading={processingRefund}
       />
     </PageWrapper>

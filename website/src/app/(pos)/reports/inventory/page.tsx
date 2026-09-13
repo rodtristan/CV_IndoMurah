@@ -72,8 +72,8 @@ export default function InventoryReportPage() {
         api.getCategories({ $where: { isActive: true }, $take: 100 }),
       ]);
 
-      if (productsRes.success) {
-        let productsData = productsRes.data || [];
+      if (productsRes.success && productsRes.data) {
+        let productsData = Array.isArray(productsRes.data) ? productsRes.data : [];
 
         // Apply stock filter locally
         if (stockFilter === 'low') {
@@ -87,7 +87,7 @@ export default function InventoryReportPage() {
         setProducts(productsData);
 
         // Calculate stats from all products (before stock filter)
-        const allProducts = productsRes.data || [];
+        const allProducts = productsData;
         const totalStock = allProducts.reduce((sum: number, p: Product) => sum + (p.stock || 0), 0);
         const totalValue = allProducts.reduce((sum: number, p: Product) => sum + ((p.stock || 0) * p.sellingPrice), 0);
         const totalCost = allProducts.reduce((sum: number, p: Product) => sum + ((p.stock || 0) * p.purchasePrice), 0);
@@ -104,11 +104,11 @@ export default function InventoryReportPage() {
         });
       }
 
-      if (warehousesRes.success) {
-        setWarehouses(warehousesRes.data || []);
+      if (warehousesRes.success && warehousesRes.data) {
+        setWarehouses(Array.isArray(warehousesRes.data) ? warehousesRes.data : []);
       }
-      if (categoriesRes.success) {
-        setCategories(categoriesRes.data || []);
+      if (categoriesRes.success && categoriesRes.data) {
+        setCategories(Array.isArray(categoriesRes.data) ? categoriesRes.data : []);
       }
     } catch (error) {
       console.error("Failed to fetch data:", error);

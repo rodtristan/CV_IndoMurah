@@ -81,7 +81,7 @@ export function PurchasePaymentForm({ purchaseId, onClose, onSave }: PaymentForm
               <option value={0}>-- Pilih Pembelian --</option>
               {unpaidPurchases.map((purchase) => (
                 <option key={purchase.id} value={purchase.id}>
-                  {purchase.code} - {purchase.supplierName} (Sisa: {formatCurrency(purchase.remaining)})
+                  {purchase.code} - Supplier #{purchase.supplierId} (Sisa: {formatCurrency(purchase.remaining)})
                 </option>
               ))}
             </select>

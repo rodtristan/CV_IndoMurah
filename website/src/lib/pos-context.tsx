@@ -10,9 +10,17 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import type { POSUser, MenuItem } from "@/types/pos";
+import type { POSUser } from "@/types/pos";
 
 // ─── Types ─────────────────────────────────────────────────
+interface POSMenuItem {
+  id: number;
+  name: string;
+  icon?: string;
+  href?: string;
+  children?: POSMenuItem[];
+}
+
 interface POSContextValue {
   // User
   user: POSUser | null;
@@ -42,7 +50,7 @@ interface POSContextValue {
 }
 
 // ─── Default Menu Structure (from POS Ketoko) ────────────────
-export const POS_MENU: MenuItem[] = [
+export const POS_MENU: POSMenuItem[] = [
   {
     id: 1,
     name: "Dashboard",

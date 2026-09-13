@@ -23,15 +23,14 @@ export function CustomerForm({
   initialData,
   isEditing,
 }: CustomerFormProps) {
-  const [formData, setFormData] = useState<Partial<Customer>>(
+  const [formData, setFormData] = useState<Partial<Customer> & { city?: string; customerType?: string }>(
     initialData || {
       code: "",
       name: "",
       phone: "",
       email: "",
       address: "",
-      city: "",
-      customerType: "retail",
+      customerType: "RETAIL",
     }
   );
 
@@ -135,15 +134,16 @@ export function CustomerForm({
                 Tipe Pelanggan
               </label>
               <select
-                value={formData.customerType || "retail"}
+                value={formData.customerType || "RETAIL"}
                 onChange={(e) =>
-                  setFormData({ ...formData, customerType: e.target.value as "retail" | "wholesale" | "vip" })
+                  setFormData({ ...formData, customerType: e.target.value as any })
                 }
                 className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
-                <option value="retail">Retail</option>
-                <option value="wholesale">Grosir</option>
-                <option value="vip">VIP</option>
+                <option value="RETAIL">Retail</option>
+                <option value="WHOLESALE">Grosir</option>
+                <option value="VIP">VIP</option>
+                <option value="GENERAL">Umum</option>
               </select>
             </div>
 
@@ -153,9 +153,9 @@ export function CustomerForm({
                 Kota
               </label>
               <Input
-                value={formData.city || ""}
+                value={(formData as any).city || ""}
                 onChange={(e) =>
-                  setFormData({ ...formData, city: e.target.value })
+                  setFormData({ ...formData, city: e.target.value } as any)
                 }
                 placeholder="Jakarta"
                 className="w-full"

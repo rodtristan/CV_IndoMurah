@@ -15,11 +15,10 @@ import {
   ChevronDown,
   LogOut,
   User,
-  Menu,
+  Menu as MenuIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePOS, POS_MENU } from "@/lib/pos-context";
-import type { MenuItem } from "@/types/pos";
 import { useState } from "react";
 
 // Icon mapping
@@ -34,8 +33,16 @@ const iconMap: Record<string, typeof Home> = {
   Settings,
 };
 
+interface MenuNavItem {
+  id: number;
+  name: string;
+  icon?: string;
+  href?: string;
+  children?: MenuNavItem[];
+}
+
 interface NavItemProps {
-  item: MenuItem;
+  item: MenuNavItem;
   isActive: boolean;
   isExpanded: boolean;
   isCollapsed?: boolean;
@@ -49,7 +56,7 @@ function NavItem({ item, isActive, isExpanded, isCollapsed, onToggle }: NavItemP
 
   // Check if any child is active
   const isChildActive = item.children?.some(
-    (child) => pathname === child.href || pathname.startsWith(child.href + "/")
+    (child: MenuNavItem) => child.href && (pathname === child.href || pathname.startsWith(child.href + "/"))
   );
 
   const isMenuActive = isActive || isChildActive;
@@ -79,8 +86,8 @@ function NavItem({ item, isActive, isExpanded, isCollapsed, onToggle }: NavItemP
 
         {isExpanded && !isCollapsed && (
           <div className="mt-1 ml-4 space-y-0.5 border-l-2 border-white/20 pl-3">
-            {item.children!.map((child) => {
-              const isChildPageActive = pathname === child.href;
+            {item.children!.map((child: MenuNavItem) => {
+              const isChildPageActive = child.href ? pathname === child.href : false;
               return (
                 <Link
                   key={child.id}
@@ -200,7 +207,7 @@ export function PosSidebar() {
             {!isSidebarCollapsed && (
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-medium text-white">
-                  {user?.fullName || "Admin"}
+                  {user?.name || "Admin"}
                 </div>
                 <div className="truncate text-xs text-white">Administrator</div>
               </div>
@@ -294,7 +301,7 @@ export function PosSidebar() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-medium text-white">
-                    {user?.fullName || "Admin"}
+                    {user?.name || "Admin"}
                   </div>
                   <div className="truncate text-xs text-white">Administrator</div>
                 </div>

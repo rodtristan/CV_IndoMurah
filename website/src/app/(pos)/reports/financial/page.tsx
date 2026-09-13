@@ -104,20 +104,21 @@ export default function FinancialReportPage() {
         api.getProducts({ $take: 1000 }),
       ]);
 
+      const salesData = salesRes.success && salesRes.data && Array.isArray(salesRes.data) ? salesRes.data : [];
+      const purchaseData = purchaseRes.success && purchaseRes.data && Array.isArray(purchaseRes.data) ? purchaseRes.data : [];
+      const productsData = productsRes.success && productsRes.data && Array.isArray(productsRes.data) ? productsRes.data : [];
+
       if (salesRes.success) {
-        setSales(salesRes.data || []);
+        setSales(salesData);
       }
       if (purchaseRes.success) {
-        setPurchases(purchaseRes.data || []);
+        setPurchases(purchaseData);
       }
       if (productsRes.success) {
-        setProducts(productsRes.data || []);
+        setProducts(productsData);
       }
 
       // Calculate stats
-      const salesData = salesRes.data || [];
-      const purchaseData = purchaseRes.data || [];
-      const productsData = productsRes.data || [];
 
       // Income Statement calculations
       const totalRevenue = salesData.reduce((sum: number, s: Sale) => sum + (s.total || 0), 0);
@@ -591,7 +592,7 @@ Dicetak: ${new Date().toLocaleString('id-ID')}
                       sales.filter(s => (s.total - (s.cashAmount || s.total)) > 0)
                         .slice(0, 5)
                         .map((sale) => {
-                          const remaining = (sale.total || 0) - (s.cashAmount || sale.total || 0);
+                          const remaining = (sale.total || 0) - (sale.cashAmount || sale.total || 0);
                           return (
                             <tr key={sale.id} className="hover:bg-elevated/50">
                               <td className="px-4 py-2 text-muted">{formatDate(sale.createdAt)}</td>

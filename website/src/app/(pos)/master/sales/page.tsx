@@ -38,7 +38,7 @@ export default function SalesPage() {
       // Note: Using customers endpoint as a placeholder since sales-persons might be under different name
       // Adjust endpoint based on actual backend API
       const response = await api.getCustomers(params as any);
-      if (response.success && response.data) {
+      if (response.success && response.data && Array.isArray(response.data)) {
         // Map customer data to sales person structure for display
         const salesData = response.data.map((c: any) => ({
           id: c.id,

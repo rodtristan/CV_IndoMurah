@@ -36,7 +36,7 @@ export default function CategoriesPage() {
 
       const response = await api.getCategories(params as any);
       if (response.success && response.data) {
-        setCategories(response.data);
+        setCategories(Array.isArray(response.data) ? response.data : []);
         if (response.meta) {
           setTotal(response.meta.total);
           setTotalPages(response.meta.pages);

@@ -23,20 +23,20 @@ export function ItemForm({
   initialData,
   isEditing,
 }: ItemFormProps) {
-  const [formData, setFormData] = useState<Partial<Product>>(
+  const [formData, setFormData] = useState<Partial<Product> & { categoryName?: string; unitName?: string; brandName?: string }>(
     initialData || {
       code: "",
       name: "",
       categoryId: 0,
-      categoryName: "",
       unitId: 0,
-      unitName: "",
       brandId: 0,
-      brandName: "",
       purchasePrice: 0,
+      sellingPrice: 0,
       sellPrice: 0,
+      discountPercent: 0,
       stock: 0,
       minStock: 0,
+      minimumStock: 0,
     }
   );
 

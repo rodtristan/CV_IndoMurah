@@ -43,12 +43,14 @@ export default function POSLoginPage() {
 
       // Mock successful login
       const mockUser: POSUser = {
-        id: 1,
+        id: '1',
         companyId: companyId.toUpperCase(),
         userId: userId,
-        fullName: "Administrator",
+        name: "Administrator",
         email: "admin@example.com",
         role: "admin",
+        isActive: true,
+        createdAt: new Date().toISOString(),
       };
 
       // Save to localStorage

@@ -139,8 +139,8 @@ export default function ProfitReportPage() {
         api.getPurchases(purchaseParams),
       ]);
 
-      if (salesRes.success) {
-        const salesData = salesRes.data || [];
+      if (salesRes.success && salesRes.data) {
+        const salesData = Array.isArray(salesRes.data) ? salesRes.data : [];
         setSales(salesData);
 
         // Calculate profit with COGS from sale items
@@ -177,8 +177,8 @@ export default function ProfitReportPage() {
         });
       }
 
-      if (purchasesRes.success) {
-        setPurchases(purchasesRes.data || []);
+      if (purchasesRes.success && purchasesRes.data) {
+        setPurchases(Array.isArray(purchasesRes.data) ? purchasesRes.data : []);
       }
     } catch (error) {
       console.error("Failed to fetch report:", error);

@@ -23,7 +23,7 @@ export function SupplierForm({
   initialData,
   isEditing,
 }: SupplierFormProps) {
-  const [formData, setFormData] = useState<Partial<Supplier>>(
+  const [formData, setFormData] = useState<Partial<Supplier> & { city?: string }>(
     initialData || {
       code: "",
       name: "",
@@ -31,7 +31,6 @@ export function SupplierForm({
       phone: "",
       email: "",
       address: "",
-      city: "",
     }
   );
 
@@ -150,9 +149,9 @@ export function SupplierForm({
                 Kota
               </label>
               <Input
-                value={formData.city || ""}
+                value={(formData as any).city || ""}
                 onChange={(e) =>
-                  setFormData({ ...formData, city: e.target.value })
+                  setFormData({ ...formData, city: e.target.value } as any)
                 }
                 placeholder="Jakarta"
                 className="w-full"

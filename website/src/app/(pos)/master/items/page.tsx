@@ -66,7 +66,7 @@ export default function ItemsPage() {
 
       const response = await api.getProducts(params as any);
       if (response.success && response.data) {
-        setItems(response.data);
+        setItems(Array.isArray(response.data) ? response.data : []);
         if (response.meta) {
           setTotal(response.meta.total);
           setTotalPages(response.meta.pages);
@@ -88,9 +88,9 @@ export default function ItemsPage() {
         api.getWarehouses({ $select: "id,code,name" }),
       ]);
 
-      if (categoriesRes.success) setCategories(categoriesRes.data || []);
-      if (brandsRes.success) setBrands(brandsRes.data || []);
-      if (warehousesRes.success) setWarehouses(warehousesRes.data || []);
+      if (categoriesRes.success) setCategories(Array.isArray(categoriesRes.data) ? categoriesRes.data : []);
+      if (brandsRes.success) setBrands(Array.isArray(brandsRes.data) ? brandsRes.data : []);
+      if (warehousesRes.success) setWarehouses(Array.isArray(warehousesRes.data) ? warehousesRes.data : []);
     } catch (error) {
       console.error("Error fetching filter options:", error);
     }
@@ -342,7 +342,7 @@ export default function ItemsPage() {
                     )}>
                       {item.stock.toLocaleString("id-ID")}
                     </td>
-                    <td className="px-3 py-3 text-sm text-gray-500">{item.unit?.abbreviation || item.unitName || "-"}</td>
+                    <td className="px-3 py-3 text-sm text-gray-500">{(item.unit as any)?.abbreviation || "-"}</td>
                     <td className="px-3 py-3 text-sm text-gray-500">{item.itemType || "-"}</td>
                     <td className="px-3 py-3 text-sm text-gray-500">{item.brand?.name || item.brandName || "-"}</td>
                     <td className="px-3 py-3 text-sm text-gray-500">{item.rack || "-"}</td>

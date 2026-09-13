@@ -39,7 +39,7 @@ export default function CustomersPage() {
 
       const response = await api.getCustomers(params as any);
       if (response.success && response.data) {
-        setCustomers(response.data);
+        setCustomers(Array.isArray(response.data) ? response.data : []);
         if (response.meta) {
           setTotal(response.meta.total);
           setTotalPages(response.meta.pages);
