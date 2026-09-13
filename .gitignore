@@ -1,2 +1,15 @@
+# Ignore node_modules and environment
 /node_modules
-.env
+.claude
+.plan
+.graphify
+claude.md
+/graphify-out
+/.playwright-mcp
+/comparison
+
+#REFERENCE
+PLAN_POS_IMPLEMENTATION.md
+ketoko-pengenalan-program.png
+pos-login-page.png
+/ketoko

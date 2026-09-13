@@ -1,3 +1,6 @@
+// Original types - DO NOT export POS types here to avoid conflicts
+// POS types should be imported directly from "@/types/pos"
+
 export type UserStatus = "subscribed" | "unsubscribed" | "bounced";
 export type SaleStatus = "paid" | "failed" | "refunded";
 
@@ -45,6 +48,7 @@ export interface Stat {
   variation: number;
 }
 
+// Use this Sale type for the original dashboard
 export interface Sale {
   id: string;
   date: string;

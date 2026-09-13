@@ -1,9 +1,6 @@
 // ============================================================
-// Toko CV IndoMurah — Prisma Schema
-// ============================================================
-// Auth & akses (User, Role, Menu) sudah tersedia di bawah.
-// Tambahkan model bisnis lain (Product, Order, Attendance, dll)
-// sesuai kebutuhan modul yang akan dikembangkan.
+// Toko CV IndoMurah — Complete Prisma Schema
+// POS System with OData Query Support
 // ============================================================
 
 generator client {
@@ -15,142 +12,1139 @@ datasource db {
   provider = "postgresql"
 }
 
-// ─── Log ────────────────────────────────────────────────────
-// Dipakai oleh LoggingInterceptor (src/common/interceptors) untuk
-// mencatat setiap request HTTP ke database.
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENUMS
+// ═══════════════════════════════════════════════════════════════════════════════
 
-model Log {
-  id                   Int       @id @default(autoincrement())
-  method               String?
-  endpoint             String?
-  headers              Json?
-  payload              Json?
-  response_status      Int?
-  message              String?
-  requester_login_id   Int?
-  requester_full_name  String?
-  ip_address           String?
-  user_agent           String?
-  duration_ms          Int?
-  log_datetime         DateTime  @default(now())
-  createdAt            DateTime  @default(now())
-
-  @@map("logs")
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  DEBIT
+  QRIS
+  CREDIT
 }
 
-// ─── User ───────────────────────────────────────────────────
-// Akun login. main_role_id = role utama (dipakai untuk menu/akses
-// default). UserRole memungkinkan user punya role tambahan.
+enum PaymentStatus {
+  PENDING
+  PAID
+  INSTALMENT
+  PARTIAL
+  CANCELLED
+}
+
+enum TransactionStatus {
+  DRAFT
+  PENDING
+  CONFIRMED
+  SENT
+  RECEIVED
+  COMPLETED
+  APPROVED
+  CANCELLED
+}
+
+enum StockOpnameStatus {
+  PENDING
+  APPROVED
+  COMPLETED
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum ReferenceType {
+  PURCHASE
+  RETURN
+  ADJUSTMENT
+  MANUAL
+}
+
+enum CustomerGroup {
+  RETAIL
+  WHOLESALE
+  VIP
+  GENERAL
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AUTH & USER MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════════════
 
 model User {
-  id            Int       @id @default(autoincrement())
-  full_name     String
-  email         String    @unique
-  password      String?
-  phone_number  String?
-  photo_url     String?
-  main_role_id  Int?
-  last_login    DateTime?
-  is_active     Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id        String   @id @default(uuid())
+  email     String   @unique @db.VarChar(255)
+  password  String   @db.VarChar(255)
+  name      String   @db.VarChar(255)
+  role      String   @default("cashier") @db.VarChar(100)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  role          Role?      @relation("UserMainRole", fields: [main_role_id], references: [id])
-  userRoles     UserRole[]
-  userMenus     UserMenu[]
+  // Relations - Purchase transactions
+  purchaseOrders   PurchaseOrder[]
+  purchases        Purchase[]
+  purchasePayments PurchasePayment[]
+  purchaseReturns  PurchaseReturn[]
+
+  // Relations - Stock transactions
+  stockIns       StockIn[]
+  stockOuts      StockOut[]
+  stockTransfers StockTransfer[]
+  stockOpnames   StockOpname[]
+
+  // Relations - Sales transactions
+  sales        Sale[]
+  salePayments SalePayment[]
+  saleReturns  SaleReturn[]
+
+  // Relations - Accounting
+  cashIns          CashIn[]
+  cashOuts         CashOut[]
+  cashTransfers    CashTransfer[]
+  customerDeposits CustomerDeposit[]
+  supplierDeposits SupplierDeposit[]
+  journalEntries   JournalEntry[]
+
+  // Relations - RBAC
+  userRoles        UserRole[]
+  userMenus        UserMenu[]
+  journals         Journal[]
+  pointRedemptions PointRedemption[]
 
   @@map("users")
 }
 
-// ─── Role ───────────────────────────────────────────────────
-
 model Role {
-  id                Int       @id @default(autoincrement())
-  role_name         String
-  role_description  String?
-  is_active         Boolean   @default(true)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id              Int      @id @default(autoincrement())
+  roleName        String   @unique @db.VarChar(100)
+  roleDescription String?  @db.VarChar(500)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  users             User[]      @relation("UserMainRole")
-  userRoles         UserRole[]
-  roleMenus         RoleMenu[]
+  userRoles UserRole[]
+  roleMenus RoleMenu[]
 
   @@map("roles")
 }
 
-// ─── Menu ───────────────────────────────────────────────────
-// Item sidebar/menu dashboard. Tree via parent_menu_id.
-// Akses menu ditentukan oleh RoleMenu (default per role) dan
-// UserMenu (override per user, prioritas lebih tinggi).
-
 model Menu {
-  id             Int       @id @default(autoincrement())
-  menu_name      String
-  menu_type      String?
-  parent_menu_id Int?
-  is_active      Boolean   @default(true)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id           Int      @id @default(autoincrement())
+  menuName     String   @db.VarChar(255)
+  menuType     String?  @db.VarChar(50)
+  icon         String?  @db.VarChar(100)
+  route        String?  @db.VarChar(500)
+  parentMenuId Int?
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  parentMenu     Menu?      @relation("MenuParent", fields: [parent_menu_id], references: [id])
-  childMenus     Menu[]     @relation("MenuParent")
-  userMenus      UserMenu[]
-  roleMenus      RoleMenu[]
+  parentMenu Menu?      @relation("MenuParent", fields: [parentMenuId], references: [id])
+  childMenus Menu[]     @relation("MenuParent")
+  userMenus  UserMenu[]
+  roleMenus  RoleMenu[]
 
   @@map("menus")
 }
 
-// ─── Junction: UserRole ─────────────────────────────────────
-// Role tambahan di luar main_role_id milik User.
-
 model UserRole {
-  id        Int       @id @default(autoincrement())
-  user_id   Int
-  role_id   Int
-  is_active Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id        Int      @id @default(autoincrement())
+  userId    String
+  roleId    Int
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user      User      @relation(fields: [user_id], references: [id])
-  role      Role      @relation(fields: [role_id], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
-  @@unique([user_id, role_id])
+  @@unique([userId, roleId])
   @@map("user_roles")
 }
 
-// ─── Junction: RoleMenu ─────────────────────────────────────
-// Menu default yang bisa diakses semua user dengan role tersebut.
-
 model RoleMenu {
-  id        Int       @id @default(autoincrement())
-  role_id   Int
-  menu_id   Int
-  is_active Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id        Int      @id @default(autoincrement())
+  roleId    Int
+  menuId    Int
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  role      Role      @relation(fields: [role_id], references: [id])
-  menu      Menu      @relation(fields: [menu_id], references: [id])
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  menu Menu @relation(fields: [menuId], references: [id], onDelete: Cascade)
 
-  @@unique([role_id, menu_id])
+  @@unique([roleId, menuId])
   @@map("role_menus")
 }
 
-// ─── Junction: UserMenu ─────────────────────────────────────
-// Override akses menu per user (prioritas lebih tinggi dari RoleMenu).
-
 model UserMenu {
-  id        Int       @id @default(autoincrement())
-  user_id   Int
-  menu_id   Int
-  is_active Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id        Int      @id @default(autoincrement())
+  userId    String
+  menuId    Int
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user      User      @relation(fields: [user_id], references: [id])
-  menu      Menu      @relation(fields: [menu_id], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  menu Menu @relation(fields: [menuId], references: [id], onDelete: Cascade)
 
-  @@unique([user_id, menu_id])
+  @@unique([userId, menuId])
   @@map("user_menus")
+}
+
+// ─── Log ─────────────────────────────────────────────────────
+model Log {
+  id                Int      @id @default(autoincrement())
+  method            String?  @db.VarChar(20)
+  endpoint          String?  @db.VarChar(500)
+  headers           Json?
+  payload           Json?
+  responseStatus    Int?
+  message           String?  @db.VarChar(1000)
+  requesterLoginId  Int?
+  requesterFullName String?  @db.VarChar(255)
+  ipAddress         String?  @db.VarChar(100)
+  userAgent         String?  @db.VarChar(500)
+  durationMs        Int?
+  logDatetime       DateTime @default(now())
+  createdAt         DateTime @default(now())
+
+  @@map("logs")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MASTER DATA MODULES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Category ──────────────────────────────────────────────
+model Category {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(255)
+  icon        String?  @db.VarChar(100)
+  image       String?  @db.VarChar(500)
+  description String?  @db.VarChar(1000)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products Product[]
+
+  @@map("categories")
+}
+
+// ─── Brand ─────────────────────────────────────────────────
+model Brand {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(255)
+  description String?  @db.VarChar(1000)
+  logoUrl     String?  @db.VarChar(500)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products Product[]
+
+  @@map("brands")
+}
+
+// ─── Unit ──────────────────────────────────────────────────
+model Unit {
+  id           Int      @id @default(autoincrement())
+  code         String   @unique @db.VarChar(50)
+  name         String   @db.VarChar(100)
+  abbreviation String?  @db.VarChar(20)
+  description  String?  @db.VarChar(500)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  products            Product[]
+  purchaseOrderItems  PurchaseOrderItem[]
+  purchaseItems       PurchaseItem[]
+  stockInItems        StockInItem[]
+  stockOutItems       StockOutItem[]
+  stockTransferItems  StockTransferItem[]
+  stockOpnameItems    StockOpnameItem[]
+  saleItems           SaleItem[]
+  saleReturnItems     SaleReturnItem[]
+  purchaseReturnItems PurchaseReturnItem[]
+
+  @@map("units")
+}
+
+// ─── Warehouse ─────────────────────────────────────────────
+model Warehouse {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique @db.VarChar(50)
+  name      String   @db.VarChar(255)
+  address   String?  @db.VarChar(500)
+  phone     String?  @db.VarChar(50)
+  isDefault Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  products           Product[]
+  productStocks      ProductStock[]
+  stockIns           StockIn[]
+  stockOuts          StockOut[]
+  stockTransfersFrom StockTransfer[]  @relation("TransferFrom")
+  stockTransfersTo   StockTransfer[]  @relation("TransferTo")
+  stockOpnames       StockOpname[]
+  sales              Sale[]
+  purchases          Purchase[]
+  purchaseOrders     PurchaseOrder[]
+  saleReturns        SaleReturn[]
+  purchaseReturns    PurchaseReturn[]
+  salePoints         SalePoint[]
+
+  @@map("warehouses")
+}
+
+// ─── Supplier ───────────────────────────────────────────────
+model Supplier {
+  id            Int      @id @default(autoincrement())
+  code          String   @unique @db.VarChar(50)
+  name          String   @db.VarChar(255)
+  contactPerson String?  @db.VarChar(255)
+  phone         String?  @db.VarChar(50)
+  email         String?  @db.VarChar(255)
+  address       String?  @db.VarChar(500)
+  totalDebt     Decimal  @default(0) @db.Decimal(15, 2)
+  notes         String?  @db.VarChar(1000)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  purchaseOrders   PurchaseOrder[]
+  purchases        Purchase[]
+  stockIns         StockIn[]
+  supplierDeposits SupplierDeposit[]
+  purchaseReturns  PurchaseReturn[]
+
+  @@map("suppliers")
+}
+
+// ─── Customer ───────────────────────────────────────────────
+model Customer {
+  id              Int           @id @default(autoincrement())
+  code            String        @unique @db.VarChar(50)
+  name            String        @db.VarChar(255)
+  phone           String?       @db.VarChar(50)
+  email           String?       @db.VarChar(255)
+  address         String?       @db.VarChar(500)
+  totalReceivable Decimal       @default(0) @db.Decimal(15, 2)
+  customerGroup   CustomerGroup @default(GENERAL)
+  pointBalance    Int           @default(0)
+  notes           String?       @db.VarChar(1000)
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  sales            Sale[]
+  customerDeposits CustomerDeposit[]
+  pointRedemptions PointRedemption[]
+  saleReturns      SaleReturn[]
+
+  @@map("customers")
+}
+
+// ─── Sales Person ──────────────────────────────────────────
+model SalesPerson {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique @db.VarChar(50)
+  name      String   @db.VarChar(255)
+  phone     String?  @db.VarChar(50)
+  email     String?  @db.VarChar(255)
+  address   String?  @db.VarChar(500)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sales Sale[]
+
+  @@map("sales_people")
+}
+
+// ─── Sale Point ─────────────────────────────────────────────
+model SalePoint {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(255)
+  warehouseId Int?
+  description String?  @db.VarChar(500)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  warehouse Warehouse? @relation(fields: [warehouseId], references: [id])
+  sales     Sale[]
+
+  @@map("sale_points")
+}
+
+// ─── Product ────────────────────────────────────────────────
+model Product {
+  id              Int      @id @default(autoincrement())
+  code            String   @unique @db.VarChar(50)
+  barcode         String?  @db.VarChar(100)
+  name            String   @db.VarChar(255)
+  categoryId      Int?
+  brandId         Int?
+  unitId          Int
+  warehouseId     Int?
+  purchasePrice   Decimal  @default(0) @db.Decimal(15, 2)
+  sellingPrice    Decimal  @default(0) @db.Decimal(15, 2)
+  discountPercent Decimal  @default(0) @db.Decimal(5, 2)
+  stock           Decimal  @default(0) @db.Decimal(15, 3)
+  minimumStock    Decimal  @default(0) @db.Decimal(15, 3)
+  image           String?  @db.VarChar(500)
+  description     String?  @db.VarChar(1000)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  category  Category?  @relation(fields: [categoryId], references: [id])
+  brand     Brand?     @relation(fields: [brandId], references: [id])
+  unit      Unit       @relation(fields: [unitId], references: [id])
+  warehouse Warehouse? @relation(fields: [warehouseId], references: [id])
+
+  // Relations
+  purchaseOrderItems  PurchaseOrderItem[]
+  purchaseItems       PurchaseItem[]
+  purchaseReturnItems PurchaseReturnItem[]
+  stockInItems        StockInItem[]
+  stockOutItems       StockOutItem[]
+  stockTransferItems  StockTransferItem[]
+  stockOpnameItems    StockOpnameItem[]
+  saleItems           SaleItem[]
+  saleReturnItems     SaleReturnItem[]
+  productStocks       ProductStock[]
+
+  @@map("products")
+}
+
+// ─── Product Stock (per warehouse) ───────────────────────────
+model ProductStock {
+  id           Int      @id @default(autoincrement())
+  productId    Int
+  warehouseId  Int
+  quantity     Decimal  @default(0) @db.Decimal(15, 3)
+  minimumStock Decimal  @default(0) @db.Decimal(15, 3)
+  updatedAt    DateTime @updatedAt
+
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, warehouseId])
+  @@map("product_stocks")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SALE TRANSACTIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Sale ───────────────────────────────────────────────────
+model Sale {
+  id              Int            @id @default(autoincrement())
+  code            String         @unique @db.VarChar(50)
+  date            DateTime       @default(now())
+  customerId      Int
+  salesPersonId   Int?
+  salePointId     Int?
+  warehouseId     Int?
+  subtotal        Decimal        @default(0) @db.Decimal(15, 2)
+  discountPercent Decimal        @default(0) @db.Decimal(5, 2)
+  discountAmount  Decimal        @default(0) @db.Decimal(15, 2)
+  taxPercent      Decimal        @default(0) @db.Decimal(5, 2)
+  taxAmount       Decimal        @default(0) @db.Decimal(15, 2)
+  total           Decimal        @default(0) @db.Decimal(15, 2)
+  cashAmount      Decimal        @default(0) @db.Decimal(15, 2)
+  changeAmount    Decimal        @default(0) @db.Decimal(15, 2)
+  paymentStatus   PaymentStatus  @default(PENDING)
+  isReturn        Boolean        @default(false)
+  returnedAt      DateTime?
+  paymentMethod   PaymentMethod?
+  notes           String?        @db.VarChar(1000)
+  createdById     String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  customer    Customer     @relation(fields: [customerId], references: [id])
+  salesPerson SalesPerson? @relation(fields: [salesPersonId], references: [id])
+  salePoint   SalePoint?   @relation(fields: [salePointId], references: [id])
+  warehouse   Warehouse?   @relation(fields: [warehouseId], references: [id])
+  creator     User         @relation(fields: [createdById], references: [id])
+
+  saleItems    SaleItem[]
+  salePayments SalePayment[]
+  saleReturns  SaleReturn[]
+
+  @@map("sales")
+}
+
+// ─── Sale Item ──────────────────────────────────────────────
+model SaleItem {
+  id              Int      @id @default(autoincrement())
+  saleId          Int
+  productId       Int
+  quantity        Decimal  @db.Decimal(15, 3)
+  unitPrice       Decimal  @db.Decimal(15, 2)
+  discountPercent Decimal  @default(0) @db.Decimal(5, 2)
+  discountAmount  Decimal  @default(0) @db.Decimal(15, 2)
+  subtotal        Decimal  @db.Decimal(15, 2)
+  createdAt       DateTime @default(now())
+
+  sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+  unit    Unit?   @relation(fields: [unitId], references: [id])
+  unitId  Int?
+
+  @@map("sale_items")
+}
+
+// ─── Sale Payment ────────────────────────────────────────────
+model SalePayment {
+  id              Int           @id @default(autoincrement())
+  saleId          Int
+  method          PaymentMethod @default(CASH)
+  amount          Decimal       @db.Decimal(15, 2)
+  referenceNumber String?       @db.VarChar(100)
+  date            DateTime      @default(now())
+  notes           String?       @db.VarChar(500)
+  createdById     String
+  createdAt       DateTime      @default(now())
+
+  sale    Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  creator User @relation(fields: [createdById], references: [id])
+
+  @@map("sale_payments")
+}
+
+// ─── Sale Return ────────────────────────────────────────────
+model SaleReturn {
+  id          Int               @id @default(autoincrement())
+  code        String            @unique @db.VarChar(50)
+  date        DateTime          @default(now())
+  saleId      Int
+  customerId  Int
+  warehouseId Int?
+  totalReturn Decimal           @db.Decimal(15, 2)
+  reason      String?           @db.VarChar(1000)
+  status      TransactionStatus @default(DRAFT)
+  createdById String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  sale      Sale       @relation(fields: [saleId], references: [id])
+  customer  Customer   @relation(fields: [customerId], references: [id])
+  warehouse Warehouse? @relation(fields: [warehouseId], references: [id])
+  creator   User       @relation(fields: [createdById], references: [id])
+
+  returnItems SaleReturnItem[]
+
+  @@map("sale_returns")
+}
+
+// ─── Sale Return Item ───────────────────────────────────────
+model SaleReturnItem {
+  id           Int      @id @default(autoincrement())
+  saleReturnId Int
+  productId    Int
+  quantity     Decimal  @db.Decimal(15, 3)
+  unitPrice    Decimal  @db.Decimal(15, 2)
+  subtotal     Decimal  @db.Decimal(15, 2)
+  createdAt    DateTime @default(now())
+
+  saleReturn SaleReturn @relation(fields: [saleReturnId], references: [id], onDelete: Cascade)
+  product    Product    @relation(fields: [productId], references: [id])
+  unit       Unit?      @relation(fields: [unitId], references: [id])
+  unitId     Int?
+
+  @@map("sale_return_items")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PURCHASE TRANSACTIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Purchase Order ─────────────────────────────────────────
+model PurchaseOrder {
+  id              Int               @id @default(autoincrement())
+  code            String            @unique @db.VarChar(50)
+  date            DateTime          @default(now())
+  supplierId      Int
+  warehouseId     Int?
+  subtotal        Decimal           @default(0) @db.Decimal(15, 2)
+  discountPercent Decimal           @default(0) @db.Decimal(5, 2)
+  discountAmount  Decimal           @default(0) @db.Decimal(15, 2)
+  taxPercent      Decimal           @default(0) @db.Decimal(5, 2)
+  taxAmount       Decimal           @default(0) @db.Decimal(15, 2)
+  total           Decimal           @default(0) @db.Decimal(15, 2)
+  downPayment     Decimal           @default(0) @db.Decimal(15, 2)
+  paymentStatus   PaymentStatus     @default(PENDING)
+  dueDate         DateTime?
+  isInvoice       Boolean           @default(false)
+  purchaseId      Int?
+  status          TransactionStatus @default(DRAFT)
+  notes           String?           @db.VarChar(1000)
+  createdById     String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  supplier  Supplier   @relation(fields: [supplierId], references: [id])
+  warehouse Warehouse? @relation(fields: [warehouseId], references: [id])
+  creator   User       @relation(fields: [createdById], references: [id])
+
+  purchaseOrderItems PurchaseOrderItem[]
+
+  @@map("purchase_orders")
+}
+
+// ─── Purchase Order Item ────────────────────────────────────
+model PurchaseOrderItem {
+  id              Int      @id @default(autoincrement())
+  purchaseOrderId Int
+  productId       Int
+  quantity        Decimal  @db.Decimal(15, 3)
+  unitId          Int
+  unitPrice       Decimal  @db.Decimal(15, 2)
+  discountPercent Decimal  @default(0) @db.Decimal(5, 2)
+  discountAmount  Decimal  @default(0) @db.Decimal(15, 2)
+  subtotal        Decimal  @db.Decimal(15, 2)
+  createdAt       DateTime @default(now())
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product       Product       @relation(fields: [productId], references: [id])
+  unit          Unit          @relation(fields: [unitId], references: [id])
+
+  @@map("purchase_order_items")
+}
+
+// ─── Purchase ───────────────────────────────────────────────
+model Purchase {
+  id              Int               @id @default(autoincrement())
+  code            String            @unique @db.VarChar(50)
+  date            DateTime          @default(now())
+  supplierId      Int
+  warehouseId     Int?
+  subtotal        Decimal           @default(0) @db.Decimal(15, 2)
+  discountPercent Decimal           @default(0) @db.Decimal(5, 2)
+  discountAmount  Decimal           @default(0) @db.Decimal(15, 2)
+  taxPercent      Decimal           @default(0) @db.Decimal(5, 2)
+  taxAmount       Decimal           @default(0) @db.Decimal(15, 2)
+  total           Decimal           @default(0) @db.Decimal(15, 2)
+  paid            Decimal           @default(0) @db.Decimal(15, 2)
+  remaining       Decimal           @default(0) @db.Decimal(15, 2)
+  paymentStatus   PaymentStatus     @default(PENDING)
+  paymentMethod   PaymentMethod?
+  dueDate         DateTime?
+  isReturn        Boolean           @default(false)
+  status          TransactionStatus @default(DRAFT)
+  notes           String?           @db.VarChar(1000)
+  createdById     String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  supplier  Supplier   @relation(fields: [supplierId], references: [id])
+  warehouse Warehouse? @relation(fields: [warehouseId], references: [id])
+  creator   User       @relation(fields: [createdById], references: [id])
+
+  purchaseItems    PurchaseItem[]
+  purchasePayments PurchasePayment[]
+  purchaseReturns  PurchaseReturn[]
+
+  @@map("purchases")
+}
+
+// ─── Purchase Item ──────────────────────────────────────────
+model PurchaseItem {
+  id              Int      @id @default(autoincrement())
+  purchaseId      Int
+  productId       Int
+  quantity        Decimal  @db.Decimal(15, 3)
+  unitId          Int
+  unitPrice       Decimal  @db.Decimal(15, 2)
+  discountPercent Decimal  @default(0) @db.Decimal(5, 2)
+  discountAmount  Decimal  @default(0) @db.Decimal(15, 2)
+  subtotal        Decimal  @db.Decimal(15, 2)
+  createdAt       DateTime @default(now())
+
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id])
+  unit     Unit     @relation(fields: [unitId], references: [id])
+
+  @@map("purchase_items")
+}
+
+// ─── Purchase Payment ───────────────────────────────────────
+model PurchasePayment {
+  id              Int           @id @default(autoincrement())
+  purchaseId      Int
+  method          PaymentMethod @default(CASH)
+  amount          Decimal       @db.Decimal(15, 2)
+  referenceNumber String?       @db.VarChar(100)
+  date            DateTime      @default(now())
+  notes           String?       @db.VarChar(500)
+  createdById     String
+  createdAt       DateTime      @default(now())
+
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  creator  User     @relation(fields: [createdById], references: [id])
+
+  @@map("purchase_payments")
+}
+
+// ─── Purchase Return ────────────────────────────────────────
+model PurchaseReturn {
+  id          Int               @id @default(autoincrement())
+  code        String            @unique @db.VarChar(50)
+  date        DateTime          @default(now())
+  purchaseId  Int
+  supplierId  Int
+  warehouseId Int?
+  totalReturn Decimal           @db.Decimal(15, 2)
+  reason      String?           @db.VarChar(1000)
+  status      TransactionStatus @default(DRAFT)
+  createdById String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  purchase  Purchase   @relation(fields: [purchaseId], references: [id])
+  supplier  Supplier   @relation(fields: [supplierId], references: [id])
+  warehouse Warehouse? @relation(fields: [warehouseId], references: [id])
+  creator   User       @relation(fields: [createdById], references: [id])
+
+  returnItems PurchaseReturnItem[]
+
+  @@map("purchase_returns")
+}
+
+// ─── Purchase Return Item ───────────────────────────────────
+model PurchaseReturnItem {
+  id               Int      @id @default(autoincrement())
+  purchaseReturnId Int
+  productId        Int
+  quantity         Decimal  @db.Decimal(15, 3)
+  unitId           Int
+  unitPrice        Decimal  @db.Decimal(15, 2)
+  subtotal         Decimal  @db.Decimal(15, 2)
+  createdAt        DateTime @default(now())
+
+  purchaseReturn PurchaseReturn @relation(fields: [purchaseReturnId], references: [id], onDelete: Cascade)
+  product        Product        @relation(fields: [productId], references: [id])
+  unit           Unit           @relation(fields: [unitId], references: [id])
+
+  @@map("purchase_return_items")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INVENTORY
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Stock In ───────────────────────────────────────────────
+model StockIn {
+  id            Int               @id @default(autoincrement())
+  code          String            @unique @db.VarChar(50)
+  date          DateTime          @default(now())
+  warehouseId   Int
+  supplierId    Int?
+  referenceType ReferenceType?
+  referenceId   Int?
+  totalItems    Decimal           @default(0) @db.Decimal(15, 2)
+  description   String?           @db.VarChar(1000)
+  status        TransactionStatus @default(DRAFT)
+  createdById   String
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  supplier  Supplier? @relation(fields: [supplierId], references: [id])
+  creator   User      @relation(fields: [createdById], references: [id])
+
+  stockInItems StockInItem[]
+
+  @@map("stock_ins")
+}
+
+// ─── Stock In Item ───────────────────────────────────────────
+model StockInItem {
+  id        Int      @id @default(autoincrement())
+  stockInId Int
+  productId Int
+  quantity  Decimal  @db.Decimal(15, 3)
+  unitId    Int
+  unitPrice Decimal  @default(0) @db.Decimal(15, 2)
+  subtotal  Decimal  @default(0) @db.Decimal(15, 2)
+  createdAt DateTime @default(now())
+
+  stockIn StockIn @relation(fields: [stockInId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+  unit    Unit    @relation(fields: [unitId], references: [id])
+
+  @@map("stock_in_items")
+}
+
+// ─── Stock Out ───────────────────────────────────────────────
+model StockOut {
+  id            Int               @id @default(autoincrement())
+  code          String            @unique @db.VarChar(50)
+  date          DateTime          @default(now())
+  warehouseId   Int
+  referenceType ReferenceType?
+  referenceId   Int?
+  totalItems    Decimal           @default(0) @db.Decimal(15, 2)
+  description   String?           @db.VarChar(1000)
+  status        TransactionStatus @default(DRAFT)
+  createdById   String
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  creator   User      @relation(fields: [createdById], references: [id])
+
+  stockOutItems StockOutItem[]
+
+  @@map("stock_outs")
+}
+
+// ─── Stock Out Item ──────────────────────────────────────────
+model StockOutItem {
+  id         Int      @id @default(autoincrement())
+  stockOutId Int
+  productId  Int
+  quantity   Decimal  @db.Decimal(15, 3)
+  unitId     Int
+  unitPrice  Decimal  @default(0) @db.Decimal(15, 2)
+  subtotal   Decimal  @default(0) @db.Decimal(15, 2)
+  createdAt  DateTime @default(now())
+
+  stockOut StockOut @relation(fields: [stockOutId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id])
+  unit     Unit     @relation(fields: [unitId], references: [id])
+
+  @@map("stock_out_items")
+}
+
+// ─── Stock Transfer ──────────────────────────────────────────
+model StockTransfer {
+  id              Int               @id @default(autoincrement())
+  code            String            @unique @db.VarChar(50)
+  date            DateTime          @default(now())
+  fromWarehouseId Int
+  toWarehouseId   Int
+  totalItems      Decimal           @default(0) @db.Decimal(15, 2)
+  status          TransactionStatus @default(DRAFT)
+  notes           String?           @db.VarChar(1000)
+  createdById     String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  fromWarehouse Warehouse @relation("TransferFrom", fields: [fromWarehouseId], references: [id])
+  toWarehouse   Warehouse @relation("TransferTo", fields: [toWarehouseId], references: [id])
+  creator       User      @relation(fields: [createdById], references: [id])
+
+  transferItems StockTransferItem[]
+
+  @@map("stock_transfers")
+}
+
+// ─── Stock Transfer Item ─────────────────────────────────────
+model StockTransferItem {
+  id              Int      @id @default(autoincrement())
+  stockTransferId Int
+  productId       Int
+  quantity        Decimal  @db.Decimal(15, 3)
+  unitId          Int
+  unitPrice       Decimal  @default(0) @db.Decimal(15, 2)
+  subtotal        Decimal  @default(0) @db.Decimal(15, 2)
+  createdAt       DateTime @default(now())
+
+  stockTransfer StockTransfer @relation(fields: [stockTransferId], references: [id], onDelete: Cascade)
+  product       Product       @relation(fields: [productId], references: [id])
+  unit          Unit          @relation(fields: [unitId], references: [id])
+
+  @@map("stock_transfer_items")
+}
+
+// ─── Stock Opname ────────────────────────────────────────────
+model StockOpname {
+  id          Int               @id @default(autoincrement())
+  code        String            @unique @db.VarChar(50)
+  date        DateTime          @default(now())
+  warehouseId Int
+  totalItems  Decimal           @default(0) @db.Decimal(15, 2)
+  status      StockOpnameStatus @default(PENDING)
+  notes       String?           @db.VarChar(1000)
+  createdById String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  creator   User      @relation(fields: [createdById], references: [id])
+
+  opnameItems StockOpnameItem[]
+
+  @@map("stock_opnames")
+}
+
+// ─── Stock Opname Item ───────────────────────────────────────
+model StockOpnameItem {
+  id            Int      @id @default(autoincrement())
+  stockOpnameId Int
+  productId     Int
+  systemStock   Decimal  @db.Decimal(15, 3)
+  countedStock  Decimal  @db.Decimal(15, 3)
+  difference    Decimal  @db.Decimal(15, 3)
+  unitId        Int
+  unitPrice     Decimal  @default(0) @db.Decimal(15, 2)
+  note          String?  @db.VarChar(500)
+  createdAt     DateTime @default(now())
+
+  stockOpname StockOpname @relation(fields: [stockOpnameId], references: [id], onDelete: Cascade)
+  product     Product     @relation(fields: [productId], references: [id])
+  unit        Unit        @relation(fields: [unitId], references: [id])
+
+  @@map("stock_opname_items")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ACCOUNTING
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Account ────────────────────────────────────────────────
+model Account {
+  id        Int         @id @default(autoincrement())
+  code      String      @unique @db.VarChar(50)
+  name      String      @db.VarChar(255)
+  type      AccountType
+  parentId  Int?
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  parent   Account?  @relation("AccountParent", fields: [parentId], references: [id])
+  children Account[] @relation("AccountParent")
+
+  // Accounting relations
+  cashIns           CashIn[]
+  cashOuts          CashOut[]
+  cashTransfersFrom CashTransfer[] @relation("CashTransferFrom")
+  cashTransfersTo   CashTransfer[] @relation("CashTransferTo")
+  journalEntries    JournalEntry[]
+
+  @@map("accounts")
+}
+
+// ─── Journal ─────────────────────────────────────────────────
+model Journal {
+  id            Int       @id @default(autoincrement())
+  code          String    @unique @db.VarChar(50)
+  date          DateTime  @default(now())
+  description   String?   @db.VarChar(1000)
+  referenceType String?   @db.VarChar(100)
+  referenceId   Int?
+  isPosted      Boolean   @default(false)
+  postedAt      DateTime?
+  createdById   String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  creator User @relation(fields: [createdById], references: [id])
+
+  journalEntries JournalEntry[]
+
+  @@map("journals")
+}
+
+// ─── Journal Entry ───────────────────────────────────────────
+model JournalEntry {
+  id        Int      @id @default(autoincrement())
+  journalId Int
+  accountId Int
+  debit     Decimal  @default(0) @db.Decimal(15, 2)
+  credit    Decimal  @default(0) @db.Decimal(15, 2)
+  memo      String?  @db.VarChar(500)
+  createdAt DateTime @default(now())
+
+  journal Journal @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  account Account @relation(fields: [accountId], references: [id])
+  user    User?   @relation(fields: [userId], references: [id])
+  userId  String?
+
+  @@map("journal_entries")
+}
+
+// ─── Cash In ─────────────────────────────────────────────────
+model CashIn {
+  id            Int      @id @default(autoincrement())
+  code          String   @unique @db.VarChar(50)
+  date          DateTime @default(now())
+  accountId     Int
+  amount        Decimal  @db.Decimal(15, 2)
+  description   String?  @db.VarChar(1000)
+  referenceType String?  @db.VarChar(100)
+  referenceId   Int?
+  createdById   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id])
+  creator User    @relation(fields: [createdById], references: [id])
+
+  @@map("cash_ins")
+}
+
+// ─── Cash Out ────────────────────────────────────────────────
+model CashOut {
+  id            Int      @id @default(autoincrement())
+  code          String   @unique @db.VarChar(50)
+  date          DateTime @default(now())
+  accountId     Int
+  amount        Decimal  @db.Decimal(15, 2)
+  description   String?  @db.VarChar(1000)
+  referenceType String?  @db.VarChar(100)
+  referenceId   Int?
+  createdById   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id])
+  creator User    @relation(fields: [createdById], references: [id])
+
+  @@map("cash_outs")
+}
+
+// ─── Cash Transfer ───────────────────────────────────────────
+model CashTransfer {
+  id            Int      @id @default(autoincrement())
+  code          String   @unique @db.VarChar(50)
+  date          DateTime @default(now())
+  fromAccountId Int
+  toAccountId   Int
+  amount        Decimal  @db.Decimal(15, 2)
+  description   String?  @db.VarChar(1000)
+  createdById   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  fromAccount Account @relation("CashTransferFrom", fields: [fromAccountId], references: [id])
+  toAccount   Account @relation("CashTransferTo", fields: [toAccountId], references: [id])
+  creator     User    @relation(fields: [createdById], references: [id])
+
+  @@map("cash_transfers")
+}
+
+// ─── Customer Deposit ────────────────────────────────────────
+model CustomerDeposit {
+  id              Int      @id @default(autoincrement())
+  code            String   @unique @db.VarChar(50)
+  date            DateTime @default(now())
+  customerId      Int
+  amount          Decimal  @db.Decimal(15, 2)
+  remainingAmount Decimal  @db.Decimal(15, 2)
+  description     String?  @db.VarChar(1000)
+  createdById     String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  creator  User     @relation(fields: [createdById], references: [id])
+
+  @@map("customer_deposits")
+}
+
+// ─── Supplier Deposit ────────────────────────────────────────
+model SupplierDeposit {
+  id              Int      @id @default(autoincrement())
+  code            String   @unique @db.VarChar(50)
+  date            DateTime @default(now())
+  supplierId      Int
+  amount          Decimal  @db.Decimal(15, 2)
+  remainingAmount Decimal  @db.Decimal(15, 2)
+  description     String?  @db.VarChar(1000)
+  createdById     String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+  creator  User     @relation(fields: [createdById], references: [id])
+
+  @@map("supplier_deposits")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// POINT SYSTEM & SETTINGS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model PointSetting {
+  id                 Int      @id @default(autoincrement())
+  name               String   @db.VarChar(255)
+  pointsPerRupiah    Decimal  @db.Decimal(10, 4)
+  minimumTransaction Decimal  @db.Decimal(15, 2)
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("point_settings")
+}
+
+model PointRedemption {
+  id             Int      @id @default(autoincrement())
+  customerId     Int
+  code           String   @unique @db.VarChar(50)
+  pointsRedeemed Int
+  rewardName     String   @db.VarChar(255)
+  rewardValue    Decimal  @db.Decimal(15, 2)
+  date           DateTime @default(now())
+  createdById    String
+  createdAt      DateTime @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  creator  User     @relation(fields: [createdById], references: [id])
+
+  @@map("point_redemptions")
+}
+
+// ─── Company Settings ────────────────────────────────────────
+model Company {
+  id         Int      @id @default(autoincrement())
+  name       String   @db.VarChar(255)
+  address    String?  @db.VarChar(500)
+  phone      String?  @db.VarChar(50)
+  email      String?  @db.VarChar(255)
+  city       String?  @db.VarChar(100)
+  province   String?  @db.VarChar(100)
+  postalCode String?  @db.VarChar(20)
+  taxId      String?  @db.VarChar(50)
+  logoUrl    String?  @db.VarChar(500)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("companies")
+}
+
+// ─── Numbering Format ───────────────────────────────────────
+model Numbering {
+  id         Int      @id @default(autoincrement())
+  type       String   @unique @db.VarChar(100)
+  prefix     String   @default("") @db.VarChar(20)
+  lastNumber Int      @default(0)
+  suffix     String   @default("") @db.VarChar(20)
+  digitCount Int      @default(4)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("numberings")
 }
