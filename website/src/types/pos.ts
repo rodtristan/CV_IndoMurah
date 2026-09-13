@@ -105,6 +105,7 @@ export interface Product {
   id: number;
   code: string;
   barcode?: string;
+  sku?: string;
   name: string;
   categoryId?: number;
   categoryName?: string;
@@ -112,13 +113,20 @@ export interface Product {
   unitName: string;
   brandId?: number;
   brandName?: string;
+  itemType?: string; // Jenis item
+  rack?: string; // Rak location
   purchasePrice: number;
+  costPrice?: number; // Harga Pokok
+  hppAverage?: number; // HPP Rata-rata (AVG)
   sellPrice: number;
   stock: number;
   minStock: number;
   warehouseId?: number;
+  warehouseName?: string;
   imageUrl?: string;
+  notes?: string; // Keterangan
   isActive: boolean;
+  isDiscontinued?: boolean; // Tidak Dijual / Discontinued
   createdAt: string;
 }
 
