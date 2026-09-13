@@ -1,5 +1,8 @@
 # Ignore node_modules and environment
 /node_modules
+web/node_modules
+web/.next
+web/dist
 .claude
 .plan
 .graphify
