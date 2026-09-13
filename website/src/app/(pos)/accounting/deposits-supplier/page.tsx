@@ -15,31 +15,22 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
-// Mock accounts data
-const mockAccounts = [
-  { id: 1, code: "1110", name: "Kas Besar", type: "Aset", parent: null, balance: 5300000, isActive: true },
-  { id: 2, code: "1111", name: "Kas Kecil", type: "Aset", parent: "1110", balance: 1000000, isActive: true },
-  { id: 3, code: "1120", name: "Bank BCA", type: "Aset", parent: null, balance: 10900000, isActive: true },
-  { id: 4, code: "1130", name: "Piutang", type: "Aset", parent: null, balance: 3250000, isActive: true },
-  { id: 5, code: "1140", name: "Persediaan", type: "Aset", parent: null, balance: 15000000, isActive: true },
-  { id: 6, code: "2110", name: "Hutang Supplier", type: "Kewajiban", parent: null, balance: 2700000, isActive: true },
-  { id: 7, code: "2120", name: "Hutang Bank", type: "Kewajiban", parent: null, balance: 5000000, isActive: true },
-  { id: 8, code: "3100", name: "Modal", type: "Ekuitas", parent: null, balance: 20000000, isActive: true },
-  { id: 9, code: "4100", name: "Penjualan", type: "Pendapatan", parent: null, balance: 1300000, isActive: true },
-  { id: 10, code: "5100", name: "HPP", type: "Beban", parent: null, balance: 800000, isActive: true },
-  { id: 11, code: "5200", name: "Biaya Operasional", type: "Beban", parent: null, balance: 500000, isActive: true },
+// Mock supplier deposits data
+const mockSupplierDeposits = [
+  { id: 1, code: "DS240912001", date: "12/09/2024", supplier: "PT Sentosa Jaya", account: "Kas Besar", description: "Uang muka pembelian", amount: 750000, remaining: 500000 },
+  { id: 2, code: "DS240912002", date: "12/09/2024", supplier: "CV Maju Bersama", account: "Bank BCA", description: "Down payment", amount: 500000, remaining: 300000 },
+  { id: 3, code: "DS240911001", date: "11/09/2024", supplier: "UD Sumber Rezeki", account: "Kas Besar", description: "Deposit", amount: 400000, remaining: 200000 },
 ];
 
-export default function AccountsPage() {
+export default function DepositsSupplierPage() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
   const itemsPerPage = 10;
 
-  const filteredData = mockAccounts.filter((p) =>
-    p.code.includes(search) ||
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.type.toLowerCase().includes(search.toLowerCase())
+  const filteredData = mockSupplierDeposits.filter((p) =>
+    p.code.toLowerCase().includes(search.toLowerCase()) ||
+    p.supplier.toLowerCase().includes(search.toLowerCase())
   );
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
@@ -48,9 +39,8 @@ export default function AccountsPage() {
     currentPage * itemsPerPage
   );
 
-  const totalBalance = filteredData.reduce((acc, p) => acc + p.balance, 0);
-  const assetTotal = filteredData.filter(p => p.type === "Aset").reduce((acc, p) => acc + p.balance, 0);
-  const liabilityTotal = filteredData.filter(p => p.type === "Kewajiban").reduce((acc, p) => acc + p.balance, 0);
+  const totalDeposit = filteredData.reduce((acc, p) => acc + p.amount, 0);
+  const totalRemaining = filteredData.reduce((acc, p) => acc + p.remaining, 0);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -71,44 +61,38 @@ export default function AccountsPage() {
   return (
     <PageWrapper className="bg-gray-100">
       <PageTitle
-        title="Accounting / Akun"
-        subtitle="Kelola chart of accounts"
+        title="Accounting / Deposito Supplier"
+        subtitle="Kelola deposito supplier"
         actions={
           <div className="flex gap-2">
             <Button variant="outline" size="sm" className="border-gray-300">
               <Download className="size-4 mr-2" /> Export
             </Button>
             <Button size="sm" className="bg-[#9C27B0] hover:bg-[#7B1FA2]">
-              <Plus className="size-4 mr-2" /> Akun Baru
+              <Plus className="size-4 mr-2" /> Deposito Baru
             </Button>
           </div>
         }
       />
 
-      <div className="grid grid-cols-4 gap-4 mb-4">
+      <div className="grid grid-cols-3 gap-4 mb-4">
         <div className="bg-white rounded-lg border border-gray-200 px-4 py-3">
-          <div className="text-xs text-gray-500 mb-1">Total Akun</div>
+          <div className="text-xs text-gray-500 mb-1">Total Deposito</div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-xl font-bold text-red-600">{formatCurrency(totalDeposit)}</span>
+          </div>
+        </div>
+        <div className="bg-white rounded-lg border border-gray-200 px-4 py-3">
+          <div className="text-xs text-gray-500 mb-1">Sisa Deposito</div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-xl font-bold text-[#9C27B0]">{formatCurrency(totalRemaining)}</span>
+          </div>
+        </div>
+        <div className="bg-white rounded-lg border border-gray-200 px-4 py-3">
+          <div className="text-xs text-gray-500 mb-1">Jumlah Supplier</div>
           <div className="flex items-baseline gap-2">
             <span className="text-xl font-bold text-gray-900">{filteredData.length}</span>
-            <span className="text-xs text-gray-500">Akun</span>
-          </div>
-        </div>
-        <div className="bg-white rounded-lg border border-gray-200 px-4 py-3">
-          <div className="text-xs text-gray-500 mb-1">Total Aset</div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-xl font-bold text-blue-600">{formatCurrency(assetTotal)}</span>
-          </div>
-        </div>
-        <div className="bg-white rounded-lg border border-gray-200 px-4 py-3">
-          <div className="text-xs text-gray-500 mb-1">Total Kewajiban</div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-xl font-bold text-red-600">{formatCurrency(liabilityTotal)}</span>
-          </div>
-        </div>
-        <div className="bg-white rounded-lg border border-gray-200 px-4 py-3">
-          <div className="text-xs text-gray-500 mb-1">Ekuitas + Pendapatan - Beban</div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-xl font-bold text-green-600">{formatCurrency(totalBalance - assetTotal - liabilityTotal)}</span>
+            <span className="text-xs text-gray-500">Supplier</span>
           </div>
         </div>
       </div>
@@ -120,7 +104,7 @@ export default function AccountsPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Cari kode, nama atau tipe..."
+                placeholder="Cari kode atau supplier..."
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
                 className="pl-9 pr-4 py-2 w-64 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#9C27B0] focus:ring-1 focus:ring-[#9C27B0]"
@@ -143,44 +127,26 @@ export default function AccountsPage() {
                   <input type="checkbox" checked={selectedItems.length === paginatedData.length && paginatedData.length > 0} onChange={(e) => handleSelectAll(e.target.checked)} className="rounded border-gray-300 text-[#9C27B0] focus:ring-[#9C27B0]" />
                 </th>
                 <th className="px-4 py-3 font-medium">Kode</th>
-                <th className="px-4 py-3 font-medium">Nama Akun</th>
-                <th className="px-4 py-3 font-medium">Tipe</th>
-                <th className="px-4 py-3 font-medium">Induk</th>
-                <th className="px-4 py-3 font-medium text-right">Saldo</th>
-                <th className="px-4 py-3 font-medium text-center">Status</th>
+                <th className="px-4 py-3 font-medium">Tanggal</th>
+                <th className="px-4 py-3 font-medium">Supplier</th>
+                <th className="px-4 py-3 font-medium">Akun</th>
+                <th className="px-4 py-3 font-medium text-right">Jumlah</th>
+                <th className="px-4 py-3 font-medium text-right">Sisa</th>
                 <th className="px-4 py-3 font-medium text-center w-24">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {paginatedData.map((item) => (
-                <tr key={item.id} className={cn("hover:bg-gray-50", item.parent && "pl-8")}>
+                <tr key={item.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
                     <input type="checkbox" checked={selectedItems.includes(item.id)} onChange={(e) => handleSelect(item.id, e.target.checked)} className="rounded border-gray-300 text-[#9C27B0] focus:ring-[#9C27B0]" />
                   </td>
                   <td className="px-4 py-3 text-sm font-medium text-gray-900">{item.code}</td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{item.name}</td>
-                  <td className="px-4 py-3 text-sm">
-                    <span className={cn(
-                      "rounded-full px-2 py-0.5 text-xs font-medium",
-                      item.type === "Aset" ? "bg-blue-100 text-blue-700" :
-                      item.type === "Kewajiban" ? "bg-red-100 text-red-700" :
-                      item.type === "Ekuitas" ? "bg-purple-100 text-purple-700" :
-                      item.type === "Pendapatan" ? "bg-green-100 text-green-700" :
-                      "bg-orange-100 text-orange-700"
-                    )}>
-                      {item.type}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{item.parent || "-"}</td>
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">{formatCurrency(item.balance)}</td>
-                  <td className="px-4 py-3 text-center">
-                    <span className={cn(
-                      "rounded-full px-2 py-0.5 text-xs font-medium",
-                      item.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
-                    )}>
-                      {item.isActive ? "Aktif" : "Nonaktif"}
-                    </span>
-                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-500">{item.date}</td>
+                  <td className="px-4 py-3 text-sm text-gray-700">{item.supplier}</td>
+                  <td className="px-4 py-3 text-sm text-gray-500">{item.account}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">{formatCurrency(item.amount)}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-[#9C27B0] text-right">{formatCurrency(item.remaining)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-center gap-1">
                       <button className="p-1.5 text-gray-400 hover:text-[#9C27B0] hover:bg-purple-50 rounded" title="Detail"><Eye className="size-4" /></button>
