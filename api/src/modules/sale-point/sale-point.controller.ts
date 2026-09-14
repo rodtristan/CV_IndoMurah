@@ -1,8 +1,8 @@
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { UseGuards, Controller, Get, Post, Patch, Delete, Put, Param, Body, Query } from '@nestjs/common';
 import { BaseController } from '../../common/templates/base.controller';
-import { SalePointService } from './salePoint.service';
-import { CreateSalePointDto, UpdateSalePointDto } from './dto/salePoint.dto';
+import { SalePointService } from './sale-point.service';
+import { CreateSalePointDto, UpdateSalePointDto } from './dto/sale-point.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 
 @ApiTags('SalePoint')

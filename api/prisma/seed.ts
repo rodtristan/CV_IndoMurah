@@ -12,7 +12,7 @@ async function main() {
   // ─── Role: Admin ────────────────────────────────────────────
   const adminRole = await prisma.role.upsert({
     where: { id: 1 },
-    create: { id: 1, role_name: 'Admin', role_description: 'Akses penuh ke seluruh sistem' },
+    create: { id: 1, roleName: 'Admin', roleDescription: 'Akses penuh ke seluruh sistem' },
     update: {},
   });
 
@@ -22,7 +22,7 @@ async function main() {
     menuNames.map((name) =>
       prisma.menu.upsert({
         where: { id: menuNames.indexOf(name) + 1 },
-        create: { id: menuNames.indexOf(name) + 1, menu_name: name, menu_type: 'sidebar' },
+        create: { id: menuNames.indexOf(name) + 1, menuName: name, menuType: 'sidebar' },
         update: {},
       }),
     ),
@@ -32,9 +32,9 @@ async function main() {
   await Promise.all(
     menus.map((menu) =>
       prisma.roleMenu.upsert({
-        where: { role_id_menu_id: { role_id: adminRole.id, menu_id: menu.id } },
-        create: { role_id: adminRole.id, menu_id: menu.id },
-        update: { is_active: true },
+        where: { roleId_menuId: { roleId: adminRole.id, menuId: menu.id } },
+        create: { roleId: adminRole.id, menuId: menu.id },
+        update: { isActive: true },
       }),
     ),
   );
@@ -48,9 +48,8 @@ async function main() {
     create: {
       email: adminEmail,
       password: adminPassword,
-      full_name: 'Administrator',
-      main_role_id: adminRole.id,
-      is_active: true,
+      name: 'Administrator',
+      isActive: true,
     },
     update: {},
   });
@@ -59,16 +58,16 @@ async function main() {
   await Promise.all(
     menus.map((menu) =>
       prisma.userMenu.upsert({
-        where: { user_id_menu_id: { user_id: admin.id, menu_id: menu.id } },
-        create: { user_id: admin.id, menu_id: menu.id },
-        update: { is_active: true },
+        where: { userId_menuId: { userId: admin.id, menuId: menu.id } },
+        create: { userId: admin.id, menuId: menu.id },
+        update: { isActive: true },
       }),
     ),
   );
 
   console.log('Seed selesai:');
-  console.log(`  Role  : ${adminRole.role_name} (id=${adminRole.id})`);
-  console.log(`  Menus : ${menus.map((m) => m.menu_name).join(', ')}`);
+  console.log(`  Role  : ${adminRole.roleName} (id=${adminRole.id})`);
+  console.log(`  Menus : ${menus.map((m) => m.menuName).join(', ')}`);
   console.log(`  Admin : ${adminEmail} / admin123 (GANTI password ini setelah login pertama!)`);
 
   await prisma.$disconnect();

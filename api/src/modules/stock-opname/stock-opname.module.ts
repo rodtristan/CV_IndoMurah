@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { StockOpnameController } from './stockOpname.controller';
-import { StockOpnameService } from './stockOpname.service';
+import { StockOpnameController } from './stock-opname.controller';
+import { StockOpnameService } from './stock-opname.service';
 
 @Module({
   controllers: [StockOpnameController],

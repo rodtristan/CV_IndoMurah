@@ -1,8 +1,8 @@
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { UseGuards, Controller, Get, Post, Patch, Delete, Put, Param, Body, Query } from '@nestjs/common';
 import { BaseController } from '../../common/templates/base.controller';
-import { StockTransferService } from './stockTransfer.service';
-import { CreateStockTransferDto, UpdateStockTransferDto } from './dto/stockTransfer.dto';
+import { StockTransferService } from './stock-transfer.service';
+import { CreateStockTransferDto, UpdateStockTransferDto } from './dto/stock-transfer.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 
 @ApiTags('StockTransfer')

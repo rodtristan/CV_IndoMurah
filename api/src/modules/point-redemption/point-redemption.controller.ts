@@ -188,7 +188,7 @@ export class PointRedemptionController {
     @Headers() headers: Record<string, string>,
   ) {
     return this.withTransaction(headers, async (tx) => {
-      const results = [];
+      const results: any[] = [];
       for (const item of body.items) {
         const result = await tx.PointRedemption.upsert({
           where: item.where || { id: 0 },

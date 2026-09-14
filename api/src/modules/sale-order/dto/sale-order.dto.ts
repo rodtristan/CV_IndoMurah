@@ -5,7 +5,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CreateSaleOrderItemDto {
   @ApiProperty({ description: 'Product ID' })
   @IsInt()
-  product_id: number;
+  productId: number;
 
   @ApiProperty({ description: 'Quantity' })
   @IsNumber()
@@ -13,27 +13,32 @@ export class CreateSaleOrderItemDto {
 
   @ApiProperty({ description: 'Unit ID' })
   @IsInt()
-  unit_id: number;
+  unitId: number;
 
   @ApiProperty({ description: 'Price per unit' })
   @IsNumber()
-  price: number;
+  unitPrice: number;
 
   @ApiPropertyOptional({ description: 'Discount amount' })
   @IsOptional()
   @IsNumber()
-  discount?: number;
+  discountAmount?: number;
+
+  @ApiPropertyOptional({ description: 'Discount percent' })
+  @IsOptional()
+  @IsNumber()
+  discountPercent?: number;
 }
 
 export class CreateSaleOrderDto {
   @ApiProperty({ description: 'Customer ID' })
   @IsInt()
-  customer_id: number;
+  customerId: number;
 
   @ApiPropertyOptional({ description: 'Sales person ID' })
   @IsOptional()
   @IsInt()
-  sales_person_id?: number;
+  salesPersonId?: number;
 
   @ApiPropertyOptional({ description: 'Sale order date' })
   @IsOptional()
@@ -43,7 +48,7 @@ export class CreateSaleOrderDto {
   @ApiPropertyOptional({ description: 'Due date' })
   @IsOptional()
   @IsDateString()
-  due_date?: string;
+  dueDate?: string;
 
   @ApiPropertyOptional({ description: 'Notes' })
   @IsOptional()
@@ -61,12 +66,12 @@ export class UpdateSaleOrderDto {
   @ApiPropertyOptional({ description: 'Customer ID' })
   @IsOptional()
   @IsInt()
-  customer_id?: number;
+  customerId?: number;
 
   @ApiPropertyOptional({ description: 'Sales person ID' })
   @IsOptional()
   @IsInt()
-  sales_person_id?: number;
+  salesPersonId?: number;
 
   @ApiPropertyOptional({ description: 'Sale order date' })
   @IsOptional()
@@ -76,7 +81,7 @@ export class UpdateSaleOrderDto {
   @ApiPropertyOptional({ description: 'Due date' })
   @IsOptional()
   @IsDateString()
-  due_date?: string;
+  dueDate?: string;
 
   @ApiPropertyOptional({ description: 'Notes' })
   @IsOptional()
@@ -85,7 +90,7 @@ export class UpdateSaleOrderDto {
 }
 
 export class UpdateStatusDto {
-  @ApiProperty({ description: 'New status: confirmed, completed, cancelled' })
+  @ApiProperty({ description: 'New status: DRAFT, CONFIRMED, COMPLETED, CANCELLED' })
   @IsString()
   status: string;
 }
@@ -93,7 +98,7 @@ export class UpdateStatusDto {
 export class AddSaleOrderItemDto {
   @ApiProperty({ description: 'Product ID' })
   @IsInt()
-  product_id: number;
+  productId: number;
 
   @ApiProperty({ description: 'Quantity' })
   @IsNumber()
@@ -101,14 +106,19 @@ export class AddSaleOrderItemDto {
 
   @ApiProperty({ description: 'Unit ID' })
   @IsInt()
-  unit_id: number;
+  unitId: number;
 
   @ApiProperty({ description: 'Price per unit' })
   @IsNumber()
-  price: number;
+  unitPrice: number;
 
   @ApiPropertyOptional({ description: 'Discount amount' })
   @IsOptional()
   @IsNumber()
-  discount?: number;
+  discountAmount?: number;
+
+  @ApiPropertyOptional({ description: 'Discount percent' })
+  @IsOptional()
+  @IsNumber()
+  discountPercent?: number;
 }

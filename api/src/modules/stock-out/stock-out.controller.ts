@@ -1,8 +1,8 @@
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { UseGuards, Controller, Get, Post, Patch, Delete, Put, Param, Body, Query } from '@nestjs/common';
 import { BaseController } from '../../common/templates/base.controller';
-import { StockOutService } from './stockOut.service';
-import { CreateStockOutDto, UpdateStockOutDto } from './dto/stockOut.dto';
+import { StockOutService } from './stock-out.service';
+import { CreateStockOutDto, UpdateStockOutDto } from './dto/stock-out.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 
 @ApiTags('StockOut')

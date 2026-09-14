@@ -20,7 +20,7 @@ export class RoleService {
       cacheKey,
       async () => {
         const pq = this.queryService.buildPrismaQuery(query, {
-          searchableFields: ['role_name', 'role_description'],
+          searchableFields: ['roleName', 'roleDescription'],
           allowedIncludes: ['users'],
           defaultOrderBy: { createdAt: 'desc' },
         });
@@ -67,7 +67,7 @@ export class RoleService {
   async remove(id: number) {
     const role = await this.prisma.role.findUnique({ where: { id } });
     if (!role) throw new NotFoundException('Role not found');
-    const result = await this.prisma.role.update({ where: { id }, data: { is_active: false } });
+    const result = await this.prisma.role.update({ where: { id }, data: { isActive: false } });
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
     return result;
   }

@@ -86,13 +86,13 @@ export abstract class BaseController<
   CreateDto extends Record<string, any>,
   UpdateDto extends Record<string, any>,
 > {
-  protected readonly modelName: string;
-  protected readonly pluralName: string;
-  protected readonly primaryKeyType: 'number' | 'string';
-  protected readonly paramId: string;
+  readonly modelName: string;
+  readonly pluralName: string;
+  readonly primaryKeyType: 'number' | 'string';
+  readonly paramId: string;
 
   constructor(
-    protected readonly service: BaseService<T, CreateDto, UpdateDto, any, any>,
+    readonly service: BaseService<T, CreateDto, UpdateDto, any, any>,
     config: ControllerConfig,
   ) {
     this.modelName = config.modelName;
@@ -196,7 +196,7 @@ export abstract class BaseController<
   }
 
   async upsertBulk(@Body() body: { items: any[] }) {
-    const result = await this.service.upsertBulk(body.items);
+    const result = await (this.service.upsertBulk(body.items as any) as Promise<any>);
     return ApiResponse.ok(result, `${result.successCount} upserted, ${result.failedCount} failed`);
   }
 
@@ -228,7 +228,7 @@ export abstract class BaseController<
   /**
    * Parse ID to appropriate type based on primaryKeyType
    */
-  protected parseId(id: string | number): number | string {
+  parseId(id: string | number): number | string {
     if (this.primaryKeyType === 'string') {
       return String(id);
     }
@@ -238,7 +238,7 @@ export abstract class BaseController<
   /**
    * Parse value to appropriate type
    */
-  protected parseValue(value: string): string | number | boolean {
+  parseValue(value: string): string | number | boolean {
     if (value === 'true') return true;
     if (value === 'false') return false;
     if (/^-?\d+$/.test(value)) return parseInt(value, 10);

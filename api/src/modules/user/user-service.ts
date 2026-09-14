@@ -24,8 +24,8 @@ export class UserService {
       cacheKey,
       async () => {
         const prismaQuery = this.queryService.buildPrismaQuery(query, {
-          searchableFields: ['full_name', 'email', 'phone_number'],
-          allowedIncludes: ['role', 'userRoles'],
+          searchableFields: ['name', 'email'],
+          allowedIncludes: ['userRoles'],
           defaultOrderBy: { createdAt: 'desc' },
         });
 
@@ -53,14 +53,14 @@ export class UserService {
     );
   }
 
-  async findOne(id: number, query: Record<string, any> = {}) {
+  async findOne(id: string, query: Record<string, any> = {}) {
     const cacheKey = `${this.CACHE_PREFIX}:${id}:${this.queryService.generateCacheKey('q', query)}`;
 
     return this.redis.getOrSet(
       cacheKey,
       async () => {
         const prismaQuery = this.queryService.buildPrismaQuery(query, {
-          allowedIncludes: ['role', 'userRoles', 'userMenus'],
+          allowedIncludes: ['userRoles', 'userMenus'],
         });
 
         const findArgs: any = { where: { id } };
@@ -77,7 +77,7 @@ export class UserService {
     );
   }
 
-  async update(id: number, dto: UpdateUserDto) {
+  async update(id: string, dto: UpdateUserDto) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
 
@@ -89,13 +89,13 @@ export class UserService {
     return updated;
   }
 
-  async softDelete(id: number) {
+  async softDelete(id: string) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
 
     const updated = await this.prisma.user.update({
       where: { id },
-      data: { is_active: false },
+      data: { isActive: false },
     });
 
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
@@ -104,24 +104,19 @@ export class UserService {
     return updated;
   }
 
-  // ─── UserRole (extra roles, on top of main_role_id) ──────
+  // ─── UserRole (extra roles, on top of main role field) ──────
 
-  async getRoles(userId: number) {
+  async getRoles(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { main_role_id: true, role: { select: { id: true, role_name: true } } },
+      select: { role: true, userRoles: { where: { isActive: true }, include: { role: true } } },
     });
     if (!user) throw new NotFoundException('User not found');
 
-    const extraRoles = await this.prisma.userRole.findMany({
-      where: { user_id: userId, is_active: true },
-      include: { role: { select: { id: true, role_name: true, role_description: true } } },
-    });
-
-    return { mainRole: user.role, extraRoles: extraRoles.map((ur) => ur.role) };
+    return { mainRole: user.role, extraRoles: user.userRoles.map((ur) => ur.role) };
   }
 
-  async assignRole(userId: number, roleId: number) {
+  async assignRole(userId: string, roleId: number) {
     const [user, role] = await Promise.all([
       this.prisma.user.findUnique({ where: { id: userId } }),
       this.prisma.role.findUnique({ where: { id: roleId } }),
@@ -130,16 +125,16 @@ export class UserService {
     if (!role) throw new NotFoundException('Role not found');
 
     const existing = await this.prisma.userRole.findUnique({
-      where: { user_id_role_id: { user_id: userId, role_id: roleId } },
+      where: { userId_roleId: { userId, roleId } },
     });
-    if (existing?.is_active) {
+    if (existing?.isActive) {
       throw new ConflictException('User already has this role');
     }
 
     const userRole = await this.prisma.userRole.upsert({
-      where: { user_id_role_id: { user_id: userId, role_id: roleId } },
-      create: { user_id: userId, role_id: roleId, is_active: true },
-      update: { is_active: true },
+      where: { userId_roleId: { userId, roleId } },
+      create: { userId, roleId, isActive: true },
+      update: { isActive: true },
     });
 
     // Seed the menus that come with this role so access is immediate.
@@ -150,15 +145,15 @@ export class UserService {
     return userRole;
   }
 
-  async revokeRole(userId: number, roleId: number) {
+  async revokeRole(userId: string, roleId: number) {
     const existing = await this.prisma.userRole.findUnique({
-      where: { user_id_role_id: { user_id: userId, role_id: roleId } },
+      where: { userId_roleId: { userId, roleId } },
     });
     if (!existing) throw new NotFoundException('User does not have this role');
 
     const userRole = await this.prisma.userRole.update({
-      where: { user_id_role_id: { user_id: userId, role_id: roleId } },
-      data: { is_active: false },
+      where: { userId_roleId: { userId, roleId } },
+      data: { isActive: false },
     });
 
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);

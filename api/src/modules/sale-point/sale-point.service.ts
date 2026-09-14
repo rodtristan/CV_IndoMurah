@@ -3,7 +3,7 @@ import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
 import { BaseService } from '../../common/templates/base.service';
-import { CreateSalePointDto, UpdateSalePointDto } from './dto/salePoint.dto';
+import { CreateSalePointDto, UpdateSalePointDto } from './dto/sale-point.dto';
 
 @Injectable()
 export class SalePointService extends BaseService<

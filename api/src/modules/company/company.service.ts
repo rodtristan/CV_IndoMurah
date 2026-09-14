@@ -13,9 +13,9 @@ export class CompanyService extends BaseService<
   UpdateCompanyDto
 > {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly redis: RedisService,
-    private readonly queryService: QueryService,
+    readonly prisma: PrismaService,
+    readonly redis: RedisService,
+    readonly queryService: QueryService,
   ) {
     super(prisma, redis, queryService, {
       modelName: 'company',

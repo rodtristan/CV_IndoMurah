@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsInt, IsArray, ValidateNested, IsDateString, IsBoolean, IsEnum } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsInt, IsArray, ValidateNested, IsDateString, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -13,7 +13,7 @@ export enum PaymentMethod {
 export class CreatePurchaseItemDto {
   @ApiProperty({ description: 'Product ID' })
   @IsInt()
-  product_id: number;
+  productId: number;
 
   @ApiProperty({ description: 'Quantity' })
   @IsNumber()
@@ -21,37 +21,37 @@ export class CreatePurchaseItemDto {
 
   @ApiProperty({ description: 'Unit ID' })
   @IsInt()
-  unit_id: number;
+  unitId: number;
 
   @ApiProperty({ description: 'Unit price' })
   @IsNumber()
-  unit_price: number;
+  unitPrice: number;
 
   @ApiPropertyOptional({ description: 'Discount percent' })
   @IsOptional()
   @IsNumber()
-  discount_percent?: number;
+  discountPercent?: number;
 
   @ApiPropertyOptional({ description: 'Discount amount' })
   @IsOptional()
   @IsNumber()
-  discount_amount?: number;
+  discountAmount?: number;
 }
 
 export class CreatePurchaseDto {
   @ApiProperty({ description: 'Supplier ID' })
   @IsInt()
-  supplier_id: number;
+  supplierId: number;
 
   @ApiPropertyOptional({ description: 'Warehouse ID' })
   @IsOptional()
   @IsInt()
-  warehouse_id?: number;
+  warehouseId?: number;
 
   @ApiPropertyOptional({ description: 'Purchase order ID' })
   @IsOptional()
   @IsInt()
-  purchase_order_id?: number;
+  purchaseOrderId?: number;
 
   @ApiPropertyOptional({ description: 'Purchase date' })
   @IsOptional()
@@ -61,12 +61,12 @@ export class CreatePurchaseDto {
   @ApiPropertyOptional({ description: 'Due date' })
   @IsOptional()
   @IsDateString()
-  due_date?: string;
+  dueDate?: string;
 
   @ApiPropertyOptional({ description: 'Payment method' })
   @IsOptional()
   @IsEnum(PaymentMethod)
-  payment_method?: PaymentMethod;
+  paymentMethod?: PaymentMethod;
 
   @ApiPropertyOptional({ description: 'Subtotal' })
   @IsOptional()
@@ -76,17 +76,17 @@ export class CreatePurchaseDto {
   @ApiPropertyOptional({ description: 'Discount percent' })
   @IsOptional()
   @IsNumber()
-  discount_percent?: number;
+  discountPercent?: number;
 
   @ApiPropertyOptional({ description: 'Discount amount' })
   @IsOptional()
   @IsNumber()
-  discount_amount?: number;
+  discountAmount?: number;
 
   @ApiPropertyOptional({ description: 'Tax percent' })
   @IsOptional()
   @IsNumber()
-  tax_percent?: number;
+  taxPercent?: number;
 
   @ApiPropertyOptional({ description: 'Notes' })
   @IsOptional()
@@ -105,7 +105,7 @@ export class UpdatePurchaseDto {
   @ApiPropertyOptional({ description: 'Warehouse ID' })
   @IsOptional()
   @IsInt()
-  warehouse_id?: number;
+  warehouseId?: number;
 
   @ApiPropertyOptional({ description: 'Purchase date' })
   @IsOptional()
@@ -115,27 +115,27 @@ export class UpdatePurchaseDto {
   @ApiPropertyOptional({ description: 'Due date' })
   @IsOptional()
   @IsDateString()
-  due_date?: string;
+  dueDate?: string;
 
   @ApiPropertyOptional({ description: 'Payment method' })
   @IsOptional()
   @IsEnum(PaymentMethod)
-  payment_method?: PaymentMethod;
+  paymentMethod?: PaymentMethod;
 
   @ApiPropertyOptional({ description: 'Discount percent' })
   @IsOptional()
   @IsNumber()
-  discount_percent?: number;
+  discountPercent?: number;
 
   @ApiPropertyOptional({ description: 'Discount amount' })
   @IsOptional()
   @IsNumber()
-  discount_amount?: number;
+  discountAmount?: number;
 
   @ApiPropertyOptional({ description: 'Tax percent' })
   @IsOptional()
   @IsNumber()
-  tax_percent?: number;
+  taxPercent?: number;
 
   @ApiPropertyOptional({ description: 'Notes' })
   @IsOptional()
@@ -144,7 +144,7 @@ export class UpdatePurchaseDto {
 }
 
 export class UpdateStatusDto {
-  @ApiProperty({ description: 'New status: confirmed, completed, cancelled' })
+  @ApiProperty({ description: 'New status: DRAFT, CONFIRMED, COMPLETED, CANCELLED' })
   @IsString()
   status: string;
 }

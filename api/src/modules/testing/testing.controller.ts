@@ -195,7 +195,7 @@ export class TestingController {
     @Headers() headers: HeadersRecord,
   ) {
     return this.withTransaction(headers, async (tx) => {
-      const results = [];
+      const results: any[] = [];
       for (const item of body.items) {
         const result = await tx.Testing.upsert({
           where: item.where || { id: 0 },

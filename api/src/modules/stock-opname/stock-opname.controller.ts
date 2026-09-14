@@ -1,8 +1,8 @@
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { UseGuards, Controller, Get, Post, Patch, Delete, Put, Param, Body, Query } from '@nestjs/common';
 import { BaseController } from '../../common/templates/base.controller';
-import { StockOpnameService } from './stockOpname.service';
-import { CreateStockOpnameDto, UpdateStockOpnameDto } from './dto/stockOpname.dto';
+import { StockOpnameService } from './stock-opname.service';
+import { CreateStockOpnameDto, UpdateStockOpnameDto } from './dto/stock-opname.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 
 @ApiTags('StockOpname')

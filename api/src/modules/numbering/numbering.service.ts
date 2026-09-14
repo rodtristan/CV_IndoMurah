@@ -13,9 +13,9 @@ export class NumberingService extends BaseService<
   UpdateNumberingDto
 > {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly redis: RedisService,
-    private readonly queryService: QueryService,
+    readonly prisma: PrismaService,
+    readonly redis: RedisService,
+    readonly queryService: QueryService,
   ) {
     super(prisma, redis, queryService, {
       modelName: 'numbering',

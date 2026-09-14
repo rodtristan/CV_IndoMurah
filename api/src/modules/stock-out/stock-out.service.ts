@@ -3,7 +3,7 @@ import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
 import { BaseService } from '../../common/templates/base.service';
-import { CreateStockOutDto, UpdateStockOutDto } from './dto/stockOut.dto';
+import { CreateStockOutDto, UpdateStockOutDto } from './dto/stock-out.dto';
 
 @Injectable()
 export class StockOutService extends BaseService<

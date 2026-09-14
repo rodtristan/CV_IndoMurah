@@ -2,8 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
-import { Prisma } from '.prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+import { Prisma } from '@prisma/client';
 import { CreateSaleReturnDto, UpdateSaleReturnDto, UpdateStatusDto } from './dto/sale-return.dto';
 
 @Injectable()
@@ -81,18 +80,18 @@ export class SaleReturnService {
 
   async create(dto: CreateSaleReturnDto, userId: string) {
     // Verify sale exists
-    const sale = await this.prisma.sale.findUnique({ where: { id: dto.sale_id } });
+    const sale = await this.prisma.sale.findUnique({ where: { id: dto.saleId } });
     if (!sale) throw new NotFoundException('Sale not found');
 
     const code = await this.generateCode();
 
     // Calculate total return
     const itemsData = dto.items.map((item) => {
-      const subtotal = item.unit_price * item.quantity;
+      const subtotal = item.unitPrice * item.quantity;
       return {
-        product_id: item.product_id,
+        productId: item.productId,
         quantity: new Prisma.Decimal(item.quantity.toString()),
-        unit_price: new Prisma.Decimal(item.unit_price.toString()),
+        unitPrice: new Prisma.Decimal(item.unitPrice.toString()),
         subtotal: new Prisma.Decimal(subtotal.toString()),
       };
     });
@@ -102,11 +101,11 @@ export class SaleReturnService {
     const saleReturn = await this.prisma.saleReturn.create({
       data: {
         code,
-        sale_id: dto.sale_id,
-        customer_id: dto.customer_id || sale.customerId,
-        warehouse_id: dto.warehouse_id,
+        saleId: dto.saleId,
+        customerId: dto.customerId || sale.customerId,
+        warehouseId: dto.warehouseId,
         date: dto.date ? new Date(dto.date) : new Date(),
-        total_return: new Prisma.Decimal(totalReturn.toString()),
+        totalReturn: new Prisma.Decimal(totalReturn.toString()),
         reason: dto.reason,
         status: 'DRAFT',
         createdById: userId,
@@ -137,7 +136,7 @@ export class SaleReturnService {
     const updated = await this.prisma.saleReturn.update({
       where: { id },
       data: {
-        warehouse_id: dto.warehouse_id,
+        warehouseId: dto.warehouseId,
         date: dto.date ? new Date(dto.date) : undefined,
         reason: dto.reason,
       },
@@ -173,7 +172,7 @@ export class SaleReturnService {
 
     const updated = await this.prisma.saleReturn.update({
       where: { id },
-      data: { status: dto.status },
+      data: { status: dto.status as any },
       include: {
         sale: true,
         customer: true,
@@ -226,7 +225,7 @@ export class SaleReturnService {
 
     const result: any = {};
     for (const [key, value] of Object.entries(data)) {
-      if (value instanceof Decimal) {
+      if (value instanceof Prisma.Decimal) {
         result[key] = Number(value);
       } else if (value instanceof Date) {
         result[key] = value.toISOString();

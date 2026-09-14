@@ -12,7 +12,7 @@ export enum PaymentMethod {
 export class CreateSalePaymentDto {
   @ApiProperty({ description: 'Sale ID' })
   @IsInt()
-  sale_id: number;
+  saleId: number;
 
   @ApiProperty({ description: 'Payment method', enum: PaymentMethod })
   @IsEnum(PaymentMethod)
@@ -25,7 +25,7 @@ export class CreateSalePaymentDto {
   @ApiPropertyOptional({ description: 'Reference number' })
   @IsOptional()
   @IsString()
-  reference_number?: string;
+  referenceNumber?: string;
 
   @ApiPropertyOptional({ description: 'Payment date' })
   @IsOptional()
@@ -52,7 +52,7 @@ export class UpdateSalePaymentDto {
   @ApiPropertyOptional({ description: 'Reference number' })
   @IsOptional()
   @IsString()
-  reference_number?: string;
+  referenceNumber?: string;
 
   @ApiPropertyOptional({ description: 'Payment date' })
   @IsOptional()
