@@ -91,7 +91,7 @@ export class SalePointService {
       include: {
         customer: true,
         salesPerson: true,
-        items: { include: { product: true } },
+        saleItems: { include: { product: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -111,7 +111,7 @@ export class SalePointService {
     const [sales, totalSales, paidSales, pendingSales] = await Promise.all([
       this.prisma.sale.findMany({
         where: whereClause,
-        include: { items: true },
+        include: { saleItems: true, salePayments: true },
       }),
       this.prisma.sale.count({ where: whereClause }),
       this.prisma.sale.count({ where: { ...whereClause, paymentStatus: 'PAID' } }),
@@ -119,8 +119,11 @@ export class SalePointService {
     ]);
 
     const totalRevenue = sales.reduce((sum, s) => sum + Number(s.total), 0);
-    const totalPaid = sales.reduce((sum, s) => sum + Number(s.paid), 0);
-    const totalItems = sales.reduce((sum, s) => sum + s.items.length, 0);
+    const totalPaid = sales.reduce(
+      (sum, s) => sum + s.salePayments.reduce((pSum, p) => pSum + Number(p.amount), 0),
+      0,
+    );
+    const totalItems = sales.reduce((sum, s) => sum + s.saleItems.length, 0);
 
     return {
       salePoint,

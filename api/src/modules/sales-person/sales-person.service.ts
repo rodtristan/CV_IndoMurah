@@ -101,12 +101,15 @@ export class SalesPersonService {
 
     const sales = await this.prisma.sale.findMany({
       where: whereClause,
-      include: { saleItems: true },
+      include: { saleItems: true, salePayments: true },
     });
 
     const totalSales = sales.length;
     const totalRevenue = sales.reduce((sum, s) => sum + Number(s.total), 0);
-    const totalPaid = sales.reduce((sum, s) => sum + Number(s.paid), 0);
+    const totalPaid = sales.reduce(
+      (sum, s) => sum + s.salePayments.reduce((pSum, p) => pSum + Number(p.amount), 0),
+      0,
+    );
     const totalItems = sales.reduce((sum, s) => sum + s.saleItems.length, 0);
 
     return {

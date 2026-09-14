@@ -28,5 +28,15 @@
     "types": ["node"]
   },
   "include": ["src/**/*", "prisma/**/*", "prisma.config.ts"],
-  "exclude": ["node_modules", "dist"]
+  // menu/ and sale-order/ target schema shapes that don't exist in
+  // prisma/schema.prisma (imagined RBAC FKs, and a SaleOrder model that
+  // was never defined) and aren't used by the frontend — see the notes
+  // in src/app-module.ts where they're left unregistered.
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/modules/menu/**",
+    "src/modules/sale-order/**",
+    "src/common/guards/menu-access-guard.ts"
+  ]
 }

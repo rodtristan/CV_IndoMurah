@@ -1,25 +1,24 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { Plus, Edit, Trash2, Eye, Package } from "lucide-react";
-import { PageWrapper, PageHeader, Card } from "@/components/layout/PageWrapper";
+import { Layers } from "lucide-react";
+import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { DataTable } from "@/components/ui/DataTable";
 import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/StatCard";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { ConfirmModal } from "@/components/ui/Modal";
+import { GridActions, RowEditIcon, UtilityButton } from "@/components/ui/GridActions";
 import { api, odata } from "@/lib/api-client";
-import { formatCurrency, formatNumber } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 import type { Product, Category, Brand, Unit, Warehouse } from "@/lib/types";
 
 export default function MasterItemsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [showDetail, setShowDetail] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -49,7 +48,7 @@ export default function MasterItemsPage() {
       if (filters.brandId) query.where({ brandId: Number(filters.brandId) });
       if (filters.isActive !== undefined) query.where({ isActive: filters.isActive === "true" });
 
-      const res = await api.get<Product[]>("product", query.toParams());
+      const res = await api.get<Product[]>("products", query.toParams());
       if (res.success) {
         setProducts(res.data || []);
         if (res.meta) {
@@ -65,10 +64,10 @@ export default function MasterItemsPage() {
 
   const fetchLookups = async () => {
     const [catRes, brandRes, unitRes, whRes] = await Promise.all([
-      api.get<Category[]>("category", odata().take(100).toParams()).catch(() => ({ data: [] } as any)),
-      api.get<Brand[]>("brand", odata().take(100).toParams()).catch(() => ({ data: [] } as any)),
-      api.get<Unit[]>("unit", odata().take(100).toParams()).catch(() => ({ data: [] } as any)),
-      api.get<Warehouse[]>("warehouse", odata().take(100).toParams()).catch(() => ({ data: [] } as any)),
+      api.get<Category[]>("categories", odata().take(100).toParams()).catch(() => ({ data: [] } as any)),
+      api.get<Brand[]>("brands", odata().take(100).toParams()).catch(() => ({ data: [] } as any)),
+      api.get<Unit[]>("units", odata().take(100).toParams()).catch(() => ({ data: [] } as any)),
+      api.get<Warehouse[]>("warehouses", odata().take(100).toParams()).catch(() => ({ data: [] } as any)),
     ]);
     setCategories(catRes.data || []);
     setBrands(brandRes.data || []);
@@ -102,7 +101,7 @@ export default function MasterItemsPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const payload = {
+      const basePayload = {
         code: form.code, barcode: form.barcode || null, name: form.name,
         categoryId: form.categoryId ? Number(form.categoryId) : null,
         brandId: form.brandId ? Number(form.brandId) : null,
@@ -110,16 +109,17 @@ export default function MasterItemsPage() {
         warehouseId: form.warehouseId ? Number(form.warehouseId) : null,
         purchasePrice: Number(form.purchasePrice),
         sellingPrice: Number(form.sellingPrice),
-        stock: Number(form.stock),
         minimumStock: Number(form.minimumStock),
         description: form.description || null,
         isActive: form.isActive,
       };
 
       if (selectedProduct) {
-        await api.put("product", selectedProduct.id, payload);
+        // UpdateProductDto deliberately excludes `stock` — stock changes go
+        // through the dedicated adjust-stock endpoint for auditability.
+        await api.put("products", selectedProduct.id, basePayload);
       } else {
-        await api.post("product", payload);
+        await api.post("products", { ...basePayload, stock: Number(form.stock) });
       }
       setShowForm(false);
       fetchProducts();
@@ -134,7 +134,7 @@ export default function MasterItemsPage() {
     if (!selectedProduct) return;
     setSaving(true);
     try {
-      await api.delete("product", selectedProduct.id);
+      await api.delete("products", selectedProduct.id);
       setShowDelete(false);
       fetchProducts();
     } catch (e) {
@@ -146,89 +146,87 @@ export default function MasterItemsPage() {
 
   const columns = [
     {
-      key: "code",
-      label: "Kode",
-      sortable: true,
-      render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span>,
+      key: "edit",
+      label: "",
+      width: 36,
+      render: (_: unknown, row: Product) => <RowEditIcon onClick={() => openEdit(row)} />,
     },
+    { key: "code", label: "Kode Item" },
+    { key: "barcode", label: "Barcode", render: (v: unknown) => (v as string) || "-" },
+    { key: "sku", label: "SKU", render: () => "-" },
     {
       key: "name",
-      label: "Nama Produk",
-      sortable: true,
-      render: (v: unknown, row: Product) => (
-        <div className="flex items-center gap-3">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-elevated">
-            <Package className="size-4 text-muted" />
-          </div>
-          <div>
-            <p className="font-medium">{String(v)}</p>
-            <p className="text-xs text-muted">{row.category?.name || row.brand?.name || "-"}</p>
-          </div>
-        </div>
-      ),
+      label: "Nama Item",
+      render: (v: unknown) => <span className="font-medium">{String(v)}</span>,
     },
     {
       key: "stock",
-      label: "Stok",
+      label: "Stok Fisik",
       align: "right" as const,
-      sortable: true,
-      render: (v: unknown, row: Product) => {
-        const stock = Number(v);
-        const min = Number(row.minimumStock);
-        const variant = stock === 0 ? "danger" : stock < min ? "warning" : "success";
-        return <Badge variant={variant}>{formatNumber(stock)}</Badge>;
-      },
+      render: (v: unknown) => formatNumber(Number(v)),
     },
     {
+      key: "unit",
+      label: "Satuan",
+      render: (_: unknown, row: Product) => row.unit?.abbreviation || row.unit?.code || "-",
+    },
+    { key: "category.name", label: "Jenis", render: (_: unknown, row: Product) => row.category?.name || "-" },
+    { key: "brand.name", label: "Merek", render: (_: unknown, row: Product) => row.brand?.name || "-" },
+    { key: "rak", label: "Rak", render: () => "-" },
+    {
       key: "purchasePrice",
-      label: "Harga Beli",
+      label: "Harga Pokok",
       align: "right" as const,
-      render: (v: unknown) => formatCurrency(v as number),
+      render: (v: unknown) => formatNumber(Number(v)),
+    },
+    {
+      key: "avg",
+      label: "HPP Rata-rata (AVG)",
+      align: "right" as const,
+      render: () => "0",
     },
     {
       key: "sellingPrice",
       label: "Harga Jual",
       align: "right" as const,
-      render: (v: unknown) => <span className="font-semibold text-primary">{formatCurrency(v as number)}</span>,
+      render: (v: unknown) => formatNumber(Number(v)),
     },
     {
-      key: "isActive",
-      label: "Status",
-      render: (v: unknown) => (
-        <Badge variant={v ? "success" : "danger"}>{v ? "Aktif" : "Nonaktif"}</Badge>
-      ),
-    },
-    {
-      key: "actions",
-      label: "",
-      width: 100,
-      render: (_: unknown, row: Product) => (
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" icon={Eye} onClick={() => { setSelectedProduct(row); setShowDetail(true); }} />
-          <Button variant="ghost" size="icon" icon={Edit} onClick={() => openEdit(row)} />
-          <Button variant="ghost" size="icon" icon={Trash2} onClick={() => { setSelectedProduct(row); setShowDelete(true); }} />
-        </div>
-      ),
+      key: "description",
+      label: "Keterangan",
+      render: (v: unknown) => (v as string) || "-",
     },
   ];
 
   return (
     <PageWrapper>
-      <PageHeader
-        title="Produk"
-        subtitle="Kelola daftar produk"
-        actions={<Button variant="primary" icon={Plus} onClick={openCreate}>Tambah Produk</Button>}
-      />
-
-      <Card>
+      <Card className="p-4">
         <FilterBar
           fields={[
-            { key: "categoryId", label: "Kategori", type: "select", options: [{ value: "", label: "Semua" }, ...categories.map(c => ({ value: c.id, label: c.name }))] },
+            { key: "search", label: "Kata Kunci", type: "text", placeholder: "Cari nama / kode / barcode" },
+            { key: "warehouseId", label: "Dept/Gudang", type: "select", options: [{ value: "", label: "Semua Gudang" }, ...warehouses.map(w => ({ value: w.id, label: w.name }))] },
+            { key: "categoryId", label: "Jenis", type: "select", options: [{ value: "", label: "Semua" }, ...categories.map(c => ({ value: c.id, label: c.name }))] },
             { key: "brandId", label: "Merek", type: "select", options: [{ value: "", label: "Semua" }, ...brands.map(b => ({ value: b.id, label: b.name }))] },
-            { key: "isActive", label: "Status", type: "select", options: [{ value: "", label: "Semua" }, { value: "true", label: "Aktif" }, { value: "false", label: "Nonaktif" }] },
+            { key: "isActive", label: "Pilihan Item", type: "select", options: [{ value: "", label: "Semua Data" }, { value: "true", label: "Aktif" }, { value: "false", label: "Nonaktif" }] },
           ]}
           onFilter={setFilters}
           loading={loading}
+          actions={
+            <>
+              <GridActions
+                onAdd={openCreate}
+                onEdit={() => selectedProduct && openEdit(selectedProduct)}
+                onCopy={() => {}}
+                onDelete={() => selectedProduct && setShowDelete(true)}
+                disableEdit={!selectedProduct}
+                disableCopy={!selectedProduct}
+                disableDelete={!selectedProduct}
+              />
+              <UtilityButton icon={Layers} onClick={() => window.open("/master/items/stock-card", "_self")}>
+                Kartu Stok
+              </UtilityButton>
+            </>
+          }
         />
 
         <div className="mt-4">
@@ -236,7 +234,9 @@ export default function MasterItemsPage() {
             data={products}
             columns={columns}
             loading={loading}
-            emptyMessage="Tidak ada produk"
+            emptyMessage="Tidak ada item"
+            selectedId={selectedProduct?.id ?? null}
+            onRowClick={(row) => setSelectedProduct(row)}
             pagination={{
               page: pagination.page,
               pageSize: pagination.pageSize,

@@ -142,7 +142,7 @@ function ProductSearchModal({
         .take(20)
         .toParams();
 
-      const res = await api.get<Product[]>("product", params);
+      const res = await api.get<Product[]>("products", params);
       if (res.success && res.data) {
         setProducts(res.data);
       }
@@ -261,7 +261,7 @@ function CustomerModal({
     setLoading(true);
     try {
       const params = odata().search(query, ["code", "name", "phone"]).take(20).toParams();
-      const res = await api.get<Customer[]>("customer", params);
+      const res = await api.get<Customer[]>("customers", params);
       if (res.success && res.data) setCustomers(res.data);
     } catch (e) {
       console.error(e);
@@ -514,7 +514,7 @@ export default function POSPage() {
     if (state.cart.length === 0) return;
     setSaving(true);
     try {
-      const res = await api.post("sale", {
+      const res = await api.post("sales", {
         customerId: state.customer?.id || 1,
         subtotal,
         discountPercent: state.discountPercent,

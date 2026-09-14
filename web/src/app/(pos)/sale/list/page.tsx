@@ -42,7 +42,7 @@ export default function SaleListPage() {
         query.where({ date: { lte: new Date(params.dateTo as string) } });
       }
 
-      const res = await api.get<Sale[]>("sale", query.toParams());
+      const res = await api.get<Sale[]>("sales", query.toParams());
       if (res.success) {
         setSales(res.data || []);
         if (res.meta) {

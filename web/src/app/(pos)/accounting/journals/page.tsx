@@ -1,15 +1,15 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Edit2, Trash2, RefreshCw, Search, FileText } from "lucide-react";
-import { PageWrapper, PageHeader, Card } from "@/components/layout/PageWrapper";
+import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmModal } from "@/components/ui/Modal";
-import { Badge } from "@/components/ui/StatCard";
 import { DataTable } from "@/components/ui/DataTable";
+import { FilterBar } from "@/components/ui/FilterBar";
+import { GridActions, RowEditIcon, RowDeleteIcon } from "@/components/ui/GridActions";
 import { api } from "@/lib/api-client";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 
@@ -40,7 +40,12 @@ export default function JournalsPage() {
   useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
 
   const handleSave = async () => {
-    await api.post("journals", form).catch(() => ({}));
+    const isEdit = Boolean((form as any).id);
+    if (isEdit) {
+      await api.put("journals", (form as any).id, form).catch(() => ({}));
+    } else {
+      await api.post("journals", form).catch(() => ({}));
+    }
     setShowForm(false);
     setForm({ date: "", description: "", reference: "", totalDebit: 0, totalCredit: 0, details: [] });
     fetchJournals();
@@ -61,27 +66,30 @@ export default function JournalsPage() {
     { key: "totalDebit", label: "Debit", align: "right" as const, render: (v: unknown) => <span className="font-semibold">{formatCurrency(v as number)}</span> },
     { key: "totalCredit", label: "Kredit", align: "right" as const, render: (v: unknown) => <span className="font-semibold">{formatCurrency(v as number)}</span> },
     {
-      key: "actions", label: "", width: "80px",
+      key: "actions", label: "", width: "70px",
       render: (_: unknown, row: any) => (
-        <div className="flex gap-2">
-          <Button size="sm" variant="ghost" icon={Edit2} onClick={() => { setEditData(row); setForm({ date: row.date, description: row.description, reference: row.reference || "", totalDebit: row.totalDebit, totalCredit: row.totalCredit, details: row.details || [] }); setShowForm(true); }} />
-          <Button size="sm" variant="ghost" icon={Trash2} onClick={() => setDeleteId(row.id)} />
+        <div className="flex gap-1">
+          <RowEditIcon onClick={() => { setEditData(row); setForm({ date: row.date, description: row.description, reference: row.reference || "", totalDebit: row.totalDebit, totalCredit: row.totalCredit, details: row.details || [] }); setShowForm(true); }} />
+          <RowDeleteIcon onClick={() => setDeleteId(row.id)} />
         </div>
       )
     },
   ];
 
+  const openCreate = () => { setEditData(null); setForm({ date: new Date().toISOString().split("T")[0], description: "", reference: "", totalDebit: 0, totalCredit: 0, details: [] }); setShowForm(true); };
+
   return (
     <PageWrapper>
-      <PageHeader title="Jurnal Umum" subtitle="Daftar transaksi jurnal akunting"
-        actions={<Button variant="primary" icon={Plus} onClick={() => { setEditData(null); setForm({ date: new Date().toISOString().split("T")[0], description: "", reference: "", totalDebit: 0, totalCredit: 0, details: [] }); setShowForm(true); }}>Tambah</Button>} />
-
-      <Card>
-        <div className="mb-4 flex gap-4">
-          <Input placeholder="Cari jurnal..." value={search} onChange={e => setSearch(e.target.value)} className="max-w-xs" leftIcon={Search} />
-          <Button variant="outline" icon={RefreshCw} onClick={fetchJournals} loading={loading}>Refresh</Button>
+      <Card className="p-4">
+        <FilterBar
+          fields={[{ key: "search", label: "Kata Kunci", type: "text", placeholder: "Cari jurnal..." }]}
+          onFilter={(v) => setSearch((v.search as string) || "")}
+          loading={loading}
+          actions={<GridActions onAdd={openCreate} />}
+        />
+        <div className="mt-4">
+          <DataTable data={journals} columns={columns} loading={loading} emptyMessage="Tidak ada jurnal" />
         </div>
-        <DataTable data={journals} columns={columns} loading={loading} emptyMessage="Tidak ada jurnal" />
       </Card>
 
       <Modal open={showForm} onClose={() => setShowForm(false)} title={editData ? "Edit Jurnal" : "Jurnal Baru"} size="lg">
@@ -106,4 +114,3 @@ export default function JournalsPage() {
     </PageWrapper>
   );
 }
-

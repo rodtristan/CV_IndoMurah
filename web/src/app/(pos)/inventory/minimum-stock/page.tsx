@@ -1,12 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { RefreshCw, AlertTriangle } from "lucide-react";
-import { PageWrapper, PageHeader, Card } from "@/components/layout/PageWrapper";
-import { Button } from "@/components/ui/Button";
-import { Select } from "@/components/ui/Select";
+import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { Badge } from "@/components/ui/StatCard";
 import { DataTable } from "@/components/ui/DataTable";
+import { FilterBar } from "@/components/ui/FilterBar";
 import { api } from "@/lib/api-client";
 import { formatNumber } from "@/lib/utils";
 
@@ -49,16 +47,16 @@ export default function MinimumStockPage() {
 
   return (
     <PageWrapper>
-      <PageHeader title="Stock Minimum" subtitle="Produk yang mencapai batas minimum"
-        actions={<Button variant="outline" icon={RefreshCw} onClick={fetchData} loading={loading}>Refresh</Button>} />
-
-      <Card>
-        <div className="mb-4 flex items-end gap-4">
-          <Select label="Gudang" value={warehouseId} onChange={e => setWarehouseId(e.target.value)} options={[{ value: "", label: "Semua Gudang" }]} />
+      <Card className="p-4">
+        <FilterBar
+          fields={[{ key: "warehouseId", label: "Gudang", type: "select", options: [{ value: "", label: "Semua Gudang" }] }]}
+          onFilter={(v) => setWarehouseId((v.warehouseId as string) || "")}
+          loading={loading}
+        />
+        <div className="mt-4">
+          <DataTable data={data} columns={columns} loading={loading} emptyMessage="Tidak ada produk di bawah minimum" />
         </div>
-        <DataTable data={data} columns={columns} loading={loading} emptyMessage="Tidak ada produk di bawah minimum" />
       </Card>
     </PageWrapper>
   );
 }
-

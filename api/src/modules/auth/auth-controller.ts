@@ -55,7 +55,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Profil - Ambil data user yang sedang login' })
-  async getMe(@CurrentUser() user: { id: number }) {
+  async getMe(@CurrentUser() user: { id: string }) {
     const data = await this.authService.getMe(user.id);
     if (!data) throw new NotFoundException('User tidak ditemukan');
     return ApiResponse.ok(data, 'Berhasil mengambil profil');

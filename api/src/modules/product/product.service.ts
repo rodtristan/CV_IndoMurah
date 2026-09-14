@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, ConflictException, BadRequestException }
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { QueryService } from '../../common/query/query-service';
 import { CreateProductDto, UpdateProductDto, AdjustStockDto } from './dto/product.dto';
-import { Decimal } from '@prisma/client/runtime/library';
+import { Prisma } from '.prisma/client';
 
 @Injectable()
 export class ProductService {
@@ -89,11 +89,11 @@ export class ProductService {
         unitId: dto.unitId,
         brandId: dto.brandId,
         warehouseId: dto.warehouseId,
-        purchasePrice: new Decimal(dto.purchasePrice),
-        sellingPrice: new Decimal(dto.sellingPrice),
-        stock: new Decimal(dto.stock ?? 0),
-        minimumStock: new Decimal(dto.minimumStock ?? 0),
-        discountPercent: new Decimal(dto.discountPercent ?? 0),
+        purchasePrice: new Prisma.Decimal(dto.purchasePrice),
+        sellingPrice: new Prisma.Decimal(dto.sellingPrice),
+        stock: new Prisma.Decimal(dto.stock ?? 0),
+        minimumStock: new Prisma.Decimal(dto.minimumStock ?? 0),
+        discountPercent: new Prisma.Decimal(dto.discountPercent ?? 0),
         image: dto.image,
         description: dto.description,
         isActive: dto.isActive ?? true,
@@ -123,16 +123,16 @@ export class ProductService {
 
     const updateData: Record<string, unknown> = { ...dto };
     if (dto.purchasePrice !== undefined) {
-      updateData.purchasePrice = new Decimal(dto.purchasePrice);
+      updateData.purchasePrice = new Prisma.Decimal(dto.purchasePrice);
     }
     if (dto.sellingPrice !== undefined) {
-      updateData.sellingPrice = new Decimal(dto.sellingPrice);
+      updateData.sellingPrice = new Prisma.Decimal(dto.sellingPrice);
     }
     if (dto.minimumStock !== undefined) {
-      updateData.minimumStock = new Decimal(dto.minimumStock);
+      updateData.minimumStock = new Prisma.Decimal(dto.minimumStock);
     }
     if (dto.discountPercent !== undefined) {
-      updateData.discountPercent = new Decimal(dto.discountPercent);
+      updateData.discountPercent = new Prisma.Decimal(dto.discountPercent);
     }
 
     return this.prisma.product.update({
@@ -179,14 +179,14 @@ export class ProductService {
       if (existingStock) {
         await this.prisma.productStock.update({
           where: { productId_warehouseId: { productId: id, warehouseId: dto.warehouseId } },
-          data: { quantity: new Decimal(newQty) },
+          data: { quantity: new Prisma.Decimal(newQty) },
         });
       } else {
         await this.prisma.productStock.create({
           data: {
             productId: id,
             warehouseId: dto.warehouseId,
-            quantity: new Decimal(dto.quantity),
+            quantity: new Prisma.Decimal(dto.quantity),
           },
         });
       }
@@ -201,7 +201,7 @@ export class ProductService {
 
     return this.prisma.product.update({
       where: { id },
-      data: { stock: new Decimal(newStock) },
+      data: { stock: new Prisma.Decimal(newStock) },
       include: {
         category: true,
         unit: true,

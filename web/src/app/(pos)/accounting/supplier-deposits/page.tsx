@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, RefreshCw, Search, Truck } from "lucide-react";
-import { PageWrapper, PageHeader, Card } from "@/components/layout/PageWrapper";
+import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Modal } from "@/components/ui/Modal";
 import { DataTable } from "@/components/ui/DataTable";
+import { FilterBar } from "@/components/ui/FilterBar";
+import { GridActions } from "@/components/ui/GridActions";
 import { api } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -23,7 +24,7 @@ export default function SupplierDepositsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("supplier-deposit", { $search: search || undefined, $include: "supplier" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+      const res = await api.get("supplier-deposits", { $search: search || undefined, $include: "supplier" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
       if (res.success) setDeposits(res.data?.data || []);
     } finally { setLoading(false); }
   }, [search]);
@@ -43,7 +44,12 @@ export default function SupplierDepositsPage() {
   useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
 
   const handleSave = async () => {
-    await api.post("supplier-deposit", form).catch(() => ({}));
+    const isEdit = Boolean((form as any).id);
+    if (isEdit) {
+      await api.put("supplier-deposits", (form as any).id, form).catch(() => ({}));
+    } else {
+      await api.post("supplier-deposits", form).catch(() => ({}));
+    }
     setShowForm(false);
     fetchData();
   };
@@ -57,17 +63,20 @@ export default function SupplierDepositsPage() {
     { key: "description", label: "Keterangan" },
   ];
 
+  const openCreate = () => { setForm({ date: new Date().toISOString().split("T")[0], code: "", supplierId: "", accountId: "", amount: 0, description: "", paymentMethod: "CASH" }); setShowForm(true); };
+
   return (
     <PageWrapper>
-      <PageHeader title="Deposit Supplier" subtitle="Uang muka ke supplier"
-        actions={<Button variant="primary" icon={Plus} onClick={() => { setForm({ date: new Date().toISOString().split("T")[0], code: "", supplierId: "", accountId: "", amount: 0, description: "", paymentMethod: "CASH" }); setShowForm(true); }}>Tambah</Button>} />
-
-      <Card>
-        <div className="mb-4 flex gap-4">
-          <Input placeholder="Cari..." value={search} onChange={e => setSearch(e.target.value)} className="max-w-xs" leftIcon={Search} />
-          <Button variant="outline" icon={RefreshCw} onClick={fetchData} loading={loading}>Refresh</Button>
+      <Card className="p-4">
+        <FilterBar
+          fields={[{ key: "search", label: "Kata Kunci", type: "text", placeholder: "Cari..." }]}
+          onFilter={(v) => setSearch((v.search as string) || "")}
+          loading={loading}
+          actions={<GridActions onAdd={openCreate} />}
+        />
+        <div className="mt-4">
+          <DataTable data={deposits} columns={columns} loading={loading} emptyMessage="Tidak ada deposit" />
         </div>
-        <DataTable data={deposits} columns={columns} loading={loading} emptyMessage="Tidak ada deposit" />
       </Card>
 
       <Modal open={showForm} onClose={() => setShowForm(false)} title="Deposit Baru" size="md">

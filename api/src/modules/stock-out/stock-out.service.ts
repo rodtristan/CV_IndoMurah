@@ -2,8 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
-import { Prisma } from '.prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+import { Prisma, TransactionStatus } from '.prisma/client';
 import { CreateStockOutDto, UpdateStockOutDto, UpdateStatusDto } from './dto/stock-out.dto';
 
 @Injectable()
@@ -91,10 +90,10 @@ export class StockOutService {
       const unitPrice = item.unit_price || 0;
       const subtotal = unitPrice * item.quantity;
       return {
-        product_id: item.product_id,
+        productId: item.product_id,
         quantity: new Prisma.Decimal(item.quantity.toString()),
-        unit_id: item.unit_id,
-        unit_price: new Prisma.Decimal(unitPrice.toString()),
+        unitId: item.unit_id,
+        unitPrice: new Prisma.Decimal(unitPrice.toString()),
         subtotal: new Prisma.Decimal(subtotal.toString()),
       };
     });
@@ -104,13 +103,13 @@ export class StockOutService {
     const stockOut = await this.prisma.stockOut.create({
       data: {
         code,
-        warehouse_id: dto.warehouse_id,
-        reference_type: dto.reference_type as any,
-        reference_id: dto.reference_id,
+        warehouseId: dto.warehouse_id,
+        referenceType: dto.reference_type as any,
+        referenceId: dto.reference_id,
         date: dto.date ? new Date(dto.date) : new Date(),
-        total_items: new Prisma.Decimal(totalItems.toString()),
+        totalItems: new Prisma.Decimal(totalItems.toString()),
         description: dto.description,
-        status: 'DRAFT',
+        status: TransactionStatus.DRAFT,
         createdById: userId,
         stockOutItems: {
           create: itemsData,
@@ -130,12 +129,12 @@ export class StockOutService {
   async update(id: number, dto: UpdateStockOutDto) {
     const stockOut = await this.prisma.stockOut.findUnique({ where: { id } });
     if (!stockOut) throw new NotFoundException('Stock out not found');
-    if (stockOut.status !== 'DRAFT') {
+    if (stockOut.status !== TransactionStatus.DRAFT) {
       throw new BadRequestException('Can only update draft stock outs');
     }
 
     const updateData: any = {};
-    if (dto.warehouse_id !== undefined) updateData.warehouse_id = dto.warehouse_id;
+    if (dto.warehouse_id !== undefined) updateData.warehouseId = dto.warehouse_id;
     if (dto.date) updateData.date = new Date(dto.date);
     if (dto.description !== undefined) updateData.description = dto.description;
 
@@ -174,19 +173,19 @@ export class StockOutService {
     if (dto.status === 'COMPLETED') {
       // Check stock availability first
       for (const item of stockOut.stockOutItems) {
-        const availableStock = await this.getAvailableStock(item.product_id, stockOut.warehouse_id);
+        const availableStock = await this.getAvailableStock(item.productId, stockOut.warehouseId);
         if (availableStock < Number(item.quantity)) {
           throw new BadRequestException(
-            `Insufficient stock for product ${item.product_id}. Available: ${availableStock}, Requested: ${item.quantity}`,
+            `Insufficient stock for product ${item.productId}. Available: ${availableStock}, Requested: ${item.quantity}`,
           );
         }
       }
-      await this.updateProductStock(stockOut.stockOutItems, stockOut.warehouse_id, 'subtract');
+      await this.updateProductStock(stockOut.stockOutItems, stockOut.warehouseId, 'subtract');
     }
 
     const updated = await this.prisma.stockOut.update({
       where: { id },
-      data: { status: dto.status },
+      data: { status: dto.status as TransactionStatus },
       include: {
         warehouse: true,
         stockOutItems: { include: { product: true, unit: true } },
@@ -201,7 +200,7 @@ export class StockOutService {
   async delete(id: number) {
     const stockOut = await this.prisma.stockOut.findUnique({ where: { id } });
     if (!stockOut) throw new NotFoundException('Stock out not found');
-    if (stockOut.status !== 'DRAFT') {
+    if (stockOut.status !== TransactionStatus.DRAFT) {
       throw new BadRequestException('Can only delete draft stock outs');
     }
 
@@ -236,7 +235,7 @@ export class StockOutService {
 
     const summary = {
       totalTransactions: stockOuts.length,
-      totalItems: stockOuts.reduce((sum, s) => sum + Number(s.total_items), 0),
+      totalItems: stockOuts.reduce((sum, s) => sum + Number(s.totalItems), 0),
     };
 
     return {
@@ -263,7 +262,7 @@ export class StockOutService {
       const existingStock = await this.prisma.productStock.findUnique({
         where: {
           productId_warehouseId: {
-            productId: item.product_id,
+            productId: item.productId,
             warehouseId: warehouseId,
           },
         },
@@ -277,7 +276,7 @@ export class StockOutService {
         await this.prisma.productStock.update({
           where: {
             productId_warehouseId: {
-              productId: item.product_id,
+              productId: item.productId,
               warehouseId: warehouseId,
             },
           },
@@ -286,14 +285,14 @@ export class StockOutService {
       }
 
       // Update Product stock field
-      const product = await this.prisma.product.findUnique({ where: { id: item.product_id } });
+      const product = await this.prisma.product.findUnique({ where: { id: item.productId } });
       if (product) {
         const newStock = operation === 'add'
           ? Number(product.stock) + Number(item.quantity)
           : Number(product.stock) - Number(item.quantity);
 
         await this.prisma.product.update({
-          where: { id: item.product_id },
+          where: { id: item.productId },
           data: { stock: new Prisma.Decimal(newStock.toString()) },
         });
       }
@@ -326,7 +325,7 @@ export class StockOutService {
 
     const result: any = {};
     for (const [key, value] of Object.entries(data)) {
-      if (value instanceof Decimal) {
+      if (value instanceof Prisma.Decimal) {
         result[key] = Number(value);
       } else if (value instanceof Date) {
         result[key] = value.toISOString();

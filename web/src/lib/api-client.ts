@@ -143,12 +143,22 @@ class ODataQueryBuilder {
   toParams(): ODataParams {
     const result: ODataParams = {};
     this.params.forEach((value, key) => {
-      if (key.startsWith('$')) {
-        result[key] = value;
+      if (key === '$orderBy') {
+        // Internal representation is "field:dir,field2:dir2" — the backend's
+        // Smart Query engine needs a real { field: dir } object (sent as
+        // $orderBy[field]=dir on the wire, see ApiClient.buildUrl).
+        const orderBy: Record<string, 'asc' | 'desc'> = {};
+        value.split(',').filter(Boolean).forEach((part) => {
+          const [field, dir] = part.split(':');
+          if (field && (dir === 'asc' || dir === 'desc')) orderBy[field] = dir;
+        });
+        if (Object.keys(orderBy).length > 0) result.$orderBy = orderBy;
       } else if (key.startsWith('$where[')) {
         const field = key.replace('$where[', '').replace(']', '');
         if (!result.$where) result.$where = {};
         (result.$where as Record<string, unknown>)[field] = this.parseValue(value);
+      } else if (key.startsWith('$')) {
+        result[key] = value;
       } else {
         result[key] = this.parseValue(value);
       }
@@ -239,24 +249,27 @@ class ApiClient {
     const url = new URL(`${this.baseUrl}/${endpoint.replace(/^\//, '')}`);
     if (!params) return url.toString();
 
-    const processValue = (v: unknown, prefix = ''): string => {
-      if (v === undefined || v === null) return '';
-      if (typeof v === 'object') {
-        return Object.entries(v as Record<string, unknown>)
-          .map(([k, val]) => processValue(val, `${prefix}[${k}]`))
-          .filter(Boolean)
-          .join('&');
+    // Backend (Fastify + `qs`, see api/src/main.ts) parses bracket-notation
+    // query strings into nested objects, e.g. `$where[price][$gt]=100` →
+    // `{ $where: { price: { $gt: '100' } } }`. Each leaf must be appended
+    // as its OWN `key[...]=value` pair — not pre-joined into one string —
+    // otherwise `qs` can't rebuild the nested shape the Smart Query engine
+    // (api/src/common/query/query-service.ts) expects.
+    const appendNested = (prefix: string, v: unknown) => {
+      if (v === undefined || v === null) return;
+      if (typeof v === 'object' && !Array.isArray(v)) {
+        for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+          appendNested(`${prefix}[${k}]`, val);
+        }
+      } else {
+        url.searchParams.append(prefix, String(v));
       }
-      return `${prefix}=${encodeURIComponent(String(v))}`;
     };
 
     for (const [key, value] of Object.entries(params)) {
       if (value === undefined || value === null) continue;
-      if (key === '$where' && typeof value === 'object') {
-        url.searchParams.set(processValue(value, '$where'), '');
-      } else if (key === '$orderBy' && typeof value === 'object') {
-        const parts = Object.entries(value as Record<string, string>).map(([k, v]) => `${k}:${v}`);
-        url.searchParams.set('$orderBy', parts.join(','));
+      if ((key === '$where' || key === '$orderBy') && typeof value === 'object') {
+        appendNested(key, value);
       } else if (Array.isArray(value)) {
         url.searchParams.set(key, value.join(','));
       } else {

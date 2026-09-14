@@ -61,7 +61,7 @@ export class CategoryService {
         icon: dto.icon,
         image: dto.image,
         description: dto.description,
-        isActive: dto.is_active ?? true,
+        isActive: dto.isActive ?? true,
       },
     });
   }
@@ -83,7 +83,7 @@ export class CategoryService {
         ...(dto.icon !== undefined && { icon: dto.icon }),
         ...(dto.image !== undefined && { image: dto.image }),
         ...(dto.description !== undefined && { description: dto.description }),
-        ...(dto.is_active !== undefined && { isActive: dto.is_active }),
+        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
       },
     });
   }

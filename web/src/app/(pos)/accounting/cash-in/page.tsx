@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Edit2, Trash2, RefreshCw, Search, ArrowDownCircle } from "lucide-react";
-import { PageWrapper, PageHeader, Card } from "@/components/layout/PageWrapper";
+import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -10,6 +9,8 @@ import { Modal } from "@/components/ui/Modal";
 import { ConfirmModal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/StatCard";
 import { DataTable } from "@/components/ui/DataTable";
+import { FilterBar } from "@/components/ui/FilterBar";
+import { GridActions, RowEditIcon, RowDeleteIcon } from "@/components/ui/GridActions";
 import { api } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -24,7 +25,7 @@ export default function CashInPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("cash-in", { $search: search || undefined } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+      const res = await api.get("cash-ins", { $search: search || undefined } as any).catch(() => ({ success: false, data: { data: [] } } as any));
       if (res.success) setCashIns(res.data?.data || []);
     } finally { setLoading(false); }
   }, [search]);
@@ -38,13 +39,18 @@ export default function CashInPage() {
   useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
 
   const handleSave = async () => {
-    await api.post("cash-in", form).catch(() => ({}));
+    const isEdit = Boolean((form as any).id);
+    if (isEdit) {
+      await api.put("cash-ins", (form as any).id, form).catch(() => ({}));
+    } else {
+      await api.post("cash-ins", form).catch(() => ({}));
+    }
     setShowForm(false);
     fetchData();
   };
 
   const handleDelete = async (id: string) => {
-    await api.delete(`cash-in`, id).catch(() => ({}));
+    await api.delete(`cash-ins`, id).catch(() => ({}));
     fetchData();
   };
 
@@ -56,27 +62,30 @@ export default function CashInPage() {
     { key: "paymentMethod", label: "Metode", render: (v: unknown) => <Badge variant="info">{v as string}</Badge> },
     { key: "amount", label: "Jumlah", align: "right" as const, render: (v: unknown) => <span className="font-bold text-success">{formatCurrency(v as number)}</span> },
     {
-      key: "actions", label: "", width: "80px",
+      key: "actions", label: "", width: "70px",
       render: (_: unknown, row: any) => (
-        <div className="flex gap-2">
-          <Button size="sm" variant="ghost" icon={Edit2} onClick={() => { setForm(row); setShowForm(true); }} />
-          <Button size="sm" variant="ghost" icon={Trash2} onClick={() => handleDelete(row.id)} />
+        <div className="flex gap-1">
+          <RowEditIcon onClick={() => { setForm(row); setShowForm(true); }} />
+          <RowDeleteIcon onClick={() => handleDelete(row.id)} />
         </div>
       )
     },
   ];
 
+  const openCreate = () => { setForm({ date: new Date().toISOString().split("T")[0], code: "", accountId: "", amount: 0, description: "", paymentMethod: "CASH" }); setShowForm(true); };
+
   return (
     <PageWrapper>
-      <PageHeader title="Kas Masuk" subtitle="Daftar transaksi kas masuk"
-        actions={<Button variant="primary" icon={Plus} onClick={() => { setForm({ date: new Date().toISOString().split("T")[0], code: "", accountId: "", amount: 0, description: "", paymentMethod: "CASH" }); setShowForm(true); }}>Tambah</Button>} />
-
-      <Card>
-        <div className="mb-4 flex gap-4">
-          <Input placeholder="Cari..." value={search} onChange={e => setSearch(e.target.value)} className="max-w-xs" leftIcon={Search} />
-          <Button variant="outline" icon={RefreshCw} onClick={fetchData} loading={loading}>Refresh</Button>
+      <Card className="p-4">
+        <FilterBar
+          fields={[{ key: "search", label: "Kata Kunci", type: "text", placeholder: "Cari..." }]}
+          onFilter={(v) => setSearch((v.search as string) || "")}
+          loading={loading}
+          actions={<GridActions onAdd={openCreate} />}
+        />
+        <div className="mt-4">
+          <DataTable data={cashIns} columns={columns} loading={loading} emptyMessage="Tidak ada data kas masuk" />
         </div>
-        <DataTable data={cashIns} columns={columns} loading={loading} emptyMessage="Tidak ada data kas masuk" />
       </Card>
 
       <Modal open={showForm} onClose={() => setShowForm(false)} title="Kas Masuk Baru" size="md">
@@ -95,4 +104,3 @@ export default function CashInPage() {
     </PageWrapper>
   );
 }
-

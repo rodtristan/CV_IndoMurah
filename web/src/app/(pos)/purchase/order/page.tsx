@@ -1,13 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Edit2, RefreshCw, Search, ShoppingCart } from "lucide-react";
-import { PageWrapper, PageHeader, Card } from "@/components/layout/PageWrapper";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
+import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { Badge } from "@/components/ui/StatCard";
 import { DataTable } from "@/components/ui/DataTable";
+import { FilterBar } from "@/components/ui/FilterBar";
 import { api } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -26,7 +23,7 @@ export default function PurchaseOrderPage() {
       if (search) params.$search = search;
       if (filterSupplier) params.supplierId = filterSupplier;
       if (filterStatus) params.$where = `status eq '${filterStatus}'`;
-      const res = await api.get("purchase-order", params).catch(() => ({ success: false, data: { data: [] } } as any));
+      const res = await api.get("purchase-orders", params).catch(() => ({ success: false, data: { data: [] } } as any));
       if (res.success) setData(res.data?.data || []);
     } finally { setLoading(false); }
   }, [search, filterSupplier, filterStatus]);
@@ -56,19 +53,20 @@ export default function PurchaseOrderPage() {
 
   return (
     <PageWrapper>
-      <PageHeader title="Purchase Order" subtitle="Daftar purchase order"
-        actions={<Button variant="primary" icon={Plus}>PO Baru</Button>} />
-
-      <Card>
-        <div className="mb-4 flex flex-wrap items-end gap-4">
-          <Input placeholder="Cari PO..." value={search} onChange={e => setSearch(e.target.value)} className="max-w-xs" leftIcon={Search} />
-          <Select label="Supplier" value={filterSupplier} onChange={e => setFilterSupplier(e.target.value)} options={[{ value: "", label: "Semua" }, ...suppliers.map(s => ({ value: s.id, label: s.name }))]} />
-          <Select label="Status" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} options={[{ value: "", label: "Semua" }, { value: "DRAFT", label: "Draft" }, { value: "PENDING", label: "Pending" }, { value: "CONFIRMED", label: "Dikonfirmasi" }, { value: "COMPLETED", label: "Selesai" }]} />
-          <Button variant="outline" icon={RefreshCw} onClick={fetchData} loading={loading}>Refresh</Button>
+      <Card className="p-4">
+        <FilterBar
+          fields={[
+            { key: "search", label: "Kata Kunci", type: "text", placeholder: "Cari PO..." },
+            { key: "supplierId", label: "Supplier", type: "select", options: [{ value: "", label: "Semua" }, ...suppliers.map(s => ({ value: s.id, label: s.name }))] },
+            { key: "status", label: "Status", type: "select", options: [{ value: "", label: "Semua" }, { value: "DRAFT", label: "Draft" }, { value: "PENDING", label: "Pending" }, { value: "CONFIRMED", label: "Dikonfirmasi" }, { value: "COMPLETED", label: "Selesai" }] },
+          ]}
+          onFilter={(v) => { setSearch((v.search as string) || ""); setFilterSupplier((v.supplierId as string) || ""); setFilterStatus((v.status as string) || ""); }}
+          loading={loading}
+        />
+        <div className="mt-4">
+          <DataTable data={data} columns={columns} loading={loading} emptyMessage="Tidak ada purchase order" />
         </div>
-        <DataTable data={data} columns={columns} loading={loading} emptyMessage="Tidak ada purchase order" />
       </Card>
     </PageWrapper>
   );
 }
-

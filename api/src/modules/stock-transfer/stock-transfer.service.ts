@@ -2,8 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
-import { Prisma } from '.prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+import { Prisma, TransactionStatus } from '.prisma/client';
 import { CreateStockTransferDto, UpdateStockTransferDto, UpdateStatusDto } from './dto/stock-transfer.dto';
 
 @Injectable()
@@ -99,10 +98,10 @@ export class StockTransferService {
       const unitPrice = item.unit_price || 0;
       const subtotal = unitPrice * item.quantity;
       return {
-        product_id: item.product_id,
+        productId: item.product_id,
         quantity: new Prisma.Decimal(item.quantity.toString()),
-        unit_id: item.unit_id,
-        unit_price: new Prisma.Decimal(unitPrice.toString()),
+        unitId: item.unit_id,
+        unitPrice: new Prisma.Decimal(unitPrice.toString()),
         subtotal: new Prisma.Decimal(subtotal.toString()),
       };
     });
@@ -112,12 +111,12 @@ export class StockTransferService {
     const stockTransfer = await this.prisma.stockTransfer.create({
       data: {
         code,
-        from_warehouse_id: dto.from_warehouse_id,
-        to_warehouse_id: dto.to_warehouse_id,
+        fromWarehouseId: dto.from_warehouse_id,
+        toWarehouseId: dto.to_warehouse_id,
         date: dto.date ? new Date(dto.date) : new Date(),
-        total_items: new Prisma.Decimal(totalItems.toString()),
+        totalItems: new Prisma.Decimal(totalItems.toString()),
         notes: dto.notes,
-        status: 'DRAFT',
+        status: TransactionStatus.DRAFT,
         createdById: userId,
         transferItems: {
           create: itemsData,
@@ -138,13 +137,13 @@ export class StockTransferService {
   async update(id: number, dto: UpdateStockTransferDto) {
     const stockTransfer = await this.prisma.stockTransfer.findUnique({ where: { id } });
     if (!stockTransfer) throw new NotFoundException('Stock transfer not found');
-    if (stockTransfer.status !== 'DRAFT') {
+    if (stockTransfer.status !== TransactionStatus.DRAFT) {
       throw new BadRequestException('Can only update draft stock transfers');
     }
 
     const updateData: any = {};
-    if (dto.from_warehouse_id !== undefined) updateData.from_warehouse_id = dto.from_warehouse_id;
-    if (dto.to_warehouse_id !== undefined) updateData.to_warehouse_id = dto.to_warehouse_id;
+    if (dto.from_warehouse_id !== undefined) updateData.fromWarehouseId = dto.from_warehouse_id;
+    if (dto.to_warehouse_id !== undefined) updateData.toWarehouseId = dto.to_warehouse_id;
     if (dto.date) updateData.date = new Date(dto.date);
     if (dto.notes !== undefined) updateData.notes = dto.notes;
 
@@ -184,23 +183,23 @@ export class StockTransferService {
     if (dto.status === 'COMPLETED') {
       // Check stock availability in source warehouse first
       for (const item of stockTransfer.transferItems) {
-        const availableStock = await this.getAvailableStock(item.product_id, stockTransfer.from_warehouse_id);
+        const availableStock = await this.getAvailableStock(item.productId, stockTransfer.fromWarehouseId);
         if (availableStock < Number(item.quantity)) {
           throw new BadRequestException(
-            `Insufficient stock in source warehouse for product ${item.product_id}. Available: ${availableStock}, Requested: ${item.quantity}`,
+            `Insufficient stock in source warehouse for product ${item.productId}. Available: ${availableStock}, Requested: ${item.quantity}`,
           );
         }
       }
 
       // Subtract from source warehouse
-      await this.updateProductStock(stockTransfer.transferItems, stockTransfer.from_warehouse_id, 'subtract');
+      await this.updateProductStock(stockTransfer.transferItems, stockTransfer.fromWarehouseId, 'subtract');
       // Add to destination warehouse
-      await this.updateProductStock(stockTransfer.transferItems, stockTransfer.to_warehouse_id, 'add');
+      await this.updateProductStock(stockTransfer.transferItems, stockTransfer.toWarehouseId, 'add');
     }
 
     const updated = await this.prisma.stockTransfer.update({
       where: { id },
-      data: { status: dto.status },
+      data: { status: dto.status as TransactionStatus },
       include: {
         fromWarehouse: true,
         toWarehouse: true,
@@ -216,7 +215,7 @@ export class StockTransferService {
   async delete(id: number) {
     const stockTransfer = await this.prisma.stockTransfer.findUnique({ where: { id } });
     if (!stockTransfer) throw new NotFoundException('Stock transfer not found');
-    if (stockTransfer.status !== 'DRAFT') {
+    if (stockTransfer.status !== TransactionStatus.DRAFT) {
       throw new BadRequestException('Can only delete draft stock transfers');
     }
 
@@ -253,7 +252,7 @@ export class StockTransferService {
 
     const summary = {
       totalTransactions: stockTransfers.length,
-      totalItems: stockTransfers.reduce((sum, s) => sum + Number(s.total_items), 0),
+      totalItems: stockTransfers.reduce((sum, s) => sum + Number(s.totalItems), 0),
     };
 
     return {
@@ -280,7 +279,7 @@ export class StockTransferService {
       const existingStock = await this.prisma.productStock.findUnique({
         where: {
           productId_warehouseId: {
-            productId: item.product_id,
+            productId: item.productId,
             warehouseId: warehouseId,
           },
         },
@@ -294,7 +293,7 @@ export class StockTransferService {
         await this.prisma.productStock.update({
           where: {
             productId_warehouseId: {
-              productId: item.product_id,
+              productId: item.productId,
               warehouseId: warehouseId,
             },
           },
@@ -303,7 +302,7 @@ export class StockTransferService {
       } else if (operation === 'add') {
         await this.prisma.productStock.create({
           data: {
-            productId: item.product_id,
+            productId: item.productId,
             warehouseId: warehouseId,
             quantity: item.quantity,
           },
@@ -312,11 +311,11 @@ export class StockTransferService {
 
       // Update Product stock field (only for single-warehouse products)
       if (operation === 'subtract') {
-        const product = await this.prisma.product.findUnique({ where: { id: item.product_id } });
+        const product = await this.prisma.product.findUnique({ where: { id: item.productId } });
         if (product) {
           const newStock = Number(product.stock) - Number(item.quantity);
           await this.prisma.product.update({
-            where: { id: item.product_id },
+            where: { id: item.productId },
             data: { stock: new Prisma.Decimal(newStock.toString()) },
           });
         }
@@ -350,7 +349,7 @@ export class StockTransferService {
 
     const result: any = {};
     for (const [key, value] of Object.entries(data)) {
-      if (value instanceof Decimal) {
+      if (value instanceof Prisma.Decimal) {
         result[key] = Number(value);
       } else if (value instanceof Date) {
         result[key] = value.toISOString();

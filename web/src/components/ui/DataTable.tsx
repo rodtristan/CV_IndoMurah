@@ -1,8 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
-import type { ReactNode } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 interface Column<T = any> {
@@ -32,6 +31,34 @@ interface DataTableProps<T> {
   };
 }
 
+function PageNav({
+  pagination,
+}: {
+  pagination: NonNullable<DataTableProps<unknown>["pagination"]>;
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <button
+        onClick={() => pagination.onPageChange(pagination.page - 1)}
+        disabled={pagination.page === 1}
+        className="flex size-7 items-center justify-center rounded border border-default text-toned transition-colors hover:bg-bg disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        <ChevronLeft className="size-3.5" />
+      </button>
+      <span className="text-[13px] text-toned">
+        Hal {pagination.page} / {Math.max(pagination.totalPages, 1)}
+      </span>
+      <button
+        onClick={() => pagination.onPageChange(pagination.page + 1)}
+        disabled={pagination.page === pagination.totalPages || pagination.totalPages === 0}
+        className="flex size-7 items-center justify-center rounded border border-default text-toned transition-colors hover:bg-bg disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        <ChevronRight className="size-3.5" />
+      </button>
+    </div>
+  );
+}
+
 export function DataTable<T = any>({
   data,
   columns,
@@ -42,16 +69,26 @@ export function DataTable<T = any>({
   pagination,
 }: DataTableProps<T>) {
   return (
-    <div className="space-y-4">
-      <div className="overflow-x-auto rounded-xl border border-default">
-        <table className="w-full text-sm">
+    <div className="space-y-2">
+      {pagination && pagination.totalPages > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <PageNav pagination={pagination} />
+          <p className="text-[13px] text-toned">
+            Total data yang ditemukan:{" "}
+            <span className="font-semibold text-highlighted">{pagination.total.toLocaleString("id-ID")}</span>
+          </p>
+        </div>
+      )}
+
+      <div className="overflow-x-auto rounded border border-default">
+        <table className="w-full text-[13px]">
           <thead>
-            <tr className="border-b border-default bg-elevated/50">
+            <tr className="border-b border-default bg-[#f5f6f8]">
               {columns.map((col) => (
                 <th
                   key={col.key}
                   className={cn(
-                    "whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted",
+                    "whitespace-nowrap px-3 py-2.5 text-left font-semibold text-gray-600",
                     col.align === "center" && "text-center",
                     col.align === "right" && "text-right"
                   )}
@@ -64,21 +101,18 @@ export function DataTable<T = any>({
           </thead>
           <tbody>
             {loading ? (
-              Array.from({ length: 5 }).map((_, i) => (
-                <tr key={i} className="border-b border-default">
+              Array.from({ length: 6 }).map((_, i) => (
+                <tr key={i} className="border-b border-default last:border-b-0">
                   {columns.map((col) => (
-                    <td key={col.key} className="px-4 py-3">
-                      <div className="h-4 w-full animate-pulse rounded bg-elevated" />
+                    <td key={col.key} className="px-3 py-2.5">
+                      <div className="h-3.5 w-full animate-pulse rounded bg-bg" />
                     </td>
                   ))}
                 </tr>
               ))
             ) : data.length === 0 ? (
               <tr>
-                <td
-                  colSpan={columns.length}
-                  className="px-4 py-12 text-center text-muted"
-                >
+                <td colSpan={columns.length} className="px-4 py-12 text-center text-muted">
                   {emptyMessage}
                 </td>
               </tr>
@@ -92,9 +126,9 @@ export function DataTable<T = any>({
                     key={String(rowId) || index}
                     onClick={() => onRowClick?.(row)}
                     className={cn(
-                      "border-b border-default transition-colors",
-                      onRowClick && "cursor-pointer hover:bg-elevated/50",
-                      isSelected && "bg-primary/5"
+                      "border-b border-default transition-colors last:border-b-0",
+                      onRowClick && "cursor-pointer",
+                      isSelected ? "bg-primary/5" : "hover:bg-[#f5f6f8]"
                     )}
                   >
                     {columns.map((col) => {
@@ -106,7 +140,7 @@ export function DataTable<T = any>({
                         <td
                           key={col.key}
                           className={cn(
-                            "whitespace-nowrap px-4 py-3 text-highlighted",
+                            "whitespace-nowrap px-3 py-2.5 text-[#1e293b]",
                             col.align === "center" && "text-center",
                             col.align === "right" && "text-right"
                           )}
@@ -127,10 +161,10 @@ export function DataTable<T = any>({
         </table>
       </div>
 
-      {/* Pagination */}
       {pagination && pagination.totalPages > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <p className="text-sm text-muted">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <PageNav pagination={pagination} />
+          <p className="text-[13px] text-toned">
             Menampilkan{" "}
             <span className="font-medium text-highlighted">
               {(pagination.page - 1) * pagination.pageSize + 1}
@@ -139,72 +173,8 @@ export function DataTable<T = any>({
             <span className="font-medium text-highlighted">
               {Math.min(pagination.page * pagination.pageSize, pagination.total)}
             </span>{" "}
-            dari{" "}
-            <span className="font-medium text-highlighted">{pagination.total}</span>
+            dari <span className="font-medium text-highlighted">{pagination.total}</span>
           </p>
-
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => pagination.onPageChange(1)}
-              disabled={pagination.page === 1}
-              className="flex size-8 items-center justify-center rounded-lg border border-default text-muted transition-colors hover:bg-elevated hover:text-highlighted disabled:opacity-50"
-            >
-              <ChevronsLeft className="size-4" />
-            </button>
-            <button
-              onClick={() => pagination.onPageChange(pagination.page - 1)}
-              disabled={pagination.page === 1}
-              className="flex size-8 items-center justify-center rounded-lg border border-default text-muted transition-colors hover:bg-elevated hover:text-highlighted disabled:opacity-50"
-            >
-              <ChevronLeft className="size-4" />
-            </button>
-
-            {Array.from({ length: Math.min(5, pagination.totalPages) }).map((_, i) => {
-              let page: number;
-              const total = pagination.totalPages;
-              const current = pagination.page;
-
-              if (total <= 5) {
-                page = i + 1;
-              } else if (current <= 3) {
-                page = i + 1;
-              } else if (current >= total - 2) {
-                page = total - 4 + i;
-              } else {
-                page = current - 2 + i;
-              }
-
-              return (
-                <button
-                  key={page}
-                  onClick={() => pagination.onPageChange(page)}
-                  className={cn(
-                    "flex size-8 items-center justify-center rounded-lg border border-default text-sm transition-colors",
-                    page === current
-                      ? "border-primary bg-primary text-white"
-                      : "text-muted hover:bg-elevated hover:text-highlighted"
-                  )}
-                >
-                  {page}
-                </button>
-              );
-            })}
-
-            <button
-              onClick={() => pagination.onPageChange(pagination.page + 1)}
-              disabled={pagination.page === pagination.totalPages}
-              className="flex size-8 items-center justify-center rounded-lg border border-default text-muted transition-colors hover:bg-elevated hover:text-highlighted disabled:opacity-50"
-            >
-              <ChevronRight className="size-4" />
-            </button>
-            <button
-              onClick={() => pagination.onPageChange(pagination.totalPages)}
-              disabled={pagination.page === pagination.totalPages}
-              className="flex size-8 items-center justify-center rounded-lg border border-default text-muted transition-colors hover:bg-elevated hover:text-highlighted disabled:opacity-50"
-            >
-              <ChevronsRight className="size-4" />
-            </button>
-          </div>
         </div>
       )}
     </div>

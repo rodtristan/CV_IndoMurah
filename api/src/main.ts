@@ -22,6 +22,7 @@ import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import * as qs from 'qs';
 import { AppModule } from './app-module';
 import { SanitizePipe } from './common/pipes/sanitize-pipe';
 import { PathService } from './common/utils/path-service';
@@ -42,6 +43,12 @@ async function bootstrap() {
       routerOptions: {
         caseSensitive: false,      // /Products dan /products dianggap sama
       },
+      // Fastify's default query parser is flat (no bracket nesting), but
+      // the Smart Query engine (common/query/query-service.ts) needs
+      // `$where[field]=value` / `$orderBy[field]=asc` to arrive as real
+      // nested objects — that's what `qs` (the same parser Express uses)
+      // gives us. Without this, $where/$orderBy/$include silently no-op.
+      querystringParser: (str) => qs.parse(str),
     }),
     {
       bufferLogs: true,

@@ -2,8 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
-import { Prisma } from '.prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+import { Prisma, TransactionStatus } from '.prisma/client';
 import { CreateStockInDto, UpdateStockInDto, UpdateStatusDto } from './dto/stock-in.dto';
 
 @Injectable()
@@ -91,10 +90,10 @@ export class StockInService {
       const unitPrice = item.unit_price || 0;
       const subtotal = unitPrice * item.quantity;
       return {
-        product_id: item.product_id,
+        productId: item.product_id,
         quantity: new Prisma.Decimal(item.quantity.toString()),
-        unit_id: item.unit_id,
-        unit_price: new Prisma.Decimal(unitPrice.toString()),
+        unitId: item.unit_id,
+        unitPrice: new Prisma.Decimal(unitPrice.toString()),
         subtotal: new Prisma.Decimal(subtotal.toString()),
       };
     });
@@ -104,14 +103,14 @@ export class StockInService {
     const stockIn = await this.prisma.stockIn.create({
       data: {
         code,
-        warehouse_id: dto.warehouse_id,
-        supplier_id: dto.supplier_id,
-        reference_type: dto.reference_type as any,
-        reference_id: dto.reference_id,
+        warehouseId: dto.warehouse_id,
+        supplierId: dto.supplier_id,
+        referenceType: dto.reference_type as any,
+        referenceId: dto.reference_id,
         date: dto.date ? new Date(dto.date) : new Date(),
-        total_items: new Prisma.Decimal(totalItems.toString()),
+        totalItems: new Prisma.Decimal(totalItems.toString()),
         description: dto.description,
-        status: 'DRAFT',
+        status: TransactionStatus.DRAFT,
         createdById: userId,
         stockInItems: {
           create: itemsData,
@@ -132,13 +131,13 @@ export class StockInService {
   async update(id: number, dto: UpdateStockInDto) {
     const stockIn = await this.prisma.stockIn.findUnique({ where: { id } });
     if (!stockIn) throw new NotFoundException('Stock in not found');
-    if (stockIn.status !== 'DRAFT') {
+    if (stockIn.status !== TransactionStatus.DRAFT) {
       throw new BadRequestException('Can only update draft stock ins');
     }
 
     const updateData: any = {};
-    if (dto.warehouse_id !== undefined) updateData.warehouse_id = dto.warehouse_id;
-    if (dto.supplier_id !== undefined) updateData.supplier_id = dto.supplier_id;
+    if (dto.warehouse_id !== undefined) updateData.warehouseId = dto.warehouse_id;
+    if (dto.supplier_id !== undefined) updateData.supplierId = dto.supplier_id;
     if (dto.date) updateData.date = new Date(dto.date);
     if (dto.description !== undefined) updateData.description = dto.description;
 
@@ -176,12 +175,12 @@ export class StockInService {
 
     // If completing, update product stock
     if (dto.status === 'COMPLETED') {
-      await this.updateProductStock(stockIn.stockInItems, stockIn.warehouse_id, 'add');
+      await this.updateProductStock(stockIn.stockInItems, stockIn.warehouseId, 'add');
     }
 
     const updated = await this.prisma.stockIn.update({
       where: { id },
-      data: { status: dto.status },
+      data: { status: dto.status as TransactionStatus },
       include: {
         warehouse: true,
         supplier: true,
@@ -197,7 +196,7 @@ export class StockInService {
   async delete(id: number) {
     const stockIn = await this.prisma.stockIn.findUnique({ where: { id } });
     if (!stockIn) throw new NotFoundException('Stock in not found');
-    if (stockIn.status !== 'DRAFT') {
+    if (stockIn.status !== TransactionStatus.DRAFT) {
       throw new BadRequestException('Can only delete draft stock ins');
     }
 
@@ -233,7 +232,7 @@ export class StockInService {
 
     const summary = {
       totalTransactions: stockIns.length,
-      totalItems: stockIns.reduce((sum, s) => sum + Number(s.total_items), 0),
+      totalItems: stockIns.reduce((sum, s) => sum + Number(s.totalItems), 0),
     };
 
     return {
@@ -248,7 +247,7 @@ export class StockInService {
       const existingStock = await this.prisma.productStock.findUnique({
         where: {
           productId_warehouseId: {
-            productId: item.product_id,
+            productId: item.productId,
             warehouseId: warehouseId,
           },
         },
@@ -262,7 +261,7 @@ export class StockInService {
         await this.prisma.productStock.update({
           where: {
             productId_warehouseId: {
-              productId: item.product_id,
+              productId: item.productId,
               warehouseId: warehouseId,
             },
           },
@@ -271,7 +270,7 @@ export class StockInService {
       } else if (operation === 'add') {
         await this.prisma.productStock.create({
           data: {
-            productId: item.product_id,
+            productId: item.productId,
             warehouseId: warehouseId,
             quantity: item.quantity,
           },
@@ -279,14 +278,14 @@ export class StockInService {
       }
 
       // Update Product stock field
-      const product = await this.prisma.product.findUnique({ where: { id: item.product_id } });
+      const product = await this.prisma.product.findUnique({ where: { id: item.productId } });
       if (product) {
         const newStock = operation === 'add'
           ? Number(product.stock) + Number(item.quantity)
           : Number(product.stock) - Number(item.quantity);
 
         await this.prisma.product.update({
-          where: { id: item.product_id },
+          where: { id: item.productId },
           data: { stock: new Prisma.Decimal(newStock.toString()) },
         });
       }
@@ -319,7 +318,7 @@ export class StockInService {
 
     const result: any = {};
     for (const [key, value] of Object.entries(data)) {
-      if (value instanceof Decimal) {
+      if (value instanceof Prisma.Decimal) {
         result[key] = Number(value);
       } else if (value instanceof Date) {
         result[key] = value.toISOString();

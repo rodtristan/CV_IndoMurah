@@ -1,14 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Download, RefreshCw, Package, AlertTriangle } from "lucide-react";
-import { PageWrapper, PageHeader, Card } from "@/components/layout/PageWrapper";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
+import { Download, Package, AlertTriangle } from "lucide-react";
+import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { StatCard } from "@/components/ui/StatCard";
 import { Badge } from "@/components/ui/StatCard";
 import { DataTable } from "@/components/ui/DataTable";
+import { FilterBar } from "@/components/ui/FilterBar";
+import { UtilityButton } from "@/components/ui/GridActions";
 import { api } from "@/lib/api-client";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 
@@ -45,22 +44,25 @@ export default function InventoryReportPage() {
 
   return (
     <PageWrapper>
-      <PageHeader title="Laporan Inventory" subtitle="Daftar stock produk"
-        actions={<><Button variant="outline" icon={Download}>Export</Button><Button variant="primary" icon={RefreshCw} onClick={fetchData} loading={loading}>Refresh</Button></>} />
-
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard title="Total Item" value={formatNumber(summary.totalProducts || 0)} icon={Package} iconClassName="bg-info/10 text-info" />
         <StatCard title="Nilai Inventory" value={formatCurrency(summary.totalValue || 0)} icon={Package} iconClassName="bg-success/10 text-success" />
         <StatCard title="Stock Minim" value={formatNumber(summary.lowStockCount || 0)} icon={AlertTriangle} iconClassName="bg-warning/10 text-warning" />
       </div>
 
-      <Card>
-        <div className="mb-4 flex flex-wrap items-end gap-4">
-          <Select label="Gudang" value={filters.warehouseId} onChange={e => setFilters(f => ({ ...f, warehouseId: e.target.value }))} options={[{ value: "", label: "Semua Gudang" }]} />
-          <Select label="Kategori" value={filters.categoryId} onChange={e => setFilters(f => ({ ...f, categoryId: e.target.value }))} options={[{ value: "", label: "Semua Kategori" }]} />
-          <Button variant="primary" onClick={fetchData} loading={loading}>Tampilkan</Button>
+      <Card className="p-4">
+        <FilterBar
+          fields={[
+            { key: "warehouseId", label: "Gudang", type: "select", options: [{ value: "", label: "Semua Gudang" }] },
+            { key: "categoryId", label: "Kategori", type: "select", options: [{ value: "", label: "Semua Kategori" }] },
+          ]}
+          onFilter={(v) => setFilters({ warehouseId: (v.warehouseId as string) || "", categoryId: (v.categoryId as string) || "" })}
+          loading={loading}
+          actions={<UtilityButton icon={Download}>Export</UtilityButton>}
+        />
+        <div className="mt-4">
+          <DataTable data={items} columns={columns} loading={loading} emptyMessage="Tidak ada data" />
         </div>
-        <DataTable data={items} columns={columns} loading={loading} emptyMessage="Tidak ada data" />
       </Card>
     </PageWrapper>
   );

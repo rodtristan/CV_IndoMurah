@@ -1,16 +1,28 @@
-import { IsOptional, IsString, IsNumber, IsPositive, IsBoolean, IsInt } from 'class-validator';
+import { IsOptional, IsString, IsBoolean, IsEmail, MinLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-export class UpdateUserDto {
-  @ApiPropertyOptional() @IsOptional() @IsString() full_name?: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() phone_number?: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() photo_url?: string;
-  @ApiPropertyOptional() @IsOptional() @IsNumber() @IsPositive() main_role_id?: number;
-  @ApiPropertyOptional() @IsOptional() @IsBoolean() is_active?: boolean;
+export class CreateUserDto {
+  @ApiProperty({ example: 'user@tokocvindomurah.com' })
+  @IsEmail()
+  email: string;
+
+  @ApiProperty({ example: 'password123', minLength: 6 })
+  @IsString()
+  @MinLength(6)
+  password: string;
+
+  @ApiProperty({ example: 'John Doe' })
+  @IsString()
+  name: string;
+
+  @ApiPropertyOptional({ example: 'cashier', description: 'Default: cashier' })
+  @IsOptional()
+  @IsString()
+  role?: string;
 }
 
-export class AssignRoleDto {
-  @ApiProperty()
-  @IsInt()
-  role_id: number;
+export class UpdateUserDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() name?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() role?: string;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() isActive?: boolean;
 }

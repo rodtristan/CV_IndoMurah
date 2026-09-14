@@ -20,19 +20,19 @@ interface PageHeaderProps {
 }
 
 export function PageHeader({
-  title,
   subtitle,
   actions,
   breadcrumb,
 }: PageHeaderProps) {
+  // The MainLayout top bar already renders the page title, so this only
+  // renders as a slim toolbar row (matching the "Refresh / Video Tutorial /
+  // ..." row on the real Ketoko.co.id pages) instead of duplicating the
+  // title as a second, bigger heading in the page body.
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 rounded border border-default bg-elevated p-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        {breadcrumb && <div className="mb-2">{breadcrumb}</div>}
-        <h1 className="text-2xl font-bold text-highlighted">{title}</h1>
-        {subtitle && (
-          <p className="mt-1 text-sm text-muted">{subtitle}</p>
-        )}
+        {breadcrumb && <div className="mb-1">{breadcrumb}</div>}
+        {subtitle && <p className="text-[13px] text-toned">{subtitle}</p>}
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
     </div>

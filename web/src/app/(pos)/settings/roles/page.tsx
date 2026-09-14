@@ -1,25 +1,29 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Edit2, Trash2, RefreshCw, Shield } from "lucide-react";
-import { PageWrapper, PageHeader, Card } from "@/components/layout/PageWrapper";
+import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/StatCard";
 import { DataTable } from "@/components/ui/DataTable";
+import { FilterBar } from "@/components/ui/FilterBar";
+import { GridActions, RowEditIcon, RowDeleteIcon } from "@/components/ui/GridActions";
 import { api } from "@/lib/api-client";
 
+// Backend Role model (prisma/schema.prisma): id, roleName, roleDescription,
+// isActive — no `code`/`isDefault` fields exist, so this form only edits
+// the fields that are actually persisted.
 export default function RolesPage() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: "", code: "", description: "" });
+  const [form, setForm] = useState({ roleName: "", roleDescription: "" });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("roles", { $select: "id,code,name,description,isDefault" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+      const res = await api.get("roles", { $select: "id,roleName,roleDescription,isActive" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
       if (res.success) setData(res.data?.data || []);
     } finally { setLoading(false); }
   }, []);
@@ -27,7 +31,12 @@ export default function RolesPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleSave = async () => {
-    await api.post("roles", form).catch(() => ({}));
+    const isEdit = Boolean((form as any).id);
+    if (isEdit) {
+      await api.put("roles", (form as any).id, form).catch(() => ({}));
+    } else {
+      await api.post("roles", form).catch(() => ({}));
+    }
     setShowForm(false);
     fetchData();
   };
@@ -38,38 +47,40 @@ export default function RolesPage() {
   };
 
   const columns = [
-    { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "name", label: "Nama Role" },
-    { key: "description", label: "Deskripsi", render: (v: unknown) => v || "-" },
-    { key: "isDefault", label: "Default", render: (v: unknown) => v ? <Badge variant="info">Ya</Badge> : <span className="text-muted">Tidak</span> },
+    { key: "roleName", label: "Nama Role" },
+    { key: "roleDescription", label: "Deskripsi", render: (v: unknown) => v || "-" },
+    { key: "isActive", label: "Status", render: (v: unknown) => v ? <Badge variant="success">Aktif</Badge> : <Badge variant="default">Nonaktif</Badge> },
     {
-      key: "actions", label: "", width: "80px",
+      key: "actions", label: "", width: "70px",
       render: (_: unknown, row: any) => (
-        <div className="flex gap-2">
-          <Button size="sm" variant="ghost" icon={Edit2} onClick={() => { setForm(row); setShowForm(true); }} />
-          {!row.isDefault && <Button size="sm" variant="ghost" icon={Trash2} onClick={() => handleDelete(row.id)} />}
+        <div className="flex gap-1">
+          <RowEditIcon onClick={() => { setForm(row); setShowForm(true); }} />
+          <RowDeleteIcon onClick={() => handleDelete(row.id)} />
         </div>
       )
     },
   ];
 
+  const openCreate = () => { setForm({ roleName: "", roleDescription: "" }); setShowForm(true); };
+
   return (
     <PageWrapper>
-      <PageHeader title="Role & Akses" subtitle="Pengaturan hak akses pengguna"
-        actions={<Button variant="primary" icon={Plus} onClick={() => { setForm({ name: "", code: "", description: "" }); setShowForm(true); }}>Tambah</Button>} />
-
-      <Card>
-        <div className="mb-4 flex justify-end">
-          <Button variant="outline" icon={RefreshCw} onClick={fetchData} loading={loading}>Refresh</Button>
+      <Card className="p-4">
+        <FilterBar
+          fields={[]}
+          onFilter={() => fetchData()}
+          loading={loading}
+          actions={<GridActions onAdd={openCreate} />}
+        />
+        <div className="mt-4">
+          <DataTable data={data} columns={columns} loading={loading} emptyMessage="Tidak ada role" />
         </div>
-        <DataTable data={data} columns={columns} loading={loading} emptyMessage="Tidak ada role" />
       </Card>
 
       <Modal open={showForm} onClose={() => setShowForm(false)} title="Role" size="sm">
         <div className="space-y-4">
-          <Input label="Kode" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} />
-          <Input label="Nama" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-          <Input label="Deskripsi" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+          <Input label="Nama Role" value={form.roleName} onChange={e => setForm(f => ({ ...f, roleName: e.target.value }))} />
+          <Input label="Deskripsi" value={form.roleDescription} onChange={e => setForm(f => ({ ...f, roleDescription: e.target.value }))} />
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button>
             <Button variant="primary" onClick={handleSave}>Simpan</Button>
@@ -79,4 +90,3 @@ export default function RolesPage() {
     </PageWrapper>
   );
 }
-

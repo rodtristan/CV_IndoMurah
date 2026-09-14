@@ -1,14 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { RefreshCw, Search, RotateCcw } from "lucide-react";
-import { PageWrapper, PageHeader, Card } from "@/components/layout/PageWrapper";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
+import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { Badge } from "@/components/ui/StatCard";
 import { Modal } from "@/components/ui/Modal";
 import { DataTable } from "@/components/ui/DataTable";
+import { FilterBar } from "@/components/ui/FilterBar";
 import { api } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -49,15 +46,18 @@ export default function SaleReturnsPage() {
 
   return (
     <PageWrapper>
-      <PageHeader title="Retur Penjualan" subtitle="Daftar retur penjualan"
-        actions={<Button variant="outline" icon={RefreshCw} onClick={fetchData} loading={loading}>Refresh</Button>} />
-
-      <Card>
-        <div className="mb-4 flex flex-wrap items-end gap-4">
-          <Input placeholder="Cari..." value={search} onChange={e => setSearch(e.target.value)} className="max-w-xs" leftIcon={Search} />
-          <Select label="Status" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} options={[{ value: "", label: "Semua" }, { value: "PENDING", label: "Pending" }, { value: "APPROVED", label: "Disetujui" }, { value: "COMPLETED", label: "Selesai" }]} />
+      <Card className="p-4">
+        <FilterBar
+          fields={[
+            { key: "search", label: "Kata Kunci", type: "text", placeholder: "Cari..." },
+            { key: "status", label: "Status", type: "select", options: [{ value: "", label: "Semua" }, { value: "PENDING", label: "Pending" }, { value: "APPROVED", label: "Disetujui" }, { value: "COMPLETED", label: "Selesai" }] },
+          ]}
+          onFilter={(v) => { setSearch((v.search as string) || ""); setFilterStatus((v.status as string) || ""); }}
+          loading={loading}
+        />
+        <div className="mt-4">
+          <DataTable data={data} columns={columns} loading={loading} emptyMessage="Tidak ada retur" />
         </div>
-        <DataTable data={data} columns={columns} loading={loading} emptyMessage="Tidak ada retur" />
       </Card>
 
       <Modal open={showDetail} onClose={() => setShowDetail(false)} title="Detail Retur" size="lg">
@@ -98,5 +98,3 @@ export default function SaleReturnsPage() {
     </PageWrapper>
   );
 }
-
-

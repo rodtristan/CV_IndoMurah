@@ -3,402 +3,301 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
-  ShoppingCart,
+  Home,
   Package,
-  ArrowLeftRight,
-  FileText,
-  Users,
-  Building2,
   Truck,
-  Coins,
-  Wallet,
-  Banknote,
-  ArrowDownUp,
-  UserCog,
+  ShoppingBasket,
+  Wrench,
+  Boxes,
+  Landmark,
+  BarChart3,
   Settings,
+  Store,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 
 // ─── Menu Types ──────────────────────────────────────────────
 
-interface MenuItem {
+interface SubItem {
   label: string;
-  href?: string;
-  icon: React.ComponentType<{ className?: string }>;
-  children?: MenuItem[];
-  badge?: string | number;
+  href: string;
+  badge?: string;
 }
 
 interface MenuGroup {
+  key: string;
   label: string;
-  items: MenuItem[];
+  icon: React.ComponentType<{ className?: string; style?: CSSProperties }>;
+  iconColor: string;
+  href?: string;
+  items?: SubItem[];
 }
 
 // ─── Menu Configuration ──────────────────────────────────────
+// Mirrors the module list & order of the real Ketoko.co.id sidebar
+// (Home, Master Data, Pembelian, Penjualan, Perakitan, Persediaan,
+// Akuntansi, Laporan, Pengaturan, E-commerce).
 
 const MENU_GROUPS: MenuGroup[] = [
   {
-    label: "Dashboard",
+    key: "home",
+    label: "Home",
+    icon: Home,
+    iconColor: "#F4C430",
+    href: "/dashboard",
+  },
+  {
+    key: "master",
+    label: "Master Data",
+    icon: Package,
+    iconColor: "#FF9800",
     items: [
-      {
-        label: "Dashboard",
-        href: "/dashboard",
-        icon: LayoutDashboard,
-      },
+      { label: "Daftar Item", href: "/master/items" },
+      { label: "Kartu Stok", href: "/master/items/stock-card" },
+      { label: "Kategori", href: "/master/categories" },
+      { label: "Merek", href: "/master/brands" },
+      { label: "Satuan", href: "/master/units" },
+      { label: "Gudang", href: "/master/warehouses" },
+      { label: "Pelanggan", href: "/master/customers" },
+      { label: "Supplier", href: "/master/suppliers" },
+      { label: "Sales Person", href: "/master/sales-persons" },
+      { label: "Sale Point", href: "/master/sale-points" },
     ],
   },
   {
-    label: "Penjualan",
-    items: [
-      {
-        label: "POS",
-        href: "/sale/pos",
-        icon: ShoppingCart,
-        badge: " baru",
-      },
-      {
-        label: "Daftar Penjualan",
-        href: "/sale/list",
-        icon: FileText,
-      },
-      {
-        label: "Retur Penjualan",
-        href: "/sale/returns",
-        icon: ArrowLeftRight,
-      },
-    ],
-  },
-  {
+    key: "purchase",
     label: "Pembelian",
+    icon: Truck,
+    iconColor: "#7B1FA2",
     items: [
-      {
-        label: "Pesanan Pembelian",
-        href: "/purchase/order",
-        icon: Package,
-      },
-      {
-        label: "Daftar Pembelian",
-        href: "/purchase/list",
-        icon: FileText,
-      },
-      {
-        label: "Retur Pembelian",
-        href: "/purchase/returns",
-        icon: ArrowLeftRight,
-      },
+      { label: "Pesanan Pembelian", href: "/purchase/order" },
+      { label: "Daftar Pembelian", href: "/purchase/list" },
+      { label: "Retur Pembelian", href: "/purchase/returns" },
     ],
   },
   {
-    label: "Inventory",
+    key: "sale",
+    label: "Penjualan",
+    icon: ShoppingBasket,
+    iconColor: "#43A047",
     items: [
-      {
-        label: "Barang Masuk",
-        href: "/inventory/stock-in",
-        icon: Coins,
-      },
-      {
-        label: "Barang Keluar",
-        href: "/inventory/stock-out",
-        icon: Wallet,
-      },
-      {
-        label: "Transfer Stock",
-        href: "/inventory/transfers",
-        icon: ArrowDownUp,
-      },
-      {
-        label: "Stock Opname",
-        href: "/inventory/stock-opname",
-        icon: Package,
-      },
-      {
-        label: "Stock Minim",
-        href: "/inventory/minimum-stock",
-        icon: ArrowLeftRight,
-      },
+      { label: "Kasir (POS)", href: "/sale/pos", badge: "baru" },
+      { label: "Daftar Penjualan", href: "/sale/list" },
+      { label: "Retur Penjualan", href: "/sale/returns" },
     ],
   },
   {
-    label: "Akunting",
+    key: "assembly",
+    label: "Perakitan",
+    icon: Wrench,
+    iconColor: "#E53935",
+  },
+  {
+    key: "inventory",
+    label: "Persediaan",
+    icon: Boxes,
+    iconColor: "#00897B",
     items: [
-      {
-        label: "Chart of Accounts",
-        href: "/accounting/accounts",
-        icon: Banknote,
-      },
-      {
-        label: "Jurnal Umum",
-        href: "/accounting/journals",
-        icon: FileText,
-      },
-      {
-        label: "Kas Masuk",
-        href: "/accounting/cash-in",
-        icon: Coins,
-      },
-      {
-        label: "Kas Keluar",
-        href: "/accounting/cash-out",
-        icon: Wallet,
-      },
-      {
-        label: "Transfer Kas",
-        href: "/accounting/cash-transfer",
-        icon: ArrowDownUp,
-      },
-      {
-        label: "Setoran Pelanggan",
-        href: "/accounting/customer-deposits",
-        icon: Coins,
-      },
-      {
-        label: "Setoran Supplier",
-        href: "/accounting/supplier-deposits",
-        icon: Coins,
-      },
+      { label: "Barang Masuk", href: "/inventory/stock-in" },
+      { label: "Barang Keluar", href: "/inventory/stock-out" },
+      { label: "Transfer Stock", href: "/inventory/transfers" },
+      { label: "Stock Opname", href: "/inventory/stock-opname" },
+      { label: "Stock Minim", href: "/inventory/minimum-stock" },
     ],
   },
   {
+    key: "accounting",
+    label: "Akuntansi",
+    icon: Landmark,
+    iconColor: "#00ACC1",
+    items: [
+      { label: "Chart of Accounts", href: "/accounting/accounts" },
+      { label: "Jurnal Umum", href: "/accounting/journals" },
+      { label: "Kas Masuk", href: "/accounting/cash-in" },
+      { label: "Kas Keluar", href: "/accounting/cash-out" },
+      { label: "Transfer Kas", href: "/accounting/cash-transfer" },
+      { label: "Setoran Pelanggan", href: "/accounting/customer-deposits" },
+      { label: "Setoran Supplier", href: "/accounting/supplier-deposits" },
+    ],
+  },
+  {
+    key: "reports",
     label: "Laporan",
+    icon: BarChart3,
+    iconColor: "#3F51B5",
     items: [
-      {
-        label: "Penjualan",
-        href: "/reports/sales",
-        icon: FileText,
-      },
-      {
-        label: "Pembelian",
-        href: "/reports/purchase",
-        icon: FileText,
-      },
-      {
-        label: "Inventory",
-        href: "/reports/inventory",
-        icon: Package,
-      },
-      {
-        label: "Keuangan",
-        href: "/reports/financial",
-        icon: Banknote,
-      },
-      {
-        label: "Laba Rugi",
-        href: "/reports/profit",
-        icon: FileText,
-      },
-      {
-        label: "Arus Kas",
-        href: "/reports/cash",
-        icon: Coins,
-      },
-      {
-        label: "Hutang",
-        href: "/reports/debt",
-        icon: Truck,
-      },
-      {
-        label: "Piutang",
-        href: "/reports/receivable",
-        icon: Users,
-      },
-      {
-        label: "Stock Opname",
-        href: "/reports/stock-opname",
-        icon: Package,
-      },
+      { label: "Penjualan", href: "/reports/sales" },
+      { label: "Pembelian", href: "/reports/purchase" },
+      { label: "Inventory", href: "/reports/inventory" },
+      { label: "Keuangan", href: "/reports/financial" },
+      { label: "Laba Rugi", href: "/reports/profit" },
+      { label: "Arus Kas", href: "/reports/cash" },
+      { label: "Hutang", href: "/reports/debt" },
+      { label: "Piutang", href: "/reports/receivable" },
+      { label: "Stock Opname", href: "/reports/stock-opname" },
     ],
   },
   {
-    label: "Master",
-    items: [
-      {
-        label: "Produk",
-        href: "/master/items",
-        icon: Package,
-      },
-      {
-        label: "Kategori",
-        href: "/master/categories",
-        icon: Building2,
-      },
-      {
-        label: "Merek",
-        href: "/master/brands",
-        icon: Building2,
-      },
-      {
-        label: "Satuan",
-        href: "/master/units",
-        icon: Building2,
-      },
-      {
-        label: "Gudang",
-        href: "/master/warehouses",
-        icon: Building2,
-      },
-      {
-        label: "Pelanggan",
-        href: "/master/customers",
-        icon: Users,
-      },
-      {
-        label: "Supplier",
-        href: "/master/suppliers",
-        icon: Truck,
-      },
-      {
-        label: "Sales Person",
-        href: "/master/sales-persons",
-        icon: Users,
-      },
-      {
-        label: "Sale Point",
-        href: "/master/sale-points",
-        icon: Building2,
-      },
-    ],
-  },
-  {
+    key: "settings",
     label: "Pengaturan",
+    icon: Settings,
+    iconColor: "#78909C",
     items: [
-      {
-        label: "Perusahaan",
-        href: "/settings/company",
-        icon: Building2,
-      },
-      {
-        label: "Pengguna",
-        href: "/settings/users",
-        icon: UserCog,
-      },
-      {
-        label: "Hak Akses",
-        href: "/settings/roles",
-        icon: Settings,
-      },
+      { label: "Perusahaan", href: "/settings/company" },
+      { label: "Pengguna", href: "/settings/users" },
+      { label: "Hak Akses", href: "/settings/roles" },
     ],
+  },
+  {
+    key: "ecommerce",
+    label: "E-commerce",
+    icon: Store,
+    iconColor: "#F4511E",
   },
 ];
 
 // ─── Components ───────────────────────────────────────────────
+// Clicking a group with children accordions its sub-items open directly
+// below the row (pushing the rest of the sidebar down), matching
+// Ketoko.co.id.
 
-function MenuLink({
-  item,
+function GroupRow({
+  group,
+  collapsed,
+  isOpen,
   isActive,
+  onToggle,
 }: {
-  item: MenuItem;
+  group: MenuGroup;
+  collapsed: boolean;
+  isOpen: boolean;
   isActive: boolean;
+  onToggle: () => void;
 }) {
-  const Icon = item.icon;
+  const Icon = group.icon;
+  const hasChildren = !!group.items?.length;
 
-  return (
-    <Link
-      href={item.href || "#"}
-      className={cn(
-        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-        isActive
-          ? "bg-primary/10 text-primary"
-          : "text-muted hover:bg-elevated hover:text-highlighted"
+  const inner = (
+    <>
+      <Icon className="size-5 shrink-0" style={{ color: group.iconColor }} />
+      {!collapsed && (
+        <>
+          <span className="flex-1 truncate">{group.label}</span>
+          {!group.href && !hasChildren && (
+            <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-normal text-white/50">
+              segera
+            </span>
+          )}
+          {hasChildren &&
+            (isOpen ? (
+              <ChevronDown className="size-3.5 shrink-0 opacity-70" />
+            ) : (
+              <ChevronRight className="size-3.5 shrink-0 opacity-70" />
+            ))}
+        </>
       )}
-    >
-      <Icon className={cn("size-5 shrink-0", isActive && "text-primary")} />
-      <span className="flex-1">{item.label}</span>
-      {item.badge && (
-        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
-          {item.badge}
-        </span>
-      )}
-    </Link>
+    </>
   );
+
+  const rowClass = cn(
+    "flex w-full items-center gap-3.5 px-5 py-[15px] text-[15px] font-semibold leading-none transition-colors",
+    isActive ? "bg-sidebar-active text-white" : "text-white hover:bg-sidebar-hover",
+    !group.href && !hasChildren && "cursor-default text-white/50 hover:bg-transparent"
+  );
+
+  if (group.href && !hasChildren) {
+    return (
+      <Link href={group.href} className={rowClass}>
+        {inner}
+      </Link>
+    );
+  }
+
+  if (hasChildren) {
+    return (
+      <button type="button" onClick={onToggle} className={rowClass}>
+        {inner}
+      </button>
+    );
+  }
+
+  return <div className={rowClass}>{inner}</div>;
 }
 
-function MenuSection({ group }: { group: MenuGroup }) {
+function AccordionPanel({
+  group,
+  isOpen,
+}: {
+  group: MenuGroup;
+  isOpen: boolean;
+}) {
   const pathname = usePathname();
-  const hasActiveChild = group.items.some(
-    (item) =>
-      item.href &&
-      (pathname === item.href || pathname.startsWith(item.href + "/"))
-  );
+  if (!group.items?.length) return null;
 
   return (
-    <div className="space-y-1">
-      <div
-        className={cn(
-          "flex items-center gap-2 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider",
-          hasActiveChild ? "text-primary" : "text-muted"
-        )}
-      >
-        <span>{group.label}</span>
+    <div
+      className={cn(
+        "grid overflow-hidden bg-black/20 transition-[grid-template-rows] duration-200 ease-in-out",
+        isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+      )}
+    >
+      <div className="min-h-0">
+        {group.items.map((item) => {
+          const active = pathname === item.href || pathname.startsWith(item.href + "/");
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex items-center gap-2 py-2.5 pl-[52px] pr-5 text-[14px] transition-colors",
+                active ? "bg-sidebar-active font-medium text-white" : "text-white/80 hover:bg-sidebar-hover hover:text-white"
+              )}
+            >
+              <span className="flex-1 truncate">{item.label}</span>
+              {item.badge && (
+                <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] text-white">{item.badge}</span>
+              )}
+            </Link>
+          );
+        })}
       </div>
-      {group.items.map((item) => {
-        const isActive =
-          item.href &&
-          (pathname === item.href || pathname.startsWith(item.href + "/"));
-        return (
-          <MenuLink key={item.href || item.label} item={item} isActive={!!isActive} />
-        );
-      })}
     </div>
   );
 }
 
 export function POSSidebar({ collapsed = false }: { collapsed?: boolean }) {
+  const pathname = usePathname();
+  const [openKey, setOpenKey] = useState<string | null>(() => {
+    const active = MENU_GROUPS.find((g) =>
+      g.items?.some((i) => pathname === i.href || pathname.startsWith(i.href + "/"))
+    );
+    return active?.key ?? null;
+  });
+
   return (
-    <nav className="flex-1 overflow-y-auto px-3 py-4 scrollbar-thin">
-      <div className="space-y-6">
-        {MENU_GROUPS.map((group, i) => (
-          <MenuSection key={i} group={group} />
-        ))}
-      </div>
+    <nav className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin">
+      {MENU_GROUPS.map((group) => {
+        const isGroupActive =
+          (group.href && (pathname === group.href || pathname.startsWith(group.href + "/"))) ||
+          !!group.items?.some((i) => pathname === i.href || pathname.startsWith(i.href + "/"));
+        const isOpen = openKey === group.key;
+
+        return (
+          <div key={group.key}>
+            <GroupRow
+              group={group}
+              collapsed={collapsed}
+              isOpen={isOpen}
+              isActive={!!isGroupActive}
+              onToggle={() => setOpenKey(isOpen ? null : group.key)}
+            />
+            {!collapsed && <AccordionPanel group={group} isOpen={isOpen} />}
+          </div>
+        );
+      })}
     </nav>
-  );
-}
-
-export function UserMenu() {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className="border-t border-default px-3 py-3">
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-elevated"
-      >
-        <div className="flex size-9 items-center justify-center rounded-full bg-primary/10 text-primary">
-          <span className="text-sm font-semibold">AD</span>
-        </div>
-        <div className="flex-1 text-left">
-          <p className="font-medium">Admin User</p>
-          <p className="text-xs text-muted">admin@indomurah.com</p>
-        </div>
-        {open ? (
-          <ChevronDown className="size-4 text-muted" />
-        ) : (
-          <ChevronRight className="size-4 text-muted" />
-        )}
-      </button>
-      {open && (
-        <div className="mt-2 space-y-1 border-l-2 border-primary/20 pl-2">
-          <Link
-            href="/settings/profile"
-            className="block rounded-lg px-3 py-2 text-sm text-muted hover:bg-elevated hover:text-highlighted"
-          >
-            Profile
-          </Link>
-          <Link
-            href="/settings"
-            className="block rounded-lg px-3 py-2 text-sm text-muted hover:bg-elevated hover:text-highlighted"
-          >
-            Settings
-          </Link>
-          <button className="block w-full rounded-lg px-3 py-2 text-left text-sm text-danger hover:bg-danger/5">
-            Logout
-          </button>
-        </div>
-      )}
-    </div>
   );
 }

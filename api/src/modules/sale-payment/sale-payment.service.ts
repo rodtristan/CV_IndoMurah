@@ -3,7 +3,6 @@ import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
 import { Prisma } from '.prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
 import { CreateSalePaymentDto, UpdateSalePaymentDto } from './dto/sale-payment.dto';
 
 @Injectable()
@@ -24,7 +23,7 @@ export class SalePaymentService {
       cacheKey,
       async () => {
         const prismaQuery = this.queryService.buildPrismaQuery(query, {
-          searchableFields: ['code', 'notes', 'reference_number'],
+          searchableFields: ['code', 'notes', 'referenceNumber'],
           allowedIncludes: ['sale', 'creator'],
           defaultOrderBy: { createdAt: 'desc' },
         });
@@ -86,7 +85,7 @@ export class SalePaymentService {
 
     // Check if payment would exceed sale total
     const existingPayments = await this.prisma.salePayment.findMany({
-      where: { sale_id: dto.sale_id },
+      where: { saleId: dto.sale_id },
     });
     const paidAmount = existingPayments.reduce((sum, p) => sum + Number(p.amount), 0);
     const newTotal = paidAmount + dto.amount;
@@ -97,10 +96,10 @@ export class SalePaymentService {
 
     const payment = await this.prisma.salePayment.create({
       data: {
-        sale_id: dto.sale_id,
+        saleId: dto.sale_id,
         method: dto.method,
         amount: new Prisma.Decimal(dto.amount.toString()),
-        reference_number: dto.reference_number,
+        referenceNumber: dto.reference_number,
         date: dto.date ? new Date(dto.date) : new Date(),
         notes: dto.notes,
         createdById: userId,
@@ -124,7 +123,7 @@ export class SalePaymentService {
     const updateData: any = {};
     if (dto.method) updateData.method = dto.method;
     if (dto.amount) updateData.amount = new Prisma.Decimal(dto.amount.toString());
-    if (dto.reference_number !== undefined) updateData.reference_number = dto.reference_number;
+    if (dto.reference_number !== undefined) updateData.referenceNumber = dto.reference_number;
     if (dto.date) updateData.date = new Date(dto.date);
     if (dto.notes !== undefined) updateData.notes = dto.notes;
 
@@ -134,9 +133,9 @@ export class SalePaymentService {
       include: { sale: true, creator: true },
     });
 
-    await this.updateSalePaymentStatus(payment.sale_id);
+    await this.updateSalePaymentStatus(payment.saleId);
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
-    await this.redis.invalidatePattern(`sales:${payment.sale_id}*`);
+    await this.redis.invalidatePattern(`sales:${payment.saleId}*`);
 
     return this.serialize(updated);
   }
@@ -146,10 +145,10 @@ export class SalePaymentService {
     if (!payment) throw new NotFoundException('Sale payment not found');
 
     await this.prisma.salePayment.delete({ where: { id } });
-    await this.updateSalePaymentStatus(payment.sale_id);
+    await this.updateSalePaymentStatus(payment.saleId);
 
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
-    await this.redis.invalidatePattern(`sales:${payment.sale_id}*`);
+    await this.redis.invalidatePattern(`sales:${payment.saleId}*`);
 
     return { id };
   }
@@ -161,7 +160,7 @@ export class SalePaymentService {
     });
 
     const findArgs: any = {
-      where: { sale_id: saleId, ...prismaQuery.where },
+      where: { saleId, ...prismaQuery.where },
       orderBy: prismaQuery.orderBy,
       skip: prismaQuery.skip,
       take: prismaQuery.take,
@@ -173,7 +172,7 @@ export class SalePaymentService {
 
     const [data, total] = await Promise.all([
       this.prisma.salePayment.findMany(findArgs),
-      this.prisma.salePayment.count({ where: { sale_id: saleId } }),
+      this.prisma.salePayment.count({ where: { saleId } }),
     ]);
 
     const serializedData = data.map((item) => this.serialize(item));
@@ -209,7 +208,7 @@ export class SalePaymentService {
 
     const result: any = {};
     for (const [key, value] of Object.entries(data)) {
-      if (value instanceof Decimal) {
+      if (value instanceof Prisma.Decimal) {
         result[key] = Number(value);
       } else if (value instanceof Date) {
         result[key] = value.toISOString();

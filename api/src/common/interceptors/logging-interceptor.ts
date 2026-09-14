@@ -48,7 +48,7 @@ interface LogPayload {
   responseData: unknown;
   responseStatus: number;
   message: string;
-  userId: number | null;
+  userId: string | null;
   userFullName: string | null;
   ipAddress: string | null;
   userAgent: string | null;
@@ -80,9 +80,9 @@ export class LoggingInterceptor implements NestInterceptor {
 
     // Info user yang login (diisi oleh Passport setelah JWT divalidasi)
     // Jika endpoint tidak butuh login, user akan bernilai undefined/null
-    const user = req.user as { id?: number; full_name?: string } | undefined;
-    const userId: number | null       = user?.id ?? null;
-    const userFullName: string | null = user?.full_name ?? null;
+    const user = req.user as { id?: string; email?: string } | undefined;
+    const userId: string | null       = user?.id ?? null;
+    const userFullName: string | null = user?.email ?? null;
 
     // Teruskan request ke controller, lalu tangkap hasilnya dengan .pipe()
     return next.handle().pipe(
@@ -174,18 +174,19 @@ export class LoggingInterceptor implements NestInterceptor {
     try {
       await this.prisma.log.create({
         data: {
-          method:              log.method,
-          endpoint:            log.endpoint,
-          headers:             {},  // Header sudah di-redact, tidak disimpan
-          payload:             (log.requestBody as object) ?? {},
-          response_status:     log.responseStatus,
-          message:             log.message,
-          requester_login_id:  log.userId,
-          requester_full_name: log.userFullName,
-          ip_address:          log.ipAddress,
-          user_agent:          log.userAgent,
-          duration_ms:         log.durationMs,
-          log_datetime:        log.logDatetime,
+          method:            log.method,
+          endpoint:          log.endpoint,
+          headers:           {},  // Header sudah di-redact, tidak disimpan
+          payload:           (log.requestBody as object) ?? {},
+          responseStatus:    log.responseStatus,
+          message:           log.message,
+          // requesterLoginId is Int? in schema but User.id is now a uuid
+          // string (see auth-service.ts) — nothing sensible to store here.
+          requesterFullName: log.userFullName,
+          ipAddress:         log.ipAddress,
+          userAgent:         log.userAgent,
+          durationMs:        log.durationMs,
+          logDatetime:       log.logDatetime,
         },
       });
     } catch {

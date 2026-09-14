@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength, IsNumber, IsPositive } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class LoginDto {
@@ -25,21 +25,10 @@ export class RegisterDto {
   @ApiProperty({ example: 'John Doe' })
   @IsString()
   @IsNotEmpty()
-  full_name: string;
+  name: string;
 
-  @ApiPropertyOptional({ example: '081234567890' })
+  @ApiPropertyOptional({ example: 'cashier', description: 'Default: cashier' })
   @IsOptional()
   @IsString()
-  phone_number?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  photo_url?: string;
-
-  @ApiPropertyOptional({ example: 1, description: 'Default role assigned if omitted: 1' })
-  @IsOptional()
-  @IsNumber()
-  @IsPositive()
-  main_role_id?: number;
+  role?: string;
 }

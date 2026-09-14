@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, RefreshCw, Search, ArrowRight, ArrowLeft } from "lucide-react";
-import { PageWrapper, PageHeader, Card } from "@/components/layout/PageWrapper";
+import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/StatCard";
 import { DataTable } from "@/components/ui/DataTable";
+import { FilterBar } from "@/components/ui/FilterBar";
+import { GridActions } from "@/components/ui/GridActions";
 import { api } from "@/lib/api-client";
 import { formatDate } from "@/lib/utils";
 
@@ -23,7 +24,7 @@ export default function TransfersPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("stock-transfer", { $search: search || undefined, $include: "fromWarehouse,toWarehouse" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+      const res = await api.get("stock-transfers", { $search: search || undefined, $include: "fromWarehouse,toWarehouse" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
       if (res.success) setData(res.data?.data || []);
     } finally { setLoading(false); }
   }, [search]);
@@ -37,7 +38,12 @@ export default function TransfersPage() {
   useEffect(() => { fetchWarehouses(); }, [fetchWarehouses]);
 
   const handleSave = async () => {
-    await api.post("stock-transfer", form).catch(() => ({}));
+    const isEdit = Boolean((form as any).id);
+    if (isEdit) {
+      await api.put("stock-transfers", (form as any).id, form).catch(() => ({}));
+    } else {
+      await api.post("stock-transfers", form).catch(() => ({}));
+    }
     setShowForm(false);
     fetchData();
   };
@@ -54,17 +60,20 @@ export default function TransfersPage() {
     }},
   ];
 
+  const openCreate = () => { setForm({ date: new Date().toISOString().split("T")[0], code: "", fromWarehouseId: "", toWarehouseId: "", notes: "", details: [] }); setShowForm(true); };
+
   return (
     <PageWrapper>
-      <PageHeader title="Transfer Stock" subtitle="Transfer antar gudang"
-        actions={<Button variant="primary" icon={Plus} onClick={() => { setForm({ date: new Date().toISOString().split("T")[0], code: "", fromWarehouseId: "", toWarehouseId: "", notes: "", details: [] }); setShowForm(true); }}>Tambah</Button>} />
-
-      <Card>
-        <div className="mb-4 flex gap-4">
-          <Input placeholder="Cari..." value={search} onChange={e => setSearch(e.target.value)} className="max-w-xs" leftIcon={Search} />
-          <Button variant="outline" icon={RefreshCw} onClick={fetchData} loading={loading}>Refresh</Button>
+      <Card className="p-4">
+        <FilterBar
+          fields={[{ key: "search", label: "Kata Kunci", type: "text", placeholder: "Cari..." }]}
+          onFilter={(v) => setSearch((v.search as string) || "")}
+          loading={loading}
+          actions={<GridActions onAdd={openCreate} />}
+        />
+        <div className="mt-4">
+          <DataTable data={data} columns={columns} loading={loading} emptyMessage="Tidak ada transfer" />
         </div>
-        <DataTable data={data} columns={columns} loading={loading} emptyMessage="Tidak ada transfer" />
       </Card>
 
       <Modal open={showForm} onClose={() => setShowForm(false)} title="Transfer Stock" size="lg">

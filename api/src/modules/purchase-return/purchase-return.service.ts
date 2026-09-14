@@ -2,8 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
-import { Prisma } from '.prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+import { Prisma, TransactionStatus } from '.prisma/client';
 import { CreatePurchaseReturnDto, UpdatePurchaseReturnDto, UpdateStatusDto } from './dto/purchase-return.dto';
 
 @Injectable()
@@ -90,10 +89,10 @@ export class PurchaseReturnService {
     const itemsData = dto.items.map((item) => {
       const subtotal = item.unit_price * item.quantity;
       return {
-        product_id: item.product_id,
+        productId: item.product_id,
         quantity: new Prisma.Decimal(item.quantity.toString()),
-        unit_id: item.unit_id,
-        unit_price: new Prisma.Decimal(item.unit_price.toString()),
+        unitId: item.unit_id,
+        unitPrice: new Prisma.Decimal(item.unit_price.toString()),
         subtotal: new Prisma.Decimal(subtotal.toString()),
       };
     });
@@ -103,13 +102,13 @@ export class PurchaseReturnService {
     const purchaseReturn = await this.prisma.purchaseReturn.create({
       data: {
         code,
-        purchase_id: dto.purchase_id,
-        supplier_id: dto.supplier_id || purchase.supplierId,
-        warehouse_id: dto.warehouse_id,
+        purchaseId: dto.purchase_id,
+        supplierId: dto.supplier_id || purchase.supplierId,
+        warehouseId: dto.warehouse_id,
         date: dto.date ? new Date(dto.date) : new Date(),
-        total_return: new Prisma.Decimal(totalReturn.toString()),
+        totalReturn: new Prisma.Decimal(totalReturn.toString()),
         reason: dto.reason,
-        status: 'DRAFT',
+        status: TransactionStatus.DRAFT,
         createdById: userId,
         returnItems: {
           create: itemsData,
@@ -131,14 +130,14 @@ export class PurchaseReturnService {
   async update(id: number, dto: UpdatePurchaseReturnDto) {
     const purchaseReturn = await this.prisma.purchaseReturn.findUnique({ where: { id } });
     if (!purchaseReturn) throw new NotFoundException('Purchase return not found');
-    if (purchaseReturn.status !== 'DRAFT') {
+    if (purchaseReturn.status !== TransactionStatus.DRAFT) {
       throw new BadRequestException('Can only update draft purchase returns');
     }
 
     const updated = await this.prisma.purchaseReturn.update({
       where: { id },
       data: {
-        warehouse_id: dto.warehouse_id,
+        warehouseId: dto.warehouse_id,
         date: dto.date ? new Date(dto.date) : undefined,
         reason: dto.reason,
       },
@@ -174,7 +173,7 @@ export class PurchaseReturnService {
 
     const updated = await this.prisma.purchaseReturn.update({
       where: { id },
-      data: { status: dto.status },
+      data: { status: dto.status as TransactionStatus },
       include: {
         purchase: true,
         supplier: true,
@@ -191,7 +190,7 @@ export class PurchaseReturnService {
   async delete(id: number) {
     const purchaseReturn = await this.prisma.purchaseReturn.findUnique({ where: { id } });
     if (!purchaseReturn) throw new NotFoundException('Purchase return not found');
-    if (purchaseReturn.status !== 'DRAFT') {
+    if (purchaseReturn.status !== TransactionStatus.DRAFT) {
       throw new BadRequestException('Can only delete draft purchase returns');
     }
 
@@ -227,7 +226,7 @@ export class PurchaseReturnService {
 
     const result: any = {};
     for (const [key, value] of Object.entries(data)) {
-      if (value instanceof Decimal) {
+      if (value instanceof Prisma.Decimal) {
         result[key] = Number(value);
       } else if (value instanceof Date) {
         result[key] = value.toISOString();

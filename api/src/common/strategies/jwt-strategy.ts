@@ -54,13 +54,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   // validate() dipanggil setelah token BERHASIL diverifikasi
   // payload = isi token yang sudah didecode (data yang kita simpan saat login)
   // Response dari method ini akan OTOMATIS disimpan ke req.user
-  async validate(payload: { id: number; email: string; role_id?: number }) {
+  async validate(payload: { id: string; email: string; role?: string }) {
     // Kembalikan data yang kita mau ada di req.user
     // Di controller, kita bisa akses dengan: @CurrentUser() user
     return {
-      id:      payload.id,
-      email:   payload.email,
-      role_id: payload.role_id,
+      id:    payload.id,
+      email: payload.email,
+      role:  payload.role,
     };
   }
 }

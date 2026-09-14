@@ -20,6 +20,16 @@ export class CreateCategoryDto {
   @IsInt()
   parent_id?: number;
 
+  @ApiPropertyOptional({ description: 'Category icon' })
+  @IsOptional()
+  @IsString()
+  icon?: string;
+
+  @ApiPropertyOptional({ description: 'Category image URL' })
+  @IsOptional()
+  @IsString()
+  image?: string;
+
   @ApiPropertyOptional({ default: true, description: 'Is category active' })
   @IsOptional()
   @IsBoolean()
@@ -46,6 +56,16 @@ export class UpdateCategoryDto {
   @IsOptional()
   @IsInt()
   parent_id?: number;
+
+  @ApiPropertyOptional({ description: 'Category icon' })
+  @IsOptional()
+  @IsString()
+  icon?: string;
+
+  @ApiPropertyOptional({ description: 'Category image URL' })
+  @IsOptional()
+  @IsString()
+  image?: string;
 
   @ApiPropertyOptional({ description: 'Is category active' })
   @IsOptional()

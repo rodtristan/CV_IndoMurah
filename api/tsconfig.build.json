@@ -4,5 +4,13 @@
     "outDir": "./dist"
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "test", "**/*spec.ts"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "test",
+    "**/*spec.ts",
+    "src/modules/menu/**",
+    "src/modules/sale-order/**",
+    "src/common/guards/menu-access-guard.ts"
+  ]
 }

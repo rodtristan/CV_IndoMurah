@@ -1,7 +1,12 @@
 @import "tailwindcss";
 
+/*
+ * Palette lifted 1:1 from https://pos.ketoko.co.id (computed styles + pixel
+ * sampling): brand purple #9c27b0, dark slate sidebar #363640, login button
+ * blue #459ce3, Inter as the UI font. See CLAUDE.md / memory for reference.
+ */
 @theme {
-  --color-primary: #2563eb;
+  --color-primary: #9c27b0;
   --color-primary-foreground: #ffffff;
   --color-highlight: #f59e0b;
   --color-highlighted: #111827;
@@ -12,24 +17,35 @@
   --color-elevated: #ffffff;
   --color-success: #10b981;
   --color-warning: #f59e0b;
-  --color-info: #3b82f6;
+  --color-info: #459ce3;
   --color-danger: #ef4444;
   --color-highlight2: #8b5cf6;
 
-  --color-primary-50: #eff6ff;
-  --color-primary-100: #dbeafe;
-  --color-primary-200: #bfdbfe;
-  --color-primary-300: #93c5fd;
-  --color-primary-400: #60a5fa;
-  --color-primary-500: #3b82f6;
-  --color-primary-600: #2563eb;
-  --color-primary-700: #1d4ed8;
-  --color-primary-800: #1e40af;
-  --color-primary-900: #1e3a8a;
+  --color-primary-50: #f3e5f5;
+  --color-primary-100: #e1bee7;
+  --color-primary-200: #ce93d8;
+  --color-primary-300: #ba68c8;
+  --color-primary-400: #ab47bc;
+  --color-primary-500: #9c27b0;
+  --color-primary-600: #8e24aa;
+  --color-primary-700: #7b1fa2;
+  --color-primary-800: #6a1b9a;
+  --color-primary-900: #4a148c;
+
+  --color-sidebar-bg: #363640;
+  --color-sidebar-header: #9c27b0;
+  --color-sidebar-text: #d4d4dc;
+  --color-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --color-sidebar-active: rgba(255, 255, 255, 0.12);
+
+  --color-brand-1: #270833;
+  --color-brand-2: #4c125a;
+  --color-brand-3: #701b81;
+  --color-brand-4: #9c27b0;
 }
 
 :root {
-  --color-primary: #2563eb;
+  --color-primary: #9c27b0;
   --color-primary-foreground: #ffffff;
   --color-highlight: #f59e0b;
   --color-highlighted: #111827;
@@ -40,13 +56,24 @@
   --color-elevated: #ffffff;
   --color-success: #10b981;
   --color-warning: #f59e0b;
-  --color-info: #3b82f6;
+  --color-info: #459ce3;
   --color-danger: #ef4444;
   --color-highlight2: #8b5cf6;
+
+  --color-sidebar-bg: #363640;
+  --color-sidebar-header: #9c27b0;
+  --color-sidebar-text: #d4d4dc;
+  --color-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --color-sidebar-active: rgba(255, 255, 255, 0.12);
+
+  --color-brand-1: #270833;
+  --color-brand-2: #4c125a;
+  --color-brand-3: #701b81;
+  --color-brand-4: #9c27b0;
 }
 
 .dark {
-  --color-primary: #3b82f6;
+  --color-primary: #ab47bc;
   --color-primary-foreground: #ffffff;
   --color-highlight: #fbbf24;
   --color-highlighted: #f9fafb;

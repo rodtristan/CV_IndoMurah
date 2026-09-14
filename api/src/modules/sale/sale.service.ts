@@ -1,8 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { QueryService } from '../../common/query/query-service';
-import { Prisma } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+import { Prisma } from '.prisma/client';
 import { CreateSaleDto, UpdateSaleDto, PaymentDto, UpdateStatusDto } from './dto/sale.dto';
 
 @Injectable()
@@ -92,12 +91,12 @@ export class SaleService {
       const itemSubtotal = item.unitPrice * item.quantity - itemDiscount;
       return {
         productId: item.productId,
-        quantity: new Decimal(item.quantity),
+        quantity: new Prisma.Decimal(item.quantity),
         unitId: item.unitId,
-        unitPrice: new Decimal(item.unitPrice),
-        discountPercent: new Decimal(item.discountPercent || 0),
-        discountAmount: new Decimal(itemDiscount),
-        subtotal: new Decimal(itemSubtotal),
+        unitPrice: new Prisma.Decimal(item.unitPrice),
+        discountPercent: new Prisma.Decimal(item.discountPercent || 0),
+        discountAmount: new Prisma.Decimal(itemDiscount),
+        subtotal: new Prisma.Decimal(itemSubtotal),
       };
     });
 
@@ -111,17 +110,16 @@ export class SaleService {
           salesPersonId: dto.salesPersonId,
           salePointId: dto.salePointId,
           warehouseId: dto.warehouseId,
-          subtotal: new Decimal(subtotal),
-          discountPercent: new Decimal(dto.discountPercent || 0),
-          discountAmount: new Decimal(discountAmount),
-          taxPercent: new Decimal(dto.taxPercent || 0),
-          taxAmount: new Decimal(taxAmount),
-          total: new Decimal(total),
-          cashAmount: new Decimal(cashAmount),
-          changeAmount: new Decimal(changeAmount),
+          subtotal: new Prisma.Decimal(subtotal),
+          discountPercent: new Prisma.Decimal(dto.discountPercent || 0),
+          discountAmount: new Prisma.Decimal(discountAmount),
+          taxPercent: new Prisma.Decimal(dto.taxPercent || 0),
+          taxAmount: new Prisma.Decimal(taxAmount),
+          total: new Prisma.Decimal(total),
+          cashAmount: new Prisma.Decimal(cashAmount),
+          changeAmount: new Prisma.Decimal(changeAmount),
           paymentStatus: paymentStatus as any,
           paymentMethod: dto.paymentMethod,
-          dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
           notes: dto.notes,
           createdById: userId,
           saleItems: { create: saleItemsData },
@@ -139,7 +137,7 @@ export class SaleService {
       for (const item of dto.items) {
         await tx.product.update({
           where: { id: item.productId },
-          data: { stock: { decrement: new Decimal(item.quantity) } },
+          data: { stock: { decrement: new Prisma.Decimal(item.quantity) } },
         });
       }
 
@@ -149,7 +147,7 @@ export class SaleService {
           data: {
             saleId: newSale.id,
             method: dto.paymentMethod || 'CASH',
-            amount: new Decimal(paid),
+            amount: new Prisma.Decimal(paid),
             referenceNumber: null,
             createdById: userId,
           },
@@ -178,10 +176,9 @@ export class SaleService {
     if (dto.salePointId !== undefined) updateData.salePointId = dto.salePointId;
     if (dto.warehouseId !== undefined) updateData.warehouseId = dto.warehouseId;
     if (dto.date) updateData.date = new Date(dto.date);
-    if (dto.dueDate) updateData.dueDate = new Date(dto.dueDate);
-    if (dto.discountPercent !== undefined) updateData.discountPercent = new Decimal(dto.discountPercent);
-    if (dto.discountAmount !== undefined) updateData.discountAmount = new Decimal(dto.discountAmount);
-    if (dto.taxPercent !== undefined) updateData.taxPercent = new Decimal(dto.taxPercent);
+    if (dto.discountPercent !== undefined) updateData.discountPercent = new Prisma.Decimal(dto.discountPercent);
+    if (dto.discountAmount !== undefined) updateData.discountAmount = new Prisma.Decimal(dto.discountAmount);
+    if (dto.taxPercent !== undefined) updateData.taxPercent = new Prisma.Decimal(dto.taxPercent);
     if (dto.paymentMethod !== undefined) updateData.paymentMethod = dto.paymentMethod;
     if (dto.notes !== undefined) updateData.notes = dto.notes;
 
@@ -210,13 +207,12 @@ export class SaleService {
       throw new BadRequestException('Cannot add payment to cancelled sale');
     }
 
-    const currentPaid = Number(sale.paid);
+    const currentPaid = sale.salePayments.reduce((sum, p) => sum + Number(p.amount), 0);
     const paymentAmount = dto.amount;
     const newPaid = currentPaid + paymentAmount;
     const totalAmount = Number(sale.total);
 
     let newStatus: 'PARTIAL' | 'PAID' = 'PARTIAL';
-    const actualPaid = newPaid >= totalAmount ? totalAmount : newPaid;
     if (newPaid >= totalAmount) newStatus = 'PAID';
 
     await this.prisma.$transaction(async (tx) => {
@@ -224,7 +220,7 @@ export class SaleService {
         data: {
           saleId: id,
           method: dto.paymentMethod || 'CASH',
-          amount: new Decimal(paymentAmount),
+          amount: new Prisma.Decimal(paymentAmount),
           referenceNumber: dto.referenceNumber,
           notes: dto.notes,
           createdById: userId,
@@ -234,8 +230,6 @@ export class SaleService {
       await tx.sale.update({
         where: { id },
         data: {
-          paid: new Decimal(actualPaid),
-          remaining: new Decimal(totalAmount - actualPaid),
           paymentStatus: newStatus,
           paymentMethod: dto.paymentMethod || sale.paymentMethod,
         },
@@ -358,7 +352,7 @@ export class SaleService {
     if (!data) return null;
     const result: any = {};
     for (const [key, value] of Object.entries(data)) {
-      if (value instanceof Decimal) {
+      if (value instanceof Prisma.Decimal) {
         result[key] = Number(value);
       } else if (value instanceof Date) {
         result[key] = value.toISOString();

@@ -2,8 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
-import { Prisma } from '.prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+import { Prisma, TransactionStatus } from '.prisma/client';
 import {
   CreatePurchaseOrderDto,
   UpdatePurchaseOrderDto,
@@ -30,7 +29,7 @@ export class PurchaseOrderService {
       async () => {
         const prismaQuery = this.queryService.buildPrismaQuery(query, {
           searchableFields: ['code', 'notes'],
-          allowedIncludes: ['supplier', 'creator', 'items', 'items.product', 'items.unit', 'purchases'],
+          allowedIncludes: ['supplier', 'creator', 'purchaseOrderItems', 'purchaseOrderItems.product', 'purchaseOrderItems.unit', 'purchases'],
           defaultOrderBy: { createdAt: 'desc' },
         });
 
@@ -68,7 +67,7 @@ export class PurchaseOrderService {
       cacheKey,
       async () => {
         const prismaQuery = this.queryService.buildPrismaQuery(query, {
-          allowedIncludes: ['supplier', 'creator', 'items', 'items.product', 'items.unit', 'purchases'],
+          allowedIncludes: ['supplier', 'creator', 'purchaseOrderItems', 'purchaseOrderItems.product', 'purchaseOrderItems.unit', 'purchases'],
         });
 
         const findArgs: any = { where: { id } };
@@ -94,11 +93,11 @@ export class PurchaseOrderService {
     const itemsData = dto.items.map((item) => {
       const subtotal = item.price * item.quantity - (item.discount || 0);
       return {
-        product_id: item.product_id,
+        productId: item.product_id,
         quantity: new Prisma.Decimal(item.quantity.toString()),
-        unit_id: item.unit_id,
-        price: new Prisma.Decimal(item.price.toString()),
-        discount: new Prisma.Decimal((item.discount || 0).toString()),
+        unitId: item.unit_id,
+        unitPrice: new Prisma.Decimal(item.price.toString()),
+        discountAmount: new Prisma.Decimal((item.discount || 0).toString()),
         subtotal: new Prisma.Decimal(subtotal.toString()),
       };
     });
@@ -108,20 +107,20 @@ export class PurchaseOrderService {
     const purchaseOrder = await this.prisma.purchaseOrder.create({
       data: {
         code,
-        supplier_id: dto.supplier_id,
+        supplierId: dto.supplier_id,
         date: dto.date ? new Date(dto.date) : new Date(),
-        due_date: dto.due_date ? new Date(dto.due_date) : null,
+        dueDate: dto.due_date ? new Date(dto.due_date) : null,
         notes: dto.notes,
         total: new Prisma.Decimal(total.toString()),
-        status: 'draft',
-        created_by: userId,
-        items: {
+        status: TransactionStatus.DRAFT,
+        createdById: String(userId),
+        purchaseOrderItems: {
           create: itemsData,
         },
       },
       include: {
         supplier: true,
-        items: { include: { product: true, unit: true } },
+        purchaseOrderItems: { include: { product: true, unit: true } },
       },
     });
 
@@ -133,21 +132,21 @@ export class PurchaseOrderService {
   async update(id: number, dto: UpdatePurchaseOrderDto) {
     const purchaseOrder = await this.prisma.purchaseOrder.findUnique({ where: { id } });
     if (!purchaseOrder) throw new NotFoundException('Purchase order not found');
-    if (purchaseOrder.status !== 'draft') {
+    if (purchaseOrder.status !== TransactionStatus.DRAFT) {
       throw new BadRequestException('Can only update draft purchase orders');
     }
 
     const updated = await this.prisma.purchaseOrder.update({
       where: { id },
       data: {
-        supplier_id: dto.supplier_id,
+        supplierId: dto.supplier_id,
         date: dto.date ? new Date(dto.date) : undefined,
-        due_date: dto.due_date ? new Date(dto.due_date) : undefined,
+        dueDate: dto.due_date ? new Date(dto.due_date) : undefined,
         notes: dto.notes,
       },
       include: {
         supplier: true,
-        items: { include: { product: true, unit: true } },
+        purchaseOrderItems: { include: { product: true, unit: true } },
       },
     });
 
@@ -159,7 +158,7 @@ export class PurchaseOrderService {
   async addItem(id: number, dto: AddPurchaseOrderItemDto) {
     const purchaseOrder = await this.prisma.purchaseOrder.findUnique({ where: { id } });
     if (!purchaseOrder) throw new NotFoundException('Purchase order not found');
-    if (purchaseOrder.status !== 'draft') {
+    if (purchaseOrder.status !== TransactionStatus.DRAFT) {
       throw new BadRequestException('Can only add items to draft purchase orders');
     }
 
@@ -167,12 +166,12 @@ export class PurchaseOrderService {
 
     await this.prisma.purchaseOrderItem.create({
       data: {
-        purchase_order_id: id,
-        product_id: dto.product_id,
+        purchaseOrderId: id,
+        productId: dto.product_id,
         quantity: new Prisma.Decimal(dto.quantity.toString()),
-        unit_id: dto.unit_id,
-        price: new Prisma.Decimal(dto.price.toString()),
-        discount: new Prisma.Decimal((dto.discount || 0).toString()),
+        unitId: dto.unit_id,
+        unitPrice: new Prisma.Decimal(dto.price.toString()),
+        discountAmount: new Prisma.Decimal((dto.discount || 0).toString()),
         subtotal: new Prisma.Decimal(subtotal.toString()),
       },
     });
@@ -188,12 +187,12 @@ export class PurchaseOrderService {
   async removeItem(id: number, itemId: number) {
     const purchaseOrder = await this.prisma.purchaseOrder.findUnique({ where: { id } });
     if (!purchaseOrder) throw new NotFoundException('Purchase order not found');
-    if (purchaseOrder.status !== 'draft') {
+    if (purchaseOrder.status !== TransactionStatus.DRAFT) {
       throw new BadRequestException('Can only remove items from draft purchase orders');
     }
 
     const item = await this.prisma.purchaseOrderItem.findFirst({
-      where: { id: itemId, purchase_order_id: id },
+      where: { id: itemId, purchaseOrderId: id },
     });
     if (!item) throw new NotFoundException('Item not found');
 
@@ -210,17 +209,19 @@ export class PurchaseOrderService {
   async updateStatus(id: number, dto: UpdateStatusDto) {
     const purchaseOrder = await this.prisma.purchaseOrder.findUnique({
       where: { id },
-      include: { items: true },
+      include: { purchaseOrderItems: true },
     });
     if (!purchaseOrder) throw new NotFoundException('Purchase order not found');
 
+    const requestedStatus = dto.status.toUpperCase() as TransactionStatus;
+
     const validTransitions: Record<string, string[]> = {
-      draft: ['confirmed', 'cancelled'],
-      confirmed: ['completed', 'cancelled'],
+      [TransactionStatus.DRAFT]: [TransactionStatus.CONFIRMED, TransactionStatus.CANCELLED],
+      [TransactionStatus.CONFIRMED]: [TransactionStatus.COMPLETED, TransactionStatus.CANCELLED],
     };
 
     const allowed = validTransitions[purchaseOrder.status] || [];
-    if (!allowed.includes(dto.status)) {
+    if (!allowed.includes(requestedStatus)) {
       throw new BadRequestException(
         `Cannot transition from '${purchaseOrder.status}' to '${dto.status}'`,
       );
@@ -228,10 +229,10 @@ export class PurchaseOrderService {
 
     const updated = await this.prisma.purchaseOrder.update({
       where: { id },
-      data: { status: dto.status },
+      data: { status: requestedStatus },
       include: {
         supplier: true,
-        items: { include: { product: true, unit: true } },
+        purchaseOrderItems: { include: { product: true, unit: true } },
       },
     });
 
@@ -243,10 +244,10 @@ export class PurchaseOrderService {
   async delete(id: number) {
     const purchaseOrder = await this.prisma.purchaseOrder.findUnique({ where: { id } });
     if (!purchaseOrder) throw new NotFoundException('Purchase order not found');
-    if (purchaseOrder.status !== 'draft') {
+    if (purchaseOrder.status !== TransactionStatus.DRAFT) {
       throw new BadRequestException('Can only delete draft purchase orders');
     }
-    if (purchaseOrder.purchases.length > 0) {
+    if (purchaseOrder.purchaseId) {
       throw new BadRequestException('Cannot delete purchase order with linked purchases');
     }
 
@@ -259,13 +260,13 @@ export class PurchaseOrderService {
 
   private async recalculateTotal(purchaseOrderId: number) {
     const items = await this.prisma.purchaseOrderItem.findMany({
-      where: { purchase_order_id: purchaseOrderId },
+      where: { purchaseOrderId },
     });
 
     const total = items.reduce((sum, item) => {
-      const price = Number(item.price);
+      const price = Number(item.unitPrice);
       const quantity = Number(item.quantity);
-      const discount = Number(item.discount);
+      const discount = Number(item.discountAmount);
       return sum + price * quantity - discount;
     }, 0);
 
@@ -301,7 +302,7 @@ export class PurchaseOrderService {
 
     const result: any = {};
     for (const [key, value] of Object.entries(data)) {
-      if (value instanceof Decimal) {
+      if (value instanceof Prisma.Decimal) {
         result[key] = Number(value);
       } else if (value instanceof Date) {
         result[key] = value.toISOString();
@@ -311,8 +312,8 @@ export class PurchaseOrderService {
     }
 
     // Serialize nested items
-    if (data.items && Array.isArray(data.items)) {
-      result.items = data.items.map((item: any) => this.serializePurchaseOrderItem(item));
+    if (data.purchaseOrderItems && Array.isArray(data.purchaseOrderItems)) {
+      result.purchaseOrderItems = data.purchaseOrderItems.map((item: any) => this.serializePurchaseOrderItem(item));
     }
 
     return result;
@@ -323,7 +324,7 @@ export class PurchaseOrderService {
 
     const result: any = {};
     for (const [key, value] of Object.entries(data)) {
-      if (value instanceof Decimal) {
+      if (value instanceof Prisma.Decimal) {
         result[key] = Number(value);
       } else if (value instanceof Date) {
         result[key] = value.toISOString();

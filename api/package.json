@@ -47,6 +47,7 @@
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.16.3",
+    "qs": "^6.16.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },
@@ -57,6 +58,7 @@
     "@types/compression": "^1.7.5",
     "@types/node": "^22.19.15",
     "@types/passport-jwt": "^4.0.1",
+    "@types/qs": "^6.15.1",
     "@typescript-eslint/eslint-plugin": "^8.57.0",
     "@typescript-eslint/parser": "^8.57.0",
     "eslint": "^9.39.4",

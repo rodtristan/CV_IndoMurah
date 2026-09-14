@@ -3,7 +3,6 @@ import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
 import { Prisma } from '.prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
 import { CreatePurchasePaymentDto, UpdatePurchasePaymentDto } from './dto/purchase-payment.dto';
 
 @Injectable()
@@ -24,7 +23,7 @@ export class PurchasePaymentService {
       cacheKey,
       async () => {
         const prismaQuery = this.queryService.buildPrismaQuery(query, {
-          searchableFields: ['reference_number', 'notes'],
+          searchableFields: ['referenceNumber', 'notes'],
           allowedIncludes: ['purchase', 'creator'],
           defaultOrderBy: { createdAt: 'desc' },
         });
@@ -86,7 +85,7 @@ export class PurchasePaymentService {
 
     // Check if payment would exceed remaining amount
     const existingPayments = await this.prisma.purchasePayment.findMany({
-      where: { purchase_id: dto.purchase_id },
+      where: { purchaseId: dto.purchase_id },
     });
     const paidAmount = existingPayments.reduce((sum, p) => sum + Number(p.amount), 0);
     const newTotal = paidAmount + dto.amount;
@@ -98,10 +97,10 @@ export class PurchasePaymentService {
 
     const payment = await this.prisma.purchasePayment.create({
       data: {
-        purchase_id: dto.purchase_id,
+        purchaseId: dto.purchase_id,
         method: dto.method,
         amount: new Prisma.Decimal(dto.amount.toString()),
-        reference_number: dto.reference_number,
+        referenceNumber: dto.reference_number,
         date: dto.date ? new Date(dto.date) : new Date(),
         notes: dto.notes,
         createdById: userId,
@@ -125,7 +124,7 @@ export class PurchasePaymentService {
     const updateData: any = {};
     if (dto.method) updateData.method = dto.method;
     if (dto.amount) updateData.amount = new Prisma.Decimal(dto.amount.toString());
-    if (dto.reference_number !== undefined) updateData.reference_number = dto.reference_number;
+    if (dto.reference_number !== undefined) updateData.referenceNumber = dto.reference_number;
     if (dto.date) updateData.date = new Date(dto.date);
     if (dto.notes !== undefined) updateData.notes = dto.notes;
 
@@ -135,9 +134,9 @@ export class PurchasePaymentService {
       include: { purchase: true, creator: true },
     });
 
-    await this.updatePurchasePaymentStatus(payment.purchase_id);
+    await this.updatePurchasePaymentStatus(payment.purchaseId);
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
-    await this.redis.invalidatePattern(`purchases:${payment.purchase_id}*`);
+    await this.redis.invalidatePattern(`purchases:${payment.purchaseId}*`);
 
     return this.serialize(updated);
   }
@@ -147,10 +146,10 @@ export class PurchasePaymentService {
     if (!payment) throw new NotFoundException('Purchase payment not found');
 
     await this.prisma.purchasePayment.delete({ where: { id } });
-    await this.updatePurchasePaymentStatus(payment.purchase_id);
+    await this.updatePurchasePaymentStatus(payment.purchaseId);
 
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
-    await this.redis.invalidatePattern(`purchases:${payment.purchase_id}*`);
+    await this.redis.invalidatePattern(`purchases:${payment.purchaseId}*`);
 
     return { id };
   }
@@ -162,7 +161,7 @@ export class PurchasePaymentService {
     });
 
     const findArgs: any = {
-      where: { purchase_id: purchaseId, ...prismaQuery.where },
+      where: { purchaseId, ...prismaQuery.where },
       orderBy: prismaQuery.orderBy,
       skip: prismaQuery.skip,
       take: prismaQuery.take,
@@ -174,7 +173,7 @@ export class PurchasePaymentService {
 
     const [data, total] = await Promise.all([
       this.prisma.purchasePayment.findMany(findArgs),
-      this.prisma.purchasePayment.count({ where: { purchase_id: purchaseId } }),
+      this.prisma.purchasePayment.count({ where: { purchaseId } }),
     ]);
 
     const serializedData = data.map((item) => this.serialize(item));
@@ -216,7 +215,7 @@ export class PurchasePaymentService {
 
     const result: any = {};
     for (const [key, value] of Object.entries(data)) {
-      if (value instanceof Decimal) {
+      if (value instanceof Prisma.Decimal) {
         result[key] = Number(value);
       } else if (value instanceof Date) {
         result[key] = value.toISOString();

@@ -4,8 +4,7 @@ import { useState, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { Input } from "./Input";
 import { Select } from "./Select";
-import { Button } from "./Button";
-import { Search, Filter, X, Calendar, RefreshCw } from "lucide-react";
+import { Search, RotateCcw } from "lucide-react";
 
 interface FilterField {
   key: string;
@@ -21,11 +20,12 @@ interface FilterBarProps {
   onFilter: (values: Record<string, unknown>) => void;
   onReset?: () => void;
   loading?: boolean;
+  /** Extra controls (add/edit/copy/delete icon buttons, utility buttons) rendered next to the search box. */
+  actions?: React.ReactNode;
 }
 
-export function FilterBar({ fields, onFilter, onReset, loading }: FilterBarProps) {
+export function FilterBar({ fields, onFilter, onReset, loading, actions }: FilterBarProps) {
   const [values, setValues] = useState<Record<string, unknown>>({});
-  const [showFilters, setShowFilters] = useState(false);
 
   const handleChange = useCallback((key: string, value: unknown) => {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -44,122 +44,43 @@ export function FilterBar({ fields, onFilter, onReset, loading }: FilterBarProps
     onReset?.();
   }, [onReset]);
 
-  const activeFiltersCount = Object.values(values).filter(
-    (v) => v !== undefined && v !== "" && v !== null
-  ).length;
-
   return (
-    <div className="space-y-3">
-      {/* Search Bar */}
-      <div className="flex items-center gap-2">
-        <form onSubmit={handleSubmit} className="flex flex-1 items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
-            <input
-              type="text"
-              placeholder="Cari..."
-              value={(values.search as string) || ""}
-              onChange={(e) => handleChange("search", e.target.value)}
-              className="h-10 w-full rounded-lg border border-default bg-elevated pl-10 pr-4 text-sm text-highlighted placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
-          </div>
-          <Button type="submit" variant="primary" size="md" loading={loading}>
-            Cari
-          </Button>
-        </form>
+    <form onSubmit={handleSubmit} className="space-y-3 rounded border border-default bg-elevated p-4">
+      {fields.length > 0 && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {fields.map((field) => {
+            if (field.type === "select") {
+              return (
+                <Select
+                  key={field.key}
+                  label={field.label}
+                  options={field.options || []}
+                  value={values[field.key] as string | number}
+                  onChange={(e) => handleChange(field.key, e.target.value)}
+                  placeholder={field.placeholder}
+                  className={field.className}
+                />
+              );
+            }
 
-        <Button
-          type="button"
-          variant="outline"
-          size="md"
-          icon={Filter}
-          onClick={() => setShowFilters(!showFilters)}
-          className={cn(activeFiltersCount > 0 && "border-primary text-primary")}
-        >
-          Filter
-          {activeFiltersCount > 0 && (
-            <span className="ml-1 flex size-5 items-center justify-center rounded-full bg-primary text-xs text-white">
-              {activeFiltersCount}
-            </span>
-          )}
-        </Button>
-
-        <Button
-          type="button"
-          variant="ghost"
-          size="md"
-          icon={RefreshCw}
-          onClick={handleReset}
-        />
-      </div>
-
-      {/* Extended Filters */}
-      {showFilters && (
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-xl border border-default bg-elevated p-4"
-        >
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-highlighted">Filter</h3>
-            {activeFiltersCount > 0 && (
-              <button
-                type="button"
-                onClick={handleReset}
-                className="flex items-center gap-1 text-xs text-primary hover:underline"
-              >
-                <X className="size-3" />
-                Reset filter
-              </button>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {fields.map((field) => {
-              if (field.type === "select") {
-                return (
-                  <Select
-                    key={field.key}
-                    label={field.label}
-                    options={field.options || []}
-                    value={values[field.key] as string | number}
-                    onChange={(e) => handleChange(field.key, e.target.value)}
-                    placeholder={field.placeholder}
-                    className={field.className}
-                  />
-                );
-              }
-
-              if (field.type === "date") {
-                return (
-                  <Input
-                    key={field.key}
-                    type="date"
-                    label={field.label}
-                    value={values[field.key] as string}
-                    onChange={(e) => handleChange(field.key, e.target.value)}
-                    className={field.className}
-                  />
-                );
-              }
-
-              if (field.type === "number") {
-                return (
-                  <Input
-                    key={field.key}
-                    type="number"
-                    label={field.label}
-                    value={values[field.key] as string}
-                    onChange={(e) => handleChange(field.key, e.target.value)}
-                    placeholder={field.placeholder}
-                    className={field.className}
-                  />
-                );
-              }
-
+            if (field.type === "date") {
               return (
                 <Input
                   key={field.key}
-                  type="text"
+                  type="date"
+                  label={field.label}
+                  value={values[field.key] as string}
+                  onChange={(e) => handleChange(field.key, e.target.value)}
+                  className={field.className}
+                />
+              );
+            }
+
+            if (field.type === "number") {
+              return (
+                <Input
+                  key={field.key}
+                  type="number"
                   label={field.label}
                   value={values[field.key] as string}
                   onChange={(e) => handleChange(field.key, e.target.value)}
@@ -167,19 +88,47 @@ export function FilterBar({ fields, onFilter, onReset, loading }: FilterBarProps
                   className={field.className}
                 />
               );
-            })}
-          </div>
+            }
 
-          <div className="mt-4 flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={handleReset}>
-              Reset
-            </Button>
-            <Button type="submit" variant="primary">
-              Terapkan Filter
-            </Button>
-          </div>
-        </form>
+            return (
+              <Input
+                key={field.key}
+                type="text"
+                label={field.label}
+                value={values[field.key] as string}
+                onChange={(e) => handleChange(field.key, e.target.value)}
+                placeholder={field.placeholder}
+                className={field.className}
+              />
+            );
+          })}
+        </div>
       )}
-    </div>
+
+      <div className="flex flex-wrap items-center gap-2 border-t border-default pt-3">
+        {actions}
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleReset}
+            className="flex h-9 items-center gap-1.5 rounded border border-default px-3 text-[13px] text-toned transition-colors hover:bg-bg"
+          >
+            <RotateCcw className="size-3.5" />
+            Reset
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className={cn(
+              "flex h-9 items-center gap-1.5 rounded bg-info px-4 text-[13px] font-medium text-white transition-colors hover:bg-info/90",
+              loading && "opacity-60"
+            )}
+          >
+            <Search className="size-3.5" />
+            Cari
+          </button>
+        </div>
+      </div>
+    </form>
   );
 }
