@@ -13,6 +13,7 @@
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": true,
+    "strictPropertyInitialization": false,
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
@@ -28,15 +29,13 @@
     "types": ["node"]
   },
   "include": ["src/**/*", "prisma/**/*", "prisma.config.ts"],
-  // menu/ and sale-order/ target schema shapes that don't exist in
-  // prisma/schema.prisma (imagined RBAC FKs, and a SaleOrder model that
-  // was never defined) and aren't used by the frontend — see the notes
-  // in src/app-module.ts where they're left unregistered.
+  // sale-order/ targets prisma.saleOrder/saleOrderItem, but no SaleOrder
+  // model exists in prisma/schema.prisma — not a naming bug, the model was
+  // never defined. Not used by the frontend. Needs a real schema decision
+  // (new model vs. reuse Sale) before this can be re-enabled.
   "exclude": [
     "node_modules",
     "dist",
-    "src/modules/menu/**",
-    "src/modules/sale-order/**",
-    "src/common/guards/menu-access-guard.ts"
+    "src/modules/sale-order/**"
   ]
 }

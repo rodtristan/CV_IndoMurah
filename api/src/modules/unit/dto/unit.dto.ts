@@ -1,8 +1,8 @@
-import { IsString, IsOptional, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsInt, IsNumber } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateUnitDto {
-  @ApiProperty({ description: 'Unique unit code' })
+  @ApiProperty({ description: 'Unit code' })
   @IsString()
   code: string;
 
@@ -10,19 +10,19 @@ export class CreateUnitDto {
   @IsString()
   name: string;
 
-  @ApiProperty({ description: 'Unit abbreviation (e.g., pcs, kg, box)' })
+  @ApiPropertyOptional({ description: 'Description' })
+  @IsOptional()
   @IsString()
-  abbreviation: string;
+  description?: string;
 
-  @ApiPropertyOptional({ default: true, description: 'Is unit active' })
+  @ApiPropertyOptional({ default: true, description: 'Is active' })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
 }
 
-
 export class UpdateUnitDto {
-  @ApiPropertyOptional({ description: 'Unique unit code' })
+  @ApiPropertyOptional({ description: 'Unit code' })
   @IsOptional()
   @IsString()
   code?: string;
@@ -32,12 +32,12 @@ export class UpdateUnitDto {
   @IsString()
   name?: string;
 
-  @ApiPropertyOptional({ description: 'Unit abbreviation' })
+  @ApiPropertyOptional({ description: 'Description' })
   @IsOptional()
   @IsString()
-  abbreviation?: string;
+  description?: string;
 
-  @ApiPropertyOptional({ description: 'Is unit active' })
+  @ApiPropertyOptional({ description: 'Is active' })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;

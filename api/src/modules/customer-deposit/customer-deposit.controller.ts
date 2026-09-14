@@ -1,52 +1,135 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards, ParseIntPipe } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { UseGuards, Controller, Get, Post, Patch, Delete, Put, Param, Body, Query } from '@nestjs/common';
+import { BaseController } from '../../common/templates/base.controller';
 import { CustomerDepositService } from './customer-deposit.service';
 import { CreateCustomerDepositDto, UpdateCustomerDepositDto } from './dto/customer-deposit.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
-import { ApiResponse } from '../../common/dto/api-response-dto';
-import { CurrentUser } from '../../common/decorators/current-user-decorator';
 
-interface JwtUser { id: string; }
-
-@ApiTags('Customer Deposits')
+@ApiTags('CustomerDeposit')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('customer-deposits')
-export class CustomerDepositController {
-  constructor(private readonly customerDepositService: CustomerDepositService) {}
+@Controller('customer-deposit')
+export class CustomerDepositController extends BaseController<
+  any,
+  CreateCustomerDepositDto,
+  UpdateCustomerDepositDto
+> {
+  constructor(customerDepositService: CustomerDepositService) {
+    super(customerDepositService, {
+      modelName: 'CustomerDeposit',
+      pluralName: 'CustomerDeposits',
+      primaryKeyType: 'number',
+      paramId: 'id',
+      routePrefix: 'customer-deposit',
+    });
+  }
 
+  // GET endpoints
   @Get()
-  @ApiOperation({ summary: 'Get all customer deposits' })
-  async findAll(@Query() query: Record<string, unknown>) {
-    const { data, total, skip, take } = await this.customerDepositService.findAll(query);
-    return ApiResponse.paginated(data, total, skip, take);
+  @ApiOperation({ summary: 'Get all CustomerDeposits with OData query support' })
+  @ApiQuery({ name: '$select', required: false, description: 'Select fields' })
+  @ApiQuery({ name: '$include', required: false, description: 'Include relations: customer' })
+  @ApiQuery({ name: '$where[field]', required: false, description: 'Filter by field' })
+  @ApiQuery({ name: '$orderBy[field]', required: false, description: 'Sort: asc/desc' })
+  @ApiQuery({ name: '$skip', required: false, type: Number, description: 'Offset' })
+  @ApiQuery({ name: '$take', required: false, type: Number, description: 'Limit' })
+  @ApiQuery({ name: '$search', required: false, description: 'Search: code, description' })
+  async findAll(@Query() query: any) {
+    return super.findAll(query);
+  }
+
+  @Get('count')
+  @ApiOperation({ summary: 'Get count of CustomerDeposits' })
+  async getCount(@Query() query: any) {
+    return super.getCount(query);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get customer deposit by ID' })
-  async findOne(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.customerDepositService.findOne(id);
-    return ApiResponse.ok(data);
+  @ApiOperation({ summary: 'Get CustomerDeposit by ID' })
+  async findById(@Param('id') id: string, @Query() query: any) {
+    return super.findById(id, query);
   }
 
+  @Get('by/:field/:value')
+  @ApiOperation({ summary: 'Get CustomerDeposit by field reference' })
+  async findByField(@Param('field') field: string, @Param('value') value: string, @Query() query: any) {
+    return super.findByField(field, value, query);
+  }
+
+  // POST endpoints
   @Post()
-  @ApiOperation({ summary: 'Create customer deposit' })
-  async create(@Body() dto: CreateCustomerDepositDto, @CurrentUser() user: JwtUser) {
-    const data = await this.customerDepositService.create(dto, user.id);
-    return ApiResponse.ok(data, 'Customer Deposit created');
+  @ApiOperation({ summary: 'Create new CustomerDeposit' })
+  async create(@Body() dto: CreateCustomerDepositDto) {
+    return super.create(dto);
   }
 
-  @Put(':id')
-  @ApiOperation({ summary: 'Update customer deposit' })
-  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateCustomerDepositDto) {
-    const data = await this.customerDepositService.update(id, dto);
-    return ApiResponse.ok(data, 'Customer Deposit updated');
+  @Post('bulk')
+  @ApiOperation({ summary: 'Create multiple CustomerDeposits' })
+  async createBulk(@Body() dtos: CreateCustomerDepositDto[]) {
+    return super.createBulk(dtos);
   }
 
+  // PATCH endpoints
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update CustomerDeposit by ID' })
+  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateCustomerDepositDto>) {
+    return super.patchById(id, dto);
+  }
+
+  @Patch('by/:field/:value')
+  @ApiOperation({ summary: 'Update CustomerDeposits by field reference' })
+  async patchByFilterReference(
+    @Param('field') field: string,
+    @Param('value') value: string,
+    @Body() dto: Partial<UpdateCustomerDepositDto>,
+  ) {
+    return super.patchByFilterReference(field, value, dto);
+  }
+
+  @Patch('bulk')
+  @ApiOperation({ summary: 'Update multiple CustomerDeposits' })
+  async patchBulk(@Body() body: { ids: number[]; data: Partial<UpdateCustomerDepositDto> }) {
+    return super.patchBulk(body);
+  }
+
+  // PUT (UPSERT) endpoints
+  @Put()
+  @ApiOperation({ summary: 'Upsert CustomerDeposit' })
+  async upsert(@Body() body: { where: { id: number }; create: CreateCustomerDepositDto; update: Partial<UpdateCustomerDepositDto> }) {
+    return super.upsert(body);
+  }
+
+  @Put('by/:field')
+  @ApiOperation({ summary: 'Upsert CustomerDeposit by field reference' })
+  async upsertByFilterReference(
+    @Param('field') field: string,
+    @Body() body: { filterValue: any; create: CreateCustomerDepositDto; update: Partial<UpdateCustomerDepositDto> },
+  ) {
+    return super.upsertByFilterReference(field, body);
+  }
+
+  @Put('bulk')
+  @ApiOperation({ summary: 'Bulk upsert CustomerDeposits' })
+  async upsertBulk(@Body() body: { items: any[] }) {
+    return super.upsertBulk(body);
+  }
+
+  // DELETE endpoints
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete customer deposit' })
-  async remove(@Param('id', ParseIntPipe) id: number) {
-    await this.customerDepositService.remove(id);
-    return ApiResponse.ok(null, 'Customer Deposit deleted');
+  @ApiOperation({ summary: 'Delete CustomerDeposit by ID' })
+  async deleteById(@Param('id') id: string) {
+    return super.deleteById(id);
+  }
+
+  @Delete('by/:field/:value')
+  @ApiOperation({ summary: 'Delete CustomerDeposits by field reference' })
+  async deleteByFilterReference(@Param('field') field: string, @Param('value') value: string) {
+    return super.deleteByFilterReference(field, value);
+  }
+
+  @Delete('bulk')
+  @ApiOperation({ summary: 'Delete multiple CustomerDeposits' })
+  async deleteBulk(@Body() body: { ids: number[] }) {
+    return super.deleteBulk(body);
   }
 }

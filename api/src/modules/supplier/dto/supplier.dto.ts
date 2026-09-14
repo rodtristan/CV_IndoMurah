@@ -1,8 +1,8 @@
-import { IsString, IsOptional, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsInt, IsNumber } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateSupplierDto {
-  @ApiProperty({ description: 'Unique supplier code' })
+  @ApiProperty({ description: 'Supplier code' })
   @IsString()
   code: string;
 
@@ -10,39 +10,19 @@ export class CreateSupplierDto {
   @IsString()
   name: string;
 
-  @ApiPropertyOptional({ description: 'Contact person name' })
+  @ApiPropertyOptional({ description: 'Description' })
   @IsOptional()
   @IsString()
-  contactPerson?: string;
+  description?: string;
 
-  @ApiPropertyOptional({ description: 'Supplier phone number' })
-  @IsOptional()
-  @IsString()
-  phone?: string;
-
-  @ApiPropertyOptional({ description: 'Supplier email' })
-  @IsOptional()
-  @IsString()
-  email?: string;
-
-  @ApiPropertyOptional({ description: 'Supplier address' })
-  @IsOptional()
-  @IsString()
-  address?: string;
-
-  @ApiPropertyOptional({ description: 'Additional notes' })
-  @IsOptional()
-  @IsString()
-  notes?: string;
-
-  @ApiPropertyOptional({ default: true, description: 'Is supplier active' })
+  @ApiPropertyOptional({ default: true, description: 'Is active' })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
 }
 
 export class UpdateSupplierDto {
-  @ApiPropertyOptional({ description: 'Unique supplier code' })
+  @ApiPropertyOptional({ description: 'Supplier code' })
   @IsOptional()
   @IsString()
   code?: string;
@@ -52,32 +32,12 @@ export class UpdateSupplierDto {
   @IsString()
   name?: string;
 
-  @ApiPropertyOptional({ description: 'Contact person name' })
+  @ApiPropertyOptional({ description: 'Description' })
   @IsOptional()
   @IsString()
-  contactPerson?: string;
+  description?: string;
 
-  @ApiPropertyOptional({ description: 'Supplier phone number' })
-  @IsOptional()
-  @IsString()
-  phone?: string;
-
-  @ApiPropertyOptional({ description: 'Supplier email' })
-  @IsOptional()
-  @IsString()
-  email?: string;
-
-  @ApiPropertyOptional({ description: 'Supplier address' })
-  @IsOptional()
-  @IsString()
-  address?: string;
-
-  @ApiPropertyOptional({ description: 'Additional notes' })
-  @IsOptional()
-  @IsString()
-  notes?: string;
-
-  @ApiPropertyOptional({ description: 'Is supplier active' })
+  @ApiPropertyOptional({ description: 'Is active' })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;

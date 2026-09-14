@@ -1,15 +1,6 @@
 // ================================================================
 // auth-controller.ts — HTTP Controller untuk Autentikasi
 // ================================================================
-//
-//   POST /api/v1/auth/login    → Login
-//   POST /api/v1/auth/register → Register
-//   GET  /api/v1/auth/me       → Profil user yang login (butuh token)
-//
-// @Throttle di login/register: batasi percobaan lebih ketat daripada
-// limit global (lihat app-module.ts) untuk mempersulit brute-force
-// terhadap password / email enumeration.
-// ================================================================
 
 import {
   Controller,

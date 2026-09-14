@@ -1,89 +1,135 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Param,
-  Body,
-  Query,
-  UseGuards,
-  ParseIntPipe,
-} from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { UseGuards, Controller, Get, Post, Patch, Delete, Put, Param, Body, Query } from '@nestjs/common';
+import { BaseController } from '../../common/templates/base.controller';
 import { CustomerService } from './customer.service';
-import { CreateCustomerDto, UpdateCustomerDto, AdjustPointsDto } from './dto/customer.dto';
+import { CreateCustomerDto, UpdateCustomerDto } from './dto/customer.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
-import { ApiResponse } from '../../common/dto/api-response-dto';
 
-@ApiTags('Customers')
+@ApiTags('Customer')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('customers')
-export class CustomerController {
-  constructor(private customerService: CustomerService) {}
+@Controller('customer')
+export class CustomerController extends BaseController<
+  any,
+  CreateCustomerDto,
+  UpdateCustomerDto
+> {
+  constructor(customerService: CustomerService) {
+    super(customerService, {
+      modelName: 'Customer',
+      pluralName: 'Customers',
+      primaryKeyType: 'number',
+      paramId: 'id',
+      routePrefix: 'customer',
+    });
+  }
 
+  // GET endpoints
   @Get()
-  @ApiOperation({ summary: 'Get all customers (Smart Query supported)' })
-  @ApiQuery({ name: '$select', required: false, description: 'Select fields: id,code,name,phone' })
-  @ApiQuery({ name: '$include', required: false, description: 'Include relations: sales,customerDeposits,pointRedemptions' })
-  @ApiQuery({ name: '$where[isActive]', required: false, description: 'Filter: true/false' })
-  @ApiQuery({ name: '$where[customerGroup]', required: false, description: 'Filter by group: RETAIL,WHOLESALE,VIP,GENERAL' })
-  @ApiQuery({ name: '$search', required: false, description: 'Search keyword' })
-  @ApiQuery({ name: '$orderBy[createdAt]', required: false, description: 'Sort: asc/desc' })
-  @ApiQuery({ name: '$skip', required: false, description: 'Offset', type: Number })
-  @ApiQuery({ name: '$take', required: false, description: 'Limit', type: Number })
-  async findAll(@Query() query: Record<string, unknown>) {
-    const { data, total, skip, take } = await this.customerService.findAll(query);
-    return ApiResponse.paginated(data, total, skip, take);
+  @ApiOperation({ summary: 'Get all Customers with OData query support' })
+  @ApiQuery({ name: '$select', required: false, description: 'Select fields' })
+  @ApiQuery({ name: '$include', required: false, description: 'Include relations: sales, customerDeposits' })
+  @ApiQuery({ name: '$where[field]', required: false, description: 'Filter by field' })
+  @ApiQuery({ name: '$orderBy[field]', required: false, description: 'Sort: asc/desc' })
+  @ApiQuery({ name: '$skip', required: false, type: Number, description: 'Offset' })
+  @ApiQuery({ name: '$take', required: false, type: Number, description: 'Limit' })
+  @ApiQuery({ name: '$search', required: false, description: 'Search: code, name, phone, email' })
+  async findAll(@Query() query: any) {
+    return super.findAll(query);
+  }
+
+  @Get('count')
+  @ApiOperation({ summary: 'Get count of Customers' })
+  async getCount(@Query() query: any) {
+    return super.getCount(query);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get customer by ID' })
-  async findOne(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.customerService.findOne(id);
-    return ApiResponse.ok(data);
+  @ApiOperation({ summary: 'Get Customer by ID' })
+  async findById(@Param('id') id: string, @Query() query: any) {
+    return super.findById(id, query);
   }
 
-  @Get(':id/stats')
-  @ApiOperation({ summary: 'Get customer statistics' })
-  async getStats(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.customerService.getStats(id);
-    return ApiResponse.ok(data);
+  @Get('by/:field/:value')
+  @ApiOperation({ summary: 'Get Customer by field reference' })
+  async findByField(@Param('field') field: string, @Param('value') value: string, @Query() query: any) {
+    return super.findByField(field, value, query);
   }
 
-  @Get(':id/points')
-  @ApiOperation({ summary: 'Get customer point balance and history' })
-  async getPointsHistory(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.customerService.getPointsHistory(id);
-    return ApiResponse.ok(data);
-  }
-
+  // POST endpoints
   @Post()
-  @ApiOperation({ summary: 'Create customer' })
+  @ApiOperation({ summary: 'Create new Customer' })
   async create(@Body() dto: CreateCustomerDto) {
-    const data = await this.customerService.create(dto);
-    return ApiResponse.ok(data, 'Customer created successfully');
+    return super.create(dto);
   }
 
-  @Put(':id')
-  @ApiOperation({ summary: 'Update customer' })
-  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateCustomerDto) {
-    const data = await this.customerService.update(id, dto);
-    return ApiResponse.ok(data, 'Customer updated successfully');
+  @Post('bulk')
+  @ApiOperation({ summary: 'Create multiple Customers' })
+  async createBulk(@Body() dtos: CreateCustomerDto[]) {
+    return super.createBulk(dtos);
   }
 
-  @Post(':id/points')
-  @ApiOperation({ summary: 'Adjust customer point balance' })
-  async adjustPoints(@Param('id', ParseIntPipe) id: number, @Body() dto: AdjustPointsDto) {
-    const data = await this.customerService.adjustPoints(id, dto);
-    return ApiResponse.ok(data, 'Point balance adjusted successfully');
+  // PATCH endpoints
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update Customer by ID' })
+  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateCustomerDto>) {
+    return super.patchById(id, dto);
   }
 
+  @Patch('by/:field/:value')
+  @ApiOperation({ summary: 'Update Customers by field reference' })
+  async patchByFilterReference(
+    @Param('field') field: string,
+    @Param('value') value: string,
+    @Body() dto: Partial<UpdateCustomerDto>,
+  ) {
+    return super.patchByFilterReference(field, value, dto);
+  }
+
+  @Patch('bulk')
+  @ApiOperation({ summary: 'Update multiple Customers' })
+  async patchBulk(@Body() body: { ids: number[]; data: Partial<UpdateCustomerDto> }) {
+    return super.patchBulk(body);
+  }
+
+  // PUT (UPSERT) endpoints
+  @Put()
+  @ApiOperation({ summary: 'Upsert Customer' })
+  async upsert(@Body() body: { where: { id: number }; create: CreateCustomerDto; update: Partial<UpdateCustomerDto> }) {
+    return super.upsert(body);
+  }
+
+  @Put('by/:field')
+  @ApiOperation({ summary: 'Upsert Customer by field reference' })
+  async upsertByFilterReference(
+    @Param('field') field: string,
+    @Body() body: { filterValue: any; create: CreateCustomerDto; update: Partial<UpdateCustomerDto> },
+  ) {
+    return super.upsertByFilterReference(field, body);
+  }
+
+  @Put('bulk')
+  @ApiOperation({ summary: 'Bulk upsert Customers' })
+  async upsertBulk(@Body() body: { items: any[] }) {
+    return super.upsertBulk(body);
+  }
+
+  // DELETE endpoints
   @Delete(':id')
-  @ApiOperation({ summary: 'Soft delete customer' })
-  async remove(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.customerService.remove(id);
-    return ApiResponse.ok(data, 'Customer deactivated successfully');
+  @ApiOperation({ summary: 'Delete Customer by ID' })
+  async deleteById(@Param('id') id: string) {
+    return super.deleteById(id);
+  }
+
+  @Delete('by/:field/:value')
+  @ApiOperation({ summary: 'Delete Customers by field reference' })
+  async deleteByFilterReference(@Param('field') field: string, @Param('value') value: string) {
+    return super.deleteByFilterReference(field, value);
+  }
+
+  @Delete('bulk')
+  @ApiOperation({ summary: 'Delete multiple Customers' })
+  async deleteBulk(@Body() body: { ids: number[] }) {
+    return super.deleteBulk(body);
   }
 }

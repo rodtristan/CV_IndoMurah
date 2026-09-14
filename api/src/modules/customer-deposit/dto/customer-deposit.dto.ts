@@ -1,43 +1,44 @@
-import { IsString, IsNumber, IsOptional, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsInt, IsNumber } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateCustomerDepositDto {
-  @ApiProperty()
-  @IsDateString()
-  date: string;
-
-  @ApiProperty()
-  @IsNumber()
-  customer_id: number;
-
-  @ApiProperty()
-  @IsNumber()
-  amount: number;
-
-  @ApiPropertyOptional()
+  @ApiProperty({ description: 'CustomerDeposit code' })
   @IsString()
+  code: string;
+
+  @ApiProperty({ description: 'CustomerDeposit name' })
+  @IsString()
+  name: string;
+
+  @ApiPropertyOptional({ description: 'Description' })
   @IsOptional()
+  @IsString()
   description?: string;
+
+  @ApiPropertyOptional({ default: true, description: 'Is active' })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
 
 export class UpdateCustomerDepositDto {
-  @ApiPropertyOptional()
-  @IsDateString()
+  @ApiPropertyOptional({ description: 'CustomerDeposit code' })
   @IsOptional()
-  date?: string;
-
-  @ApiPropertyOptional()
-  @IsNumber()
-  @IsOptional()
-  customer_id?: number;
-
-  @ApiPropertyOptional()
-  @IsNumber()
-  @IsOptional()
-  amount?: number;
-
-  @ApiPropertyOptional()
   @IsString()
+  code?: string;
+
+  @ApiPropertyOptional({ description: 'CustomerDeposit name' })
   @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiPropertyOptional({ description: 'Description' })
+  @IsOptional()
+  @IsString()
   description?: string;
+
+  @ApiPropertyOptional({ description: 'Is active' })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

@@ -1,97 +1,135 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Param,
-  Body,
-  Query,
-  UseGuards,
-  ParseIntPipe,
-} from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { UseGuards, Controller, Get, Post, Patch, Delete, Put, Param, Body, Query } from '@nestjs/common';
+import { BaseController } from '../../common/templates/base.controller';
 import { ProductService } from './product.service';
-import { CreateProductDto, UpdateProductDto, AdjustStockDto } from './dto/product.dto';
+import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
-import { ApiResponse } from '../../common/dto/api-response-dto';
 
 @ApiTags('Products')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('products')
-export class ProductController {
-  constructor(private productService: ProductService) {}
+export class ProductController extends BaseController<
+  any,
+  CreateProductDto,
+  UpdateProductDto
+> {
+  constructor(productService: ProductService) {
+    super(productService, {
+      modelName: 'Product',
+      pluralName: 'Products',
+      primaryKeyType: 'number',
+      paramId: 'id',
+      routePrefix: 'products',
+    });
+  }
 
+  // GET endpoints
   @Get()
-  @ApiOperation({ summary: 'Get all products (Smart Query supported)' })
-  @ApiQuery({ name: '$select', required: false, description: 'Select fields: id,code,name,purchasePrice,sellingPrice,stock' })
+  @ApiOperation({ summary: 'Get all products with OData query support' })
+  @ApiQuery({ name: '$select', required: false, description: 'Select fields' })
   @ApiQuery({ name: '$include', required: false, description: 'Include relations: category,unit,brand,warehouse,productStocks' })
-  @ApiQuery({ name: '$where[isActive]', required: false, description: 'Filter: true/false' })
-  @ApiQuery({ name: '$where[categoryId]', required: false, description: 'Filter by category ID' })
-  @ApiQuery({ name: '$where[warehouseId]', required: false, description: 'Filter by warehouse ID' })
-  @ApiQuery({ name: '$search', required: false, description: 'Search by code, barcode, or name' })
-  @ApiQuery({ name: '$orderBy[createdAt]', required: false, description: 'Sort: asc/desc' })
-  @ApiQuery({ name: '$skip', required: false, description: 'Offset', type: Number })
-  @ApiQuery({ name: '$take', required: false, description: 'Limit', type: Number })
-  async findAll(@Query() query: Record<string, unknown>) {
-    const { data, total, skip, take } = await this.productService.findAll(query);
-    return ApiResponse.paginated(data, total, skip, take);
+  @ApiQuery({ name: '$where[field]', required: false, description: 'Filter by field' })
+  @ApiQuery({ name: '$orderBy[field]', required: false, description: 'Sort: asc/desc' })
+  @ApiQuery({ name: '$skip', required: false, type: Number, description: 'Offset' })
+  @ApiQuery({ name: '$take', required: false, type: Number, description: 'Limit' })
+  @ApiQuery({ name: '$search', required: false, description: 'Search keyword' })
+  async findAll(@Query() query: any) {
+    return super.findAll(query);
   }
 
-  @Get('barcode/:barcode')
-  @ApiOperation({ summary: 'Get product by barcode' })
-  async findByBarcode(@Param('barcode') barcode: string) {
-    const data = await this.productService.findByBarcode(barcode);
-    return ApiResponse.ok(data);
-  }
-
-  @Get('low-stock')
-  @ApiOperation({ summary: 'Get products with stock below minimum level' })
-  async getLowStock() {
-    const data = await this.productService.getLowStockProducts();
-    return ApiResponse.ok(data);
+  @Get('count')
+  @ApiOperation({ summary: 'Get count of products' })
+  async getCount(@Query() query: any) {
+    return super.getCount(query);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get product by ID' })
-  async findOne(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.productService.findOne(id);
-    return ApiResponse.ok(data);
+  async findById(@Param('id') id: string, @Query() query: any) {
+    return super.findById(id, query);
   }
 
-  @Get(':id/stock')
-  @ApiOperation({ summary: 'Get product stock by warehouse' })
-  async getStockByWarehouse(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.productService.getStockByWarehouse(id);
-    return ApiResponse.ok(data);
+  @Get('by/:field/:value')
+  @ApiOperation({ summary: 'Get product by field reference' })
+  async findByField(@Param('field') field: string, @Param('value') value: string, @Query() query: any) {
+    return super.findByField(field, value, query);
   }
 
+  // POST endpoints
   @Post()
-  @ApiOperation({ summary: 'Create product' })
+  @ApiOperation({ summary: 'Create new product' })
   async create(@Body() dto: CreateProductDto) {
-    const data = await this.productService.create(dto);
-    return ApiResponse.ok(data, 'Product created successfully');
+    return super.create(dto);
   }
 
-  @Put(':id')
-  @ApiOperation({ summary: 'Update product' })
-  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateProductDto) {
-    const data = await this.productService.update(id, dto);
-    return ApiResponse.ok(data, 'Product updated successfully');
+  @Post('bulk')
+  @ApiOperation({ summary: 'Create multiple products' })
+  async createBulk(@Body() dtos: CreateProductDto[]) {
+    return super.createBulk(dtos);
   }
 
-  @Post(':id/stock')
-  @ApiOperation({ summary: 'Adjust product stock' })
-  async adjustStock(@Param('id', ParseIntPipe) id: number, @Body() dto: AdjustStockDto) {
-    const data = await this.productService.adjustStock(id, dto);
-    return ApiResponse.ok(data, 'Stock adjusted successfully');
+  // PATCH endpoints
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update product by ID' })
+  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateProductDto>) {
+    return super.patchById(id, dto);
   }
 
+  @Patch('by/:field/:value')
+  @ApiOperation({ summary: 'Update products by field reference' })
+  async patchByFilterReference(
+    @Param('field') field: string,
+    @Param('value') value: string,
+    @Body() dto: Partial<UpdateProductDto>,
+  ) {
+    return super.patchByFilterReference(field, value, dto);
+  }
+
+  @Patch('bulk')
+  @ApiOperation({ summary: 'Update multiple products' })
+  async patchBulk(@Body() body: { ids: number[]; data: Partial<UpdateProductDto> }) {
+    return super.patchBulk(body);
+  }
+
+  // PUT (UPSERT) endpoints
+  @Put()
+  @ApiOperation({ summary: 'Upsert product' })
+  async upsert(@Body() body: { where: { id: number }; create: CreateProductDto; update: Partial<UpdateProductDto> }) {
+    return super.upsert(body);
+  }
+
+  @Put('by/:field')
+  @ApiOperation({ summary: 'Upsert product by field reference' })
+  async upsertByFilterReference(
+    @Param('field') field: string,
+    @Body() body: { filterValue: any; create: CreateProductDto; update: Partial<UpdateProductDto> },
+  ) {
+    return super.upsertByFilterReference(field, body);
+  }
+
+  @Put('bulk')
+  @ApiOperation({ summary: 'Bulk upsert products' })
+  async upsertBulk(@Body() body: { items: any[] }) {
+    return super.upsertBulk(body);
+  }
+
+  // DELETE endpoints
   @Delete(':id')
-  @ApiOperation({ summary: 'Soft delete product' })
-  async remove(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.productService.remove(id);
-    return ApiResponse.ok(data, 'Product deactivated successfully');
+  @ApiOperation({ summary: 'Delete product by ID' })
+  async deleteById(@Param('id') id: string) {
+    return super.deleteById(id);
+  }
+
+  @Delete('by/:field/:value')
+  @ApiOperation({ summary: 'Delete products by field reference' })
+  async deleteByFilterReference(@Param('field') field: string, @Param('value') value: string) {
+    return super.deleteByFilterReference(field, value);
+  }
+
+  @Delete('bulk')
+  @ApiOperation({ summary: 'Delete multiple products' })
+  async deleteBulk(@Body() body: { ids: (number | string)[] }) {
+    return super.deleteBulk(body);
   }
 }

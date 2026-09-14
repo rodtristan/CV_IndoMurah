@@ -1,82 +1,135 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Param,
-  Body,
-  Query,
-  UseGuards,
-  ParseIntPipe,
-} from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { UseGuards, Controller, Get, Post, Patch, Delete, Put, Param, Body, Query } from '@nestjs/common';
+import { BaseController } from '../../common/templates/base.controller';
 import { SalesPersonService } from './sales-person.service';
 import { CreateSalesPersonDto, UpdateSalesPersonDto } from './dto/sales-person.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
-import { ApiResponse } from '../../common/dto/api-response-dto';
 
-@ApiTags('SalesPeople')
+@ApiTags('SalesPerson')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('sales-people')
-export class SalesPersonController {
-  constructor(private salesPersonService: SalesPersonService) {}
+@Controller('sales-person')
+export class SalesPersonController extends BaseController<
+  any,
+  CreateSalesPersonDto,
+  UpdateSalesPersonDto
+> {
+  constructor(salesPersonService: SalesPersonService) {
+    super(salesPersonService, {
+      modelName: 'SalesPerson',
+      pluralName: 'SalesPersons',
+      primaryKeyType: 'number',
+      paramId: 'id',
+      routePrefix: 'sales-person',
+    });
+  }
 
+  // GET endpoints
   @Get()
-  @ApiOperation({ summary: 'Get all sales people (Smart Query supported)' })
-  @ApiQuery({ name: '$select', required: false, description: 'Select fields: id,code,name,phone' })
-  @ApiQuery({ name: '$include', required: false, description: 'Include relations: sales' })
-  @ApiQuery({ name: '$where[isActive]', required: false, description: 'Filter: true/false' })
-  @ApiQuery({ name: '$search', required: false, description: 'Search keyword' })
-  @ApiQuery({ name: '$orderBy[createdAt]', required: false, description: 'Sort: asc/desc' })
-  @ApiQuery({ name: '$skip', required: false, description: 'Offset', type: Number })
-  @ApiQuery({ name: '$take', required: false, description: 'Limit', type: Number })
-  async findAll(@Query() query: Record<string, unknown>) {
-    const { data, total, skip, take } = await this.salesPersonService.findAll(query);
-    return ApiResponse.paginated(data, total, skip, take);
+  @ApiOperation({ summary: 'Get all SalesPersons with OData query support' })
+  @ApiQuery({ name: '$select', required: false, description: 'Select fields' })
+  @ApiQuery({ name: '$include', required: false, description: 'Include relations: ' })
+  @ApiQuery({ name: '$where[field]', required: false, description: 'Filter by field' })
+  @ApiQuery({ name: '$orderBy[field]', required: false, description: 'Sort: asc/desc' })
+  @ApiQuery({ name: '$skip', required: false, type: Number, description: 'Offset' })
+  @ApiQuery({ name: '$take', required: false, type: Number, description: 'Limit' })
+  @ApiQuery({ name: '$search', required: false, description: 'Search: name' })
+  async findAll(@Query() query: any) {
+    return super.findAll(query);
+  }
+
+  @Get('count')
+  @ApiOperation({ summary: 'Get count of SalesPersons' })
+  async getCount(@Query() query: any) {
+    return super.getCount(query);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get sales person by ID' })
-  async findOne(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.salesPersonService.findOne(id);
-    return ApiResponse.ok(data);
+  @ApiOperation({ summary: 'Get SalesPerson by ID' })
+  async findById(@Param('id') id: string, @Query() query: any) {
+    return super.findById(id, query);
   }
 
-  @Get(':id/stats')
-  @ApiOperation({ summary: 'Get sales person statistics' })
-  async getStats(
-    @Param('id', ParseIntPipe) id: number,
-    @Query('dateFrom') dateFrom?: string,
-    @Query('dateTo') dateTo?: string,
-  ) {
-    const data = await this.salesPersonService.getStats(
-      id,
-      dateFrom ? new Date(dateFrom) : undefined,
-      dateTo ? new Date(dateTo) : undefined,
-    );
-    return ApiResponse.ok(data);
+  @Get('by/:field/:value')
+  @ApiOperation({ summary: 'Get SalesPerson by field reference' })
+  async findByField(@Param('field') field: string, @Param('value') value: string, @Query() query: any) {
+    return super.findByField(field, value, query);
   }
 
+  // POST endpoints
   @Post()
-  @ApiOperation({ summary: 'Create sales person' })
+  @ApiOperation({ summary: 'Create new SalesPerson' })
   async create(@Body() dto: CreateSalesPersonDto) {
-    const data = await this.salesPersonService.create(dto);
-    return ApiResponse.ok(data, 'Sales person created successfully');
+    return super.create(dto);
   }
 
-  @Put(':id')
-  @ApiOperation({ summary: 'Update sales person' })
-  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateSalesPersonDto) {
-    const data = await this.salesPersonService.update(id, dto);
-    return ApiResponse.ok(data, 'Sales person updated successfully');
+  @Post('bulk')
+  @ApiOperation({ summary: 'Create multiple SalesPersons' })
+  async createBulk(@Body() dtos: CreateSalesPersonDto[]) {
+    return super.createBulk(dtos);
   }
 
+  // PATCH endpoints
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update SalesPerson by ID' })
+  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateSalesPersonDto>) {
+    return super.patchById(id, dto);
+  }
+
+  @Patch('by/:field/:value')
+  @ApiOperation({ summary: 'Update SalesPersons by field reference' })
+  async patchByFilterReference(
+    @Param('field') field: string,
+    @Param('value') value: string,
+    @Body() dto: Partial<UpdateSalesPersonDto>,
+  ) {
+    return super.patchByFilterReference(field, value, dto);
+  }
+
+  @Patch('bulk')
+  @ApiOperation({ summary: 'Update multiple SalesPersons' })
+  async patchBulk(@Body() body: { ids: number[]; data: Partial<UpdateSalesPersonDto> }) {
+    return super.patchBulk(body);
+  }
+
+  // PUT (UPSERT) endpoints
+  @Put()
+  @ApiOperation({ summary: 'Upsert SalesPerson' })
+  async upsert(@Body() body: { where: { id: number }; create: CreateSalesPersonDto; update: Partial<UpdateSalesPersonDto> }) {
+    return super.upsert(body);
+  }
+
+  @Put('by/:field')
+  @ApiOperation({ summary: 'Upsert SalesPerson by field reference' })
+  async upsertByFilterReference(
+    @Param('field') field: string,
+    @Body() body: { filterValue: any; create: CreateSalesPersonDto; update: Partial<UpdateSalesPersonDto> },
+  ) {
+    return super.upsertByFilterReference(field, body);
+  }
+
+  @Put('bulk')
+  @ApiOperation({ summary: 'Bulk upsert SalesPersons' })
+  async upsertBulk(@Body() body: { items: any[] }) {
+    return super.upsertBulk(body);
+  }
+
+  // DELETE endpoints
   @Delete(':id')
-  @ApiOperation({ summary: 'Soft delete sales person' })
-  async remove(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.salesPersonService.remove(id);
-    return ApiResponse.ok(data, 'Sales person deactivated successfully');
+  @ApiOperation({ summary: 'Delete SalesPerson by ID' })
+  async deleteById(@Param('id') id: string) {
+    return super.deleteById(id);
+  }
+
+  @Delete('by/:field/:value')
+  @ApiOperation({ summary: 'Delete SalesPersons by field reference' })
+  async deleteByFilterReference(@Param('field') field: string, @Param('value') value: string) {
+    return super.deleteByFilterReference(field, value);
+  }
+
+  @Delete('bulk')
+  @ApiOperation({ summary: 'Delete multiple SalesPersons' })
+  async deleteBulk(@Body() body: { ids: number[] }) {
+    return super.deleteBulk(body);
   }
 }

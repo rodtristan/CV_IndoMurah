@@ -9,8 +9,6 @@
     "dist",
     "test",
     "**/*spec.ts",
-    "src/modules/menu/**",
-    "src/modules/sale-order/**",
-    "src/common/guards/menu-access-guard.ts"
+    "src/modules/sale-order/**"
   ]
 }

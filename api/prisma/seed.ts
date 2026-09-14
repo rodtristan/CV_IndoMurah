@@ -27,6 +27,21 @@ async function main() {
     update: {},
   });
 
+  // ─── Role default (id = 1) ─────────────────────────────────
+  // RegisterDto.roleId defaults to 1 (see auth-service.ts) — pastikan role
+  // ini ada agar register() tidak gagal karena FK constraint.
+  const adminRole = await prisma.role.upsert({
+    where: { id: 1 },
+    create: { roleName: 'Administrator', roleDescription: 'Akses penuh ke semua modul' },
+    update: {},
+  });
+
+  await prisma.userRole.upsert({
+    where: { userId_roleId: { userId: admin.id, roleId: adminRole.id } },
+    create: { userId: admin.id, roleId: adminRole.id, isActive: true },
+    update: { isActive: true },
+  });
+
   console.log('Seed selesai:');
   console.log(`  Admin : ${adminEmail} / admin123 (GANTI password ini setelah login pertama!)`);
   console.log(`  id    : ${admin.id}`);

@@ -51,11 +51,7 @@ import { HashIdModule } from './common/utils/hash-id-module';
 import { AuthModule } from './modules/auth/auth-module';
 import { UserModule } from './modules/user/user-module';
 import { RoleModule } from './modules/role/role-module';
-// MenuModule is intentionally NOT registered — menu-service.ts still
-// targets the imagined RBAC schema (main_role_id → Role/Menu/RoleMenu/
-// UserMenu FKs) that doesn't exist on the real, flat User model (see
-// auth-service.ts). Not used by the frontend. Excluded from the
-// TS build too (see tsconfig.json/tsconfig.build.json `exclude`).
+import { MenuModule } from './modules/menu/menu-module';
 import { HealthModule } from './modules/health/health-module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 
@@ -100,9 +96,17 @@ import { CashTransferModule } from './modules/cash-transfer/cash-transfer.module
 import { CustomerDepositModule } from './modules/customer-deposit/customer-deposit.module';
 import { SupplierDepositModule } from './modules/supplier-deposit/supplier-deposit.module';
 import { JournalModule } from './modules/journal/journal.module';
+import { JournalEntryModule } from './modules/journal-entry/journal-entry.module';
+
+// Point & Settings Modules
+import { PointSettingModule } from './modules/point-setting/point-setting.module';
+import { PointRedemptionModule } from './modules/point-redemption/point-redemption.module';
+import { CompanyModule } from './modules/company/company.module';
+import { NumberingModule } from './modules/numbering/numbering.module';
 
 // Reports
 import { ReportModule } from './modules/report/report.module';
+import { TestingModule } from './modules/testing/testing.module';
 
 // ── Provider Global ────────────────────────────────────────────────────
 import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
@@ -138,6 +142,7 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     AuthModule,     // Login, register, JWT
     UserModule,     // Data akun + UserRole
     RoleModule,     // Role/jabatan
+    MenuModule,     // Menu sidebar + RoleMenu/UserMenu (kontrol akses)
     HealthModule,   // Health check endpoint (untuk Docker/monitoring)
     DashboardModule, // Ringkasan KPI untuk halaman utama
 
@@ -171,9 +176,17 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     CustomerDepositModule, // Deposito Pelanggan
     SupplierDepositModule, // Deposito Supplier
     JournalModule,        // Jurnal Umum
+    JournalEntryModule,   // Jurnal Entry
 
     // Reports
     ReportModule,         // Laporan
+
+    // Point & Settings
+    PointSettingModule,   // Pengaturan Poin
+    PointRedemptionModule, // Penukaran Poin
+    CompanyModule,        // Informasi Perusahaan
+    NumberingModule,      // Format Penomoran
+    TestingModule,
   ],
   providers: [
     // ── [5] Guard & Interceptor Global ───────────────────────────────

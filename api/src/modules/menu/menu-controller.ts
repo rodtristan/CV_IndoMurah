@@ -18,8 +18,8 @@ import { ApiResponse } from '../../common/dto/api-response-dto';
 import { CurrentUser } from '../../common/decorators/current-user-decorator';
 
 interface JwtUser {
-  id: number;
-  role_id?: number;
+  id: string;
+  roleId?: number;
 }
 
 @ApiTags('Menus')
@@ -41,7 +41,7 @@ export class MenuController {
   @Get('my-menus')
   @ApiOperation({ summary: 'Get accessible menus for the current user' })
   async myMenus(@CurrentUser() user: JwtUser) {
-    const menus = await this.menuService.getAccessibleMenus(user.id, user.role_id);
+    const menus = await this.menuService.getAccessibleMenus(user.id, user.roleId);
     return ApiResponse.ok(menus);
   }
 
@@ -85,7 +85,7 @@ export class MenuController {
   @Post('role/:roleId/assign')
   @ApiOperation({ summary: 'Assign menu to role' })
   async assignToRole(@Param('roleId', ParseIntPipe) roleId: number, @Body() dto: AssignMenuDto) {
-    const data = await this.menuService.assignMenuToRole(roleId, dto.menu_id);
+    const data = await this.menuService.assignMenuToRole(roleId, dto.menuId);
     return ApiResponse.ok(data, 'Menu assigned to role');
   }
 
@@ -103,22 +103,22 @@ export class MenuController {
 
   @Get('user/:userId')
   @ApiOperation({ summary: 'Get menus assigned to a user' })
-  async getUserMenus(@Param('userId', ParseIntPipe) userId: number) {
+  async getUserMenus(@Param('userId') userId: string) {
     const data = await this.menuService.getUserMenus(userId);
     return ApiResponse.ok(data);
   }
 
   @Post('user/:userId/assign')
   @ApiOperation({ summary: 'Assign menu to user (overrides role default)' })
-  async assignToUser(@Param('userId', ParseIntPipe) userId: number, @Body() dto: AssignMenuDto) {
-    const data = await this.menuService.assignMenuToUser(userId, dto.menu_id);
+  async assignToUser(@Param('userId') userId: string, @Body() dto: AssignMenuDto) {
+    const data = await this.menuService.assignMenuToUser(userId, dto.menuId);
     return ApiResponse.ok(data, 'Menu assigned to user');
   }
 
   @Delete('user/:userId/revoke/:menuId')
   @ApiOperation({ summary: 'Revoke menu from user' })
   async revokeFromUser(
-    @Param('userId', ParseIntPipe) userId: number,
+    @Param('userId') userId: string,
     @Param('menuId', ParseIntPipe) menuId: number,
   ) {
     const data = await this.menuService.revokeMenuFromUser(userId, menuId);
@@ -130,7 +130,7 @@ export class MenuController {
   @Get('check/:menuName')
   @ApiOperation({ summary: 'Check if current user has access to a specific menu' })
   async checkAccess(@Param('menuName') menuName: string, @CurrentUser() user: JwtUser) {
-    const hasAccess = await this.menuService.checkUserAccess(user.id, user.role_id, menuName);
-    return ApiResponse.ok({ menu_name: menuName, has_access: hasAccess });
+    const hasAccess = await this.menuService.checkUserAccess(user.id, user.roleId, menuName);
+    return ApiResponse.ok({ menuName, hasAccess });
   }
 }

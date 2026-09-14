@@ -1,29 +1,6 @@
 // ================================================================
 // menu-access-guard.ts — Penjaga Akses Berbasis Menu
 // ================================================================
-//
-// Mengecek apakah user yang login punya akses ke menu tertentu
-// sebelum request masuk ke controller.
-//
-// Alur:
-//   [1] Baca @MenuKey('nama.menu') dari controller/method.
-//       Tidak ada @MenuKey → endpoint terbuka, lanjutkan.
-//   [2] Pastikan user sudah login (req.user dari JwtAuthGuard).
-//   [3] Cari menu di database berdasarkan nama menu.
-//       Menu tidak ditemukan → izinkan (supaya tidak lockout).
-//   [4] Cek UserMenu (override personal, prioritas tertinggi).
-//   [5] Cek RoleMenu (default berdasarkan role user).
-//   [6] Tidak ada akses di keduanya → 403 Forbidden.
-//
-// Cara pakai:
-//   @UseGuards(JwtAuthGuard, MenuAccessGuard)
-//   @MenuKey('users.view')
-//   @Get()
-//   findAll() { ... }
-//
-// Guard ini membutuhkan JwtAuthGuard dijalankan LEBIH DULU agar
-// req.user sudah terisi.
-// ================================================================
 
 import {
   Injectable,
@@ -53,17 +30,17 @@ export class MenuAccessGuard implements CanActivate {
     if (!menuKey) return true;
 
     const req = context.switchToHttp().getRequest();
-    const user = req.user as { id?: number; role_id?: number } | undefined;
+    const user = req.user as { id?: string; roleId?: number } | undefined;
 
     if (!user?.id) {
       throw new UnauthorizedException('Kamu harus login terlebih dahulu');
     }
 
     const userId = user.id;
-    const roleId = user.role_id;
+    const roleId = user.roleId;
 
     const menu = await this.prisma.menu.findFirst({
-      where: { menu_name: menuKey, is_active: true },
+      where: { menuName: menuKey, isActive: true },
       select: { id: true },
     });
 
@@ -72,22 +49,21 @@ export class MenuAccessGuard implements CanActivate {
 
     // Akses personal (UserMenu) — override, prioritas tertinggi
     const userMenu = await this.prisma.userMenu.findFirst({
-      where: { user_id: userId, menu_id: menu.id, is_active: true },
+      where: { userId: userId, menuId: menu.id, isActive: true },
     });
     if (userMenu) return true;
 
-    // Akses berdasarkan role — main_role_id DAN setiap role tambahan
-    // yang diberikan lewat UserRole.
+    // Akses berdasarkan role
     const extraRoles = await this.prisma.userRole.findMany({
-      where: { user_id: userId, is_active: true },
-      select: { role_id: true },
+      where: { userId: userId, isActive: true },
+      select: { roleId: true },
     });
-    const roleIds = new Set<number>(extraRoles.map((r) => r.role_id));
+    const roleIds = new Set<number>(extraRoles.map((r) => r.roleId));
     if (roleId) roleIds.add(roleId);
 
     if (roleIds.size) {
       const roleMenu = await this.prisma.roleMenu.findFirst({
-        where: { role_id: { in: [...roleIds] }, menu_id: menu.id, is_active: true },
+        where: { roleId: { in: [...roleIds] }, menuId: menu.id, isActive: true },
       });
       if (roleMenu) return true;
     }
