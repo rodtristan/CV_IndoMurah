@@ -9,6 +9,20 @@ async function main() {
   const adapter = new PrismaPg(pool);
   const prisma = new PrismaClient({ adapter });
 
+  // ─── Company default ─────────────────────────────────────────
+  const company = await prisma.company.upsert({
+    where: { companyCode: 'INDOMURAH' },
+    create: {
+      companyCode: 'INDOMURAH',
+      name: 'CV Indo Murah',
+      address: 'Jl. Raya Utama No. 1',
+      city: 'Jakarta',
+      province: 'DKI Jakarta',
+      isActive: true,
+    },
+    update: { isActive: true },
+  });
+
   // ─── Role: Admin ────────────────────────────────────────────
   const adminRole = await prisma.role.upsert({
     where: { id: 1 },
@@ -40,18 +54,24 @@ async function main() {
   );
 
   // ─── User admin default ────────────────────────────────────
-  const adminEmail = 'admin@tokocvindomurah.com';
+  const adminUsername = 'admin';
   const adminPassword = await argon2.hash('admin123', { type: argon2.argon2id });
 
   const admin = await prisma.user.upsert({
-    where: { email: adminEmail },
+    where: {
+      companyId_username: {
+        companyId: company.id,
+        username: adminUsername,
+      },
+    },
     create: {
-      email: adminEmail,
+      companyId: company.id,
+      username: adminUsername,
       password: adminPassword,
       name: 'Administrator',
       isActive: true,
     },
-    update: {},
+    update: { isActive: true },
   });
 
   // Seed menu akses personal admin (UserMenu) dari RoleMenu-nya
@@ -66,9 +86,10 @@ async function main() {
   );
 
   console.log('Seed selesai:');
-  console.log(`  Role  : ${adminRole.roleName} (id=${adminRole.id})`);
-  console.log(`  Menus : ${menus.map((m) => m.menuName).join(', ')}`);
-  console.log(`  Admin : ${adminEmail} / admin123 (GANTI password ini setelah login pertama!)`);
+  console.log(`  Company: ${company.companyCode} (id=${company.id})`);
+  console.log(`  Role   : ${adminRole.roleName} (id=${adminRole.id})`);
+  console.log(`  Menus  : ${menus.map((m) => m.menuName).join(', ')}`);
+  console.log(`  Admin  : ${company.companyCode} / ${adminUsername} / admin123 (GANTI password ini setelah login pertama!)`);
 
   await prisma.$disconnect();
 }

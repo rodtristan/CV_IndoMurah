@@ -1,8 +1,12 @@
-import { IsString, IsOptional } from 'class-validator';
+import { IsString, IsOptional, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateCompanyDto {
+  @ApiProperty({ example: 'INDOMURAH', description: 'Kode unik perusahaan (unique)' })
+  @IsString()
+  companyCode: string;
+
   @ApiProperty({ description: 'Company name' })
   @IsString()
   name: string;
@@ -46,9 +50,19 @@ export class CreateCompanyDto {
   @IsOptional()
   @IsString()
   logoUrl?: string;
+
+  @ApiPropertyOptional({ description: 'Is active', default: true })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
 
 export class UpdateCompanyDto {
+  @ApiPropertyOptional({ example: 'INDOMURAH', description: 'Kode unik perusahaan (unique)' })
+  @IsOptional()
+  @IsString()
+  companyCode?: string;
+
   @ApiPropertyOptional({ description: 'Company name' })
   @IsOptional()
   @IsString()
@@ -93,11 +107,19 @@ export class UpdateCompanyDto {
   @IsOptional()
   @IsString()
   logoUrl?: string;
+
+  @ApiPropertyOptional({ description: 'Is active' })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
 
 export class CompanyResponseDto {
   @ApiProperty({ description: 'ID' })
   id: number;
+
+  @ApiProperty({ description: 'Company code' })
+  companyCode: string;
 
   @ApiProperty({ description: 'Company name' })
   name: string;
@@ -125,6 +147,9 @@ export class CompanyResponseDto {
 
   @ApiPropertyOptional({ description: 'Logo URL' })
   logoUrl?: string;
+
+  @ApiProperty({ description: 'Is active' })
+  isActive: boolean;
 
   @ApiProperty({ description: 'Created at' })
   createdAt: Date;
