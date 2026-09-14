@@ -156,6 +156,12 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     WarehouseModule, // Gudang
     ProductModule, // Produk dengan stock management
 
+    // Purchase Transaction Modules
+    PurchaseOrderModule,   // Pesanan Pembelian
+    PurchaseModule,        // Pembelian
+    PurchasePaymentModule, // Pembayaran Pembelian
+    PurchaseReturnModule,  // Retur Pembelian
+
     // Sale Transaction Modules
     SaleModule,          // Penjualan
     SalePaymentModule,   // Pembayaran Penjualan

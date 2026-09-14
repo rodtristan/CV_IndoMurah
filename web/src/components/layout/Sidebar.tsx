@@ -25,6 +25,7 @@ interface SubItem {
   label: string;
   href: string;
   badge?: string;
+  disabled?: boolean;
 }
 
 interface MenuGroup {
@@ -73,7 +74,7 @@ const MENU_GROUPS: MenuGroup[] = [
     icon: Truck,
     iconColor: "#7B1FA2",
     items: [
-      { label: "Pesanan Pembelian", href: "/purchase/order" },
+      { label: "Pesanan Pembelian", href: "/purchase/order", disabled: true },
       { label: "Daftar Pembelian", href: "/purchase/list" },
       { label: "Retur Pembelian", href: "/purchase/returns" },
     ],
@@ -105,7 +106,7 @@ const MENU_GROUPS: MenuGroup[] = [
       { label: "Barang Keluar", href: "/inventory/stock-out" },
       { label: "Transfer Stock", href: "/inventory/transfers" },
       { label: "Stock Opname", href: "/inventory/stock-opname" },
-      { label: "Stock Minim", href: "/inventory/minimum-stock" },
+      { label: "Stock Minim", href: "/inventory/minimum-stock", disabled: true },
     ],
   },
   {
@@ -114,11 +115,11 @@ const MENU_GROUPS: MenuGroup[] = [
     icon: Landmark,
     iconColor: "#00ACC1",
     items: [
-      { label: "Chart of Accounts", href: "/accounting/accounts" },
-      { label: "Jurnal Umum", href: "/accounting/journals" },
+      { label: "Chart of Accounts", href: "/accounting/accounts", disabled: true },
+      { label: "Jurnal Umum", href: "/accounting/journals", disabled: true },
       { label: "Kas Masuk", href: "/accounting/cash-in" },
       { label: "Kas Keluar", href: "/accounting/cash-out" },
-      { label: "Transfer Kas", href: "/accounting/cash-transfer" },
+      { label: "Transfer Kas", href: "/accounting/cash-transfer", disabled: true },
       { label: "Setoran Pelanggan", href: "/accounting/customer-deposits" },
       { label: "Setoran Supplier", href: "/accounting/supplier-deposits" },
     ],
@@ -247,6 +248,22 @@ function AccordionPanel({
       <div className="min-h-0">
         {group.items.map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
+
+          if (item.disabled) {
+            return (
+              <div
+                key={item.href}
+                title="Fitur ini sedang tidak diaktifkan"
+                className="flex cursor-not-allowed items-center gap-2 py-2.5 pl-[52px] pr-5 text-[14px] text-white/30"
+              >
+                <span className="flex-1 truncate">{item.label}</span>
+                <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-normal text-white/40">
+                  nonaktif
+                </span>
+              </div>
+            );
+          }
+
           return (
             <Link
               key={item.href}
