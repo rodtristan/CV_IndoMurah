@@ -25,21 +25,21 @@ export class RegisterDto {
   @ApiProperty({ example: 'John Doe' })
   @IsString()
   @IsNotEmpty()
-  full_name: string;
+  name: string;
 
   @ApiPropertyOptional({ example: '081234567890' })
   @IsOptional()
   @IsString()
-  phone_number?: string;
+  phone?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  photo_url?: string;
+  photo?: string;
 
   @ApiPropertyOptional({ example: 1, description: 'Default role assigned if omitted: 1' })
   @IsOptional()
   @IsNumber()
   @IsPositive()
-  main_role_id?: number;
+  roleId?: number;
 }

@@ -24,8 +24,8 @@ export class SalePaymentService {
       cacheKey,
       async () => {
         const prismaQuery = this.queryService.buildPrismaQuery(query, {
-          searchableFields: ['code', 'notes', 'reference_number'],
-          allowedIncludes: ['sale', 'creator'],
+          searchableFields: ['*'],
+          allowedIncludes: ['*'],
           defaultOrderBy: { createdAt: 'desc' },
         });
 
@@ -61,7 +61,7 @@ export class SalePaymentService {
       cacheKey,
       async () => {
         const prismaQuery = this.queryService.buildPrismaQuery(query, {
-          allowedIncludes: ['sale', 'creator'],
+          allowedIncludes: ['*'],
         });
 
         const findArgs: any = { where: { id } };
@@ -156,7 +156,7 @@ export class SalePaymentService {
 
   async findBySale(saleId: number, query: Record<string, any> = {}) {
     const prismaQuery = this.queryService.buildPrismaQuery(query, {
-      allowedIncludes: ['creator'],
+      allowedIncludes: ['*'],
       defaultOrderBy: { createdAt: 'desc' },
     });
 

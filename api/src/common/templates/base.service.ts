@@ -635,7 +635,7 @@ export class BaseService<
   /**
    * Invalidate all cache for this model
    */
-  protected async invalidateCache(): Promise<void> {
+  async invalidateCache(): Promise<void> {
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
   }
 

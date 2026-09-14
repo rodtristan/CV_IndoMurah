@@ -72,6 +72,7 @@ export class QueryService {
 
   /**
    * Parse $select=id,name,email → { id: true, name: true, email: true }
+   * If allowedFields contains '*', all fields are allowed
    */
   private parseSelect(
     query: Record<string, any>,
@@ -83,9 +84,12 @@ export class QueryService {
     const fields = String(selectStr).split(',').map((f) => f.trim()).filter(Boolean);
     if (fields.length === 0) return undefined;
 
+    // If allowedFields is ['*'], allow all fields
+    const allowAll = allowedFields?.includes('*');
+
     const select: Record<string, boolean> = {};
     for (const field of fields) {
-      if (!allowedFields || allowedFields.includes(field)) {
+      if (allowAll || !allowedFields || allowedFields.includes(field)) {
         select[field] = true;
       }
     }
@@ -96,6 +100,7 @@ export class QueryService {
   /**
    * Parse $include=category,variants.warehouse
    * → { category: true, variants: { include: { warehouse: true } } }
+   * If allowedIncludes contains '*', all relations are allowed
    */
   private parseInclude(
     query: Record<string, any>,
@@ -107,11 +112,16 @@ export class QueryService {
     const relations = String(includeStr).split(',').map((r) => r.trim()).filter(Boolean);
     if (relations.length === 0) return undefined;
 
+    // If allowedIncludes is ['*'], return include with true for all relations
+    const allowAll = allowedIncludes?.includes('*');
+
     const include: Record<string, any> = {};
 
     for (const relation of relations) {
       const rootRelation = relation.split('.')[0];
-      if (allowedIncludes && !allowedIncludes.includes(rootRelation)) {
+
+      // Skip if not allowed (only if not allowing all)
+      if (!allowAll && allowedIncludes && !allowedIncludes.includes(rootRelation)) {
         continue;
       }
 
@@ -231,6 +241,7 @@ export class QueryService {
 
   /**
    * Parse $orderBy[field]=asc|desc
+   * If allowedSortFields contains '*', all fields are allowed
    */
   private parseOrderBy(
     query: Record<string, any>,
@@ -242,9 +253,12 @@ export class QueryService {
       return defaultOrderBy || { createdAt: 'desc' };
     }
 
+    // If allowedSortFields is ['*'], allow all fields
+    const allowAll = allowedSortFields?.includes('*');
+
     const orderByArray: Record<string, any>[] = [];
     for (const [field, direction] of Object.entries(orderByObj)) {
-      if (allowedSortFields && !allowedSortFields.includes(field)) continue;
+      if (!allowAll && allowedSortFields && !allowedSortFields.includes(field)) continue;
       const dir = String(direction).toLowerCase();
       if (dir === 'asc' || dir === 'desc') {
         orderByArray.push({ [field]: dir });

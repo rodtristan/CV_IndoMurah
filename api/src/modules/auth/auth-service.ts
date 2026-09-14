@@ -1,16 +1,6 @@
 // ================================================================
 // auth-service.ts — Logika Bisnis Autentikasi
 // ================================================================
-//
-// AuthService menangani:
-//   1. login()    — Verifikasi email + password, kembalikan JWT token
-//   2. register() — Buat user baru dengan password yang di-hash
-//   3. getMe()    — Ambil data profil user yang sedang login
-//
-// JWT payload / req.user memakai field `role_id` (bukan `main_role_id`)
-// — konsisten dengan JwtStrategy & CurrentUser yang sudah ada.
-// Field database tetap `main_role_id` (lihat schema.prisma).
-// ================================================================
 
 import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -35,17 +25,10 @@ export class AuthService {
   async login(dto: LoginDto) {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
-      // password di-omit secara global (lihat prisma-service.ts); login
-      // butuh hash-nya untuk verifikasi, jadi di-override eksplisit di sini.
       omit: { password: false },
-      include: {
-        role: { select: { id: true, role_name: true, role_description: true } },
-      },
     });
 
-    // Pesan error generik (email & password) supaya tidak membocorkan
-    // field mana yang salah.
-    if (!user || !user.is_active) {
+    if (!user || !user.isActive) {
       throw new UnauthorizedException('Email atau password salah');
     }
 
@@ -54,28 +37,32 @@ export class AuthService {
       throw new UnauthorizedException('Email atau password salah');
     }
 
+    // Determine main role from UserRole
+    const mainRole = await this.prisma.userRole.findFirst({
+      where: { userId: user.id, isActive: true },
+      select: { roleId: true },
+    });
+
     const token = this.jwtService.sign({
       id: user.id,
       email: user.email,
-      role_id: user.main_role_id,
+      roleId: mainRole?.roleId ?? 1,
     });
 
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { last_login: new Date() },
+      data: { updatedAt: new Date() },
     });
 
-    const menus = await this.menuService.getAccessibleMenus(user.id, user.main_role_id);
+    const menus = await this.menuService.getAccessibleMenus(user.id);
 
     return {
       token,
       user: {
         id: user.id,
         email: user.email,
-        full_name: user.full_name,
-        photo_url: user.photo_url,
-        main_role_id: user.main_role_id,
-        role: user.role?.role_name ?? null,
+        name: user.name,
+        role: user.role,
       },
       menus,
     };
@@ -88,8 +75,6 @@ export class AuthService {
       throw new ConflictException('Email sudah terdaftar');
     }
 
-    // Argon2id: memory-hard, aman terhadap GPU/ASIC cracking.
-    // Parameter diambil dari .env (ARGON2_MEMORY_COST/TIME_COST/PARALLELISM).
     const hashedPassword = await argon2.hash(dto.password, {
       type: argon2.argon2id,
       memoryCost: this.configService.get<number>('security.argon2MemoryCost', 65536),
@@ -97,32 +82,26 @@ export class AuthService {
       parallelism: this.configService.get<number>('security.argon2Parallelism', 4),
     });
 
-    const roleId = dto.main_role_id ?? 1;
+    const roleId = dto.roleId ?? 1;
 
     const user = await this.prisma.user.create({
       data: {
         email: dto.email,
         password: hashedPassword,
-        full_name: dto.full_name,
-        phone_number: dto.phone_number,
-        photo_url: dto.photo_url,
-        main_role_id: roleId,
-        is_active: true,
+        name: dto.name,
+        role: 'cashier',
+        isActive: true,
       },
       select: {
         id: true,
-        full_name: true,
+        name: true,
         email: true,
-        photo_url: true,
-        phone_number: true,
-        main_role_id: true,
-        is_active: true,
+        role: true,
+        isActive: true,
         createdAt: true,
-        role: { select: { id: true, role_name: true } },
       },
     });
 
-    // Berikan akses menu default berdasarkan role user yang baru dibuat.
     await this.menuService.provisionUserMenusFromRole(user.id, roleId);
 
     await this.redis.invalidatePattern('users:*');
@@ -131,7 +110,7 @@ export class AuthService {
   }
 
   // ── GET ME ──────────────────────────────────────────────────────────────
-  async getMe(userId: number) {
+  async getMe(userId: string) {
     const cacheKey = `user:me:${userId}`;
     return this.redis.getOrSet(
       cacheKey,
@@ -140,30 +119,25 @@ export class AuthService {
           where: { id: userId },
           select: {
             id: true,
-            full_name: true,
+            name: true,
             email: true,
-            photo_url: true,
-            phone_number: true,
-            main_role_id: true,
-            last_login: true,
-            is_active: true,
+            role: true,
+            isActive: true,
             createdAt: true,
             updatedAt: true,
-            role: { select: { id: true, role_name: true, role_description: true } },
             userRoles: {
-              where: { is_active: true },
-              select: { role: { select: { id: true, role_name: true } } },
+              where: { isActive: true },
+              select: { role: { select: { id: true, roleName: true } } },
             },
           },
         });
 
         if (!user) return null;
 
-        const menus = await this.menuService.getAccessibleMenus(userId, user.main_role_id);
+        const menus = await this.menuService.getAccessibleMenus(userId);
 
         return {
           ...user,
-          role: user.role?.role_name ?? null,
           extraRoles: user.userRoles.map((ur) => ur.role),
           userRoles: undefined,
           menus,

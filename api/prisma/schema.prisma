@@ -1148,3 +1148,13 @@ model Numbering {
 
   @@map("numberings")
 }
+
+model Testing {
+  id         Int      @id @default(autoincrement())
+  type       String   @unique @db.VarChar(100)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("testings")
+}

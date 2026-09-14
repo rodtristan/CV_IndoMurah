@@ -93,8 +93,15 @@ import { SupplierDepositModule } from './modules/supplier-deposit/supplier-depos
 import { JournalModule } from './modules/journal/journal.module';
 import { JournalEntryModule } from './modules/journal-entry/journal-entry.module';
 
+// Point & Settings Modules
+import { PointSettingModule } from './modules/point-setting/point-setting.module';
+import { PointRedemptionModule } from './modules/point-redemption/point-redemption.module';
+import { CompanyModule } from './modules/company/company.module';
+import { NumberingModule } from './modules/numbering/numbering.module';
+
 // Reports
 import { ReportModule } from './modules/report/report.module';
+import { TestingModule } from './modules/testing/testing.module';
 
 // ── Provider Global ────────────────────────────────────────────────────
 import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
@@ -168,6 +175,13 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
 
     // Reports
     ReportModule,         // Laporan
+
+    // Point & Settings
+    PointSettingModule,   // Pengaturan Poin
+    PointRedemptionModule, // Penukaran Poin
+    CompanyModule,        // Informasi Perusahaan
+    NumberingModule,      // Format Penomoran
+    TestingModule,
   ],
   providers: [
     // ── [5] Guard & Interceptor Global ───────────────────────────────

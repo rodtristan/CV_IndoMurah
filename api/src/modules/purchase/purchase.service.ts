@@ -24,8 +24,8 @@ export class PurchaseService {
       cacheKey,
       async () => {
         const prismaQuery = this.queryService.buildPrismaQuery(query, {
-          searchableFields: ['code', 'notes'],
-          allowedIncludes: ['supplier', 'warehouse', 'creator', 'purchasePayments', 'purchaseItems', 'purchaseItems.product'],
+          searchableFields: ['*'],
+          allowedIncludes: ['*'],
           defaultOrderBy: { createdAt: 'desc' },
         });
 
@@ -61,7 +61,7 @@ export class PurchaseService {
       cacheKey,
       async () => {
         const prismaQuery = this.queryService.buildPrismaQuery(query, {
-          allowedIncludes: ['supplier', 'warehouse', 'creator', 'purchasePayments', 'purchaseItems', 'purchaseItems.product', 'purchaseItems.unit'],
+          allowedIncludes: ['*'],
         });
 
         const findArgs: any = { where: { id } };

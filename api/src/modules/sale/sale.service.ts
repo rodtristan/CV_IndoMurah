@@ -17,8 +17,8 @@ export class SaleService {
 
   async findAll(query: Record<string, unknown>) {
     const prismaQuery = this.queryService.buildPrismaQuery(query, {
-      searchableFields: ['code', 'notes'],
-      allowedIncludes: ['customer', 'salesPerson', 'salePoint', 'warehouse', 'creator', 'saleItems', 'saleItems.product', 'saleItems.unit', 'salePayments', 'saleReturns'],
+      searchableFields: ['*'],
+      allowedIncludes: ['*'],
       defaultOrderBy: { createdAt: 'desc' },
     });
 
@@ -50,7 +50,7 @@ export class SaleService {
 
   async findOne(id: number, query: Record<string, unknown> = {}) {
     const prismaQuery = this.queryService.buildPrismaQuery(query, {
-      allowedIncludes: ['customer', 'salesPerson', 'salePoint', 'warehouse', 'creator', 'saleItems', 'saleItems.product', 'saleItems.unit', 'salePayments', 'saleReturns'],
+      allowedIncludes: ['*'],
     });
 
     const findArgs: Record<string, unknown> = { where: { id } };
