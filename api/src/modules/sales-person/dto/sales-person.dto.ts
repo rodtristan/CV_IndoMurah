@@ -1,63 +1,43 @@
-import { IsString, IsOptional, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsInt, IsNumber } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateSalesPersonDto {
-  @ApiProperty({ description: 'Unique sales person code' })
+  @ApiProperty({ description: 'SalesPerson code' })
   @IsString()
   code: string;
 
-  @ApiProperty({ description: 'Sales person name' })
+  @ApiProperty({ description: 'SalesPerson name' })
   @IsString()
   name: string;
 
-  @ApiPropertyOptional({ description: 'Sales person phone number' })
+  @ApiPropertyOptional({ description: 'Description' })
   @IsOptional()
   @IsString()
-  phone?: string;
+  description?: string;
 
-  @ApiPropertyOptional({ description: 'Sales person email' })
-  @IsOptional()
-  @IsString()
-  email?: string;
-
-  @ApiPropertyOptional({ description: 'Sales person address' })
-  @IsOptional()
-  @IsString()
-  address?: string;
-
-  @ApiPropertyOptional({ default: true, description: 'Is sales person active' })
+  @ApiPropertyOptional({ default: true, description: 'Is active' })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
 }
 
 export class UpdateSalesPersonDto {
-  @ApiPropertyOptional({ description: 'Unique sales person code' })
+  @ApiPropertyOptional({ description: 'SalesPerson code' })
   @IsOptional()
   @IsString()
   code?: string;
 
-  @ApiPropertyOptional({ description: 'Sales person name' })
+  @ApiPropertyOptional({ description: 'SalesPerson name' })
   @IsOptional()
   @IsString()
   name?: string;
 
-  @ApiPropertyOptional({ description: 'Sales person phone number' })
+  @ApiPropertyOptional({ description: 'Description' })
   @IsOptional()
   @IsString()
-  phone?: string;
+  description?: string;
 
-  @ApiPropertyOptional({ description: 'Sales person email' })
-  @IsOptional()
-  @IsString()
-  email?: string;
-
-  @ApiPropertyOptional({ description: 'Sales person address' })
-  @IsOptional()
-  @IsString()
-  address?: string;
-
-  @ApiPropertyOptional({ description: 'Is sales person active' })
+  @ApiPropertyOptional({ description: 'Is active' })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;

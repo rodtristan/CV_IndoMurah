@@ -1,78 +1,34 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma-service';
+import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
+import { BaseService } from '../../common/templates/base.service';
 import { CreateCashOutDto, UpdateCashOutDto } from './dto/cash-out.dto';
 
 @Injectable()
-export class CashOutService {
+export class CashOutService extends BaseService<
+  any,
+  CreateCashOutDto,
+  UpdateCashOutDto
+> {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly queryService: QueryService,
-  ) {}
-
-  async findAll(query: Record<string, unknown>) {
-    const q = this.queryService.buildPrismaQuery(query, {
+    prisma: PrismaService,
+    redis: RedisService,
+    queryService: QueryService,
+  ) {
+    super(prisma, redis, queryService, {
+      modelName: 'cash-out',
+      primaryKey: 'id',
       searchableFields: ['code', 'description'],
-      defaultOrderBy: { date: 'desc' },
+      allowedIncludes: ['account'],
+      allowedSortFields: ['id', 'code', 'name', 'createdAt'],
+      allowedSelectFields: ['id', 'code', 'name', 'isActive'],
+      defaultOrderBy: { id: 'asc' },
+      maxTake: 100,
+      defaultTake: 20,
+      cacheTtl: 60,
+      softDelete: true,
+      softDeleteField: 'isActive',
     });
-
-    const [data, total] = await Promise.all([
-      this.prisma.cashOut.findMany({
-        where: q.where,
-        orderBy: q.orderBy,
-        skip: q.skip,
-        take: q.take,
-        include: { account: true, creator: { select: { id: true, name: true } } },
-      }),
-      this.prisma.cashOut.count({ where: q.where }),
-    ]);
-
-    return { data, total, skip: q.skip, take: q.take };
-  }
-
-  async findOne(id: number) {
-    const data = await this.prisma.cashOut.findUnique({
-      where: { id },
-      include: { account: true, creator: { select: { id: true, name: true } } },
-    });
-    if (!data) throw new NotFoundException('Cash Out not found');
-    return data;
-  }
-
-  async create(dto: CreateCashOutDto, userId: string) {
-    const lastRecord = await this.prisma.cashOut.findFirst({ orderBy: { id: 'desc' } });
-    const nextNumber = (lastRecord?.id || 0) + 1;
-    const code = `CO-${String(nextNumber).padStart(6, '0')}`;
-
-    return this.prisma.cashOut.create({
-      data: {
-        code,
-        date: new Date(dto.date),
-        accountId: dto.account_id,
-        description: dto.description,
-        amount: dto.amount,
-        referenceId: dto.reference ? parseInt(dto.reference, 10) : null,
-        createdById: userId,
-      },
-    });
-  }
-
-  async update(id: number, dto: UpdateCashOutDto) {
-    await this.findOne(id);
-    return this.prisma.cashOut.update({
-      where: { id },
-      data: {
-        ...(dto.date && { date: new Date(dto.date) }),
-        ...(dto.account_id && { accountId: dto.account_id }),
-        ...(dto.description !== undefined && { description: dto.description }),
-        ...(dto.amount !== undefined && { amount: dto.amount }),
-        ...(dto.reference !== undefined && { referenceId: dto.reference ? parseInt(dto.reference, 10) : null }),
-      },
-    });
-  }
-
-  async remove(id: number) {
-    await this.findOne(id);
-    return this.prisma.cashOut.delete({ where: { id } });
   }
 }

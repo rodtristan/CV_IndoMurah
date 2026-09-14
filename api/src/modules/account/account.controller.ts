@@ -1,72 +1,135 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards, ParseIntPipe } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { UseGuards, Controller, Get, Post, Patch, Delete, Put, Param, Body, Query } from '@nestjs/common';
+import { BaseController } from '../../common/templates/base.controller';
 import { AccountService } from './account.service';
 import { CreateAccountDto, UpdateAccountDto } from './dto/account.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
-import { ApiResponse } from '../../common/dto/api-response-dto';
 
-@ApiTags('Accounts')
+@ApiTags('Account')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('accounts')
-export class AccountController {
-  constructor(private readonly accountService: AccountService) {}
+@Controller('account')
+export class AccountController extends BaseController<
+  any,
+  CreateAccountDto,
+  UpdateAccountDto
+> {
+  constructor(accountService: AccountService) {
+    super(accountService, {
+      modelName: 'Account',
+      pluralName: 'Accounts',
+      primaryKeyType: 'number',
+      paramId: 'id',
+      routePrefix: 'account',
+    });
+  }
 
+  // GET endpoints
   @Get()
-  @ApiOperation({ summary: 'Get all accounts (Smart Query supported)' })
-  @ApiQuery({ name: '$select', required: false })
-  @ApiQuery({ name: '$where[code]', required: false })
-  @ApiQuery({ name: '$where[name]', required: false })
-  @ApiQuery({ name: '$where[type]', required: false })
-  @ApiQuery({ name: '$where[isActive]', required: false })
-  @ApiQuery({ name: '$search', required: false })
-  @ApiQuery({ name: '$orderBy[code]', required: false })
-  @ApiQuery({ name: '$skip', required: false })
-  @ApiQuery({ name: '$take', required: false })
-  async findAll(@Query() query: Record<string, unknown>) {
-    const { data, total, skip, take } = await this.accountService.findAll(query);
-    return ApiResponse.paginated(data, total, skip, take);
+  @ApiOperation({ summary: 'Get all Accounts with OData query support' })
+  @ApiQuery({ name: '$select', required: false, description: 'Select fields' })
+  @ApiQuery({ name: '$include', required: false, description: 'Include relations: parent, children' })
+  @ApiQuery({ name: '$where[field]', required: false, description: 'Filter by field' })
+  @ApiQuery({ name: '$orderBy[field]', required: false, description: 'Sort: asc/desc' })
+  @ApiQuery({ name: '$skip', required: false, type: Number, description: 'Offset' })
+  @ApiQuery({ name: '$take', required: false, type: Number, description: 'Limit' })
+  @ApiQuery({ name: '$search', required: false, description: 'Search: code, name' })
+  async findAll(@Query() query: any) {
+    return super.findAll(query);
   }
 
-  @Get('tree')
-  @ApiOperation({ summary: 'Get accounts as tree structure' })
-  async getTree() {
-    const data = await this.accountService.getTree();
-    return ApiResponse.ok(data);
-  }
-
-  @Get('by-type/:type')
-  @ApiOperation({ summary: 'Get accounts by type' })
-  async getByType(@Param('type') type: string) {
-    const data = await this.accountService.getByType(type);
-    return ApiResponse.ok(data);
+  @Get('count')
+  @ApiOperation({ summary: 'Get count of Accounts' })
+  async getCount(@Query() query: any) {
+    return super.getCount(query);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get account by ID' })
-  async findOne(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.accountService.findOne(id);
-    return ApiResponse.ok(data);
+  @ApiOperation({ summary: 'Get Account by ID' })
+  async findById(@Param('id') id: string, @Query() query: any) {
+    return super.findById(id, query);
   }
 
+  @Get('by/:field/:value')
+  @ApiOperation({ summary: 'Get Account by field reference' })
+  async findByField(@Param('field') field: string, @Param('value') value: string, @Query() query: any) {
+    return super.findByField(field, value, query);
+  }
+
+  // POST endpoints
   @Post()
-  @ApiOperation({ summary: 'Create account' })
+  @ApiOperation({ summary: 'Create new Account' })
   async create(@Body() dto: CreateAccountDto) {
-    const data = await this.accountService.create(dto);
-    return ApiResponse.ok(data, 'Account created');
+    return super.create(dto);
   }
 
-  @Put(':id')
-  @ApiOperation({ summary: 'Update account' })
-  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateAccountDto) {
-    const data = await this.accountService.update(id, dto);
-    return ApiResponse.ok(data, 'Account updated');
+  @Post('bulk')
+  @ApiOperation({ summary: 'Create multiple Accounts' })
+  async createBulk(@Body() dtos: CreateAccountDto[]) {
+    return super.createBulk(dtos);
   }
 
+  // PATCH endpoints
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update Account by ID' })
+  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateAccountDto>) {
+    return super.patchById(id, dto);
+  }
+
+  @Patch('by/:field/:value')
+  @ApiOperation({ summary: 'Update Accounts by field reference' })
+  async patchByFilterReference(
+    @Param('field') field: string,
+    @Param('value') value: string,
+    @Body() dto: Partial<UpdateAccountDto>,
+  ) {
+    return super.patchByFilterReference(field, value, dto);
+  }
+
+  @Patch('bulk')
+  @ApiOperation({ summary: 'Update multiple Accounts' })
+  async patchBulk(@Body() body: { ids: number[]; data: Partial<UpdateAccountDto> }) {
+    return super.patchBulk(body);
+  }
+
+  // PUT (UPSERT) endpoints
+  @Put()
+  @ApiOperation({ summary: 'Upsert Account' })
+  async upsert(@Body() body: { where: { id: number }; create: CreateAccountDto; update: Partial<UpdateAccountDto> }) {
+    return super.upsert(body);
+  }
+
+  @Put('by/:field')
+  @ApiOperation({ summary: 'Upsert Account by field reference' })
+  async upsertByFilterReference(
+    @Param('field') field: string,
+    @Body() body: { filterValue: any; create: CreateAccountDto; update: Partial<UpdateAccountDto> },
+  ) {
+    return super.upsertByFilterReference(field, body);
+  }
+
+  @Put('bulk')
+  @ApiOperation({ summary: 'Bulk upsert Accounts' })
+  async upsertBulk(@Body() body: { items: any[] }) {
+    return super.upsertBulk(body);
+  }
+
+  // DELETE endpoints
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete account (soft delete)' })
-  async remove(@Param('id', ParseIntPipe) id: number) {
-    await this.accountService.remove(id);
-    return ApiResponse.ok(null, 'Account deleted');
+  @ApiOperation({ summary: 'Delete Account by ID' })
+  async deleteById(@Param('id') id: string) {
+    return super.deleteById(id);
+  }
+
+  @Delete('by/:field/:value')
+  @ApiOperation({ summary: 'Delete Accounts by field reference' })
+  async deleteByFilterReference(@Param('field') field: string, @Param('value') value: string) {
+    return super.deleteByFilterReference(field, value);
+  }
+
+  @Delete('bulk')
+  @ApiOperation({ summary: 'Delete multiple Accounts' })
+  async deleteBulk(@Body() body: { ids: number[] }) {
+    return super.deleteBulk(body);
   }
 }

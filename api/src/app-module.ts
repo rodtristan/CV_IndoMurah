@@ -91,6 +91,7 @@ import { CashTransferModule } from './modules/cash-transfer/cash-transfer.module
 import { CustomerDepositModule } from './modules/customer-deposit/customer-deposit.module';
 import { SupplierDepositModule } from './modules/supplier-deposit/supplier-deposit.module';
 import { JournalModule } from './modules/journal/journal.module';
+import { JournalEntryModule } from './modules/journal-entry/journal-entry.module';
 
 // Reports
 import { ReportModule } from './modules/report/report.module';
@@ -163,6 +164,7 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     CustomerDepositModule, // Deposito Pelanggan
     SupplierDepositModule, // Deposito Supplier
     JournalModule,        // Jurnal Umum
+    JournalEntryModule,   // Jurnal Entry
 
     // Reports
     ReportModule,         // Laporan

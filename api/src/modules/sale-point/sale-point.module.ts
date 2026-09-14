@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { SalePointController } from './sale-point.controller';
-import { SalePointService } from './sale-point.service';
+import { SalePointController } from './salePoint.controller';
+import { SalePointService } from './salePoint.service';
 
 @Module({
   controllers: [SalePointController],

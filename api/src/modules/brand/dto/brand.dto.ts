@@ -1,8 +1,8 @@
-import { IsString, IsOptional, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsInt, IsNumber } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateBrandDto {
-  @ApiProperty({ description: 'Unique brand code' })
+  @ApiProperty({ description: 'Brand code' })
   @IsString()
   code: string;
 
@@ -10,24 +10,19 @@ export class CreateBrandDto {
   @IsString()
   name: string;
 
-  @ApiPropertyOptional({ description: 'Brand description' })
+  @ApiPropertyOptional({ description: 'Description' })
   @IsOptional()
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ description: 'Brand logo URL' })
-  @IsOptional()
-  @IsString()
-  logo_url?: string;
-
-  @ApiPropertyOptional({ default: true, description: 'Is brand active' })
+  @ApiPropertyOptional({ default: true, description: 'Is active' })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
 }
 
 export class UpdateBrandDto {
-  @ApiPropertyOptional({ description: 'Unique brand code' })
+  @ApiPropertyOptional({ description: 'Brand code' })
   @IsOptional()
   @IsString()
   code?: string;
@@ -37,17 +32,12 @@ export class UpdateBrandDto {
   @IsString()
   name?: string;
 
-  @ApiPropertyOptional({ description: 'Brand description' })
+  @ApiPropertyOptional({ description: 'Description' })
   @IsOptional()
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ description: 'Brand logo URL' })
-  @IsOptional()
-  @IsString()
-  logo_url?: string;
-
-  @ApiPropertyOptional({ description: 'Is brand active' })
+  @ApiPropertyOptional({ description: 'Is active' })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;

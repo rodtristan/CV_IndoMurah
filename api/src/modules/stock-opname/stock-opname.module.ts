@@ -1,11 +1,8 @@
 import { Module } from '@nestjs/common';
-import { StockOpnameController } from './stock-opname.controller';
-import { StockOpnameService } from './stock-opname.service';
-import { PrismaModule } from '../../common/prisma/prisma-module';
-import { QueryModule } from '../../common/query/query-module';
+import { StockOpnameController } from './stockOpname.controller';
+import { StockOpnameService } from './stockOpname.service';
 
 @Module({
-  imports: [PrismaModule, QueryModule],
   controllers: [StockOpnameController],
   providers: [StockOpnameService],
   exports: [StockOpnameService],

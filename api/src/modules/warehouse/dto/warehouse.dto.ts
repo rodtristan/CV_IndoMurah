@@ -1,8 +1,8 @@
-import { IsString, IsOptional, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsInt, IsNumber } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateWarehouseDto {
-  @ApiProperty({ description: 'Unique warehouse code' })
+  @ApiProperty({ description: 'Warehouse code' })
   @IsString()
   code: string;
 
@@ -10,29 +10,19 @@ export class CreateWarehouseDto {
   @IsString()
   name: string;
 
-  @ApiPropertyOptional({ description: 'Warehouse address' })
+  @ApiPropertyOptional({ description: 'Description' })
   @IsOptional()
   @IsString()
-  address?: string;
+  description?: string;
 
-  @ApiPropertyOptional({ description: 'Warehouse phone number' })
-  @IsOptional()
-  @IsString()
-  phone?: string;
-
-  @ApiPropertyOptional({ default: false, description: 'Is this the default warehouse' })
-  @IsOptional()
-  @IsBoolean()
-  isDefault?: boolean;
-
-  @ApiPropertyOptional({ default: true, description: 'Is warehouse active' })
+  @ApiPropertyOptional({ default: true, description: 'Is active' })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
 }
 
 export class UpdateWarehouseDto {
-  @ApiPropertyOptional({ description: 'Unique warehouse code' })
+  @ApiPropertyOptional({ description: 'Warehouse code' })
   @IsOptional()
   @IsString()
   code?: string;
@@ -42,22 +32,12 @@ export class UpdateWarehouseDto {
   @IsString()
   name?: string;
 
-  @ApiPropertyOptional({ description: 'Warehouse address' })
+  @ApiPropertyOptional({ description: 'Description' })
   @IsOptional()
   @IsString()
-  address?: string;
+  description?: string;
 
-  @ApiPropertyOptional({ description: 'Warehouse phone number' })
-  @IsOptional()
-  @IsString()
-  phone?: string;
-
-  @ApiPropertyOptional({ description: 'Is this the default warehouse' })
-  @IsOptional()
-  @IsBoolean()
-  isDefault?: boolean;
-
-  @ApiPropertyOptional({ description: 'Is warehouse active' })
+  @ApiPropertyOptional({ description: 'Is active' })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;

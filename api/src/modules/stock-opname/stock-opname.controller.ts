@@ -1,83 +1,135 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Param,
-  Body,
-  Query,
-  UseGuards,
-  ParseIntPipe,
-} from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
-import { StockOpnameService } from './stock-opname.service';
-import { CreateStockOpnameDto, UpdateStockOpnameDto, AddStockOpnameItemDto } from './dto/stock-opname.dto';
+import { UseGuards, Controller, Get, Post, Patch, Delete, Put, Param, Body, Query } from '@nestjs/common';
+import { BaseController } from '../../common/templates/base.controller';
+import { StockOpnameService } from './stockOpname.service';
+import { CreateStockOpnameDto, UpdateStockOpnameDto } from './dto/stockOpname.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
-import { CurrentUser } from '../../common/decorators/current-user-decorator';
-import { ApiResponse } from '../../common/dto/api-response-dto';
 
-@ApiTags('Stock Opname')
+@ApiTags('StockOpname')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('stock-opnames')
-export class StockOpnameController {
-  constructor(private stockOpnameService: StockOpnameService) {}
+@Controller('stock-opname')
+export class StockOpnameController extends BaseController<
+  any,
+  CreateStockOpnameDto,
+  UpdateStockOpnameDto
+> {
+  constructor(stockOpnameService: StockOpnameService) {
+    super(stockOpnameService, {
+      modelName: 'StockOpname',
+      pluralName: 'StockOpnames',
+      primaryKeyType: 'number',
+      paramId: 'id',
+      routePrefix: 'stock-opname',
+    });
+  }
 
+  // GET endpoints
   @Get()
-  @ApiOperation({ summary: 'Get all stock opnames (Smart Query supported)' })
-  @ApiQuery({ name: '$select', required: false })
-  @ApiQuery({ name: '$include', required: false })
-  @ApiQuery({ name: '$where[warehouse_id]', required: false })
-  @ApiQuery({ name: '$where[status]', required: false })
-  @ApiQuery({ name: '$search', required: false })
-  @ApiQuery({ name: '$orderBy[createdAt]', required: false })
-  @ApiQuery({ name: '$skip', required: false })
-  @ApiQuery({ name: '$take', required: false })
-  async findAll(@Query() query: Record<string, unknown>) {
-    const { data, total, skip, take } = await this.stockOpnameService.findAll(query);
-    return ApiResponse.paginated(data, total, skip, take);
+  @ApiOperation({ summary: 'Get all StockOpnames with OData query support' })
+  @ApiQuery({ name: '$select', required: false, description: 'Select fields' })
+  @ApiQuery({ name: '$include', required: false, description: 'Include relations: ' })
+  @ApiQuery({ name: '$where[field]', required: false, description: 'Filter by field' })
+  @ApiQuery({ name: '$orderBy[field]', required: false, description: 'Sort: asc/desc' })
+  @ApiQuery({ name: '$skip', required: false, type: Number, description: 'Offset' })
+  @ApiQuery({ name: '$take', required: false, type: Number, description: 'Limit' })
+  @ApiQuery({ name: '$search', required: false, description: 'Search: name' })
+  async findAll(@Query() query: any) {
+    return super.findAll(query);
+  }
+
+  @Get('count')
+  @ApiOperation({ summary: 'Get count of StockOpnames' })
+  async getCount(@Query() query: any) {
+    return super.getCount(query);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get stock opname by ID' })
-  async findOne(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.stockOpnameService.findOne(id);
-    return ApiResponse.ok(data);
+  @ApiOperation({ summary: 'Get StockOpname by ID' })
+  async findById(@Param('id') id: string, @Query() query: any) {
+    return super.findById(id, query);
   }
 
+  @Get('by/:field/:value')
+  @ApiOperation({ summary: 'Get StockOpname by field reference' })
+  async findByField(@Param('field') field: string, @Param('value') value: string, @Query() query: any) {
+    return super.findByField(field, value, query);
+  }
+
+  // POST endpoints
   @Post()
-  @ApiOperation({ summary: 'Create stock opname' })
-  async create(@Body() dto: CreateStockOpnameDto, @CurrentUser() user: { id: string }) {
-    const data = await this.stockOpnameService.create(dto, user.id);
-    return ApiResponse.ok(data, 'Stock Opname created successfully');
+  @ApiOperation({ summary: 'Create new StockOpname' })
+  async create(@Body() dto: CreateStockOpnameDto) {
+    return super.create(dto);
   }
 
-  @Put(':id')
-  @ApiOperation({ summary: 'Update stock opname (draft only)' })
-  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateStockOpnameDto) {
-    const data = await this.stockOpnameService.update(id, dto);
-    return ApiResponse.ok(data, 'Stock Opname updated successfully');
+  @Post('bulk')
+  @ApiOperation({ summary: 'Create multiple StockOpnames' })
+  async createBulk(@Body() dtos: CreateStockOpnameDto[]) {
+    return super.createBulk(dtos);
   }
 
-  @Post(':id/items')
-  @ApiOperation({ summary: 'Add item to stock opname' })
-  async addItem(@Param('id', ParseIntPipe) id: number, @Body() dto: AddStockOpnameItemDto) {
-    const data = await this.stockOpnameService.addItem(id, dto);
-    return ApiResponse.ok(data, 'Item added successfully');
+  // PATCH endpoints
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update StockOpname by ID' })
+  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateStockOpnameDto>) {
+    return super.patchById(id, dto);
   }
 
+  @Patch('by/:field/:value')
+  @ApiOperation({ summary: 'Update StockOpnames by field reference' })
+  async patchByFilterReference(
+    @Param('field') field: string,
+    @Param('value') value: string,
+    @Body() dto: Partial<UpdateStockOpnameDto>,
+  ) {
+    return super.patchByFilterReference(field, value, dto);
+  }
+
+  @Patch('bulk')
+  @ApiOperation({ summary: 'Update multiple StockOpnames' })
+  async patchBulk(@Body() body: { ids: number[]; data: Partial<UpdateStockOpnameDto> }) {
+    return super.patchBulk(body);
+  }
+
+  // PUT (UPSERT) endpoints
+  @Put()
+  @ApiOperation({ summary: 'Upsert StockOpname' })
+  async upsert(@Body() body: { where: { id: number }; create: CreateStockOpnameDto; update: Partial<UpdateStockOpnameDto> }) {
+    return super.upsert(body);
+  }
+
+  @Put('by/:field')
+  @ApiOperation({ summary: 'Upsert StockOpname by field reference' })
+  async upsertByFilterReference(
+    @Param('field') field: string,
+    @Body() body: { filterValue: any; create: CreateStockOpnameDto; update: Partial<UpdateStockOpnameDto> },
+  ) {
+    return super.upsertByFilterReference(field, body);
+  }
+
+  @Put('bulk')
+  @ApiOperation({ summary: 'Bulk upsert StockOpnames' })
+  async upsertBulk(@Body() body: { items: any[] }) {
+    return super.upsertBulk(body);
+  }
+
+  // DELETE endpoints
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete stock opname (draft only)' })
-  async remove(@Param('id', ParseIntPipe) id: number) {
-    await this.stockOpnameService.remove(id);
-    return ApiResponse.ok(null, 'Stock Opname deleted successfully');
+  @ApiOperation({ summary: 'Delete StockOpname by ID' })
+  async deleteById(@Param('id') id: string) {
+    return super.deleteById(id);
   }
 
-  @Post(':id/complete')
-  @ApiOperation({ summary: 'Complete stock opname (adjusts stock based on differences)' })
-  async complete(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: { id: string }) {
-    const data = await this.stockOpnameService.complete(id, user.id);
-    return ApiResponse.ok(data, 'Stock Opname completed successfully');
+  @Delete('by/:field/:value')
+  @ApiOperation({ summary: 'Delete StockOpnames by field reference' })
+  async deleteByFilterReference(@Param('field') field: string, @Param('value') value: string) {
+    return super.deleteByFilterReference(field, value);
+  }
+
+  @Delete('bulk')
+  @ApiOperation({ summary: 'Delete multiple StockOpnames' })
+  async deleteBulk(@Body() body: { ids: number[] }) {
+    return super.deleteBulk(body);
   }
 }

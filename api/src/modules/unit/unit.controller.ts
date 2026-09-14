@@ -1,67 +1,135 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Param,
-  Body,
-  Query,
-  UseGuards,
-  ParseIntPipe,
-} from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { UseGuards, Controller, Get, Post, Patch, Delete, Put, Param, Body, Query } from '@nestjs/common';
+import { BaseController } from '../../common/templates/base.controller';
 import { UnitService } from './unit.service';
 import { CreateUnitDto, UpdateUnitDto } from './dto/unit.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
-import { ApiResponse } from '../../common/dto/api-response-dto';
 
-@ApiTags('Units')
+@ApiTags('Unit')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('units')
-export class UnitController {
-  constructor(private unitService: UnitService) {}
+@Controller('unit')
+export class UnitController extends BaseController<
+  any,
+  CreateUnitDto,
+  UpdateUnitDto
+> {
+  constructor(unitService: UnitService) {
+    super(unitService, {
+      modelName: 'Unit',
+      pluralName: 'Units',
+      primaryKeyType: 'number',
+      paramId: 'id',
+      routePrefix: 'unit',
+    });
+  }
 
+  // GET endpoints
   @Get()
-  @ApiOperation({ summary: 'Get all units (Smart Query supported)' })
-  @ApiQuery({ name: '$select', required: false, description: 'Select fields: id,code,name,abbreviation' })
+  @ApiOperation({ summary: 'Get all Units with OData query support' })
+  @ApiQuery({ name: '$select', required: false, description: 'Select fields' })
   @ApiQuery({ name: '$include', required: false, description: 'Include relations: products' })
-  @ApiQuery({ name: '$where[isActive]', required: false, description: 'Filter: true/false' })
-  @ApiQuery({ name: '$search', required: false, description: 'Search keyword' })
-  @ApiQuery({ name: '$orderBy[createdAt]', required: false, description: 'Sort: asc/desc' })
-  @ApiQuery({ name: '$skip', required: false, description: 'Offset', type: Number })
-  @ApiQuery({ name: '$take', required: false, description: 'Limit', type: Number })
-  async findAll(@Query() query: Record<string, unknown>) {
-    const { data, total, skip, take } = await this.unitService.findAll(query);
-    return ApiResponse.paginated(data, total, skip, take);
+  @ApiQuery({ name: '$where[field]', required: false, description: 'Filter by field' })
+  @ApiQuery({ name: '$orderBy[field]', required: false, description: 'Sort: asc/desc' })
+  @ApiQuery({ name: '$skip', required: false, type: Number, description: 'Offset' })
+  @ApiQuery({ name: '$take', required: false, type: Number, description: 'Limit' })
+  @ApiQuery({ name: '$search', required: false, description: 'Search: code, name' })
+  async findAll(@Query() query: any) {
+    return super.findAll(query);
+  }
+
+  @Get('count')
+  @ApiOperation({ summary: 'Get count of Units' })
+  async getCount(@Query() query: any) {
+    return super.getCount(query);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get unit by ID' })
-  async findOne(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.unitService.findOne(id);
-    return ApiResponse.ok(data);
+  @ApiOperation({ summary: 'Get Unit by ID' })
+  async findById(@Param('id') id: string, @Query() query: any) {
+    return super.findById(id, query);
   }
 
+  @Get('by/:field/:value')
+  @ApiOperation({ summary: 'Get Unit by field reference' })
+  async findByField(@Param('field') field: string, @Param('value') value: string, @Query() query: any) {
+    return super.findByField(field, value, query);
+  }
+
+  // POST endpoints
   @Post()
-  @ApiOperation({ summary: 'Create unit' })
+  @ApiOperation({ summary: 'Create new Unit' })
   async create(@Body() dto: CreateUnitDto) {
-    const data = await this.unitService.create(dto);
-    return ApiResponse.ok(data, 'Unit created successfully');
+    return super.create(dto);
   }
 
-  @Put(':id')
-  @ApiOperation({ summary: 'Update unit' })
-  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateUnitDto) {
-    const data = await this.unitService.update(id, dto);
-    return ApiResponse.ok(data, 'Unit updated successfully');
+  @Post('bulk')
+  @ApiOperation({ summary: 'Create multiple Units' })
+  async createBulk(@Body() dtos: CreateUnitDto[]) {
+    return super.createBulk(dtos);
   }
 
+  // PATCH endpoints
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update Unit by ID' })
+  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateUnitDto>) {
+    return super.patchById(id, dto);
+  }
+
+  @Patch('by/:field/:value')
+  @ApiOperation({ summary: 'Update Units by field reference' })
+  async patchByFilterReference(
+    @Param('field') field: string,
+    @Param('value') value: string,
+    @Body() dto: Partial<UpdateUnitDto>,
+  ) {
+    return super.patchByFilterReference(field, value, dto);
+  }
+
+  @Patch('bulk')
+  @ApiOperation({ summary: 'Update multiple Units' })
+  async patchBulk(@Body() body: { ids: number[]; data: Partial<UpdateUnitDto> }) {
+    return super.patchBulk(body);
+  }
+
+  // PUT (UPSERT) endpoints
+  @Put()
+  @ApiOperation({ summary: 'Upsert Unit' })
+  async upsert(@Body() body: { where: { id: number }; create: CreateUnitDto; update: Partial<UpdateUnitDto> }) {
+    return super.upsert(body);
+  }
+
+  @Put('by/:field')
+  @ApiOperation({ summary: 'Upsert Unit by field reference' })
+  async upsertByFilterReference(
+    @Param('field') field: string,
+    @Body() body: { filterValue: any; create: CreateUnitDto; update: Partial<UpdateUnitDto> },
+  ) {
+    return super.upsertByFilterReference(field, body);
+  }
+
+  @Put('bulk')
+  @ApiOperation({ summary: 'Bulk upsert Units' })
+  async upsertBulk(@Body() body: { items: any[] }) {
+    return super.upsertBulk(body);
+  }
+
+  // DELETE endpoints
   @Delete(':id')
-  @ApiOperation({ summary: 'Soft delete unit' })
-  async remove(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.unitService.remove(id);
-    return ApiResponse.ok(data, 'Unit deactivated successfully');
+  @ApiOperation({ summary: 'Delete Unit by ID' })
+  async deleteById(@Param('id') id: string) {
+    return super.deleteById(id);
+  }
+
+  @Delete('by/:field/:value')
+  @ApiOperation({ summary: 'Delete Units by field reference' })
+  async deleteByFilterReference(@Param('field') field: string, @Param('value') value: string) {
+    return super.deleteByFilterReference(field, value);
+  }
+
+  @Delete('bulk')
+  @ApiOperation({ summary: 'Delete multiple Units' })
+  async deleteBulk(@Body() body: { ids: number[] }) {
+    return super.deleteBulk(body);
   }
 }

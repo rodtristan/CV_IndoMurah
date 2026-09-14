@@ -1,87 +1,44 @@
-import { IsString, IsOptional, IsNumber, IsInt, IsArray, ValidateNested, IsDateString } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsString, IsOptional, IsBoolean, IsInt, IsNumber } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-export class CreateStockInItemDto {
-  @ApiProperty({ description: 'Product ID' })
-  @IsInt()
-  product_id: number;
-
-  @ApiProperty({ description: 'Quantity' })
-  @IsNumber()
-  quantity: number;
-
-  @ApiProperty({ description: 'Unit ID' })
-  @IsInt()
-  unit_id: number;
-
-  @ApiPropertyOptional({ description: 'Unit price' })
-  @IsOptional()
-  @IsNumber()
-  unit_price?: number;
-}
-
 export class CreateStockInDto {
-  @ApiProperty({ description: 'Warehouse ID' })
-  @IsInt()
-  warehouse_id: number;
-
-  @ApiPropertyOptional({ description: 'Supplier ID' })
-  @IsOptional()
-  @IsInt()
-  supplier_id?: number;
-
-  @ApiPropertyOptional({ description: 'Reference type' })
-  @IsOptional()
+  @ApiProperty({ description: 'StockIn code' })
   @IsString()
-  reference_type?: string;
+  code: string;
 
-  @ApiPropertyOptional({ description: 'Reference ID' })
-  @IsOptional()
-  @IsInt()
-  reference_id?: number;
-
-  @ApiPropertyOptional({ description: 'Stock in date' })
-  @IsOptional()
-  @IsDateString()
-  date?: string;
+  @ApiProperty({ description: 'StockIn name' })
+  @IsString()
+  name: string;
 
   @ApiPropertyOptional({ description: 'Description' })
   @IsOptional()
   @IsString()
   description?: string;
 
-  @ApiProperty({ description: 'Stock in items', type: [CreateStockInItemDto] })
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => CreateStockInItemDto)
-  items: CreateStockInItemDto[];
+  @ApiPropertyOptional({ default: true, description: 'Is active' })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
 
 export class UpdateStockInDto {
-  @ApiPropertyOptional({ description: 'Warehouse ID' })
+  @ApiPropertyOptional({ description: 'StockIn code' })
   @IsOptional()
-  @IsInt()
-  warehouse_id?: number;
+  @IsString()
+  code?: string;
 
-  @ApiPropertyOptional({ description: 'Supplier ID' })
+  @ApiPropertyOptional({ description: 'StockIn name' })
   @IsOptional()
-  @IsInt()
-  supplier_id?: number;
-
-  @ApiPropertyOptional({ description: 'Stock in date' })
-  @IsOptional()
-  @IsDateString()
-  date?: string;
+  @IsString()
+  name?: string;
 
   @ApiPropertyOptional({ description: 'Description' })
   @IsOptional()
   @IsString()
   description?: string;
-}
 
-export class UpdateStatusDto {
-  @ApiProperty({ description: 'New status: confirmed, completed, cancelled' })
-  @IsString()
-  status: string;
+  @ApiPropertyOptional({ description: 'Is active' })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
