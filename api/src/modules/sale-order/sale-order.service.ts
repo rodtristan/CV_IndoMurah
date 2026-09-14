@@ -3,7 +3,6 @@ import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
 import { Prisma } from '.prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
 import {
   CreateSaleOrderDto,
   UpdateSaleOrderDto,
@@ -48,8 +47,8 @@ export class SaleOrderService {
         }
 
         const [data, total] = await Promise.all([
-          this.prisma.saleOrder.findMany(findArgs),
-          this.prisma.saleOrder.count({ where: prismaQuery.where }),
+          this.prisma.sale.findMany(findArgs),
+          this.prisma.sale.count({ where: prismaQuery.where }),
         ]);
 
         const serializedData = data.map((item) => this.serializeSaleOrder(item));
@@ -78,77 +77,76 @@ export class SaleOrderService {
           findArgs.include = prismaQuery.include;
         }
 
-        const data = await this.prisma.saleOrder.findUnique(findArgs);
+        const data = await this.prisma.sale.findUnique(findArgs);
         return data ? this.serializeSaleOrder(data) : null;
       },
       this.CACHE_TTL,
     );
   }
 
-  async create(dto: CreateSaleOrderDto, userId: number) {
+  async create(dto: CreateSaleOrderDto, userId: string) {
     const code = await this.generateCode();
 
-    const itemsData = dto.items.map((item) => {
-      const subtotal = item.price * item.quantity - (item.discount || 0);
+    const saleItemsData = dto.items.map((item) => {
+      const subtotal = item.unitPrice * item.quantity - (item.discountAmount || 0);
       return {
-        product_id: item.product_id,
+        productId: item.productId,
         quantity: new Prisma.Decimal(item.quantity.toString()),
-        unit_id: item.unit_id,
-        price: new Prisma.Decimal(item.price.toString()),
-        discount: new Prisma.Decimal((item.discount || 0).toString()),
+        unitId: item.unitId,
+        unitPrice: new Prisma.Decimal(item.unitPrice.toString()),
+        discountAmount: new Prisma.Decimal((item.discountAmount || 0).toString()),
         subtotal: new Prisma.Decimal(subtotal.toString()),
       };
     });
 
-    const total = itemsData.reduce((sum, item) => sum + Number(item.subtotal), 0);
+    const total = saleItemsData.reduce((sum, item) => sum + Number(item.subtotal), 0);
 
-    const saleOrder = await this.prisma.saleOrder.create({
+    const sale = await this.prisma.sale.create({
       data: {
         code,
-        customer_id: dto.customer_id,
-        sales_person_id: dto.sales_person_id,
+        customerId: dto.customerId,
+        salesPersonId: dto.salesPersonId,
         date: dto.date ? new Date(dto.date) : new Date(),
-        due_date: dto.due_date ? new Date(dto.due_date) : null,
         notes: dto.notes,
+        subtotal: new Prisma.Decimal(total.toString()),
         total: new Prisma.Decimal(total.toString()),
-        status: 'draft',
-        created_by: userId,
-        items: {
-          create: itemsData,
+        paymentStatus: 'PENDING',
+        createdById: userId,
+        saleItems: {
+          create: saleItemsData,
         },
       },
       include: {
         customer: true,
         salesPerson: true,
-        items: { include: { product: true, unit: true } },
+        saleItems: { include: { product: true, unit: true } },
       },
     });
 
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
 
-    return this.serializeSaleOrder(saleOrder);
+    return this.serializeSaleOrder(sale);
   }
 
   async update(id: number, dto: UpdateSaleOrderDto) {
-    const saleOrder = await this.prisma.saleOrder.findUnique({ where: { id } });
-    if (!saleOrder) throw new NotFoundException('Sale order not found');
-    if (saleOrder.status !== 'draft') {
-      throw new BadRequestException('Can only update draft sale orders');
+    const sale = await this.prisma.sale.findUnique({ where: { id } });
+    if (!sale) throw new NotFoundException('Sale not found');
+    if (sale.paymentStatus !== 'PENDING') {
+      throw new BadRequestException('Can only update pending sales');
     }
 
-    const updated = await this.prisma.saleOrder.update({
+    const updated = await this.prisma.sale.update({
       where: { id },
       data: {
-        customer_id: dto.customer_id,
-        sales_person_id: dto.sales_person_id,
+        customerId: dto.customerId,
+        salesPersonId: dto.salesPersonId,
         date: dto.date ? new Date(dto.date) : undefined,
-        due_date: dto.due_date ? new Date(dto.due_date) : undefined,
         notes: dto.notes,
       },
       include: {
         customer: true,
         salesPerson: true,
-        items: { include: { product: true, unit: true } },
+        saleItems: { include: { product: true, unit: true } },
       },
     });
 
@@ -158,22 +156,22 @@ export class SaleOrderService {
   }
 
   async addItem(id: number, dto: AddSaleOrderItemDto) {
-    const saleOrder = await this.prisma.saleOrder.findUnique({ where: { id } });
-    if (!saleOrder) throw new NotFoundException('Sale order not found');
-    if (saleOrder.status !== 'draft') {
-      throw new BadRequestException('Can only add items to draft sale orders');
+    const sale = await this.prisma.sale.findUnique({ where: { id } });
+    if (!sale) throw new NotFoundException('Sale not found');
+    if (sale.paymentStatus !== 'PENDING') {
+      throw new BadRequestException('Can only add items to pending sales');
     }
 
-    const subtotal = dto.price * dto.quantity - (dto.discount || 0);
+    const subtotal = dto.unitPrice * dto.quantity - (dto.discountAmount || 0);
 
-    await this.prisma.saleOrderItem.create({
+    await this.prisma.saleItem.create({
       data: {
-        sale_order_id: id,
-        product_id: dto.product_id,
+        saleId: id,
+        productId: dto.productId,
         quantity: new Prisma.Decimal(dto.quantity.toString()),
-        unit_id: dto.unit_id,
-        price: new Prisma.Decimal(dto.price.toString()),
-        discount: new Prisma.Decimal((dto.discount || 0).toString()),
+        unitId: dto.unitId,
+        unitPrice: new Prisma.Decimal(dto.unitPrice.toString()),
+        discountAmount: new Prisma.Decimal((dto.discountAmount || 0).toString()),
         subtotal: new Prisma.Decimal(subtotal.toString()),
       },
     });
@@ -185,18 +183,18 @@ export class SaleOrderService {
   }
 
   async removeItem(id: number, itemId: number) {
-    const saleOrder = await this.prisma.saleOrder.findUnique({ where: { id } });
-    if (!saleOrder) throw new NotFoundException('Sale order not found');
-    if (saleOrder.status !== 'draft') {
-      throw new BadRequestException('Can only remove items from draft sale orders');
+    const sale = await this.prisma.sale.findUnique({ where: { id } });
+    if (!sale) throw new NotFoundException('Sale not found');
+    if (sale.paymentStatus !== 'PENDING') {
+      throw new BadRequestException('Can only remove items from pending sales');
     }
 
-    const item = await this.prisma.saleOrderItem.findFirst({
-      where: { id: itemId, sale_order_id: id },
+    const item = await this.prisma.saleItem.findFirst({
+      where: { id: itemId, saleId: id },
     });
     if (!item) throw new NotFoundException('Item not found');
 
-    await this.prisma.saleOrderItem.delete({ where: { id: itemId } });
+    await this.prisma.saleItem.delete({ where: { id: itemId } });
     await this.recalculateTotal(id);
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
 
@@ -204,39 +202,27 @@ export class SaleOrderService {
   }
 
   async confirm(id: number) {
-    return this.updateStatus(id, { status: 'confirmed' });
+    return this.updatePaymentStatus(id, 'PAID');
   }
 
   async complete(id: number) {
-    return this.updateStatus(id, { status: 'completed' });
+    return this.updatePaymentStatus(id, 'PAID');
   }
 
-  async updateStatus(id: number, dto: UpdateStatusDto) {
-    const saleOrder = await this.prisma.saleOrder.findUnique({
+  async updatePaymentStatus(id: number, paymentStatus: 'PENDING' | 'PARTIAL' | 'PAID' | 'CANCELLED' | 'INSTALMENT') {
+    const sale = await this.prisma.sale.findUnique({
       where: { id },
-      include: { items: true },
+      include: { saleItems: true },
     });
-    if (!saleOrder) throw new NotFoundException('Sale order not found');
+    if (!sale) throw new NotFoundException('Sale not found');
 
-    const validTransitions: Record<string, string[]> = {
-      draft: ['confirmed', 'cancelled'],
-      confirmed: ['completed', 'cancelled'],
-    };
-
-    const allowed = validTransitions[saleOrder.status] || [];
-    if (!allowed.includes(dto.status)) {
-      throw new BadRequestException(
-        `Cannot transition from '${saleOrder.status}' to '${dto.status}'`,
-      );
-    }
-
-    const updated = await this.prisma.saleOrder.update({
+    const updated = await this.prisma.sale.update({
       where: { id },
-      data: { status: dto.status },
+      data: { paymentStatus },
       include: {
         customer: true,
         salesPerson: true,
-        items: { include: { product: true, unit: true } },
+        saleItems: { include: { product: true, unit: true } },
       },
     });
 
@@ -246,35 +232,32 @@ export class SaleOrderService {
   }
 
   async delete(id: number) {
-    const saleOrder = await this.prisma.saleOrder.findUnique({ where: { id } });
-    if (!saleOrder) throw new NotFoundException('Sale order not found');
-    if (saleOrder.status !== 'draft') {
-      throw new BadRequestException('Can only delete draft sale orders');
-    }
-    if (saleOrder.sales && saleOrder.sales.length > 0) {
-      throw new BadRequestException('Cannot delete sale order with linked sales');
+    const sale = await this.prisma.sale.findUnique({ where: { id } });
+    if (!sale) throw new NotFoundException('Sale not found');
+    if (sale.paymentStatus !== 'PENDING') {
+      throw new BadRequestException('Can only delete pending sales');
     }
 
-    await this.prisma.saleOrder.delete({ where: { id } });
+    await this.prisma.sale.delete({ where: { id } });
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
 
     return { id };
   }
 
-  private async recalculateTotal(saleOrderId: number) {
-    const items = await this.prisma.saleOrderItem.findMany({
-      where: { sale_order_id: saleOrderId },
+  private async recalculateTotal(saleId: number) {
+    const items = await this.prisma.saleItem.findMany({
+      where: { saleId: saleId },
     });
 
     const total = items.reduce((sum, item) => {
-      const price = Number(item.price);
+      const unitPrice = Number(item.unitPrice);
       const quantity = Number(item.quantity);
-      const discount = Number(item.discount);
-      return sum + price * quantity - discount;
+      const discountAmount = Number(item.discountAmount);
+      return sum + unitPrice * quantity - discountAmount;
     }, 0);
 
-    await this.prisma.saleOrder.update({
-      where: { id: saleOrderId },
+    await this.prisma.sale.update({
+      where: { id: saleId },
       data: { total: new Prisma.Decimal(total.toString()) },
     });
   }
@@ -285,7 +268,7 @@ export class SaleOrderService {
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const prefix = `SO-${year}${month}`;
 
-    const lastOrder = await this.prisma.saleOrder.findFirst({
+    const lastOrder = await this.prisma.sale.findFirst({
       where: { code: { startsWith: prefix } },
       orderBy: { code: 'desc' },
       select: { code: true },
@@ -305,7 +288,7 @@ export class SaleOrderService {
 
     const result: any = {};
     for (const [key, value] of Object.entries(data)) {
-      if (value instanceof Decimal) {
+      if (value instanceof Prisma.Decimal) {
         result[key] = Number(value);
       } else if (value instanceof Date) {
         result[key] = value.toISOString();
@@ -314,8 +297,8 @@ export class SaleOrderService {
       }
     }
 
-    if (data.items && Array.isArray(data.items)) {
-      result.items = data.items.map((item: any) => this.serializeSaleOrderItem(item));
+    if (data.saleItems && Array.isArray(data.saleItems)) {
+      result.saleItems = data.saleItems.map((item: any) => this.serializeSaleOrderItem(item));
     }
 
     return result;
@@ -326,7 +309,7 @@ export class SaleOrderService {
 
     const result: any = {};
     for (const [key, value] of Object.entries(data)) {
-      if (value instanceof Decimal) {
+      if (value instanceof Prisma.Decimal) {
         result[key] = Number(value);
       } else if (value instanceof Date) {
         result[key] = value.toISOString();

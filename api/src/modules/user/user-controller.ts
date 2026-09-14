@@ -1,7 +1,7 @@
-import { Controller, Get, Put, Post, Delete, Param, Body, Query, UseGuards, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Put, Post, Delete, Param, Body, Query, UseGuards, NotFoundException, ParseIntPipe } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { UserService } from './user-service';
-import { CreateUserDto, UpdateUserDto } from './dto/user-dto';
+import { CreateUserDto, UpdateUserDto, AssignRoleDto } from './dto/user-dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 import { ApiResponse } from '../../common/dto/api-response-dto';
 
@@ -15,6 +15,7 @@ export class UserController {
   @Get()
   @ApiOperation({ summary: 'Get all users (Smart Query supported)' })
   @ApiQuery({ name: '$select', required: false, description: 'Select fields: id,name,email,role' })
+  @ApiQuery({ name: '$include', required: false, description: 'Include relations: userRoles' })
   @ApiQuery({ name: '$where[isActive]', required: false, description: 'Filter: true/false' })
   @ApiQuery({ name: '$search', required: false, description: 'Search keyword' })
   @ApiQuery({ name: '$orderBy[createdAt]', required: false, description: 'Sort: asc/desc' })
@@ -26,9 +27,9 @@ export class UserController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get user by ID' })
-  async findOne(@Param('id') id: string) {
-    const data = await this.userService.findOne(id);
+  @ApiOperation({ summary: 'Get user by ID (Smart Query supported)' })
+  async findOne(@Param('id') id: string, @Query() query: any) {
+    const data = await this.userService.findOne(id, query);
     if (!data) throw new NotFoundException('User not found');
     return ApiResponse.ok(data);
   }
@@ -52,5 +53,28 @@ export class UserController {
   async softDelete(@Param('id') id: string) {
     const data = await this.userService.softDelete(id);
     return ApiResponse.ok(data, 'User deactivated successfully');
+  }
+
+  // ─── UserRole — extra roles on top of main role ────────
+
+  @Get(':id/roles')
+  @ApiOperation({ summary: 'Get main role + extra roles (UserRole) for a user' })
+  async getRoles(@Param('id') id: string) {
+    const data = await this.userService.getRoles(id);
+    return ApiResponse.ok(data);
+  }
+
+  @Post(':id/roles')
+  @ApiOperation({ summary: "Grant an extra role to a user (UserRole) — also seeds that role's menus" })
+  async assignRole(@Param('id') id: string, @Body() dto: AssignRoleDto) {
+    const data = await this.userService.assignRole(id, dto.roleId);
+    return ApiResponse.ok(data, 'Role assigned to user');
+  }
+
+  @Delete(':id/roles/:roleId')
+  @ApiOperation({ summary: 'Revoke an extra role from a user' })
+  async revokeRole(@Param('id') id: string, @Param('roleId', ParseIntPipe) roleId: number) {
+    const data = await this.userService.revokeRole(id, roleId);
+    return ApiResponse.ok(data, 'Role revoked from user');
   }
 }

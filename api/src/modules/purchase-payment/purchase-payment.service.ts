@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
-import { Prisma } from '.prisma/client';
+import { Prisma } from '@prisma/client';
 import { CreatePurchasePaymentDto, UpdatePurchasePaymentDto } from './dto/purchase-payment.dto';
 
 @Injectable()
@@ -23,8 +23,8 @@ export class PurchasePaymentService {
       cacheKey,
       async () => {
         const prismaQuery = this.queryService.buildPrismaQuery(query, {
-          searchableFields: ['referenceNumber', 'notes'],
-          allowedIncludes: ['purchase', 'creator'],
+          searchableFields: ['*'],
+          allowedIncludes: ['*'],
           defaultOrderBy: { createdAt: 'desc' },
         });
 
@@ -60,7 +60,7 @@ export class PurchasePaymentService {
       cacheKey,
       async () => {
         const prismaQuery = this.queryService.buildPrismaQuery(query, {
-          allowedIncludes: ['purchase', 'creator'],
+          allowedIncludes: ['*'],
         });
 
         const findArgs: any = { where: { id } };
@@ -80,12 +80,12 @@ export class PurchasePaymentService {
 
   async create(dto: CreatePurchasePaymentDto, userId: string) {
     // Verify purchase exists
-    const purchase = await this.prisma.purchase.findUnique({ where: { id: dto.purchase_id } });
+    const purchase = await this.prisma.purchase.findUnique({ where: { id: dto.purchaseId } });
     if (!purchase) throw new NotFoundException('Purchase not found');
 
     // Check if payment would exceed remaining amount
     const existingPayments = await this.prisma.purchasePayment.findMany({
-      where: { purchaseId: dto.purchase_id },
+      where: { purchaseId: dto.purchaseId },
     });
     const paidAmount = existingPayments.reduce((sum, p) => sum + Number(p.amount), 0);
     const newTotal = paidAmount + dto.amount;
@@ -97,10 +97,10 @@ export class PurchasePaymentService {
 
     const payment = await this.prisma.purchasePayment.create({
       data: {
-        purchaseId: dto.purchase_id,
+        purchaseId: dto.purchaseId,
         method: dto.method,
         amount: new Prisma.Decimal(dto.amount.toString()),
-        referenceNumber: dto.reference_number,
+        referenceNumber: dto.referenceNumber,
         date: dto.date ? new Date(dto.date) : new Date(),
         notes: dto.notes,
         createdById: userId,
@@ -109,10 +109,10 @@ export class PurchasePaymentService {
     });
 
     // Update purchase payment status
-    await this.updatePurchasePaymentStatus(dto.purchase_id);
+    await this.updatePurchasePaymentStatus(dto.purchaseId);
 
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
-    await this.redis.invalidatePattern(`purchases:${dto.purchase_id}*`);
+    await this.redis.invalidatePattern(`purchases:${dto.purchaseId}*`);
 
     return this.serialize(payment);
   }
@@ -124,7 +124,7 @@ export class PurchasePaymentService {
     const updateData: any = {};
     if (dto.method) updateData.method = dto.method;
     if (dto.amount) updateData.amount = new Prisma.Decimal(dto.amount.toString());
-    if (dto.reference_number !== undefined) updateData.referenceNumber = dto.reference_number;
+    if (dto.referenceNumber !== undefined) updateData.referenceNumber = dto.referenceNumber;
     if (dto.date) updateData.date = new Date(dto.date);
     if (dto.notes !== undefined) updateData.notes = dto.notes;
 
@@ -156,12 +156,12 @@ export class PurchasePaymentService {
 
   async findByPurchase(purchaseId: number, query: Record<string, any> = {}) {
     const prismaQuery = this.queryService.buildPrismaQuery(query, {
-      allowedIncludes: ['creator'],
+      allowedIncludes: ['*'],
       defaultOrderBy: { createdAt: 'desc' },
     });
 
     const findArgs: any = {
-      where: { purchaseId, ...prismaQuery.where },
+      where: { purchaseId: purchaseId, ...prismaQuery.where },
       orderBy: prismaQuery.orderBy,
       skip: prismaQuery.skip,
       take: prismaQuery.take,
@@ -173,7 +173,7 @@ export class PurchasePaymentService {
 
     const [data, total] = await Promise.all([
       this.prisma.purchasePayment.findMany(findArgs),
-      this.prisma.purchasePayment.count({ where: { purchaseId } }),
+      this.prisma.purchasePayment.count({ where: { purchaseId: purchaseId } }),
     ]);
 
     const serializedData = data.map((item) => this.serialize(item));

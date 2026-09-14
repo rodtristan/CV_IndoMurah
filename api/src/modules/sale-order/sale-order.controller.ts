@@ -90,10 +90,10 @@ export class SaleOrderController {
   }
 
   @Put(':id/status')
-  @ApiOperation({ summary: 'Update sale order status' })
-  async updateStatus(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateStatusDto) {
-    const data = await this.saleOrderService.updateStatus(id, dto);
-    return ApiResponse.ok(data, 'Sale order status updated');
+  @ApiOperation({ summary: 'Update sale order payment status' })
+  async updatePaymentStatus(@Param('id', ParseIntPipe) id: number, @Body() body: { paymentStatus: 'PENDING' | 'PARTIAL' | 'PAID' | 'CANCELLED' | 'INSTALMENT' }) {
+    const data = await this.saleOrderService.updatePaymentStatus(id, body.paymentStatus);
+    return ApiResponse.ok(data, 'Sale order payment status updated');
   }
 
   @Delete(':id')

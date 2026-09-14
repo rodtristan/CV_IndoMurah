@@ -32,7 +32,7 @@ async function main() {
   // ini ada agar register() tidak gagal karena FK constraint.
   const adminRole = await prisma.role.upsert({
     where: { id: 1 },
-    create: { roleName: 'Administrator', roleDescription: 'Akses penuh ke semua modul' },
+    create: { roleName: 'Administrator', roleDescription: 'Akses penuh ke seluruh sistem' },
     update: {},
   });
 
@@ -42,7 +42,31 @@ async function main() {
     update: { isActive: true },
   });
 
+  // ─── Menus dasar + akses role Admin ─────────────────────────
+  const menuNames = ['dashboard', 'users', 'roles', 'menus'];
+  const menus = await Promise.all(
+    menuNames.map((name) =>
+      prisma.menu.upsert({
+        where: { id: menuNames.indexOf(name) + 1 },
+        create: { id: menuNames.indexOf(name) + 1, menuName: name, menuType: 'sidebar' },
+        update: {},
+      }),
+    ),
+  );
+
+  await Promise.all(
+    menus.map((menu) =>
+      prisma.roleMenu.upsert({
+        where: { roleId_menuId: { roleId: adminRole.id, menuId: menu.id } },
+        create: { roleId: adminRole.id, menuId: menu.id },
+        update: { isActive: true },
+      }),
+    ),
+  );
+
   console.log('Seed selesai:');
+  console.log(`  Role  : ${adminRole.roleName} (id=${adminRole.id})`);
+  console.log(`  Menus : ${menus.map((m) => m.menuName).join(', ')}`);
   console.log(`  Admin : ${adminEmail} / admin123 (GANTI password ini setelah login pertama!)`);
   console.log(`  id    : ${admin.id}`);
 

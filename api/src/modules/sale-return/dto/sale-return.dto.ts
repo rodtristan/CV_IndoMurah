@@ -5,7 +5,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CreateSaleReturnItemDto {
   @ApiProperty({ description: 'Product ID' })
   @IsInt()
-  product_id: number;
+  productId: number;
 
   @ApiProperty({ description: 'Quantity to return' })
   @IsNumber()
@@ -13,11 +13,11 @@ export class CreateSaleReturnItemDto {
 
   @ApiProperty({ description: 'Unit ID' })
   @IsInt()
-  unit_id: number;
+  unitId: number;
 
   @ApiProperty({ description: 'Unit price' })
   @IsNumber()
-  unit_price: number;
+  unitPrice: number;
 
   @ApiPropertyOptional({ description: 'Subtotal' })
   @IsOptional()
@@ -28,17 +28,17 @@ export class CreateSaleReturnItemDto {
 export class CreateSaleReturnDto {
   @ApiProperty({ description: 'Sale ID' })
   @IsInt()
-  sale_id: number;
+  saleId: number;
 
   @ApiPropertyOptional({ description: 'Customer ID (auto-filled from sale)' })
   @IsOptional()
   @IsInt()
-  customer_id?: number;
+  customerId?: number;
 
   @ApiPropertyOptional({ description: 'Warehouse ID' })
   @IsOptional()
   @IsInt()
-  warehouse_id?: number;
+  warehouseId?: number;
 
   @ApiPropertyOptional({ description: 'Return date' })
   @IsOptional()
@@ -61,7 +61,7 @@ export class UpdateSaleReturnDto {
   @ApiPropertyOptional({ description: 'Warehouse ID' })
   @IsOptional()
   @IsInt()
-  warehouse_id?: number;
+  warehouseId?: number;
 
   @ApiPropertyOptional({ description: 'Return date' })
   @IsOptional()
@@ -75,7 +75,7 @@ export class UpdateSaleReturnDto {
 }
 
 export class UpdateStatusDto {
-  @ApiProperty({ description: 'New status: confirmed, completed, cancelled' })
+  @ApiProperty({ description: 'New status: DRAFT, CONFIRMED, COMPLETED, CANCELLED' })
   @IsString()
   status: string;
 }

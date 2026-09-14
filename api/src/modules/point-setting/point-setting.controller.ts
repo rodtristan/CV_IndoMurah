@@ -1,248 +1,115 @@
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
-import { Controller, Get, Post, Patch, Delete, Put, Param, Body, Query, UseGuards, Headers, BadRequestException } from '@nestjs/common';
+import { UseGuards, Controller, Get, Post, Patch, Delete, Put, Param, Body, Query } from '@nestjs/common';
+import { BaseController } from '../../common/templates/base.controller';
 import { PointSettingService } from './point-setting.service';
 import { CreatePointSettingDto, UpdatePointSettingDto } from './dto/point-setting.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
-import { PrismaService } from '../../common/prisma/prisma-service';
-
-type HeadersRecord = Record<string, string | string[] | undefined>;
 
 @ApiTags('PointSetting')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('point-setting')
-export class PointSettingController {
-  constructor(
-    private readonly pointSettingService: PointSettingService,
-    private readonly prisma: PrismaService,
-  ) {}
-
-  // ═══════════════════════════════════════════════════════════════════
-  // TRANSACTION BLOCK HELPER
-  // ═══════════════════════════════════════════════════════════════════
-
-  /**
-   * Execute callback dalam transaction block
-   * By default semua endpoint menggunakan transaction
-   */
-  private async withTransaction<T>(
-    headers: HeadersRecord,
-    callback: (tx: any) => Promise<T>,
-  ): Promise<T> {
-    const useTransaction = headers['x-use-transaction'] !== 'false';
-
-    if (useTransaction) {
-      return this.prisma.$transaction(async (tx) => {
-        return callback(tx);
-      });
-    }
-
-    return callback(this.prisma);
+export class PointSettingController extends BaseController<
+  any,
+  CreatePointSettingDto,
+  UpdatePointSettingDto
+> {
+  constructor(pointSettingService: PointSettingService) {
+    super(pointSettingService, {
+      modelName: 'PointSetting',
+      pluralName: 'PointSettings',
+      primaryKeyType: 'number',
+      paramId: 'id',
+      routePrefix: 'point-setting',
+    });
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  // READ ENDPOINTS (No transaction needed)
-  // ═══════════════════════════════════════════════════════════════════
-
   @Get()
-  @ApiOperation({ summary: 'Get all PointSettings with OData query support' })
+  @ApiOperation({ summary: 'Get all point settings with OData query support' })
+  @ApiQuery({ name: '$select', required: false })
+  @ApiQuery({ name: '$where[field]', required: false })
+  @ApiQuery({ name: '$orderBy[field]', required: false })
+  @ApiQuery({ name: '$skip', required: false, type: Number })
+  @ApiQuery({ name: '$take', required: false, type: Number })
+  @ApiQuery({ name: '$search', required: false })
   async findAll(@Query() query: any) {
-    return this.pointSettingService.findAll(query);
+    return super.findAll(query);
   }
 
   @Get('count')
-  @ApiOperation({ summary: 'Get count of PointSettings' })
   async getCount(@Query() query: any) {
-    return this.pointSettingService.getCount(query);
+    return super.getCount(query);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get PointSetting by ID' })
   async findById(@Param('id') id: string, @Query() query: any) {
-    return this.pointSettingService.findById(id, query);
+    return super.findById(id, query);
   }
 
   @Get('by/:field/:value')
-  @ApiOperation({ summary: 'Get PointSetting by field reference' })
   async findByField(@Param('field') field: string, @Param('value') value: string, @Query() query: any) {
-    return this.pointSettingService.findByField(field, value, query);
+    return super.findByField(field, value, query);
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  // WRITE ENDPOINTS (With transaction by default)
-  // ═══════════════════════════════════════════════════════════════════
-
   @Post()
-  @ApiOperation({ summary: 'Create new PointSetting' })
-  async create(@Body() dto: CreatePointSettingDto, @Headers() headers: Record<string, string>) {
-    return this.withTransaction(headers, async (tx) => {
-      const result = await tx.PointSetting.create({ data: dto });
-      await this.pointSettingService.invalidateCache();
-      return result;
-    });
+  async create(@Body() dto: CreatePointSettingDto) {
+    return super.create(dto);
   }
 
   @Post('bulk')
-  @ApiOperation({ summary: 'Create multiple PointSettings' })
-  async createBulk(@Body() dtos: CreatePointSettingDto[], @Headers() headers: Record<string, string>) {
-    return this.withTransaction(headers, async (tx) => {
-      const result = await tx.PointSetting.createMany({ data: dtos });
-      await this.pointSettingService.invalidateCache();
-      return result;
-    });
+  async createBulk(@Body() dtos: CreatePointSettingDto[]) {
+    return super.createBulk(dtos);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Update PointSetting by ID' })
-  async patchById(
-    @Param('id') id: string,
-    @Body() dto: Partial<UpdatePointSettingDto>,
-    @Headers() headers: Record<string, string>,
-  ) {
-    return this.withTransaction(headers, async (tx) => {
-      const result = await tx.PointSetting.update({
-        where: { id: parseInt(id) },
-        data: dto,
-      });
-      await this.pointSettingService.invalidateCache();
-      return result;
-    });
+  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdatePointSettingDto>) {
+    return super.patchById(id, dto);
   }
 
   @Patch('by/:field/:value')
-  @ApiOperation({ summary: 'Update PointSettings by field reference' })
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
     @Body() dto: Partial<UpdatePointSettingDto>,
-    @Headers() headers: Record<string, string>,
   ) {
-    return this.withTransaction(headers, async (tx) => {
-      const where = { [field]: value };
-      const result = await tx.PointSetting.updateMany({
-        where,
-        data: dto,
-      });
-      await this.pointSettingService.invalidateCache();
-      return result;
-    });
+    return super.patchByFilterReference(field, value, dto);
   }
 
   @Patch('bulk')
-  @ApiOperation({ summary: 'Update multiple PointSettings' })
-  async patchBulk(
-    @Body() body: { ids: number[]; data: Partial<UpdatePointSettingDto> },
-    @Headers() headers: Record<string, string>,
-  ) {
-    return this.withTransaction(headers, async (tx) => {
-      const result = await tx.PointSetting.updateMany({
-        where: { id: { in: body.ids } },
-        data: body.data,
-      });
-      await this.pointSettingService.invalidateCache();
-      return result;
-    });
+  async patchBulk(@Body() body: { ids: number[]; data: Partial<UpdatePointSettingDto> }) {
+    return super.patchBulk(body);
   }
 
-  // PUT (UPSERT) endpoints
   @Put()
-  @ApiOperation({ summary: 'Upsert PointSetting' })
-  async upsert(
-    @Body() body: { where: { id: number }; create: CreatePointSettingDto; update: Partial<UpdatePointSettingDto> },
-    @Headers() headers: Record<string, string>,
-  ) {
-    return this.withTransaction(headers, async (tx) => {
-      const result = await tx.PointSetting.upsert({
-        where: body.where,
-        create: body.create,
-        update: body.update,
-      });
-      await this.pointSettingService.invalidateCache();
-      return result;
-    });
+  async upsert(@Body() body: { where: { id: number }; create: CreatePointSettingDto; update: Partial<UpdatePointSettingDto> }) {
+    return super.upsert(body);
   }
 
   @Put('by/:field')
-  @ApiOperation({ summary: 'Upsert PointSetting by field reference' })
   async upsertByFilterReference(
     @Param('field') field: string,
     @Body() body: { filterValue: any; create: CreatePointSettingDto; update: Partial<UpdatePointSettingDto> },
-    @Headers() headers: Record<string, string>,
   ) {
-    return this.withTransaction(headers, async (tx) => {
-      const where = { [field]: body.filterValue };
-      const result = await tx.PointSetting.upsert({
-        where,
-        create: body.create,
-        update: body.update,
-      });
-      await this.pointSettingService.invalidateCache();
-      return result;
-    });
+    return super.upsertByFilterReference(field, body);
   }
 
   @Put('bulk')
-  @ApiOperation({ summary: 'Bulk upsert PointSettings' })
-  async upsertBulk(
-    @Body() body: { items: Array<{ where?: any; create: CreatePointSettingDto; update?: Partial<UpdatePointSettingDto> }> },
-    @Headers() headers: Record<string, string>,
-  ) {
-    return this.withTransaction(headers, async (tx) => {
-      const results: any[] = [];
-      for (const item of body.items) {
-        const result = await tx.PointSetting.upsert({
-          where: item.where || { id: 0 },
-          create: item.create,
-          update: item.update || {},
-        });
-        results.push(result);
-      }
-      await this.pointSettingService.invalidateCache();
-      return results;
-    });
+  async upsertBulk(@Body() body: { items: any[] }) {
+    return super.upsertBulk(body);
   }
 
-  // DELETE endpoints
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete PointSetting by ID' })
-  async deleteById(@Param('id') id: string, @Headers() headers: Record<string, string>) {
-    return this.withTransaction(headers, async (tx) => {
-      const result = await tx.PointSetting.delete({
-        where: { id: parseInt(id) },
-      });
-      await this.pointSettingService.invalidateCache();
-      return result;
-    });
+  async deleteById(@Param('id') id: string) {
+    return super.deleteById(id);
   }
 
   @Delete('by/:field/:value')
-  @ApiOperation({ summary: 'Delete PointSettings by field reference' })
-  async deleteByFilterReference(
-    @Param('field') field: string,
-    @Param('value') value: string,
-    @Headers() headers: Record<string, string>,
-  ) {
-    return this.withTransaction(headers, async (tx) => {
-      const result = await tx.PointSetting.deleteMany({
-        where: { [field]: value },
-      });
-      await this.pointSettingService.invalidateCache();
-      return result;
-    });
+  async deleteByFilterReference(@Param('field') field: string, @Param('value') value: string) {
+    return super.deleteByFilterReference(field, value);
   }
 
   @Delete('bulk')
-  @ApiOperation({ summary: 'Delete multiple PointSettings' })
-  async deleteBulk(
-    @Body() body: { ids: number[] },
-    @Headers() headers: Record<string, string>,
-  ) {
-    return this.withTransaction(headers, async (tx) => {
-      const result = await tx.PointSetting.deleteMany({
-        where: { id: { in: body.ids } },
-      });
-      await this.pointSettingService.invalidateCache();
-      return result;
-    });
+  async deleteBulk(@Body() body: { ids: (number | string)[] }) {
+    return super.deleteBulk(body);
   }
 }

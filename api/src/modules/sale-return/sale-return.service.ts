@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
-import { Prisma, TransactionStatus } from '.prisma/client';
+import { Prisma } from '@prisma/client';
 import { CreateSaleReturnDto, UpdateSaleReturnDto, UpdateStatusDto } from './dto/sale-return.dto';
 
 @Injectable()
@@ -80,18 +80,18 @@ export class SaleReturnService {
 
   async create(dto: CreateSaleReturnDto, userId: string) {
     // Verify sale exists
-    const sale = await this.prisma.sale.findUnique({ where: { id: dto.sale_id } });
+    const sale = await this.prisma.sale.findUnique({ where: { id: dto.saleId } });
     if (!sale) throw new NotFoundException('Sale not found');
 
     const code = await this.generateCode();
 
     // Calculate total return
     const itemsData = dto.items.map((item) => {
-      const subtotal = item.unit_price * item.quantity;
+      const subtotal = item.unitPrice * item.quantity;
       return {
-        productId: item.product_id,
+        productId: item.productId,
         quantity: new Prisma.Decimal(item.quantity.toString()),
-        unitPrice: new Prisma.Decimal(item.unit_price.toString()),
+        unitPrice: new Prisma.Decimal(item.unitPrice.toString()),
         subtotal: new Prisma.Decimal(subtotal.toString()),
       };
     });
@@ -101,13 +101,13 @@ export class SaleReturnService {
     const saleReturn = await this.prisma.saleReturn.create({
       data: {
         code,
-        saleId: dto.sale_id,
-        customerId: dto.customer_id || sale.customerId,
-        warehouseId: dto.warehouse_id,
+        saleId: dto.saleId,
+        customerId: dto.customerId || sale.customerId,
+        warehouseId: dto.warehouseId,
         date: dto.date ? new Date(dto.date) : new Date(),
         totalReturn: new Prisma.Decimal(totalReturn.toString()),
         reason: dto.reason,
-        status: TransactionStatus.DRAFT,
+        status: 'DRAFT',
         createdById: userId,
         returnItems: {
           create: itemsData,
@@ -129,14 +129,14 @@ export class SaleReturnService {
   async update(id: number, dto: UpdateSaleReturnDto) {
     const saleReturn = await this.prisma.saleReturn.findUnique({ where: { id } });
     if (!saleReturn) throw new NotFoundException('Sale return not found');
-    if (saleReturn.status !== TransactionStatus.DRAFT) {
+    if (saleReturn.status !== 'DRAFT') {
       throw new BadRequestException('Can only update draft sale returns');
     }
 
     const updated = await this.prisma.saleReturn.update({
       where: { id },
       data: {
-        warehouseId: dto.warehouse_id,
+        warehouseId: dto.warehouseId,
         date: dto.date ? new Date(dto.date) : undefined,
         reason: dto.reason,
       },
@@ -172,7 +172,7 @@ export class SaleReturnService {
 
     const updated = await this.prisma.saleReturn.update({
       where: { id },
-      data: { status: dto.status as TransactionStatus },
+      data: { status: dto.status as any },
       include: {
         sale: true,
         customer: true,
@@ -189,7 +189,7 @@ export class SaleReturnService {
   async delete(id: number) {
     const saleReturn = await this.prisma.saleReturn.findUnique({ where: { id } });
     if (!saleReturn) throw new NotFoundException('Sale return not found');
-    if (saleReturn.status !== TransactionStatus.DRAFT) {
+    if (saleReturn.status !== 'DRAFT') {
       throw new BadRequestException('Can only delete draft sale returns');
     }
 

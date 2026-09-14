@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
-import { Prisma, TransactionStatus } from '.prisma/client';
+import { Prisma } from '@prisma/client';
 import {
   CreatePurchaseOrderDto,
   UpdatePurchaseOrderDto,
@@ -28,8 +28,8 @@ export class PurchaseOrderService {
       cacheKey,
       async () => {
         const prismaQuery = this.queryService.buildPrismaQuery(query, {
-          searchableFields: ['code', 'notes'],
-          allowedIncludes: ['supplier', 'creator', 'purchaseOrderItems', 'purchaseOrderItems.product', 'purchaseOrderItems.unit', 'purchases'],
+          searchableFields: ['*'],
+          allowedIncludes: ['*'],
           defaultOrderBy: { createdAt: 'desc' },
         });
 
@@ -67,7 +67,7 @@ export class PurchaseOrderService {
       cacheKey,
       async () => {
         const prismaQuery = this.queryService.buildPrismaQuery(query, {
-          allowedIncludes: ['supplier', 'creator', 'purchaseOrderItems', 'purchaseOrderItems.product', 'purchaseOrderItems.unit', 'purchases'],
+          allowedIncludes: ['*'],
         });
 
         const findArgs: any = { where: { id } };
@@ -91,13 +91,13 @@ export class PurchaseOrderService {
 
     // Calculate totals for items
     const itemsData = dto.items.map((item) => {
-      const subtotal = item.price * item.quantity - (item.discount || 0);
+      const subtotal = item.unitPrice * item.quantity - (item.discountAmount || 0);
       return {
-        productId: item.product_id,
+        productId: item.productId,
         quantity: new Prisma.Decimal(item.quantity.toString()),
-        unitId: item.unit_id,
-        unitPrice: new Prisma.Decimal(item.price.toString()),
-        discountAmount: new Prisma.Decimal((item.discount || 0).toString()),
+        unitId: item.unitId,
+        unitPrice: new Prisma.Decimal(item.unitPrice.toString()),
+        discountAmount: new Prisma.Decimal((item.discountAmount || 0).toString()),
         subtotal: new Prisma.Decimal(subtotal.toString()),
       };
     });
@@ -107,12 +107,12 @@ export class PurchaseOrderService {
     const purchaseOrder = await this.prisma.purchaseOrder.create({
       data: {
         code,
-        supplierId: dto.supplier_id,
+        supplierId: dto.supplierId,
         date: dto.date ? new Date(dto.date) : new Date(),
-        dueDate: dto.due_date ? new Date(dto.due_date) : null,
+        dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
         notes: dto.notes,
         total: new Prisma.Decimal(total.toString()),
-        status: TransactionStatus.DRAFT,
+        status: 'DRAFT',
         createdById: String(userId),
         purchaseOrderItems: {
           create: itemsData,
@@ -132,16 +132,16 @@ export class PurchaseOrderService {
   async update(id: number, dto: UpdatePurchaseOrderDto) {
     const purchaseOrder = await this.prisma.purchaseOrder.findUnique({ where: { id } });
     if (!purchaseOrder) throw new NotFoundException('Purchase order not found');
-    if (purchaseOrder.status !== TransactionStatus.DRAFT) {
+    if (purchaseOrder.status !== 'DRAFT') {
       throw new BadRequestException('Can only update draft purchase orders');
     }
 
     const updated = await this.prisma.purchaseOrder.update({
       where: { id },
       data: {
-        supplierId: dto.supplier_id,
+        supplierId: dto.supplierId,
         date: dto.date ? new Date(dto.date) : undefined,
-        dueDate: dto.due_date ? new Date(dto.due_date) : undefined,
+        dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
         notes: dto.notes,
       },
       include: {
@@ -158,20 +158,20 @@ export class PurchaseOrderService {
   async addItem(id: number, dto: AddPurchaseOrderItemDto) {
     const purchaseOrder = await this.prisma.purchaseOrder.findUnique({ where: { id } });
     if (!purchaseOrder) throw new NotFoundException('Purchase order not found');
-    if (purchaseOrder.status !== TransactionStatus.DRAFT) {
+    if (purchaseOrder.status !== 'DRAFT') {
       throw new BadRequestException('Can only add items to draft purchase orders');
     }
 
-    const subtotal = dto.price * dto.quantity - (dto.discount || 0);
+    const subtotal = dto.unitPrice * dto.quantity - (dto.discountAmount || 0);
 
     await this.prisma.purchaseOrderItem.create({
       data: {
         purchaseOrderId: id,
-        productId: dto.product_id,
+        productId: dto.productId,
         quantity: new Prisma.Decimal(dto.quantity.toString()),
-        unitId: dto.unit_id,
-        unitPrice: new Prisma.Decimal(dto.price.toString()),
-        discountAmount: new Prisma.Decimal((dto.discount || 0).toString()),
+        unitId: dto.unitId,
+        unitPrice: new Prisma.Decimal(dto.unitPrice.toString()),
+        discountAmount: new Prisma.Decimal((dto.discountAmount || 0).toString()),
         subtotal: new Prisma.Decimal(subtotal.toString()),
       },
     });
@@ -187,7 +187,7 @@ export class PurchaseOrderService {
   async removeItem(id: number, itemId: number) {
     const purchaseOrder = await this.prisma.purchaseOrder.findUnique({ where: { id } });
     if (!purchaseOrder) throw new NotFoundException('Purchase order not found');
-    if (purchaseOrder.status !== TransactionStatus.DRAFT) {
+    if (purchaseOrder.status !== 'DRAFT') {
       throw new BadRequestException('Can only remove items from draft purchase orders');
     }
 
@@ -213,15 +213,13 @@ export class PurchaseOrderService {
     });
     if (!purchaseOrder) throw new NotFoundException('Purchase order not found');
 
-    const requestedStatus = dto.status.toUpperCase() as TransactionStatus;
-
     const validTransitions: Record<string, string[]> = {
-      [TransactionStatus.DRAFT]: [TransactionStatus.CONFIRMED, TransactionStatus.CANCELLED],
-      [TransactionStatus.CONFIRMED]: [TransactionStatus.COMPLETED, TransactionStatus.CANCELLED],
+      DRAFT: ['CONFIRMED', 'CANCELLED'],
+      CONFIRMED: ['COMPLETED', 'CANCELLED'],
     };
 
     const allowed = validTransitions[purchaseOrder.status] || [];
-    if (!allowed.includes(requestedStatus)) {
+    if (!allowed.includes(dto.status)) {
       throw new BadRequestException(
         `Cannot transition from '${purchaseOrder.status}' to '${dto.status}'`,
       );
@@ -229,7 +227,7 @@ export class PurchaseOrderService {
 
     const updated = await this.prisma.purchaseOrder.update({
       where: { id },
-      data: { status: requestedStatus },
+      data: { status: dto.status as any },
       include: {
         supplier: true,
         purchaseOrderItems: { include: { product: true, unit: true } },
@@ -244,11 +242,8 @@ export class PurchaseOrderService {
   async delete(id: number) {
     const purchaseOrder = await this.prisma.purchaseOrder.findUnique({ where: { id } });
     if (!purchaseOrder) throw new NotFoundException('Purchase order not found');
-    if (purchaseOrder.status !== TransactionStatus.DRAFT) {
+    if (purchaseOrder.status !== 'DRAFT') {
       throw new BadRequestException('Can only delete draft purchase orders');
-    }
-    if (purchaseOrder.purchaseId) {
-      throw new BadRequestException('Cannot delete purchase order with linked purchases');
     }
 
     await this.prisma.purchaseOrder.delete({ where: { id } });
@@ -260,14 +255,14 @@ export class PurchaseOrderService {
 
   private async recalculateTotal(purchaseOrderId: number) {
     const items = await this.prisma.purchaseOrderItem.findMany({
-      where: { purchaseOrderId },
+      where: { purchaseOrderId: purchaseOrderId },
     });
 
     const total = items.reduce((sum, item) => {
-      const price = Number(item.unitPrice);
+      const unitPrice = Number(item.unitPrice);
       const quantity = Number(item.quantity);
-      const discount = Number(item.discountAmount);
-      return sum + price * quantity - discount;
+      const discountAmount = Number(item.discountAmount);
+      return sum + unitPrice * quantity - discountAmount;
     }, 0);
 
     await this.prisma.purchaseOrder.update({

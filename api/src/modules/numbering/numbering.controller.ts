@@ -1,248 +1,115 @@
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
-import { Controller, Get, Post, Patch, Delete, Put, Param, Body, Query, UseGuards, Headers, BadRequestException } from '@nestjs/common';
+import { UseGuards, Controller, Get, Post, Patch, Delete, Put, Param, Body, Query } from '@nestjs/common';
+import { BaseController } from '../../common/templates/base.controller';
 import { NumberingService } from './numbering.service';
 import { CreateNumberingDto, UpdateNumberingDto } from './dto/numbering.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
-import { PrismaService } from '../../common/prisma/prisma-service';
-
-type HeadersRecord = Record<string, string | string[] | undefined>;
 
 @ApiTags('Numbering')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('numbering')
-export class NumberingController {
-  constructor(
-    private readonly numberingService: NumberingService,
-    private readonly prisma: PrismaService,
-  ) {}
-
-  // ═══════════════════════════════════════════════════════════════════
-  // TRANSACTION BLOCK HELPER
-  // ═══════════════════════════════════════════════════════════════════
-
-  /**
-   * Execute callback dalam transaction block
-   * By default semua endpoint menggunakan transaction
-   */
-  private async withTransaction<T>(
-    headers: HeadersRecord,
-    callback: (tx: any) => Promise<T>,
-  ): Promise<T> {
-    const useTransaction = headers['x-use-transaction'] !== 'false';
-
-    if (useTransaction) {
-      return this.prisma.$transaction(async (tx) => {
-        return callback(tx);
-      });
-    }
-
-    return callback(this.prisma);
+export class NumberingController extends BaseController<
+  any,
+  CreateNumberingDto,
+  UpdateNumberingDto
+> {
+  constructor(numberingService: NumberingService) {
+    super(numberingService, {
+      modelName: 'Numbering',
+      pluralName: 'Numberings',
+      primaryKeyType: 'number',
+      paramId: 'id',
+      routePrefix: 'numbering',
+    });
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  // READ ENDPOINTS (No transaction needed)
-  // ═══════════════════════════════════════════════════════════════════
-
   @Get()
-  @ApiOperation({ summary: 'Get all Numberings with OData query support' })
+  @ApiOperation({ summary: 'Get all numbering configs with OData query support' })
+  @ApiQuery({ name: '$select', required: false })
+  @ApiQuery({ name: '$where[field]', required: false })
+  @ApiQuery({ name: '$orderBy[field]', required: false })
+  @ApiQuery({ name: '$skip', required: false, type: Number })
+  @ApiQuery({ name: '$take', required: false, type: Number })
+  @ApiQuery({ name: '$search', required: false })
   async findAll(@Query() query: any) {
-    return this.numberingService.findAll(query);
+    return super.findAll(query);
   }
 
   @Get('count')
-  @ApiOperation({ summary: 'Get count of Numberings' })
   async getCount(@Query() query: any) {
-    return this.numberingService.getCount(query);
+    return super.getCount(query);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get Numbering by ID' })
   async findById(@Param('id') id: string, @Query() query: any) {
-    return this.numberingService.findById(id, query);
+    return super.findById(id, query);
   }
 
   @Get('by/:field/:value')
-  @ApiOperation({ summary: 'Get Numbering by field reference' })
   async findByField(@Param('field') field: string, @Param('value') value: string, @Query() query: any) {
-    return this.numberingService.findByField(field, value, query);
+    return super.findByField(field, value, query);
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  // WRITE ENDPOINTS (With transaction by default)
-  // ═══════════════════════════════════════════════════════════════════
-
   @Post()
-  @ApiOperation({ summary: 'Create new Numbering' })
-  async create(@Body() dto: CreateNumberingDto, @Headers() headers: Record<string, string>) {
-    return this.withTransaction(headers, async (tx) => {
-      const result = await tx.Numbering.create({ data: dto });
-      await this.numberingService.invalidateCache();
-      return result;
-    });
+  async create(@Body() dto: CreateNumberingDto) {
+    return super.create(dto);
   }
 
   @Post('bulk')
-  @ApiOperation({ summary: 'Create multiple Numberings' })
-  async createBulk(@Body() dtos: CreateNumberingDto[], @Headers() headers: Record<string, string>) {
-    return this.withTransaction(headers, async (tx) => {
-      const result = await tx.Numbering.createMany({ data: dtos });
-      await this.numberingService.invalidateCache();
-      return result;
-    });
+  async createBulk(@Body() dtos: CreateNumberingDto[]) {
+    return super.createBulk(dtos);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Update Numbering by ID' })
-  async patchById(
-    @Param('id') id: string,
-    @Body() dto: Partial<UpdateNumberingDto>,
-    @Headers() headers: Record<string, string>,
-  ) {
-    return this.withTransaction(headers, async (tx) => {
-      const result = await tx.Numbering.update({
-        where: { id: parseInt(id) },
-        data: dto,
-      });
-      await this.numberingService.invalidateCache();
-      return result;
-    });
+  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateNumberingDto>) {
+    return super.patchById(id, dto);
   }
 
   @Patch('by/:field/:value')
-  @ApiOperation({ summary: 'Update Numberings by field reference' })
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
     @Body() dto: Partial<UpdateNumberingDto>,
-    @Headers() headers: Record<string, string>,
   ) {
-    return this.withTransaction(headers, async (tx) => {
-      const where = { [field]: value };
-      const result = await tx.Numbering.updateMany({
-        where,
-        data: dto,
-      });
-      await this.numberingService.invalidateCache();
-      return result;
-    });
+    return super.patchByFilterReference(field, value, dto);
   }
 
   @Patch('bulk')
-  @ApiOperation({ summary: 'Update multiple Numberings' })
-  async patchBulk(
-    @Body() body: { ids: number[]; data: Partial<UpdateNumberingDto> },
-    @Headers() headers: Record<string, string>,
-  ) {
-    return this.withTransaction(headers, async (tx) => {
-      const result = await tx.Numbering.updateMany({
-        where: { id: { in: body.ids } },
-        data: body.data,
-      });
-      await this.numberingService.invalidateCache();
-      return result;
-    });
+  async patchBulk(@Body() body: { ids: number[]; data: Partial<UpdateNumberingDto> }) {
+    return super.patchBulk(body);
   }
 
-  // PUT (UPSERT) endpoints
   @Put()
-  @ApiOperation({ summary: 'Upsert Numbering' })
-  async upsert(
-    @Body() body: { where: { id: number }; create: CreateNumberingDto; update: Partial<UpdateNumberingDto> },
-    @Headers() headers: Record<string, string>,
-  ) {
-    return this.withTransaction(headers, async (tx) => {
-      const result = await tx.Numbering.upsert({
-        where: body.where,
-        create: body.create,
-        update: body.update,
-      });
-      await this.numberingService.invalidateCache();
-      return result;
-    });
+  async upsert(@Body() body: { where: { id: number }; create: CreateNumberingDto; update: Partial<UpdateNumberingDto> }) {
+    return super.upsert(body);
   }
 
   @Put('by/:field')
-  @ApiOperation({ summary: 'Upsert Numbering by field reference' })
   async upsertByFilterReference(
     @Param('field') field: string,
     @Body() body: { filterValue: any; create: CreateNumberingDto; update: Partial<UpdateNumberingDto> },
-    @Headers() headers: Record<string, string>,
   ) {
-    return this.withTransaction(headers, async (tx) => {
-      const where = { [field]: body.filterValue };
-      const result = await tx.Numbering.upsert({
-        where,
-        create: body.create,
-        update: body.update,
-      });
-      await this.numberingService.invalidateCache();
-      return result;
-    });
+    return super.upsertByFilterReference(field, body);
   }
 
   @Put('bulk')
-  @ApiOperation({ summary: 'Bulk upsert Numberings' })
-  async upsertBulk(
-    @Body() body: { items: Array<{ where?: any; create: CreateNumberingDto; update?: Partial<UpdateNumberingDto> }> },
-    @Headers() headers: Record<string, string>,
-  ) {
-    return this.withTransaction(headers, async (tx) => {
-      const results: any[] = [];
-      for (const item of body.items) {
-        const result = await tx.Numbering.upsert({
-          where: item.where || { id: 0 },
-          create: item.create,
-          update: item.update || {},
-        });
-        results.push(result);
-      }
-      await this.numberingService.invalidateCache();
-      return results;
-    });
+  async upsertBulk(@Body() body: { items: any[] }) {
+    return super.upsertBulk(body);
   }
 
-  // DELETE endpoints
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete Numbering by ID' })
-  async deleteById(@Param('id') id: string, @Headers() headers: Record<string, string>) {
-    return this.withTransaction(headers, async (tx) => {
-      const result = await tx.Numbering.delete({
-        where: { id: parseInt(id) },
-      });
-      await this.numberingService.invalidateCache();
-      return result;
-    });
+  async deleteById(@Param('id') id: string) {
+    return super.deleteById(id);
   }
 
   @Delete('by/:field/:value')
-  @ApiOperation({ summary: 'Delete Numberings by field reference' })
-  async deleteByFilterReference(
-    @Param('field') field: string,
-    @Param('value') value: string,
-    @Headers() headers: Record<string, string>,
-  ) {
-    return this.withTransaction(headers, async (tx) => {
-      const result = await tx.Numbering.deleteMany({
-        where: { [field]: value },
-      });
-      await this.numberingService.invalidateCache();
-      return result;
-    });
+  async deleteByFilterReference(@Param('field') field: string, @Param('value') value: string) {
+    return super.deleteByFilterReference(field, value);
   }
 
   @Delete('bulk')
-  @ApiOperation({ summary: 'Delete multiple Numberings' })
-  async deleteBulk(
-    @Body() body: { ids: number[] },
-    @Headers() headers: Record<string, string>,
-  ) {
-    return this.withTransaction(headers, async (tx) => {
-      const result = await tx.Numbering.deleteMany({
-        where: { id: { in: body.ids } },
-      });
-      await this.numberingService.invalidateCache();
-      return result;
-    });
+  async deleteBulk(@Body() body: { ids: (number | string)[] }) {
+    return super.deleteBulk(body);
   }
 }

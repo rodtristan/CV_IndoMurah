@@ -5,7 +5,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CreatePurchaseReturnItemDto {
   @ApiProperty({ description: 'Product ID' })
   @IsInt()
-  product_id: number;
+  productId: number;
 
   @ApiProperty({ description: 'Quantity to return' })
   @IsNumber()
@@ -13,27 +13,27 @@ export class CreatePurchaseReturnItemDto {
 
   @ApiProperty({ description: 'Unit ID' })
   @IsInt()
-  unit_id: number;
+  unitId: number;
 
   @ApiProperty({ description: 'Unit price' })
   @IsNumber()
-  unit_price: number;
+  unitPrice: number;
 }
 
 export class CreatePurchaseReturnDto {
   @ApiProperty({ description: 'Purchase ID' })
   @IsInt()
-  purchase_id: number;
+  purchaseId: number;
 
   @ApiPropertyOptional({ description: 'Supplier ID (auto-filled from purchase)' })
   @IsOptional()
   @IsInt()
-  supplier_id?: number;
+  supplierId?: number;
 
   @ApiPropertyOptional({ description: 'Warehouse ID' })
   @IsOptional()
   @IsInt()
-  warehouse_id?: number;
+  warehouseId?: number;
 
   @ApiPropertyOptional({ description: 'Return date' })
   @IsOptional()
@@ -56,7 +56,7 @@ export class UpdatePurchaseReturnDto {
   @ApiPropertyOptional({ description: 'Warehouse ID' })
   @IsOptional()
   @IsInt()
-  warehouse_id?: number;
+  warehouseId?: number;
 
   @ApiPropertyOptional({ description: 'Return date' })
   @IsOptional()
@@ -70,7 +70,7 @@ export class UpdatePurchaseReturnDto {
 }
 
 export class UpdateStatusDto {
-  @ApiProperty({ description: 'New status: confirmed, completed, cancelled' })
+  @ApiProperty({ description: 'New status: DRAFT, CONFIRMED, COMPLETED, CANCELLED' })
   @IsString()
   status: string;
 }

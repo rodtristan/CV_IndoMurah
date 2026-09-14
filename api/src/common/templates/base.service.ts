@@ -59,14 +59,14 @@ export class BaseService<
   WhereUnique extends Record<string, any> = any,
   WhereInput extends Record<string, any> = any,
 > {
-  protected readonly CACHE_PREFIX: string;
-  protected readonly CACHE_TTL: number;
-  protected readonly config: ModelConfig<T, CreateDto, UpdateDto, WhereUnique, WhereInput>;
+  CACHE_PREFIX: string;
+  CACHE_TTL: number;
+  config: ModelConfig<T, CreateDto, UpdateDto, WhereUnique, WhereInput>;
 
   constructor(
-    protected readonly prisma: PrismaService,
-    protected readonly redis: RedisService,
-    protected readonly queryService: QueryService,
+    readonly prisma: PrismaService,
+    readonly redis: RedisService,
+    readonly queryService: QueryService,
     config: ModelConfig<T, CreateDto, UpdateDto, WhereUnique, WhereInput>,
   ) {
     this.config = {
@@ -628,7 +628,7 @@ export class BaseService<
   /**
    * Get Prisma model reference
    */
-  protected getModel(): any {
+  getModel(): any {
     return (this.prisma as any)[this.config.modelName];
   }
 
@@ -642,7 +642,7 @@ export class BaseService<
   /**
    * Invalidate specific item cache
    */
-  protected async invalidateItemCache(id: any): Promise<void> {
+  async invalidateItemCache(id: any): Promise<void> {
     await this.redis.del(`${this.CACHE_PREFIX}:${id}:*`);
   }
 }

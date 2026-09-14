@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
-import { Prisma, TransactionStatus } from '.prisma/client';
+import { Prisma } from '@prisma/client';
 import { CreatePurchaseDto, UpdatePurchaseDto, UpdateStatusDto } from './dto/purchase.dto';
 
 @Injectable()
@@ -80,26 +80,26 @@ export class PurchaseService {
 
   async create(dto: CreatePurchaseDto, userId: string) {
     // Verify supplier exists
-    const supplier = await this.prisma.supplier.findUnique({ where: { id: dto.supplier_id } });
+    const supplier = await this.prisma.supplier.findUnique({ where: { id: dto.supplierId } });
     if (!supplier) throw new NotFoundException('Supplier not found');
 
     const code = await this.generateCode();
 
     // Calculate totals
     let subtotal = dto.subtotal || 0;
-    let discountAmount = dto.discount_amount || 0;
+    let discountAmount = dto.discountAmount || 0;
     let taxAmount = 0;
 
     if (dto.items && dto.items.length > 0) {
       const itemsData = dto.items.map((item) => {
-        const itemSubtotal = item.unit_price * item.quantity;
-        const itemDiscount = item.discount_amount || (itemSubtotal * (item.discount_percent || 0) / 100);
+        const itemSubtotal = item.unitPrice * item.quantity;
+        const itemDiscount = item.discountAmount || (itemSubtotal * (item.discountPercent || 0) / 100);
         return {
-          productId: item.product_id,
+          productId: item.productId,
           quantity: new Prisma.Decimal(item.quantity.toString()),
-          unitId: item.unit_id,
-          unitPrice: new Prisma.Decimal(item.unit_price.toString()),
-          discountPercent: new Prisma.Decimal((item.discount_percent || 0).toString()),
+          unitId: item.unitId,
+          unitPrice: new Prisma.Decimal(item.unitPrice.toString()),
+          discountPercent: new Prisma.Decimal((item.discountPercent || 0).toString()),
           discountAmount: new Prisma.Decimal(itemDiscount.toString()),
           subtotal: new Prisma.Decimal((itemSubtotal - itemDiscount).toString()),
         };
@@ -111,20 +111,20 @@ export class PurchaseService {
       const purchase = await this.prisma.purchase.create({
         data: {
           code,
-          supplierId: dto.supplier_id,
-          warehouseId: dto.warehouse_id,
+          supplierId: dto.supplierId,
+          warehouseId: dto.warehouseId,
           date: dto.date ? new Date(dto.date) : new Date(),
-          dueDate: dto.due_date ? new Date(dto.due_date) : null,
-          paymentMethod: dto.payment_method,
+          dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
+          paymentMethod: dto.paymentMethod,
           subtotal: new Prisma.Decimal(subtotal.toString()),
-          discountPercent: new Prisma.Decimal((dto.discount_percent || 0).toString()),
+          discountPercent: new Prisma.Decimal((dto.discountPercent || 0).toString()),
           discountAmount: new Prisma.Decimal(discountAmount.toString()),
-          taxPercent: new Prisma.Decimal((dto.tax_percent || 0).toString()),
+          taxPercent: new Prisma.Decimal((dto.taxPercent || 0).toString()),
           taxAmount: new Prisma.Decimal(taxAmount.toString()),
           total: new Prisma.Decimal((subtotal - discountAmount + taxAmount).toString()),
           paid: new Prisma.Decimal('0'),
           remaining: new Prisma.Decimal((subtotal - discountAmount + taxAmount).toString()),
-          status: TransactionStatus.DRAFT,
+          status: 'DRAFT',
           notes: dto.notes,
           createdById: userId,
           purchaseItems: {
@@ -143,26 +143,26 @@ export class PurchaseService {
     }
 
     // Create purchase without items
-    taxAmount = (subtotal - discountAmount) * ((dto.tax_percent || 0) / 100);
+    taxAmount = (subtotal - discountAmount) * ((dto.taxPercent || 0) / 100);
     const total = subtotal - discountAmount + taxAmount;
 
     const purchase = await this.prisma.purchase.create({
       data: {
         code,
-        supplierId: dto.supplier_id,
-        warehouseId: dto.warehouse_id,
+        supplierId: dto.supplierId,
+        warehouseId: dto.warehouseId,
         date: dto.date ? new Date(dto.date) : new Date(),
-        dueDate: dto.due_date ? new Date(dto.due_date) : null,
-        paymentMethod: dto.payment_method,
+        dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
+        paymentMethod: dto.paymentMethod,
         subtotal: new Prisma.Decimal(subtotal.toString()),
-        discountPercent: new Prisma.Decimal((dto.discount_percent || 0).toString()),
+        discountPercent: new Prisma.Decimal((dto.discountPercent || 0).toString()),
         discountAmount: new Prisma.Decimal(discountAmount.toString()),
-        taxPercent: new Prisma.Decimal((dto.tax_percent || 0).toString()),
+        taxPercent: new Prisma.Decimal((dto.taxPercent || 0).toString()),
         taxAmount: new Prisma.Decimal(taxAmount.toString()),
         total: new Prisma.Decimal(total.toString()),
         paid: new Prisma.Decimal('0'),
         remaining: new Prisma.Decimal(total.toString()),
-        status: TransactionStatus.DRAFT,
+        status: 'DRAFT',
         notes: dto.notes,
         createdById: userId,
       },
@@ -179,18 +179,18 @@ export class PurchaseService {
   async update(id: number, dto: UpdatePurchaseDto) {
     const purchase = await this.prisma.purchase.findUnique({ where: { id } });
     if (!purchase) throw new NotFoundException('Purchase not found');
-    if (purchase.status !== TransactionStatus.DRAFT) {
+    if (purchase.status !== 'DRAFT') {
       throw new BadRequestException('Can only update draft purchases');
     }
 
     const updateData: any = {};
-    if (dto.warehouse_id !== undefined) updateData.warehouseId = dto.warehouse_id;
+    if (dto.warehouseId !== undefined) updateData.warehouseId = dto.warehouseId;
     if (dto.date) updateData.date = new Date(dto.date);
-    if (dto.due_date !== undefined) updateData.dueDate = dto.due_date ? new Date(dto.due_date) : null;
-    if (dto.payment_method !== undefined) updateData.paymentMethod = dto.payment_method;
-    if (dto.discount_percent !== undefined) updateData.discountPercent = new Prisma.Decimal(dto.discount_percent.toString());
-    if (dto.discount_amount !== undefined) updateData.discountAmount = new Prisma.Decimal(dto.discount_amount.toString());
-    if (dto.tax_percent !== undefined) updateData.taxPercent = new Prisma.Decimal(dto.tax_percent.toString());
+    if (dto.dueDate !== undefined) updateData.dueDate = dto.dueDate ? new Date(dto.dueDate) : null;
+    if (dto.paymentMethod !== undefined) updateData.paymentMethod = dto.paymentMethod;
+    if (dto.discountPercent !== undefined) updateData.discountPercent = new Prisma.Decimal(dto.discountPercent.toString());
+    if (dto.discountAmount !== undefined) updateData.discountAmount = new Prisma.Decimal(dto.discountAmount.toString());
+    if (dto.taxPercent !== undefined) updateData.taxPercent = new Prisma.Decimal(dto.taxPercent.toString());
     if (dto.notes !== undefined) updateData.notes = dto.notes;
 
     const updated = await this.prisma.purchase.update({
@@ -226,7 +226,7 @@ export class PurchaseService {
 
     const updated = await this.prisma.purchase.update({
       where: { id },
-      data: { status: dto.status as TransactionStatus },
+      data: { status: dto.status as any },
       include: {
         supplier: true,
         warehouse: true,
@@ -241,7 +241,7 @@ export class PurchaseService {
   async delete(id: number) {
     const purchase = await this.prisma.purchase.findUnique({ where: { id } });
     if (!purchase) throw new NotFoundException('Purchase not found');
-    if (purchase.status !== TransactionStatus.DRAFT) {
+    if (purchase.status !== 'DRAFT') {
       throw new BadRequestException('Can only delete draft purchases');
     }
 

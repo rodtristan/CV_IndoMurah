@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { QueryService } from '../../common/query/query-service';
-import { Prisma } from '.prisma/client';
+import { Prisma } from '@prisma/client';
 import { CreateSaleDto, UpdateSaleDto, PaymentDto, UpdateStatusDto } from './dto/sale.dto';
 
 @Injectable()
@@ -213,6 +213,7 @@ export class SaleService {
     const totalAmount = Number(sale.total);
 
     let newStatus: 'PARTIAL' | 'PAID' = 'PARTIAL';
+    const actualPaid = newPaid >= totalAmount ? totalAmount : newPaid;
     if (newPaid >= totalAmount) newStatus = 'PAID';
 
     await this.prisma.$transaction(async (tx) => {
