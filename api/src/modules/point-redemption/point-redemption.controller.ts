@@ -4,6 +4,7 @@ import { BaseController } from '../../common/templates/base.controller';
 import { PointRedemptionService } from './point-redemption.service';
 import { CreatePointRedemptionDto, UpdatePointRedemptionDto } from './dto/point-redemption.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
+import { CurrentUser } from '../../common/decorators/current-user-decorator';
 
 @ApiTags('PointRedemption')
 @ApiBearerAuth()
@@ -52,8 +53,8 @@ export class PointRedemptionController extends BaseController<
   }
 
   @Post()
-  async create(@Body() dto: CreatePointRedemptionDto) {
-    return super.create(dto);
+  async create(@Body() dto: CreatePointRedemptionDto, @CurrentUser() user?: any) {
+    return super.create({ ...dto, createdById: user.id } as any);
   }
 
   @Post('bulk')

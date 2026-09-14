@@ -4,6 +4,7 @@ import { BaseController } from '../../common/templates/base.controller';
 import { CustomerDepositService } from './customer-deposit.service';
 import { CreateCustomerDepositDto, UpdateCustomerDepositDto } from './dto/customer-deposit.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
+import { CurrentUser } from '../../common/decorators/current-user-decorator';
 
 @ApiTags('CustomerDeposit')
 @ApiBearerAuth()
@@ -59,8 +60,8 @@ export class CustomerDepositController extends BaseController<
   // POST endpoints
   @Post()
   @ApiOperation({ summary: 'Create new CustomerDeposit' })
-  async create(@Body() dto: CreateCustomerDepositDto) {
-    return super.create(dto);
+  async create(@Body() dto: CreateCustomerDepositDto, @CurrentUser() user?: any) {
+    return super.create({ ...dto, remainingAmount: dto.amount, createdById: user.id } as any);
   }
 
   @Post('bulk')

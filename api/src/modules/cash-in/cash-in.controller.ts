@@ -4,6 +4,7 @@ import { BaseController } from '../../common/templates/base.controller';
 import { CashInService } from './cash-in.service';
 import { CreateCashInDto, UpdateCashInDto } from './dto/cash-in.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
+import { CurrentUser } from '../../common/decorators/current-user-decorator';
 
 @ApiTags('CashIn')
 @ApiBearerAuth()
@@ -59,8 +60,8 @@ export class CashInController extends BaseController<
   // POST endpoints
   @Post()
   @ApiOperation({ summary: 'Create new CashIn' })
-  async create(@Body() dto: CreateCashInDto) {
-    return super.create(dto);
+  async create(@Body() dto: CreateCashInDto, @CurrentUser() user?: any) {
+    return super.create({ ...dto, createdById: user.id } as any);
   }
 
   @Post('bulk')

@@ -4,6 +4,7 @@ import { BaseController } from '../../common/templates/base.controller';
 import { StockInService } from './stock-in.service';
 import { CreateStockInDto, UpdateStockInDto } from './dto/stock-in.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
+import { CurrentUser } from '../../common/decorators/current-user-decorator';
 
 @ApiTags('StockIn')
 @ApiBearerAuth()
@@ -59,8 +60,8 @@ export class StockInController extends BaseController<
   // POST endpoints
   @Post()
   @ApiOperation({ summary: 'Create new StockIn' })
-  async create(@Body() dto: CreateStockInDto) {
-    return super.create(dto);
+  async create(@Body() dto: CreateStockInDto, @CurrentUser() user?: any) {
+    return super.create({ ...dto, createdById: user.id } as any);
   }
 
   @Post('bulk')

@@ -42,6 +42,16 @@ async function main() {
     update: { isActive: true },
   });
 
+  // ─── Pelanggan Umum (walk-in) ───────────────────────────────
+  // POS kasir (web/src/app/(pos)/sale/pos/page.tsx) fallback ke customerId
+  // ini ketika kasir tidak memilih pelanggan — customerId wajib diisi di
+  // CreateSaleDto. Upsert by code supaya id-nya stabil lintas re-seed.
+  const walkInCustomer = await prisma.customer.upsert({
+    where: { code: 'UMUM' },
+    create: { code: 'UMUM', name: 'Pelanggan Umum', isActive: true },
+    update: {},
+  });
+
   // ─── Menus dasar + akses role Admin ─────────────────────────
   const menuNames = ['dashboard', 'users', 'roles', 'menus'];
   const menus = await Promise.all(
@@ -65,8 +75,9 @@ async function main() {
   );
 
   console.log('Seed selesai:');
-  console.log(`  Role  : ${adminRole.roleName} (id=${adminRole.id})`);
-  console.log(`  Menus : ${menus.map((m) => m.menuName).join(', ')}`);
+  console.log(`  Role     : ${adminRole.roleName} (id=${adminRole.id})`);
+  console.log(`  Menus    : ${menus.map((m) => m.menuName).join(', ')}`);
+  console.log(`  Customer : ${walkInCustomer.name} (id=${walkInCustomer.id})`);
   console.log(`  Admin : ${adminEmail} / admin123 (GANTI password ini setelah login pertama!)`);
   console.log(`  id    : ${admin.id}`);
 

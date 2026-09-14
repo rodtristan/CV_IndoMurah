@@ -1,44 +1,63 @@
-import { IsString, IsOptional, IsBoolean, IsInt, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsNumber } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateCashOutDto {
-  @ApiProperty({ description: 'CashOut code' })
+  @ApiProperty({ description: 'Kode kas keluar' })
   @IsString()
   code: string;
 
-  @ApiProperty({ description: 'CashOut name' })
-  @IsString()
-  name: string;
+  @ApiProperty({ description: 'Akun kas/bank sumber' })
+  @IsInt()
+  accountId: number;
 
-  @ApiPropertyOptional({ description: 'Description' })
+  @ApiProperty({ description: 'Jumlah' })
+  @IsNumber()
+  amount: number;
+
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ default: true, description: 'Is active' })
+  @ApiPropertyOptional()
   @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
+  @IsString()
+  referenceType?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  referenceId?: number;
 }
 
 export class UpdateCashOutDto {
-  @ApiPropertyOptional({ description: 'CashOut code' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   code?: string;
 
-  @ApiPropertyOptional({ description: 'CashOut name' })
+  @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
-  name?: string;
+  @IsInt()
+  accountId?: number;
 
-  @ApiPropertyOptional({ description: 'Description' })
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  amount?: number;
+
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ description: 'Is active' })
+  @ApiPropertyOptional()
   @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
+  @IsString()
+  referenceType?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  referenceId?: number;
 }

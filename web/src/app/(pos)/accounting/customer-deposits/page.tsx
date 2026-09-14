@@ -18,8 +18,7 @@ export default function CustomerDepositsPage() {
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [customers, setCustomers] = useState<any[]>([]);
-  const [accounts, setAccounts] = useState<any[]>([]);
-  const [form, setForm] = useState({ date: "", code: "", customerId: "", accountId: "", amount: 0, description: "", paymentMethod: "CASH" });
+  const [form, setForm] = useState({ date: "", code: "", customerId: "", amount: 0, description: "" });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -34,21 +33,21 @@ export default function CustomerDepositsPage() {
     if (res.success) setCustomers(res.data || []);
   }, []);
 
-  const fetchAccounts = useCallback(async () => {
-    const res = await api.get("account", { $select: "id,code,name", $where: "type eq ASSET" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-    if (res.success) setAccounts(res.data || []);
-  }, []);
-
   useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => { fetchCustomers(); }, [fetchCustomers]);
-  useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
 
   const handleSave = async () => {
     const isEdit = Boolean((form as any).id);
+    const payload = {
+      code: form.code || `DP-${Date.now()}`,
+      customerId: Number(form.customerId),
+      amount: Number(form.amount),
+      description: form.description || undefined,
+    };
     if (isEdit) {
-      await api.patch("customer-deposit", (form as any).id, form).catch(() => ({}));
+      await api.patch("customer-deposit", (form as any).id, payload).catch(() => ({}));
     } else {
-      await api.post("customer-deposit", form).catch(() => ({}));
+      await api.post("customer-deposit", payload).catch(() => ({}));
     }
     setShowForm(false);
     fetchData();
@@ -57,13 +56,13 @@ export default function CustomerDepositsPage() {
   const columns = [
     { key: "date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
     { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "customerName", label: "Pelanggan" },
-    { key: "paymentMethod", label: "Metode" },
+    { key: "customer", label: "Pelanggan", render: (v: unknown) => (v as any)?.name || "-" },
     { key: "amount", label: "Jumlah", align: "right" as const, render: (v: unknown) => <span className="font-bold text-success">{formatCurrency(v as number)}</span> },
+    { key: "remainingAmount", label: "Sisa", align: "right" as const, render: (v: unknown) => formatCurrency(v as number) },
     { key: "description", label: "Keterangan" },
   ];
 
-  const openCreate = () => { setForm({ date: new Date().toISOString().split("T")[0], code: "", customerId: "", accountId: "", amount: 0, description: "", paymentMethod: "CASH" }); setShowForm(true); };
+  const openCreate = () => { setForm({ date: new Date().toISOString().split("T")[0], code: "", customerId: "", amount: 0, description: "" }); setShowForm(true); };
 
   return (
     <PageWrapper>
@@ -83,8 +82,6 @@ export default function CustomerDepositsPage() {
         <div className="space-y-4">
           <Input label="Tanggal" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
           <Select label="Pelanggan" value={form.customerId} onChange={e => setForm(f => ({ ...f, customerId: e.target.value }))} options={customers.map(c => ({ value: c.id, label: c.name }))} />
-          <Select label="Akun Kas" value={form.accountId} onChange={e => setForm(f => ({ ...f, accountId: e.target.value }))} options={accounts.map(a => ({ value: a.id, label: `${a.code} - ${a.name}` }))} />
-          <Select label="Metode Bayar" value={form.paymentMethod} onChange={e => setForm(f => ({ ...f, paymentMethod: e.target.value }))} options={[{ value: "CASH", label: "Tunai" }, { value: "TRANSFER", label: "Transfer" }, { value: "DEBIT", label: "Debit" }]} />
           <Input label="Jumlah" type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: Number(e.target.value) }))} />
           <Input label="Keterangan" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
           <div className="flex justify-end gap-2 pt-4">

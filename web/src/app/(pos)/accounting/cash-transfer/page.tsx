@@ -23,13 +23,13 @@ export default function CashTransferPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("cash-transfer", { $search: search || undefined } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+      const res = await api.get("cash-transfer", { $search: search || undefined, $include: "fromAccount,toAccount" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
       if (res.success) setTransfers(res.data || []);
     } finally { setLoading(false); }
   }, [search]);
 
   const fetchAccounts = useCallback(async () => {
-    const res = await api.get("account", { $select: "id,code,name", $where: "type eq ASSET" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+    const res = await api.get("account", { $select: "id,code,name", $where: { type: "ASSET" } } as any).catch(() => ({ success: false, data: { data: [] } } as any));
     if (res.success) setAccounts(res.data || []);
   }, []);
 
@@ -38,10 +38,17 @@ export default function CashTransferPage() {
 
   const handleSave = async () => {
     const isEdit = Boolean((form as any).id);
+    const payload = {
+      code: form.code || `CT-${Date.now()}`,
+      fromAccountId: Number(form.fromAccountId),
+      toAccountId: Number(form.toAccountId),
+      amount: Number(form.amount),
+      description: form.description || undefined,
+    };
     if (isEdit) {
-      await api.patch("cash-transfer", (form as any).id, form).catch(() => ({}));
+      await api.patch("cash-transfer", (form as any).id, payload).catch(() => ({}));
     } else {
-      await api.post("cash-transfer", form).catch(() => ({}));
+      await api.post("cash-transfer", payload).catch(() => ({}));
     }
     setShowForm(false);
     fetchData();
@@ -50,8 +57,8 @@ export default function CashTransferPage() {
   const columns = [
     { key: "date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
     { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "fromAccountName", label: "Dari" },
-    { key: "toAccountName", label: "Ke" },
+    { key: "fromAccount", label: "Dari", render: (v: unknown) => (v as any)?.name || "-" },
+    { key: "toAccount", label: "Ke", render: (v: unknown) => (v as any)?.name || "-" },
     { key: "amount", label: "Jumlah", align: "right" as const, render: (v: unknown) => <span className="font-bold text-primary">{formatCurrency(v as number)}</span> },
     { key: "description", label: "Keterangan" },
   ];

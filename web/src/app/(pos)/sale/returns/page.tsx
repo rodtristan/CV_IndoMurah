@@ -20,9 +20,9 @@ export default function SaleReturnsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const params: any = { $include: "sale,customer" };
+      const params: any = { $include: "sale,customer,returnItems,returnItems.product" };
       if (search) params.$search = search;
-      if (filterStatus) params.$where = `status eq '${filterStatus}'`;
+      if (filterStatus) params.$where = { status: filterStatus };
       const res = await api.get("sale-returns", params).catch(() => ({ success: false, data: { data: [] } } as any));
       if (res.success) setData(res.data || []);
     } finally { setLoading(false); }
@@ -31,16 +31,16 @@ export default function SaleReturnsPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const statusColors: Record<string, string> = {
-    PENDING: "warning", APPROVED: "success", REJECTED: "danger", COMPLETED: "success",
+    DRAFT: "warning", CONFIRMED: "info", COMPLETED: "success", CANCELLED: "danger",
   };
 
   const columns = [
     { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
     { key: "date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
-    { key: "saleCode", label: "Ref. Penjualan", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "customerName", label: "Pelanggan" },
+    { key: "sale", label: "Ref. Penjualan", render: (v: unknown) => <span className="font-mono text-xs">{(v as any)?.code || "-"}</span> },
+    { key: "customer", label: "Pelanggan", render: (v: unknown) => (v as any)?.name || "-" },
     { key: "status", label: "Status", render: (v: unknown) => <Badge variant={(statusColors[v as string] || "default") as any}>{v as string}</Badge> },
-    { key: "total", label: "Total Retur", align: "right" as const, render: (v: unknown) => <span className="font-bold text-danger">{formatCurrency(v as number)}</span> },
+    { key: "totalReturn", label: "Total Retur", align: "right" as const, render: (v: unknown) => <span className="font-bold text-danger">{formatCurrency(v as number)}</span> },
     { key: "reason", label: "Alasan" },
   ];
 
@@ -56,7 +56,13 @@ export default function SaleReturnsPage() {
           loading={loading}
         />
         <div className="mt-4">
-          <DataTable data={data} columns={columns} loading={loading} emptyMessage="Tidak ada retur" />
+          <DataTable
+            data={data}
+            columns={columns}
+            loading={loading}
+            emptyMessage="Tidak ada retur"
+            onRowClick={(row) => { setDetailData(row); setShowDetail(true); }}
+          />
         </div>
       </Card>
 
@@ -65,9 +71,9 @@ export default function SaleReturnsPage() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div><span className="text-muted">Tanggal:</span> {formatDate(detailData.date)}</div>
-              <div><span className="text-muted">Pelanggan:</span> {detailData.customerName}</div>
+              <div><span className="text-muted">Pelanggan:</span> {detailData.customer?.name || "-"}</div>
               <div><span className="text-muted">Status:</span> <Badge variant={(statusColors[detailData.status] || "default") as any}>{detailData.status}</Badge></div>
-              <div><span className="text-muted">Total:</span> <span className="font-bold text-danger">{formatCurrency(detailData.total)}</span></div>
+              <div><span className="text-muted">Total:</span> <span className="font-bold text-danger">{formatCurrency(detailData.totalReturn)}</span></div>
             </div>
             <div className="border-t border-default pt-4">
               <h4 className="font-semibold mb-2">Item Retur</h4>
@@ -81,11 +87,11 @@ export default function SaleReturnsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(detailData.details || []).map((d: any, i: number) => (
+                  {(detailData.returnItems || []).map((d: any, i: number) => (
                     <tr key={i} className="border-b border-default">
-                      <td className="py-1">{d.productName}</td>
+                      <td className="py-1">{d.product?.name || "-"}</td>
                       <td className="text-right">{d.quantity}</td>
-                      <td className="text-right">{formatCurrency(d.price)}</td>
+                      <td className="text-right">{formatCurrency(d.unitPrice)}</td>
                       <td className="text-right font-semibold">{formatCurrency(d.subtotal)}</td>
                     </tr>
                   ))}

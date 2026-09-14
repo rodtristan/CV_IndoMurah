@@ -29,7 +29,7 @@ export default function PurchaseOrderPage() {
   }, [search, filterSupplier, filterStatus]);
 
   const fetchSuppliers = useCallback(async () => {
-    const res = await api.get("suppliers", { $select: "id,name" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+    const res = await api.get("supplier", { $select: "id,name" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
     if (res.success) setSuppliers(res.data || []);
   }, []);
 

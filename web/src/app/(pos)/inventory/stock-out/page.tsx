@@ -19,7 +19,7 @@ export default function StockOutPage() {
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [warehouses, setWarehouses] = useState<any[]>([]);
-  const [form, setForm] = useState({ date: "", code: "", warehouseId: "", reason: "", notes: "", details: [] as any[] });
+  const [form, setForm] = useState({ date: "", code: "", warehouseId: "", description: "" });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -39,10 +39,15 @@ export default function StockOutPage() {
 
   const handleSave = async () => {
     const isEdit = Boolean((form as any).id);
+    const payload = {
+      code: form.code || `SO-${Date.now()}`,
+      warehouseId: Number(form.warehouseId),
+      description: form.description || undefined,
+    };
     if (isEdit) {
-      await api.patch("stock-out", (form as any).id, form).catch(() => ({}));
+      await api.patch("stock-out", (form as any).id, payload).catch(() => ({}));
     } else {
-      await api.post("stock-out", form).catch(() => ({}));
+      await api.post("stock-out", payload).catch(() => ({}));
     }
     setShowForm(false);
     fetchData();
@@ -56,8 +61,8 @@ export default function StockOutPage() {
   const columns = [
     { key: "date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
     { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "warehouseName", label: "Gudang" },
-    { key: "reason", label: "Alasan" },
+    { key: "warehouse", label: "Gudang", render: (v: unknown) => (v as any)?.name || "-" },
+    { key: "description", label: "Keterangan" },
     { key: "status", label: "Status", render: (v: unknown) => {
       const s = v as string;
       return s === "COMPLETED" ? <Badge variant="success">Selesai</Badge> : s === "PENDING" ? <Badge variant="warning">Pending</Badge> : <Badge variant="default">{s}</Badge>;
@@ -74,7 +79,7 @@ export default function StockOutPage() {
     },
   ];
 
-  const openCreate = () => { setForm({ date: new Date().toISOString().split("T")[0], code: "", warehouseId: "", reason: "", notes: "", details: [] }); setShowForm(true); };
+  const openCreate = () => { setForm({ date: new Date().toISOString().split("T")[0], code: "", warehouseId: "", description: "" }); setShowForm(true); };
 
   return (
     <PageWrapper>
@@ -96,8 +101,7 @@ export default function StockOutPage() {
             <Input label="Tanggal" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
             <Select label="Gudang" value={form.warehouseId} onChange={e => setForm(f => ({ ...f, warehouseId: e.target.value }))} options={warehouses.map(w => ({ value: w.id, label: w.name }))} />
           </div>
-          <Input label="Alasan" value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} />
-          <Input label="Catatan" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+          <Input label="Keterangan" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button>
             <Button variant="primary" onClick={handleSave}>Simpan</Button>

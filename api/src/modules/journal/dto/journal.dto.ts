@@ -1,44 +1,50 @@
-import { IsString, IsOptional, IsBoolean, IsInt, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsBoolean } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateJournalDto {
-  @ApiProperty({ description: 'Journal code' })
+  @ApiProperty({ description: 'Kode jurnal' })
   @IsString()
   code: string;
 
-  @ApiProperty({ description: 'Journal name' })
-  @IsString()
-  name: string;
-
-  @ApiPropertyOptional({ description: 'Description' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ default: true, description: 'Is active' })
+  @ApiPropertyOptional()
   @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
+  @IsString()
+  referenceType?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  referenceId?: number;
 }
 
 export class UpdateJournalDto {
-  @ApiPropertyOptional({ description: 'Journal code' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   code?: string;
 
-  @ApiPropertyOptional({ description: 'Journal name' })
-  @IsOptional()
-  @IsString()
-  name?: string;
-
-  @ApiPropertyOptional({ description: 'Description' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ description: 'Is active' })
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  referenceType?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  referenceId?: number;
+
+  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
-  isActive?: boolean;
+  isPosted?: boolean;
 }

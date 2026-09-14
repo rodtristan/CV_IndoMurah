@@ -41,10 +41,15 @@ export default function JournalsPage() {
 
   const handleSave = async () => {
     const isEdit = Boolean((form as any).id);
+    const payload = {
+      code: (form as any).code || `J-${Date.now()}`,
+      description: form.description || undefined,
+      referenceType: form.reference || undefined,
+    };
     if (isEdit) {
-      await api.patch("journal", (form as any).id, form).catch(() => ({}));
+      await api.patch("journal", (form as any).id, payload).catch(() => ({}));
     } else {
-      await api.post("journal", form).catch(() => ({}));
+      await api.post("journal", payload).catch(() => ({}));
     }
     setShowForm(false);
     setForm({ date: "", description: "", reference: "", totalDebit: 0, totalCredit: 0, details: [] });

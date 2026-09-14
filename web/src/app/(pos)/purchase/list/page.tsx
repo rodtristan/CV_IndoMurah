@@ -22,9 +22,9 @@ export default function PurchaseListPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const params: any = { $include: "supplier,purchasePayments" };
+      const params: any = { $include: "supplier,purchasePayments,purchaseItems,purchaseItems.product" };
       if (search) params.$search = search;
-      if (filterStatus) params.$where = `status eq '${filterStatus}'`;
+      if (filterStatus) params.$where = { paymentStatus: filterStatus };
       const res = await api.get("purchases", params).catch(() => ({ success: false, data: { data: [] } } as any));
       if (res.success) setData(res.data || []);
     } finally { setLoading(false); }
@@ -40,8 +40,8 @@ export default function PurchaseListPage() {
   const columns = [
     { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
     { key: "date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
-    { key: "supplierName", label: "Supplier" },
-    { key: "status", label: "Status", render: (v: unknown) => <Badge variant={statusColors[v as string] as any || "default"}>{v as string}</Badge> },
+    { key: "supplier", label: "Supplier", render: (v: unknown) => (v as any)?.name || "-" },
+    { key: "paymentStatus", label: "Status", render: (v: unknown) => <Badge variant={statusColors[v as string] as any || "default"}>{v as string}</Badge> },
     { key: "total", label: "Total", align: "right" as const, render: (v: unknown) => <span className="font-semibold">{formatCurrency(v as number)}</span> },
     { key: "paid", label: "Dibayar", align: "right" as const, render: (v: unknown) => <span className="text-success">{formatCurrency(v as number)}</span> },
     { key: "remaining", label: "Sisa", align: "right" as const, render: (v: unknown) => <span className={Number(v) > 0 ? "font-bold text-danger" : ""}>{formatCurrency(v as number)}</span> },
@@ -74,8 +74,8 @@ export default function PurchaseListPage() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div><span className="text-muted">Tanggal:</span> {formatDate(detailData.date)}</div>
-              <div><span className="text-muted">Supplier:</span> {detailData.supplierName}</div>
-              <div><span className="text-muted">Status:</span> <Badge variant={statusColors[detailData.status] as any || "default"}>{detailData.status}</Badge></div>
+              <div><span className="text-muted">Supplier:</span> {detailData.supplier?.name || "-"}</div>
+              <div><span className="text-muted">Status:</span> <Badge variant={statusColors[detailData.paymentStatus] as any || "default"}>{detailData.paymentStatus}</Badge></div>
               <div><span className="text-muted">Total:</span> <span className="font-bold">{formatCurrency(detailData.total)}</span></div>
             </div>
             <div className="border-t border-default pt-4">
@@ -90,11 +90,11 @@ export default function PurchaseListPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(detailData.details || []).map((d: any, i: number) => (
+                  {(detailData.purchaseItems || []).map((d: any, i: number) => (
                     <tr key={i} className="border-b border-default">
-                      <td className="py-1">{d.productName}</td>
+                      <td className="py-1">{d.product?.name || "-"}</td>
                       <td className="text-right">{d.quantity}</td>
-                      <td className="text-right">{formatCurrency(d.price)}</td>
+                      <td className="text-right">{formatCurrency(d.unitPrice)}</td>
                       <td className="text-right font-semibold">{formatCurrency(d.subtotal)}</td>
                     </tr>
                   ))}

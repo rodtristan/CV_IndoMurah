@@ -20,18 +20,18 @@ export default function CashInPage() {
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [accounts, setAccounts] = useState<any[]>([]);
-  const [form, setForm] = useState({ date: "", code: "", accountId: "", amount: 0, description: "", paymentMethod: "CASH" });
+  const [form, setForm] = useState({ date: "", code: "", accountId: "", amount: 0, description: "" });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("cash-in", { $search: search || undefined } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+      const res = await api.get("cash-in", { $search: search || undefined, $include: "account" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
       if (res.success) setCashIns(res.data || []);
     } finally { setLoading(false); }
   }, [search]);
 
   const fetchAccounts = useCallback(async () => {
-    const res = await api.get("account", { $select: "id,code,name", $where: "type eq REVENUE or type eq ASSET" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+    const res = await api.get("account", { $select: "id,code,name", $where: { type: { $in: "REVENUE,ASSET" } } } as any).catch(() => ({ success: false, data: { data: [] } } as any));
     if (res.success) setAccounts(res.data || []);
   }, []);
 
@@ -40,10 +40,16 @@ export default function CashInPage() {
 
   const handleSave = async () => {
     const isEdit = Boolean((form as any).id);
+    const payload = {
+      code: form.code || `CI-${Date.now()}`,
+      accountId: Number(form.accountId),
+      amount: Number(form.amount),
+      description: form.description || undefined,
+    };
     if (isEdit) {
-      await api.patch("cash-in", (form as any).id, form).catch(() => ({}));
+      await api.patch("cash-in", (form as any).id, payload).catch(() => ({}));
     } else {
-      await api.post("cash-in", form).catch(() => ({}));
+      await api.post("cash-in", payload).catch(() => ({}));
     }
     setShowForm(false);
     fetchData();
@@ -57,9 +63,8 @@ export default function CashInPage() {
   const columns = [
     { key: "date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
     { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "accountName", label: "Akun" },
+    { key: "account", label: "Akun", render: (v: unknown) => (v as any)?.name || "-" },
     { key: "description", label: "Keterangan" },
-    { key: "paymentMethod", label: "Metode", render: (v: unknown) => <Badge variant="info">{v as string}</Badge> },
     { key: "amount", label: "Jumlah", align: "right" as const, render: (v: unknown) => <span className="font-bold text-success">{formatCurrency(v as number)}</span> },
     {
       key: "actions", label: "", width: "70px",
@@ -72,7 +77,7 @@ export default function CashInPage() {
     },
   ];
 
-  const openCreate = () => { setForm({ date: new Date().toISOString().split("T")[0], code: "", accountId: "", amount: 0, description: "", paymentMethod: "CASH" }); setShowForm(true); };
+  const openCreate = () => { setForm({ date: new Date().toISOString().split("T")[0], code: "", accountId: "", amount: 0, description: "" }); setShowForm(true); };
 
   return (
     <PageWrapper>
@@ -93,7 +98,6 @@ export default function CashInPage() {
           <Input label="Tanggal" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
           <Select label="Akun" value={form.accountId} onChange={e => setForm(f => ({ ...f, accountId: e.target.value }))} options={accounts.map(a => ({ value: a.id, label: `${a.code} - ${a.name}` }))} />
           <Input label="Jumlah" type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: Number(e.target.value) }))} />
-          <Select label="Metode Bayar" value={form.paymentMethod} onChange={e => setForm(f => ({ ...f, paymentMethod: e.target.value }))} options={[{ value: "CASH", label: "Tunai" }, { value: "TRANSFER", label: "Transfer" }, { value: "DEBIT", label: "Debit" }, { value: "QRIS", label: "QRIS" }]} />
           <Input label="Keterangan" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button>

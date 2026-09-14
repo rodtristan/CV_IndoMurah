@@ -19,7 +19,7 @@ export default function TransfersPage() {
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [warehouses, setWarehouses] = useState<any[]>([]);
-  const [form, setForm] = useState({ date: "", code: "", fromWarehouseId: "", toWarehouseId: "", notes: "", details: [] as any[] });
+  const [form, setForm] = useState({ date: "", code: "", fromWarehouseId: "", toWarehouseId: "", notes: "" });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -39,10 +39,16 @@ export default function TransfersPage() {
 
   const handleSave = async () => {
     const isEdit = Boolean((form as any).id);
+    const payload = {
+      code: form.code || `ST-${Date.now()}`,
+      fromWarehouseId: Number(form.fromWarehouseId),
+      toWarehouseId: Number(form.toWarehouseId),
+      notes: form.notes || undefined,
+    };
     if (isEdit) {
-      await api.patch("stock-transfer", (form as any).id, form).catch(() => ({}));
+      await api.patch("stock-transfer", (form as any).id, payload).catch(() => ({}));
     } else {
-      await api.post("stock-transfer", form).catch(() => ({}));
+      await api.post("stock-transfer", payload).catch(() => ({}));
     }
     setShowForm(false);
     fetchData();
@@ -51,8 +57,8 @@ export default function TransfersPage() {
   const columns = [
     { key: "date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
     { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "fromWarehouseName", label: "Dari" },
-    { key: "toWarehouseName", label: "Ke" },
+    { key: "fromWarehouse", label: "Dari", render: (v: unknown) => (v as any)?.name || "-" },
+    { key: "toWarehouse", label: "Ke", render: (v: unknown) => (v as any)?.name || "-" },
     { key: "totalItems", label: "Total Item", align: "right" as const },
     { key: "status", label: "Status", render: (v: unknown) => {
       const s = v as string;
@@ -60,7 +66,7 @@ export default function TransfersPage() {
     }},
   ];
 
-  const openCreate = () => { setForm({ date: new Date().toISOString().split("T")[0], code: "", fromWarehouseId: "", toWarehouseId: "", notes: "", details: [] }); setShowForm(true); };
+  const openCreate = () => { setForm({ date: new Date().toISOString().split("T")[0], code: "", fromWarehouseId: "", toWarehouseId: "", notes: "" }); setShowForm(true); };
 
   return (
     <PageWrapper>

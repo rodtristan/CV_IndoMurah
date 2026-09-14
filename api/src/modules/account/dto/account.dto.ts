@@ -1,43 +1,53 @@
-import { IsString, IsOptional, IsBoolean, IsInt, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsInt, IsEnum } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { AccountType } from '@prisma/client';
 
 export class CreateAccountDto {
-  @ApiProperty({ description: 'Account code' })
+  @ApiProperty({ description: 'Kode akun' })
   @IsString()
   code: string;
 
-  @ApiProperty({ description: 'Account name' })
+  @ApiProperty({ description: 'Nama akun' })
   @IsString()
   name: string;
 
-  @ApiPropertyOptional({ description: 'Description' })
-  @IsOptional()
-  @IsString()
-  description?: string;
+  @ApiProperty({ enum: AccountType })
+  @IsEnum(AccountType)
+  type: AccountType;
 
-  @ApiPropertyOptional({ default: true, description: 'Is active' })
+  @ApiPropertyOptional({ description: 'Akun induk (parent)' })
+  @IsOptional()
+  @IsInt()
+  parentId?: number;
+
+  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
 }
 
 export class UpdateAccountDto {
-  @ApiPropertyOptional({ description: 'Account code' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   code?: string;
 
-  @ApiPropertyOptional({ description: 'Account name' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   name?: string;
 
-  @ApiPropertyOptional({ description: 'Description' })
+  @ApiPropertyOptional({ enum: AccountType })
   @IsOptional()
-  @IsString()
-  description?: string;
+  @IsEnum(AccountType)
+  type?: AccountType;
 
-  @ApiPropertyOptional({ description: 'Is active' })
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  parentId?: number;
+
+  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;

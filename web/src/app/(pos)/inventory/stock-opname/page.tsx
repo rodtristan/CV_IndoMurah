@@ -39,10 +39,15 @@ export default function StockOpnamePage() {
 
   const handleSave = async () => {
     const isEdit = Boolean((form as any).id);
+    const payload = {
+      code: form.code || `SOP-${Date.now()}`,
+      warehouseId: Number(form.warehouseId),
+      notes: form.notes || undefined,
+    };
     if (isEdit) {
-      await api.patch("stock-opname", (form as any).id, form).catch(() => ({}));
+      await api.patch("stock-opname", (form as any).id, payload).catch(() => ({}));
     } else {
-      await api.post("stock-opname", form).catch(() => ({}));
+      await api.post("stock-opname", payload).catch(() => ({}));
     }
     setShowForm(false);
     fetchData();
@@ -51,7 +56,7 @@ export default function StockOpnamePage() {
   const columns = [
     { key: "date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
     { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "warehouseName", label: "Gudang" },
+    { key: "warehouse", label: "Gudang", render: (v: unknown) => (v as any)?.name || "-" },
     { key: "status", label: "Status", render: (v: unknown) => {
       const s = v as string;
       return s === "COMPLETED" ? <Badge variant="success">Selesai</Badge> : s === "IN_PROGRESS" ? <Badge variant="warning">Proses</Badge> : <Badge variant="default">{s}</Badge>;

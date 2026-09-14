@@ -4,6 +4,7 @@ import { BaseController } from '../../common/templates/base.controller';
 import { JournalService } from './journal.service';
 import { CreateJournalDto, UpdateJournalDto } from './dto/journal.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
+import { CurrentUser } from '../../common/decorators/current-user-decorator';
 
 @ApiTags('Journal')
 @ApiBearerAuth()
@@ -59,8 +60,8 @@ export class JournalController extends BaseController<
   // POST endpoints
   @Post()
   @ApiOperation({ summary: 'Create new Journal' })
-  async create(@Body() dto: CreateJournalDto) {
-    return super.create(dto);
+  async create(@Body() dto: CreateJournalDto, @CurrentUser() user?: any) {
+    return super.create({ ...dto, createdById: user.id } as any);
   }
 
   @Post('bulk')

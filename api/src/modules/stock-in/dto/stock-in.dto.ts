@@ -1,44 +1,65 @@
-import { IsString, IsOptional, IsBoolean, IsInt, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsEnum } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ReferenceType, TransactionStatus } from '@prisma/client';
 
 export class CreateStockInDto {
-  @ApiProperty({ description: 'StockIn code' })
+  @ApiProperty({ description: 'Kode barang masuk' })
   @IsString()
   code: string;
 
-  @ApiProperty({ description: 'StockIn name' })
-  @IsString()
-  name: string;
+  @ApiProperty({ description: 'Gudang tujuan' })
+  @IsInt()
+  warehouseId: number;
 
-  @ApiPropertyOptional({ description: 'Description' })
+  @ApiPropertyOptional({ description: 'Supplier asal barang' })
+  @IsOptional()
+  @IsInt()
+  supplierId?: number;
+
+  @ApiPropertyOptional({ enum: ReferenceType })
+  @IsOptional()
+  @IsEnum(ReferenceType)
+  referenceType?: ReferenceType;
+
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ default: true, description: 'Is active' })
+  @ApiPropertyOptional({ enum: TransactionStatus })
   @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
+  @IsEnum(TransactionStatus)
+  status?: TransactionStatus;
 }
 
 export class UpdateStockInDto {
-  @ApiPropertyOptional({ description: 'StockIn code' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   code?: string;
 
-  @ApiPropertyOptional({ description: 'StockIn name' })
+  @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
-  name?: string;
+  @IsInt()
+  warehouseId?: number;
 
-  @ApiPropertyOptional({ description: 'Description' })
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  supplierId?: number;
+
+  @ApiPropertyOptional({ enum: ReferenceType })
+  @IsOptional()
+  @IsEnum(ReferenceType)
+  referenceType?: ReferenceType;
+
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ description: 'Is active' })
+  @ApiPropertyOptional({ enum: TransactionStatus })
   @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
+  @IsEnum(TransactionStatus)
+  status?: TransactionStatus;
 }

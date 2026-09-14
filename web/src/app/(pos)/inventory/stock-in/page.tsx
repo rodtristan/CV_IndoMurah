@@ -70,6 +70,7 @@ export default function StockInPage() {
         // update
       } else {
         const res = await api.post("stock-in", {
+          code: `SI-${Date.now()}`,
           warehouseId: Number(form.warehouseId),
           supplierId: form.supplierId ? Number(form.supplierId) : null,
           referenceType: form.referenceType || null,

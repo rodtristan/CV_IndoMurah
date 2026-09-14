@@ -30,7 +30,7 @@ export default function StockCardPage() {
   const fetchLookups = useCallback(async () => {
     const [prodRes, whRes] = await Promise.all([
       api.get<Product[]>("products", odata().take(200).toParams()).catch(() => ({ data: [] } as any)),
-      api.get<Warehouse[]>("warehouses", odata().take(100).toParams()).catch(() => ({ data: [] } as any)),
+      api.get<Warehouse[]>("warehouse", odata().take(100).toParams()).catch(() => ({ data: [] } as any)),
     ]);
     setProducts(prodRes.data || []);
     setWarehouses(whRes.data || []);
