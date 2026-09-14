@@ -17,31 +17,30 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [roles, setRoles] = useState<any[]>([]);
-  const [form, setForm] = useState({ name: "", email: "", password: "", roleId: "", phone: "", isActive: true });
+  const roleOptions = [
+    { value: "admin", label: "Admin" },
+    { value: "cashier", label: "Kasir" },
+  ];
+  const [form, setForm] = useState({ name: "", email: "", password: "", role: "cashier", isActive: true });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("users", { $search: search || undefined, $include: "role" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+      const res = await api.get("users", { $search: search || undefined } as any).catch(() => ({ success: false, data: { data: [] } } as any));
       if (res.success) setData(res.data || []);
     } finally { setLoading(false); }
   }, [search]);
 
-  const fetchRoles = useCallback(async () => {
-    const res = await api.get("roles", { $select: "id,name" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-    if (res.success) setRoles(res.data || []);
-  }, []);
-
   useEffect(() => { fetchData(); }, [fetchData]);
-  useEffect(() => { fetchRoles(); }, [fetchRoles]);
 
   const handleSave = async () => {
     const isEdit = Boolean((form as any).id);
     if (isEdit) {
-      await api.put("users", (form as any).id, form).catch(() => ({}));
+      const payload = { name: form.name, email: form.email, role: form.role, isActive: form.isActive };
+      await api.put("users", (form as any).id, payload).catch(() => ({}));
     } else {
-      await api.post("users", form).catch(() => ({}));
+      const payload = { name: form.name, email: form.email, password: form.password, role: form.role };
+      await api.post("users", payload).catch(() => ({}));
     }
     setShowForm(false);
     fetchData();
@@ -55,8 +54,7 @@ export default function UsersPage() {
   const columns = [
     { key: "name", label: "Nama" },
     { key: "email", label: "Email" },
-    { key: "phone", label: "Telepon", render: (v: unknown) => v || "-" },
-    { key: "roleName", label: "Role" },
+    { key: "role", label: "Role", render: (v: unknown) => <span className="capitalize">{v as string}</span> },
     { key: "isActive", label: "Status", render: (v: unknown) => v ? <Badge variant="success">Aktif</Badge> : <Badge variant="default">Nonaktif</Badge> },
     {
       key: "actions", label: "", width: "70px",
@@ -69,7 +67,7 @@ export default function UsersPage() {
     },
   ];
 
-  const openCreate = () => { setForm({ name: "", email: "", password: "", roleId: "", phone: "", isActive: true }); setShowForm(true); };
+  const openCreate = () => { setForm({ name: "", email: "", password: "", role: "cashier", isActive: true }); setShowForm(true); };
 
   return (
     <PageWrapper>
@@ -89,9 +87,10 @@ export default function UsersPage() {
         <div className="space-y-4">
           <Input label="Nama" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
           <Input label="Email" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
-          <Input label="Password" type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
-          <Input label="Telepon" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
-          <Select label="Role" value={form.roleId} onChange={e => setForm(f => ({ ...f, roleId: e.target.value }))} options={roles.map(r => ({ value: r.id, label: r.name }))} />
+          {!(form as any).id && (
+            <Input label="Password" type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
+          )}
+          <Select label="Role" value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} options={roleOptions} />
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button>
             <Button variant="primary" onClick={handleSave}>Simpan</Button>
