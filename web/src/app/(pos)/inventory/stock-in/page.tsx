@@ -33,7 +33,7 @@ export default function StockInPage() {
     setLoading(true);
     try {
       const query = odata()
-        .include(["warehouses", "suppliers", "creator"])
+        .include(["warehouse", "supplier", "creator"])
         .orderByMulti({ createdAt: "desc" })
         .skip((pagination.page - 1) * pagination.pageSize)
         .take(pagination.pageSize);
@@ -43,7 +43,7 @@ export default function StockInPage() {
       if (filters.dateFrom) query.where({ date: { gte: new Date(filters.dateFrom as string) } });
       if (filters.dateTo) query.where({ date: { lte: new Date(filters.dateTo as string) } });
 
-      const res = await api.get<StockIn[]>("stock-ins", query.toParams());
+      const res = await api.get<StockIn[]>("stock-in", query.toParams());
       if (res.success) {
         setData(res.data || []);
         if (res.meta) setPagination(p => ({ ...p, total: res.meta!.total, totalPages: res.meta!.pages }));
@@ -54,8 +54,8 @@ export default function StockInPage() {
 
   const fetchLookups = async () => {
     const [whRes, supRes] = await Promise.all([
-      api.get<Warehouse[]>("warehouses", odata().take(100).toParams()).catch(() => ({ data: [] } as any)),
-      api.get<Supplier[]>("suppliers", odata().take(100).toParams()).catch(() => ({ data: [] } as any)),
+      api.get<Warehouse[]>("warehouse", odata().take(100).toParams()).catch(() => ({ data: [] } as any)),
+      api.get<Supplier[]>("supplier", odata().take(100).toParams()).catch(() => ({ data: [] } as any)),
     ]);
     setWarehouses(whRes.data || []);
     setSuppliers(supRes.data || []);
@@ -69,7 +69,7 @@ export default function StockInPage() {
       if (selected) {
         // update
       } else {
-        const res = await api.post("stock-ins", {
+        const res = await api.post("stock-in", {
           warehouseId: Number(form.warehouseId),
           supplierId: form.supplierId ? Number(form.supplierId) : null,
           referenceType: form.referenceType || null,
@@ -86,7 +86,7 @@ export default function StockInPage() {
     if (!selected) return;
     setSaving(true);
     try {
-      await api.delete("stock-ins", selected.id);
+      await api.delete("stock-in", selected.id);
       setShowDelete(false);
       fetchData();
     } catch (e) { console.error(e); }

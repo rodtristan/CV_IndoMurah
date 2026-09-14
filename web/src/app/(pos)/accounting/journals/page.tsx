@@ -26,14 +26,14 @@ export default function JournalsPage() {
   const fetchJournals = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("journals", { $search: search || undefined } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-      if (res.success) setJournals(res.data.data || []);
+      const res = await api.get("journal", { $search: search || undefined } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+      if (res.success) setJournals(res.data || []);
     } finally { setLoading(false); }
   }, [search]);
 
   const fetchAccounts = useCallback(async () => {
-    const res = await api.get("accounts", { $select: "id,code,name,type" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-    if (res.success) setAccounts(res.data?.data || []);
+    const res = await api.get("account", { $select: "id,code,name,type" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+    if (res.success) setAccounts(res.data || []);
   }, []);
 
   useEffect(() => { fetchJournals(); }, [fetchJournals]);
@@ -42,9 +42,9 @@ export default function JournalsPage() {
   const handleSave = async () => {
     const isEdit = Boolean((form as any).id);
     if (isEdit) {
-      await api.put("journals", (form as any).id, form).catch(() => ({}));
+      await api.patch("journal", (form as any).id, form).catch(() => ({}));
     } else {
-      await api.post("journals", form).catch(() => ({}));
+      await api.post("journal", form).catch(() => ({}));
     }
     setShowForm(false);
     setForm({ date: "", description: "", reference: "", totalDebit: 0, totalCredit: 0, details: [] });
@@ -53,7 +53,7 @@ export default function JournalsPage() {
 
   const handleDelete = async () => {
     if (!deleteId) return;
-    await api.delete(`journals`, deleteId).catch(() => ({}));
+    await api.delete(`journal`, deleteId).catch(() => ({}));
     setDeleteId(null);
     fetchJournals();
   };

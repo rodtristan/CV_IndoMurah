@@ -24,14 +24,14 @@ export default function TransfersPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("stock-transfers", { $search: search || undefined, $include: "fromWarehouse,toWarehouse" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-      if (res.success) setData(res.data?.data || []);
+      const res = await api.get("stock-transfer", { $search: search || undefined, $include: "fromWarehouse,toWarehouse" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+      if (res.success) setData(res.data || []);
     } finally { setLoading(false); }
   }, [search]);
 
   const fetchWarehouses = useCallback(async () => {
-    const res = await api.get("warehouses", { $select: "id,name" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-    if (res.success) setWarehouses(res.data?.data || []);
+    const res = await api.get("warehouse", { $select: "id,name" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+    if (res.success) setWarehouses(res.data || []);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -40,9 +40,9 @@ export default function TransfersPage() {
   const handleSave = async () => {
     const isEdit = Boolean((form as any).id);
     if (isEdit) {
-      await api.put("stock-transfers", (form as any).id, form).catch(() => ({}));
+      await api.patch("stock-transfer", (form as any).id, form).catch(() => ({}));
     } else {
-      await api.post("stock-transfers", form).catch(() => ({}));
+      await api.post("stock-transfer", form).catch(() => ({}));
     }
     setShowForm(false);
     fetchData();

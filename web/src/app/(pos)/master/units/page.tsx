@@ -20,8 +20,8 @@ export default function UnitsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("units", { $search: search || undefined, $select: "id,code,name,description" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-      if (res.success) setData(res.data?.data || []);
+      const res = await api.get("unit", { $search: search || undefined, $select: "id,code,name,description" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+      if (res.success) setData(res.data || []);
     } finally { setLoading(false); }
   }, [search]);
 
@@ -29,16 +29,16 @@ export default function UnitsPage() {
 
   const handleSave = async () => {
     if ((form as any).id) {
-      await api.put("units", (form as any).id, form).catch(() => ({}));
+      await api.patch("unit", (form as any).id, form).catch(() => ({}));
     } else {
-      await api.post("units", form).catch(() => ({}));
+      await api.post("unit", form).catch(() => ({}));
     }
     setShowForm(false);
     fetchData();
   };
 
   const handleDelete = async (id: string) => {
-    await api.delete(`units`, id).catch(() => ({}));
+    await api.delete(`unit`, id).catch(() => ({}));
     fetchData();
   };
 

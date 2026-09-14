@@ -20,7 +20,7 @@ export default function MinimumStockPage() {
       if (warehouseId) params.warehouseId = warehouseId;
       const res = await api.get("products", params).catch(() => ({ success: false, data: { data: [] } } as any));
       if (res.success) {
-        const items = res.data?.data || [];
+        const items = res.data || [];
         setData(items.filter((p: any) => {
           const stock = p.productStocks?.[0]?.quantity || 0;
           return stock <= (p.minimumStock || 0);

@@ -20,8 +20,8 @@ export default function SuppliersPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("suppliers", { $search: search || undefined, $select: "id,code,name,email,phone,address,city,contactPerson" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-      if (res.success) setData(res.data?.data || []);
+      const res = await api.get("supplier", { $search: search || undefined, $select: "id,code,name,email,phone,address,city,contactPerson" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+      if (res.success) setData(res.data || []);
     } finally { setLoading(false); }
   }, [search]);
 
@@ -29,16 +29,16 @@ export default function SuppliersPage() {
 
   const handleSave = async () => {
     if ((form as any).id) {
-      await api.put("suppliers", (form as any).id, form).catch(() => ({}));
+      await api.patch("supplier", (form as any).id, form).catch(() => ({}));
     } else {
-      await api.post("suppliers", form).catch(() => ({}));
+      await api.post("supplier", form).catch(() => ({}));
     }
     setShowForm(false);
     fetchData();
   };
 
   const handleDelete = async (id: string) => {
-    await api.delete(`suppliers`, id).catch(() => ({}));
+    await api.delete(`supplier`, id).catch(() => ({}));
     fetchData();
   };
 

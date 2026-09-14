@@ -24,7 +24,7 @@ export default function SaleReturnsPage() {
       if (search) params.$search = search;
       if (filterStatus) params.$where = `status eq '${filterStatus}'`;
       const res = await api.get("sale-returns", params).catch(() => ({ success: false, data: { data: [] } } as any));
-      if (res.success) setData(res.data?.data || []);
+      if (res.success) setData(res.data || []);
     } finally { setLoading(false); }
   }, [search, filterStatus]);
 

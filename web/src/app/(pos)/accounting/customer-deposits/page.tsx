@@ -24,19 +24,19 @@ export default function CustomerDepositsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("customer-deposits", { $search: search || undefined, $include: "customer" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-      if (res.success) setDeposits(res.data?.data || []);
+      const res = await api.get("customer-deposit", { $search: search || undefined, $include: "customer" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+      if (res.success) setDeposits(res.data || []);
     } finally { setLoading(false); }
   }, [search]);
 
   const fetchCustomers = useCallback(async () => {
-    const res = await api.get("customers", { $select: "id,name" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-    if (res.success) setCustomers(res.data?.data || []);
+    const res = await api.get("customer", { $select: "id,name" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+    if (res.success) setCustomers(res.data || []);
   }, []);
 
   const fetchAccounts = useCallback(async () => {
-    const res = await api.get("accounts", { $select: "id,code,name", $where: "type eq ASSET" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-    if (res.success) setAccounts(res.data?.data || []);
+    const res = await api.get("account", { $select: "id,code,name", $where: "type eq ASSET" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+    if (res.success) setAccounts(res.data || []);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -46,9 +46,9 @@ export default function CustomerDepositsPage() {
   const handleSave = async () => {
     const isEdit = Boolean((form as any).id);
     if (isEdit) {
-      await api.put("customer-deposits", (form as any).id, form).catch(() => ({}));
+      await api.patch("customer-deposit", (form as any).id, form).catch(() => ({}));
     } else {
-      await api.post("customer-deposits", form).catch(() => ({}));
+      await api.post("customer-deposit", form).catch(() => ({}));
     }
     setShowForm(false);
     fetchData();

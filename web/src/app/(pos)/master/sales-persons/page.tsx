@@ -20,8 +20,8 @@ export default function SalesPersonsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("sales-people", { $search: search || undefined, $select: "id,code,name,email,phone,isActive" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-      if (res.success) setData(res.data?.data || []);
+      const res = await api.get("sales-person", { $search: search || undefined, $select: "id,code,name,email,phone,isActive" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+      if (res.success) setData(res.data || []);
     } finally { setLoading(false); }
   }, [search]);
 
@@ -30,16 +30,16 @@ export default function SalesPersonsPage() {
   const handleSave = async () => {
     const isEdit = Boolean((form as any).id);
     if (isEdit) {
-      await api.put("sales-people", (form as any).id, form).catch(() => ({}));
+      await api.patch("sales-person", (form as any).id, form).catch(() => ({}));
     } else {
-      await api.post("sales-people", form).catch(() => ({}));
+      await api.post("sales-person", form).catch(() => ({}));
     }
     setShowForm(false);
     fetchData();
   };
 
   const handleDelete = async (id: string) => {
-    await api.delete(`sales-people`, id).catch(() => ({}));
+    await api.delete(`sales-person`, id).catch(() => ({}));
     fetchData();
   };
 

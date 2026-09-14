@@ -20,8 +20,8 @@ export default function CustomersPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("customers", { $search: search || undefined, $select: "id,code,name,email,phone,address,city,customerType,creditLimit" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-      if (res.success) setData(res.data?.data || []);
+      const res = await api.get("customer", { $search: search || undefined, $select: "id,code,name,email,phone,address,city,customerType,creditLimit" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+      if (res.success) setData(res.data || []);
     } finally { setLoading(false); }
   }, [search]);
 
@@ -29,16 +29,16 @@ export default function CustomersPage() {
 
   const handleSave = async () => {
     if ((form as any).id) {
-      await api.put("customers", (form as any).id, form).catch(() => ({}));
+      await api.patch("customer", (form as any).id, form).catch(() => ({}));
     } else {
-      await api.post("customers", form).catch(() => ({}));
+      await api.post("customer", form).catch(() => ({}));
     }
     setShowForm(false);
     fetchData();
   };
 
   const handleDelete = async (id: string) => {
-    await api.delete(`customers`, id).catch(() => ({}));
+    await api.delete(`customer`, id).catch(() => ({}));
     fetchData();
   };
 

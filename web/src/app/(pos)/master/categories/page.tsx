@@ -21,7 +21,7 @@ export default function CategoriesPage() {
     setLoading(true);
     try {
       const res = await api.get("categories", { $search: search || undefined, $select: "id,code,name,description" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-      if (res.success) setData(res.data?.data || []);
+      if (res.success) setData(res.data || []);
     } finally { setLoading(false); }
   }, [search]);
 
@@ -29,7 +29,7 @@ export default function CategoriesPage() {
 
   const handleSave = async () => {
     if ((form as any).id) {
-      await api.put("categories", (form as any).id, form).catch(() => ({}));
+      await api.patch("categories", (form as any).id, form).catch(() => ({}));
     } else {
       await api.post("categories", form).catch(() => ({}));
     }

@@ -29,14 +29,14 @@ export default function AccountsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get<Account[]>("accounts", odata().include(["parent", "children"]).orderByMulti({ type: "asc", code: "asc" }).take(200).toParams());
+      const res = await api.get<Account[]>("account", odata().include(["parent", "children"]).orderByMulti({ type: "asc", code: "asc" }).take(200).toParams());
       if (res.success) setAccounts(res.data || []);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }, []);
 
   const fetchParents = async () => {
-    const res = await api.get<Account[]>("accounts", odata().where({ parentId: null }).take(100).toParams()).catch(() => ({ data: [] } as any));
+    const res = await api.get<Account[]>("account", odata().where({ parentId: null }).take(100).toParams()).catch(() => ({ data: [] } as any));
     setParentAccounts(res.data || []);
   };
 
@@ -50,9 +50,9 @@ export default function AccountsPage() {
         parentId: form.parentId ? Number(form.parentId) : null, isActive: form.isActive,
       };
       if (selected) {
-        await api.put("accounts", selected.id, payload);
+        await api.patch("account", selected.id, payload);
       } else {
-        await api.post("accounts", payload);
+        await api.post("account", payload);
       }
       setShowForm(false);
       fetchData();
@@ -64,7 +64,7 @@ export default function AccountsPage() {
     if (!selected) return;
     setSaving(true);
     try {
-      await api.delete("accounts", selected.id);
+      await api.delete("account", selected.id);
       setShowDelete(false);
       fetchData();
     } catch (e) { console.error(e); }

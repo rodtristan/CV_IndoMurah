@@ -24,7 +24,7 @@ export default function RolesPage() {
     setLoading(true);
     try {
       const res = await api.get("roles", { $select: "id,roleName,roleDescription,isActive" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-      if (res.success) setData(res.data?.data || []);
+      if (res.success) setData(res.data || []);
     } finally { setLoading(false); }
   }, []);
 

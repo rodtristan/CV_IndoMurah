@@ -24,13 +24,13 @@ export default function PurchaseOrderPage() {
       if (filterSupplier) params.supplierId = filterSupplier;
       if (filterStatus) params.$where = `status eq '${filterStatus}'`;
       const res = await api.get("purchase-orders", params).catch(() => ({ success: false, data: { data: [] } } as any));
-      if (res.success) setData(res.data?.data || []);
+      if (res.success) setData(res.data || []);
     } finally { setLoading(false); }
   }, [search, filterSupplier, filterStatus]);
 
   const fetchSuppliers = useCallback(async () => {
     const res = await api.get("suppliers", { $select: "id,name" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-    if (res.success) setSuppliers(res.data?.data || []);
+    if (res.success) setSuppliers(res.data || []);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);

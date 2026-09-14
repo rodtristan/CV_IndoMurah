@@ -117,7 +117,7 @@ export default function MasterItemsPage() {
       if (selectedProduct) {
         // UpdateProductDto deliberately excludes `stock` — stock changes go
         // through the dedicated adjust-stock endpoint for auditability.
-        await api.put("products", selectedProduct.id, basePayload);
+        await api.patch("products", selectedProduct.id, basePayload);
       } else {
         await api.post("products", { ...basePayload, stock: Number(form.stock) });
       }

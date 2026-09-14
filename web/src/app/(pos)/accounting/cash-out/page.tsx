@@ -23,14 +23,14 @@ export default function CashOutPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("cash-outs", { $search: search || undefined } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-      if (res.success) setCashOuts(res.data?.data || []);
+      const res = await api.get("cash-out", { $search: search || undefined } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+      if (res.success) setCashOuts(res.data || []);
     } finally { setLoading(false); }
   }, [search]);
 
   const fetchAccounts = useCallback(async () => {
-    const res = await api.get("accounts", { $select: "id,code,name", $where: "type eq EXPENSE or type eq ASSET" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-    if (res.success) setAccounts(res.data?.data || []);
+    const res = await api.get("account", { $select: "id,code,name", $where: "type eq EXPENSE or type eq ASSET" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+    if (res.success) setAccounts(res.data || []);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -39,16 +39,16 @@ export default function CashOutPage() {
   const handleSave = async () => {
     const isEdit = Boolean((form as any).id);
     if (isEdit) {
-      await api.put("cash-outs", (form as any).id, form).catch(() => ({}));
+      await api.patch("cash-out", (form as any).id, form).catch(() => ({}));
     } else {
-      await api.post("cash-outs", form).catch(() => ({}));
+      await api.post("cash-out", form).catch(() => ({}));
     }
     setShowForm(false);
     fetchData();
   };
 
   const handleDelete = async (id: string) => {
-    await api.delete(`cash-outs`, id).catch(() => ({}));
+    await api.delete(`cash-out`, id).catch(() => ({}));
     fetchData();
   };
 

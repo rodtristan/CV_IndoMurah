@@ -20,8 +20,8 @@ export default function SalePointsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("sale-points", { $search: search || undefined, $select: "id,code,name,address,phone,isActive" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-      if (res.success) setData(res.data?.data || []);
+      const res = await api.get("sale-point", { $search: search || undefined, $select: "id,code,name,address,phone,isActive" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+      if (res.success) setData(res.data || []);
     } finally { setLoading(false); }
   }, [search]);
 
@@ -29,16 +29,16 @@ export default function SalePointsPage() {
 
   const handleSave = async () => {
     if ((form as any).id) {
-      await api.put("sale-points", (form as any).id, form).catch(() => ({}));
+      await api.patch("sale-point", (form as any).id, form).catch(() => ({}));
     } else {
-      await api.post("sale-points", form).catch(() => ({}));
+      await api.post("sale-point", form).catch(() => ({}));
     }
     setShowForm(false);
     fetchData();
   };
 
   const handleDelete = async (id: string) => {
-    await api.delete(`sale-points`, id).catch(() => ({}));
+    await api.delete(`sale-point`, id).catch(() => ({}));
     fetchData();
   };
 

@@ -20,8 +20,8 @@ export default function WarehousesPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("warehouses", { $search: search || undefined, $select: "id,code,name,address,phone" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-      if (res.success) setData(res.data?.data || []);
+      const res = await api.get("warehouse", { $search: search || undefined, $select: "id,code,name,address,phone" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+      if (res.success) setData(res.data || []);
     } finally { setLoading(false); }
   }, [search]);
 
@@ -29,16 +29,16 @@ export default function WarehousesPage() {
 
   const handleSave = async () => {
     if ((form as any).id) {
-      await api.put("warehouses", (form as any).id, form).catch(() => ({}));
+      await api.patch("warehouse", (form as any).id, form).catch(() => ({}));
     } else {
-      await api.post("warehouses", form).catch(() => ({}));
+      await api.post("warehouse", form).catch(() => ({}));
     }
     setShowForm(false);
     fetchData();
   };
 
   const handleDelete = async (id: string) => {
-    await api.delete(`warehouses`, id).catch(() => ({}));
+    await api.delete(`warehouse`, id).catch(() => ({}));
     fetchData();
   };
 

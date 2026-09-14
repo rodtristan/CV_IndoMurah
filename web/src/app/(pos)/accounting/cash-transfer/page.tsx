@@ -23,14 +23,14 @@ export default function CashTransferPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("cash-transfers", { $search: search || undefined } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-      if (res.success) setTransfers(res.data?.data || []);
+      const res = await api.get("cash-transfer", { $search: search || undefined } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+      if (res.success) setTransfers(res.data || []);
     } finally { setLoading(false); }
   }, [search]);
 
   const fetchAccounts = useCallback(async () => {
-    const res = await api.get("accounts", { $select: "id,code,name", $where: "type eq ASSET" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-    if (res.success) setAccounts(res.data?.data || []);
+    const res = await api.get("account", { $select: "id,code,name", $where: "type eq ASSET" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+    if (res.success) setAccounts(res.data || []);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -39,9 +39,9 @@ export default function CashTransferPage() {
   const handleSave = async () => {
     const isEdit = Boolean((form as any).id);
     if (isEdit) {
-      await api.put("cash-transfers", (form as any).id, form).catch(() => ({}));
+      await api.patch("cash-transfer", (form as any).id, form).catch(() => ({}));
     } else {
-      await api.post("cash-transfers", form).catch(() => ({}));
+      await api.post("cash-transfer", form).catch(() => ({}));
     }
     setShowForm(false);
     fetchData();

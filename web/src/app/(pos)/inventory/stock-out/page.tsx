@@ -24,14 +24,14 @@ export default function StockOutPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("stock-outs", { $search: search || undefined, $include: "warehouse" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-      if (res.success) setData(res.data?.data || []);
+      const res = await api.get("stock-out", { $search: search || undefined, $include: "warehouse" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+      if (res.success) setData(res.data || []);
     } finally { setLoading(false); }
   }, [search]);
 
   const fetchWarehouses = useCallback(async () => {
-    const res = await api.get("warehouses", { $select: "id,name" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-    if (res.success) setWarehouses(res.data?.data || []);
+    const res = await api.get("warehouse", { $select: "id,name" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+    if (res.success) setWarehouses(res.data || []);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -40,16 +40,16 @@ export default function StockOutPage() {
   const handleSave = async () => {
     const isEdit = Boolean((form as any).id);
     if (isEdit) {
-      await api.put("stock-outs", (form as any).id, form).catch(() => ({}));
+      await api.patch("stock-out", (form as any).id, form).catch(() => ({}));
     } else {
-      await api.post("stock-outs", form).catch(() => ({}));
+      await api.post("stock-out", form).catch(() => ({}));
     }
     setShowForm(false);
     fetchData();
   };
 
   const handleDelete = async (id: string) => {
-    await api.delete(`stock-outs`, id).catch(() => ({}));
+    await api.delete(`stock-out`, id).catch(() => ({}));
     fetchData();
   };
 

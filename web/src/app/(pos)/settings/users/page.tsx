@@ -24,13 +24,13 @@ export default function UsersPage() {
     setLoading(true);
     try {
       const res = await api.get("users", { $search: search || undefined, $include: "role" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-      if (res.success) setData(res.data?.data || []);
+      if (res.success) setData(res.data || []);
     } finally { setLoading(false); }
   }, [search]);
 
   const fetchRoles = useCallback(async () => {
     const res = await api.get("roles", { $select: "id,name" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-    if (res.success) setRoles(res.data?.data || []);
+    if (res.success) setRoles(res.data || []);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
