@@ -12,9 +12,9 @@ export class StockOutService extends BaseService<
   UpdateStockOutDto
 > {
   constructor(
-    prisma: PrismaService,
-    redis: RedisService,
-    queryService: QueryService,
+    readonly prisma: PrismaService,
+    readonly redis: RedisService,
+    readonly queryService: QueryService,
   ) {
     super(prisma, redis, queryService, {
       modelName: 'stockOut',
@@ -23,11 +23,15 @@ export class StockOutService extends BaseService<
       allowedIncludes: ['*'],
       allowedSortFields: ['*'],
       allowedSelectFields: ['*'],
-      defaultOrderBy: { id: 'asc' },
+      defaultOrderBy: { createdAt: 'desc' },
       maxTake: 100,
       defaultTake: 20,
       cacheTtl: 60,
       softDelete: false,
     });
   }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // BUSINESS LOGIC METHODS
+  // ═══════════════════════════════════════════════════════════════════
 }

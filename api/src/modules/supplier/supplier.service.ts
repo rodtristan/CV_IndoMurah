@@ -12,9 +12,9 @@ export class SupplierService extends BaseService<
   UpdateSupplierDto
 > {
   constructor(
-    prisma: PrismaService,
-    redis: RedisService,
-    queryService: QueryService,
+    readonly prisma: PrismaService,
+    readonly redis: RedisService,
+    readonly queryService: QueryService,
   ) {
     super(prisma, redis, queryService, {
       modelName: 'supplier',
@@ -23,7 +23,7 @@ export class SupplierService extends BaseService<
       allowedIncludes: ['*'],
       allowedSortFields: ['*'],
       allowedSelectFields: ['*'],
-      defaultOrderBy: { id: 'asc' },
+      defaultOrderBy: { createdAt: 'desc' },
       maxTake: 100,
       defaultTake: 20,
       cacheTtl: 60,
@@ -31,4 +31,8 @@ export class SupplierService extends BaseService<
       softDeleteField: 'isActive',
     });
   }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // BUSINESS LOGIC METHODS
+  // ═══════════════════════════════════════════════════════════════════
 }

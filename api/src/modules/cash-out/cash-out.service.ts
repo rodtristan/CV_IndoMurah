@@ -12,22 +12,25 @@ export class CashOutService extends BaseService<
   UpdateCashOutDto
 > {
   constructor(
-    prisma: PrismaService,
-    redis: RedisService,
-    queryService: QueryService,
+    readonly prisma: PrismaService,
+    readonly redis: RedisService,
+    readonly queryService: QueryService,
   ) {
     super(prisma, redis, queryService, {
       modelName: 'cashOut',
       primaryKey: 'id',
       searchableFields: ['*'],
-      allowedIncludes: ['*'],
       allowedSortFields: ['*'],
       allowedSelectFields: ['*'],
-      defaultOrderBy: { id: 'asc' },
+      defaultOrderBy: { createdAt: 'desc' },
       maxTake: 100,
       defaultTake: 20,
       cacheTtl: 60,
       softDelete: false,
     });
   }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // BUSINESS LOGIC METHODS
+  // ═══════════════════════════════════════════════════════════════════
 }

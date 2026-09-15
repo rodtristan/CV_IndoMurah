@@ -28,7 +28,7 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
-  @ApiOperation({ summary: 'Login - Masuk dengan email & password' })
+  @ApiOperation({ summary: 'Login - Masuk dengan Company Code, Username & Password' })
   async login(@Body() dto: LoginDto) {
     const data = await this.authService.login(dto);
     return ApiResponse.ok(data, 'Login berhasil');
@@ -36,7 +36,7 @@ export class AuthController {
 
   @Post('register')
   @Throttle({ default: { limit: 5, ttl: 60000 } })
-  @ApiOperation({ summary: 'Register - Daftarkan user baru' })
+  @ApiOperation({ summary: 'Register - Daftarkan user baru dengan Company Code' })
   async register(@Body() dto: RegisterDto) {
     const data = await this.authService.register(dto);
     return ApiResponse.ok(data, 'Registrasi berhasil');

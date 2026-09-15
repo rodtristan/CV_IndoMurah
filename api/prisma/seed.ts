@@ -9,6 +9,34 @@ async function main() {
   const adapter = new PrismaPg(pool);
   const prisma = new PrismaClient({ adapter });
 
+  // ─── Company default ─────────────────────────────────────────
+  const company = await prisma.company.upsert({
+    where: { companyCode: 'INDOMURAH' },
+    create: {
+      companyCode: 'INDOMURAH',
+      name: 'CV Indo Murah',
+      address: 'Jl. Raya Utama No. 1',
+      city: 'Jakarta',
+      province: 'DKI Jakarta',
+      isActive: true,
+    },
+    update: { isActive: true },
+  });
+
+  // ─── Company default ─────────────────────────────────────────
+  const company = await prisma.company.upsert({
+    where: { companyCode: 'INDOMURAH' },
+    create: {
+      companyCode: 'INDOMURAH',
+      name: 'CV Indo Murah',
+      address: 'Jl. Raya Utama No. 1',
+      city: 'Jakarta',
+      province: 'DKI Jakarta',
+      isActive: true,
+    },
+    update: { isActive: true },
+  });
+
   // ─── User admin default ────────────────────────────────────
   // User model saat ini flat (id uuid, email, password, name, role: string) —
   // lihat catatan di src/modules/auth/auth-service.ts.
@@ -74,12 +102,43 @@ async function main() {
     ),
   );
 
+  // ─── User admin default ────────────────────────────────────
+  const adminUsername = 'admin';
+  const adminPassword = await argon2.hash('admin123', { type: argon2.argon2id });
+
+  const admin = await prisma.user.upsert({
+    where: {
+      companyId_username: {
+        companyId: company.id,
+        username: adminUsername,
+      },
+    },
+    create: {
+      companyId: company.id,
+      username: adminUsername,
+      password: adminPassword,
+      name: 'Administrator',
+      isActive: true,
+    },
+    update: { isActive: true },
+  });
+
+  // Seed menu akses personal admin (UserMenu) dari RoleMenu-nya
+  await Promise.all(
+    menus.map((menu) =>
+      prisma.userMenu.upsert({
+        where: { userId_menuId: { userId: admin.id, menuId: menu.id } },
+        create: { userId: admin.id, menuId: menu.id },
+        update: { isActive: true },
+      }),
+    ),
+  );
+
   console.log('Seed selesai:');
-  console.log(`  Role     : ${adminRole.roleName} (id=${adminRole.id})`);
-  console.log(`  Menus    : ${menus.map((m) => m.menuName).join(', ')}`);
-  console.log(`  Customer : ${walkInCustomer.name} (id=${walkInCustomer.id})`);
-  console.log(`  Admin : ${adminEmail} / admin123 (GANTI password ini setelah login pertama!)`);
-  console.log(`  id    : ${admin.id}`);
+  console.log(`  Company: ${company.companyCode} (id=${company.id})`);
+  console.log(`  Role   : ${adminRole.roleName} (id=${adminRole.id})`);
+  console.log(`  Menus  : ${menus.map((m) => m.menuName).join(', ')}`);
+  console.log(`  Admin  : ${company.companyCode} / ${adminUsername} / admin123 (GANTI password ini setelah login pertama!)`);
 
   await prisma.$disconnect();
 }

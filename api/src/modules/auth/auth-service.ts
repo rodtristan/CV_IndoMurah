@@ -23,18 +23,30 @@ export class AuthService {
 
   // ── LOGIN ──────────────────────────────────────────────────────────────
   async login(dto: LoginDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
-      omit: { password: false },
+    // Find company by companyCode
+    const company = await this.prisma.company.findUnique({
+      where: { companyCode: dto.companyCode },
+    });
+
+    if (!company || !company.isActive) {
+      throw new UnauthorizedException('Kode perusahaan tidak valid');
+    }
+
+    // Find user by companyId + username
+    const user = await this.prisma.user.findFirst({
+      where: {
+        companyId: company.id,
+        username: dto.username,
+      },
     });
 
     if (!user || !user.isActive) {
-      throw new UnauthorizedException('Email atau password salah');
+      throw new UnauthorizedException('Username atau password salah');
     }
 
     const isValid = await argon2.verify(user.password, dto.password);
     if (!isValid) {
-      throw new UnauthorizedException('Email atau password salah');
+      throw new UnauthorizedException('Username atau password salah');
     }
 
     // Determine main role from UserRole
@@ -45,8 +57,8 @@ export class AuthService {
 
     const token = this.jwtService.sign({
       id: user.id,
-      email: user.email,
-      role: user.role,
+      companyId: company.id,
+      username: user.username,
       roleId: mainRole?.roleId ?? 1,
     });
 
@@ -56,9 +68,14 @@ export class AuthService {
       token,
       user: {
         id: user.id,
-        email: user.email,
+        username: user.username,
         name: user.name,
         role: user.role,
+        company: {
+          id: company.id,
+          companyCode: company.companyCode,
+          name: company.name,
+        },
       },
       menus,
     };
@@ -66,9 +83,24 @@ export class AuthService {
 
   // ── REGISTER ────────────────────────────────────────────────────────────
   async register(dto: RegisterDto) {
-    const exists = await this.prisma.user.count({ where: { email: dto.email } });
+    // Find company by companyCode
+    const company = await this.prisma.company.findUnique({
+      where: { companyCode: dto.companyCode },
+    });
+
+    if (!company) {
+      throw new ConflictException('Kode perusahaan tidak valid');
+    }
+
+    // Check if username already exists in this company
+    const exists = await this.prisma.user.count({
+      where: {
+        companyId: company.id,
+        username: dto.username,
+      },
+    });
     if (exists > 0) {
-      throw new ConflictException('Email sudah terdaftar');
+      throw new ConflictException('Username sudah terdaftar di perusahaan ini');
     }
 
     const hashedPassword = await argon2.hash(dto.password, {
@@ -82,6 +114,8 @@ export class AuthService {
 
     const user = await this.prisma.user.create({
       data: {
+        companyId: company.id,
+        username: dto.username,
         email: dto.email,
         password: hashedPassword,
         name: dto.name,
@@ -90,11 +124,20 @@ export class AuthService {
       },
       select: {
         id: true,
+        name: true,
+        username: true,
         email: true,
         name: true,
         role: true,
         isActive: true,
         createdAt: true,
+        company: {
+          select: {
+            id: true,
+            companyCode: true,
+            name: true,
+          },
+        },
       },
     });
 
@@ -113,17 +156,21 @@ export class AuthService {
       async () => {
         const user = await this.prisma.user.findUnique({
           where: { id: userId },
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            role: true,
-            isActive: true,
-            createdAt: true,
-            updatedAt: true,
+          include: {
+            company: {
+              select: {
+                id: true,
+                companyCode: true,
+                name: true,
+              },
+            },
             userRoles: {
               where: { isActive: true },
-              select: { role: { select: { id: true, roleName: true } } },
+              include: {
+                role: {
+                  select: { id: true, roleName: true },
+                },
+              },
             },
           },
         });
@@ -133,9 +180,16 @@ export class AuthService {
         const menus = await this.menuService.getAccessibleMenus(userId);
 
         return {
-          ...user,
+          id: user.id,
+          username: user.username,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          isActive: user.isActive,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+          company: user.company,
           extraRoles: user.userRoles.map((ur) => ur.role),
-          userRoles: undefined,
           menus,
         };
       },
