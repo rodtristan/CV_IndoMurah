@@ -121,6 +121,8 @@ model User {
   userMenus        UserMenu[]
   journals         Journal[]
   pointRedemptions PointRedemption[]
+  approvedExpenses Expense[]
+  notifications    Notification[]
 
   @@map("users")
 }
@@ -283,6 +285,7 @@ model Unit {
   saleItems           SaleItem[]
   saleReturnItems     SaleReturnItem[]
   purchaseReturnItems PurchaseReturnItem[]
+  productionItems     ProductionItem[]
 
   @@map("units")
 }
@@ -313,6 +316,9 @@ model Warehouse {
   saleReturns        SaleReturn[]
   purchaseReturns    PurchaseReturn[]
   salePoints         SalePoint[]
+  transfersFrom     Transfer[]       @relation("TransferFromWarehouse")
+  transfersTo       Transfer[]        @relation("TransferToWarehouse")
+  productions        Production[]
 
   @@map("warehouses")
 }
@@ -361,6 +367,7 @@ model Customer {
   customerDeposits CustomerDeposit[]
   pointRedemptions PointRedemption[]
   saleReturns      SaleReturn[]
+  services        Service[]
 
   @@map("customers")
 }
@@ -436,6 +443,10 @@ model Product {
   saleItems           SaleItem[]
   saleReturnItems     SaleReturnItem[]
   productStocks       ProductStock[]
+  priceHistories      PriceHistory[]
+  serviceItems        ServiceItem[]
+  productionItems     ProductionItem[]
+  productions         Production[]
 
   @@map("products")
 }
@@ -948,6 +959,8 @@ model Account {
   cashTransfersFrom CashTransfer[] @relation("CashTransferFrom")
   cashTransfersTo   CashTransfer[] @relation("CashTransferTo")
   journalEntries    JournalEntry[]
+  transfersFrom    Transfer[]      @relation("TransferFromAccount")
+  transfersTo      Transfer[]      @relation("TransferToAccount")
 
   @@map("accounts")
 }
@@ -1167,4 +1180,510 @@ model Testing {
   updatedAt  DateTime @updatedAt
 
   @@map("testings")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EXPENSE MANAGEMENT (from Ketoko reference)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Expense Category ─────────────────────────────────────────
+model ExpenseCategory {
+  id          Int       @id @default(autoincrement())
+  code        String    @unique @db.VarChar(50)
+  name        String    @db.VarChar(255)
+  description String?   @db.VarChar(1000)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  expenses Expense[]
+
+  @@map("expense_categories")
+}
+
+// ─── Expense ───────────────────────────────────────────────────
+model Expense {
+  id              Int       @id @default(autoincrement())
+  code            String    @unique @db.VarChar(50)
+  date            DateTime  @default(now())
+  expenseCategoryId Int
+  amount          Decimal   @db.Decimal(15, 2)
+  description     String?   @db.VarChar(1000)
+  referenceNumber String?   @db.VarChar(100)
+  isApproved      Boolean   @default(false)
+  approvedById    String?
+  approvedAt      DateTime?
+  notes           String?   @db.VarChar(1000)
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  expenseCategory ExpenseCategory @relation(fields: [expenseCategoryId], references: [id])
+  approver       User?          @relation(fields: [approvedById], references: [id])
+
+  @@map("expenses")
+}
+
+// ─── Transfer ──────────────────────────────────────────────────
+model Transfer {
+  id            Int       @id @default(autoincrement())
+  code          String    @unique @db.VarChar(50)
+  date          DateTime  @default(now())
+  fromAccountId Int?
+  toAccountId   Int?
+  fromWarehouseId Int?
+  toWarehouseId Int?
+  amount        Decimal   @db.Decimal(15, 2)
+  description   String?   @db.VarChar(1000)
+  status        TransactionStatus @default(DRAFT)
+  notes         String?   @db.VarChar(1000)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  fromAccount   Account?   @relation("TransferFromAccount", fields: [fromAccountId], references: [id])
+  toAccount     Account?   @relation("TransferToAccount", fields: [toAccountId], references: [id])
+  fromWarehouse Warehouse? @relation("TransferFromWarehouse", fields: [fromWarehouseId], references: [id])
+  toWarehouse   Warehouse? @relation("TransferToWarehouse", fields: [toWarehouseId], references: [id])
+
+  @@map("transfers")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ASSET MANAGEMENT (from Ketoko reference)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+enum AssetStatus {
+  ACTIVE
+  MAINTENANCE
+  DISPOSED
+}
+
+enum DepreciationMethod {
+  STRAIGHT_LINE
+  DECLINING_BALANCE
+  UNITS_OF_PRODUCTION
+}
+
+// ─── Asset Category ────────────────────────────────────────────
+model AssetCategory {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(255)
+  description String?  @db.VarChar(1000)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assets Asset[]
+
+  @@map("asset_categories")
+}
+
+// ─── Asset ─────────────────────────────────────────────────────
+model Asset {
+  id                 Int                 @id @default(autoincrement())
+  code               String              @unique @db.VarChar(50)
+  name               String              @db.VarChar(255)
+  assetCategoryId    Int?
+  purchaseDate       DateTime?
+  purchasePrice      Decimal             @default(0) @db.Decimal(15, 2)
+  currentValue       Decimal             @default(0) @db.Decimal(15, 2)
+  depreciationMethod DepreciationMethod?
+  usefulLifeYears    Int                 @default(0)
+  location           String?             @db.VarChar(255)
+  assignedTo         String?            @db.VarChar(255)
+  serialNumber       String?             @db.VarChar(100)
+  description        String?             @db.VarChar(1000)
+  status             AssetStatus         @default(ACTIVE)
+  isActive           Boolean             @default(true)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  category AssetCategory? @relation(fields: [assetCategoryId], references: [id])
+
+  @@map("assets")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SERVICE & REPAIR MANAGEMENT (from Ketoko reference)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+enum RepairStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// ─── Service ───────────────────────────────────────────────────
+model Service {
+  id               Int          @id @default(autoincrement())
+  code             String       @unique @db.VarChar(50)
+  date             DateTime     @default(now())
+  customerId       Int?
+  customerName     String?      @db.VarChar(255)
+  customerPhone    String?      @db.VarChar(50)
+  customerAddress  String?      @db.VarChar(500)
+  productName      String?      @db.VarChar(255)
+  serialNumber     String?      @db.VarChar(100)
+  problem          String?      @db.VarChar(1000)
+  diagnosis        String?      @db.VarChar(1000)
+  repairStatus    RepairStatus @default(PENDING)
+  technician      String?      @db.VarChar(255)
+  warrantyUntil    DateTime?
+  subtotal        Decimal      @default(0) @db.Decimal(15, 2)
+  laborCost       Decimal      @default(0) @db.Decimal(15, 2)
+  totalAmount     Decimal      @default(0) @db.Decimal(15, 2)
+  notes           String?      @db.VarChar(1000)
+  isActive        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  customer Customer?   @relation(fields: [customerId], references: [id])
+  items    ServiceItem[]
+
+  @@map("services")
+}
+
+// ─── Service Item ──────────────────────────────────────────────
+model ServiceItem {
+  id          Int      @id @default(autoincrement())
+  serviceId   Int
+  productId   Int?
+  productName String   @db.VarChar(255)
+  quantity    Decimal  @db.Decimal(15, 3)
+  unitPrice   Decimal  @default(0) @db.Decimal(15, 2)
+  subtotal    Decimal  @default(0) @db.Decimal(15, 2)
+  createdAt   DateTime @default(now())
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id])
+
+  @@map("service_items")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PRICE HISTORY (from Ketoko reference)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model PriceHistory {
+  id         Int      @id @default(autoincrement())
+  productId  Int
+  type       String   @db.VarChar(20) // PURCHASE, SELLING
+  oldPrice   Decimal  @db.Decimal(15, 2)
+  newPrice   Decimal  @db.Decimal(15, 2)
+  changedBy  String?  @db.VarChar(255)
+  changedAt  DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("price_histories")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// VOUCHER MANAGEMENT (from Ketoko reference)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+enum VoucherType {
+  DISCOUNT_PERCENT
+  DISCOUNT_AMOUNT
+  BUY_X_GET_Y
+}
+
+model Voucher {
+  id                Int         @id @default(autoincrement())
+  code              String      @unique @db.VarChar(50)
+  name              String      @db.VarChar(255)
+  type              VoucherType
+  value             Decimal     @db.Decimal(15, 2)
+  minPurchaseAmount Decimal     @default(0) @db.Decimal(15, 2)
+  maxDiscountAmount Decimal?   @db.Decimal(15, 2)
+  startDate         DateTime
+  endDate           DateTime
+  usageLimit        Int?        // null = unlimited
+  usedCount         Int         @default(0)
+  isActive          Boolean     @default(true)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@map("vouchers")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TAX CONFIGURATION (from Ketoko reference)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model Tax {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(255)
+  rate        Decimal  @db.Decimal(5, 2)
+  description String?  @db.VarChar(1000)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("taxes")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PRODUCTION MANAGEMENT (from Ketoko reference)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+enum ProductionStatus {
+  PLANNING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// ─── Production ───────────────────────────────────────────────
+model Production {
+  id              Int               @id @default(autoincrement())
+  code            String            @unique @db.VarChar(50)
+  date            DateTime          @default(now())
+  productId       Int?
+  productName     String?           @db.VarChar(255)
+  quantity        Decimal           @default(0) @db.Decimal(15, 3)
+  warehouseId     Int?
+  rawMaterialCost Decimal           @default(0) @db.Decimal(15, 2)
+  laborCost       Decimal           @default(0) @db.Decimal(15, 2)
+  overheadCost    Decimal           @default(0) @db.Decimal(15, 2)
+  totalCost       Decimal           @default(0) @db.Decimal(15, 2)
+  status          ProductionStatus  @default(PLANNING)
+  notes           String?           @db.VarChar(1000)
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  warehouse Warehouse?        @relation(fields: [warehouseId], references: [id])
+  product   Product?          @relation(fields: [productId], references: [id])
+  items     ProductionItem[]
+
+  @@map("productions")
+}
+
+// ─── Production Item (BOM - Bill of Materials) ─────────────────
+model ProductionItem {
+  id            Int      @id @default(autoincrement())
+  productionId  Int
+  productId     Int
+  productName   String   @db.VarChar(255)
+  quantity      Decimal  @db.Decimal(15, 3)
+  unitId        Int?
+  unitPrice     Decimal  @default(0) @db.Decimal(15, 2)
+  subtotal      Decimal  @default(0) @db.Decimal(15, 2)
+  createdAt     DateTime @default(now())
+
+  production Production @relation(fields: [productionId], references: [id], onDelete: Cascade)
+  product    Product?   @relation(fields: [productId], references: [id])
+  unit       Unit?      @relation(fields: [unitId], references: [id])
+
+  @@map("production_items")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HRM - HUMAN RESOURCE MANAGEMENT (from Ketoko reference)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+  RESIGNED
+  TERMINATED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT
+  SICK
+  LEAVE
+}
+
+// ─── Department ────────────────────────────────────────────────
+model Department {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(255)
+  description String?  @db.VarChar(1000)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  employees Employee[]
+
+  @@map("departments")
+}
+
+// ─── Position ─────────────────────────────────────────────────
+model Position {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(255)
+  description String?  @db.VarChar(1000)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  employees Employee[]
+
+  @@map("positions")
+}
+
+// ─── Employee ─────────────────────────────────────────────────
+model Employee {
+  id            Int            @id @default(autoincrement())
+  code          String         @unique @db.VarChar(50)
+  name          String         @db.VarChar(255)
+  departmentId  Int?
+  positionId    Int?
+  joinDate      DateTime?
+  endDate       DateTime?
+  birthDate     DateTime?
+  gender        String?        @db.VarChar(20)
+  phone         String?        @db.VarChar(50)
+  email         String?        @db.VarChar(255)
+  address       String?        @db.VarChar(500)
+  emergencyContact String?     @db.VarChar(255)
+  emergencyPhone   String?     @db.VarChar(50)
+  basicSalary   Decimal        @default(0) @db.Decimal(15, 2)
+  status        EmployeeStatus @default(ACTIVE)
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  department Department?   @relation(fields: [departmentId], references: [id])
+  position   Position?     @relation(fields: [positionId], references: [id])
+  attendances Attendance[]
+  payrolls   Payroll[]
+  loans      Loan[]
+
+  @@map("employees")
+}
+
+// ─── Attendance ───────────────────────────────────────────────
+model Attendance {
+  id         Int              @id @default(autoincrement())
+  employeeId Int
+  date       DateTime
+  checkIn    DateTime?
+  checkOut   DateTime?
+  status     AttendanceStatus @default(PRESENT)
+  notes      String?          @db.VarChar(1000)
+  isActive   Boolean          @default(true)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@unique([employeeId, date])
+  @@map("attendances")
+}
+
+// ─── Payroll ───────────────────────────────────────────────────
+model Payroll {
+  id           Int      @id @default(autoincrement())
+  code         String   @unique @db.VarChar(50)
+  employeeId   Int
+  period       String   @db.VarChar(20) // e.g., "2024-01"
+  basicSalary  Decimal  @db.Decimal(15, 2)
+  allowances   Decimal  @default(0) @db.Decimal(15, 2)
+  deductions   Decimal  @default(0) @db.Decimal(15, 2)
+  overtimePay  Decimal  @default(0) @db.Decimal(15, 2)
+  totalSalary  Decimal  @default(0) @db.Decimal(15, 2)
+  paymentDate  DateTime?
+  notes        String?  @db.VarChar(1000)
+  isPaid       Boolean  @default(false)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@map("payrolls")
+}
+
+// ─── Loan / Pinjaman ──────────────────────────────────────────
+enum LoanStatus {
+  PENDING
+  APPROVED
+  ACTIVE
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+model Loan {
+  id               Int        @id @default(autoincrement())
+  code             String     @unique @db.VarChar(50)
+  employeeId       Int
+  loanType         String     @db.VarChar(100) // PERSONAL, EMERGENCY, HOUSING, VEHICLE
+  principalAmount  Decimal    @db.Decimal(15, 2)
+  interestRate     Decimal    @default(0) @db.Decimal(5, 2)
+  tenorMonths      Int        @default(1)
+  installmentAmount Decimal   @db.Decimal(15, 2)
+  totalAmount      Decimal    @db.Decimal(15, 2)
+  remainingAmount  Decimal    @db.Decimal(15, 2)
+  startDate        DateTime?
+  status           LoanStatus @default(PENDING)
+  notes            String?    @db.VarChar(1000)
+  isActive         Boolean    @default(true)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  employee Employee   @relation(fields: [employeeId], references: [id])
+  installments LoanInstallment[]
+
+  @@map("loans")
+}
+
+// ─── Loan Installment ──────────────────────────────────────────
+model LoanInstallment {
+  id            Int      @id @default(autoincrement())
+  loanId        Int
+  period        String   @db.VarChar(20) // e.g., "2024-01"
+  amount        Decimal  @db.Decimal(15, 2)
+  principal     Decimal  @db.Decimal(15, 2)
+  interest      Decimal  @db.Decimal(15, 2)
+  remainingBefore Decimal @db.Decimal(15, 2)
+  remainingAfter  Decimal @db.Decimal(15, 2)
+  paymentDate   DateTime?
+  status        String   @default("UNPAID") @db.VarChar(20) // PAID, UNPAID
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  loan Loan @relation(fields: [loanId], references: [id])
+
+  @@map("loan_installments")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// NOTIFICATION (from Ketoko reference)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+enum NotificationType {
+  INFO
+  WARNING
+  ERROR
+  SUCCESS
+}
+
+model Notification {
+  id        Int                @id @default(autoincrement())
+  userId    String?
+  title     String            @db.VarChar(255)
+  message   String            @db.VarChar(1000)
+  type      NotificationType  @default(INFO)
+  isRead    Boolean           @default(false)
+  referenceType String?       @db.VarChar(100)
+  referenceId   Int?
+  isActive  Boolean           @default(true)
+  createdAt DateTime          @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
 }

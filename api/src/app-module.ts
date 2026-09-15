@@ -102,6 +102,36 @@ import { NumberingModule } from './modules/numbering/numbering.module';
 // Reports
 import { ReportModule } from './modules/report/report.module';
 import { TestingModule } from './modules/testing/testing.module';
+import { ExpenseCategoryModule } from './modules/expense-category/expense-category.module';
+import { ExpenseModule } from './modules/expense/expense.module';
+import { TransferModule } from './modules/transfer/transfer.module';
+import { AssetCategoryModule } from './modules/asset-category/asset-category.module';
+import { AssetModule } from './modules/asset/asset.module';
+import { ServiceModule } from './modules/service/service.module';
+import { ServiceItemModule } from './modules/service-item/service-item.module';
+import { PriceHistoryModule } from './modules/price-history/price-history.module';
+import { VoucherModule } from './modules/voucher/voucher.module';
+import { TaxModule } from './modules/tax/tax.module';
+import { ProductionModule } from './modules/production/production.module';
+import { ProductionItemModule } from './modules/production-item/production-item.module';
+import { DepartmentModule } from './modules/department/department.module';
+import { PositionModule } from './modules/position/position.module';
+import { EmployeeModule } from './modules/employee/employee.module';
+import { AttendanceModule } from './modules/attendance/attendance.module';
+import { PayrollModule } from './modules/payroll/payroll.module';
+import { LoanModule } from './modules/loan/loan.module';
+import { LoanInstallmentModule } from './modules/loan-installment/loan-installment.module';
+import { NotificationModule } from './modules/notification/notification.module';
+import { ProductStockModule } from './modules/product-stock/product-stock.module';
+import { StockInItemModule } from './modules/stock-in-item/stock-in-item.module';
+import { StockOutItemModule } from './modules/stock-out-item/stock-out-item.module';
+import { StockTransferItemModule } from './modules/stock-transfer-item/stock-transfer-item.module';
+import { StockOpnameItemModule } from './modules/stock-opname-item/stock-opname-item.module';
+import { SaleItemModule } from './modules/sale-item/sale-item.module';
+import { SaleReturnItemModule } from './modules/sale-return-item/sale-return-item.module';
+import { PurchaseOrderItemModule } from './modules/purchase-order-item/purchase-order-item.module';
+import { PurchaseItemModule } from './modules/purchase-item/purchase-item.module';
+import { PurchaseReturnItemModule } from './modules/purchase-return-item/purchase-return-item.module';
 
 // ── Provider Global ────────────────────────────────────────────────────
 import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
@@ -182,6 +212,36 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     CompanyModule,        // Informasi Perusahaan
     NumberingModule,      // Format Penomoran
     TestingModule,
+    ExpenseCategoryModule,
+    ExpenseModule,
+    TransferModule,       // Transfer (Gudang/Kas)
+    AssetCategoryModule,
+    AssetModule,
+    ServiceModule,
+    ServiceItemModule,
+    PriceHistoryModule,
+    VoucherModule,
+    TaxModule,
+    ProductionModule,
+    ProductionItemModule,
+    DepartmentModule,
+    PositionModule,
+    EmployeeModule,
+    AttendanceModule,
+    PayrollModule,
+    LoanModule,
+    LoanInstallmentModule,
+    NotificationModule,
+    ProductStockModule,
+    StockInItemModule,
+    StockOutItemModule,
+    StockTransferItemModule,
+    StockOpnameItemModule,
+    SaleItemModule,
+    SaleReturnItemModule,
+    PurchaseOrderItemModule,
+    PurchaseItemModule,
+    PurchaseReturnItemModule,
   ],
   providers: [
     // ── [5] Guard & Interceptor Global ───────────────────────────────

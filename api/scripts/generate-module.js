@@ -225,6 +225,145 @@ const MODEL_CONFIGS = {
     searchableFields: ['type'],
     allowedIncludes: [],
   },
+  ExpenseCategory: {
+    searchableFields: ['code', 'name'],
+    allowedIncludes: ['expenses'],
+  },
+  Expense: {
+    searchableFields: ['code', 'description'],
+    allowedIncludes: ['expenseCategory', 'approver'],
+  },
+  Transfer: {
+    searchableFields: ['code', 'description'],
+    allowedIncludes: ['fromAccount', 'toAccount', 'fromWarehouse', 'toWarehouse'],
+  },
+  // ─── Asset Management ───
+  AssetCategory: {
+    primaryKeyType: 'number',
+    searchableFields: ['code', 'name'],
+    allowedIncludes: ['assets'],
+    pluralName: 'Asset Categories',
+    routeName: 'asset-categories',
+  },
+  Asset: {
+    primaryKeyType: 'number',
+    searchableFields: ['code', 'name', 'location'],
+    allowedIncludes: ['category'],
+    pluralName: 'Assets',
+    routeName: 'assets',
+  },
+  // ─── Service & Repair ───
+  Service: {
+    primaryKeyType: 'number',
+    searchableFields: ['code', 'customerName', 'productName'],
+    allowedIncludes: ['customer', 'items'],
+    pluralName: 'Services',
+    routeName: 'services',
+  },
+  ServiceItem: {
+    primaryKeyType: 'number',
+    searchableFields: ['productName'],
+    allowedIncludes: ['service', 'product'],
+    pluralName: 'Service Items',
+    routeName: 'service-items',
+  },
+  // ─── Price History ───
+  PriceHistory: {
+    primaryKeyType: 'number',
+    searchableFields: [],
+    allowedIncludes: ['product'],
+    pluralName: 'Price Histories',
+    routeName: 'price-histories',
+  },
+  // ─── Voucher ───
+  Voucher: {
+    primaryKeyType: 'number',
+    searchableFields: ['code', 'name'],
+    allowedIncludes: [],
+    pluralName: 'Vouchers',
+    routeName: 'vouchers',
+  },
+  // ─── Tax ───
+  Tax: {
+    primaryKeyType: 'number',
+    searchableFields: ['code', 'name'],
+    allowedIncludes: [],
+    pluralName: 'Taxes',
+    routeName: 'taxes',
+  },
+  // ─── Production ───
+  Production: {
+    primaryKeyType: 'number',
+    searchableFields: ['code', 'productName'],
+    allowedIncludes: ['warehouse', 'product', 'items'],
+    pluralName: 'Productions',
+    routeName: 'productions',
+  },
+  ProductionItem: {
+    primaryKeyType: 'number',
+    searchableFields: ['productName'],
+    allowedIncludes: ['production', 'product', 'unit'],
+    pluralName: 'Production Items',
+    routeName: 'production-items',
+  },
+  // ─── HRM ───
+  Department: {
+    primaryKeyType: 'number',
+    searchableFields: ['code', 'name'],
+    allowedIncludes: ['employees'],
+    pluralName: 'Departments',
+    routeName: 'departments',
+  },
+  Position: {
+    primaryKeyType: 'number',
+    searchableFields: ['code', 'name'],
+    allowedIncludes: ['employees'],
+    pluralName: 'Positions',
+    routeName: 'positions',
+  },
+  Employee: {
+    primaryKeyType: 'number',
+    searchableFields: ['code', 'name', 'phone'],
+    allowedIncludes: ['department', 'position', 'attendances', 'payrolls', 'loans'],
+    pluralName: 'Employees',
+    routeName: 'employees',
+  },
+  Attendance: {
+    primaryKeyType: 'number',
+    searchableFields: [],
+    allowedIncludes: ['employee'],
+    pluralName: 'Attendances',
+    routeName: 'attendances',
+  },
+  Payroll: {
+    primaryKeyType: 'number',
+    searchableFields: ['code', 'period'],
+    allowedIncludes: ['employee'],
+    pluralName: 'Payrolls',
+    routeName: 'payrolls',
+  },
+  Loan: {
+    primaryKeyType: 'number',
+    searchableFields: ['code', 'loanType'],
+    allowedIncludes: ['employee', 'installments'],
+    pluralName: 'Loans',
+    routeName: 'loans',
+  },
+  LoanInstallment: {
+    primaryKeyType: 'number',
+    searchableFields: ['period'],
+    allowedIncludes: ['loan'],
+    pluralName: 'Loan Installments',
+    routeName: 'loan-installments',
+  },
+  // ─── Notification ───
+  Notification: {
+    primaryKeyType: 'number',
+    searchableFields: ['title', 'message'],
+    allowedIncludes: ['user'],
+    pluralName: 'Notifications',
+    routeName: 'notifications',
+  },
 };
 
 // Default config untuk model yang tidak ada di MODEL_CONFIGS
@@ -501,9 +640,9 @@ export class ${modelName}Service extends BaseService<
   Update${modelName}Dto
 > {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly redis: RedisService,
-    private readonly queryService: QueryService,
+    readonly prisma: PrismaService,
+    readonly redis: RedisService,
+    readonly queryService: QueryService,
   ) {
     super(prisma, redis, queryService, {
       modelName: '${fileName}',
@@ -549,176 +688,108 @@ export class ${modelName}Service extends BaseService<
 
 function generateController(modelName, config, fileName) {
   const primaryKeyType = config.primaryKeyType || 'number';
+  const pluralName = config.pluralName || modelName + 's';
+  const routeName = config.routeName || fileName;
 
   return `import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
-import { Controller, Get, Post, Patch, Delete, Put, Param, Body, Query, UseGuards, Headers, BadRequestException } from '@nestjs/common';
+import { UseGuards, Controller, Get, Post, Patch, Delete, Put, Param, Body, Query } from '@nestjs/common';
+import { BaseController } from '../../common/templates/base.controller';
 import { ${modelName}Service } from './${fileName}.service';
 import { Create${modelName}Dto, Update${modelName}Dto } from './dto/${fileName}.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
-import { PrismaService } from '../../common/prisma/prisma-service';
 
-type HeadersRecord = Record<string, string | string[] | undefined>;
-
-@ApiTags('${modelName}')
+@ApiTags('${pluralName}')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('${fileName}')
-export class ${modelName}Controller {
-  constructor(
-    private readonly ${camelCase(modelName)}Service: ${modelName}Service,
-    private readonly prisma: PrismaService,
-  ) {}
-
-  // ═══════════════════════════════════════════════════════════════════
-  // TRANSACTION BLOCK HELPER
-  // ═══════════════════════════════════════════════════════════════════
-
-  /**
-   * Execute callback dalam transaction block
-   * By default semua endpoint menggunakan transaction
-   */
-  private async withTransaction<T>(
-    headers: HeadersRecord,
-    callback: (tx: any) => Promise<T>,
-  ): Promise<T> {
-    const useTransaction = headers['x-use-transaction'] !== 'false';
-
-    if (useTransaction) {
-      return this.prisma.$transaction(async (tx) => {
-        return callback(tx);
-      });
-    }
-
-    return callback(this.prisma);
+@Controller('${routeName}')
+export class ${modelName}Controller extends BaseController<
+  any,
+  Create${modelName}Dto,
+  Update${modelName}Dto
+> {
+  constructor(${camelCase(modelName)}Service: ${modelName}Service) {
+    super(${camelCase(modelName)}Service, {
+      modelName: '${modelName}',
+      pluralName: '${pluralName}',
+      primaryKeyType: '${primaryKeyType}',
+      paramId: 'id',
+      routePrefix: '${routeName}',
+    });
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  // READ ENDPOINTS (No transaction needed)
-  // ═══════════════════════════════════════════════════════════════════
-
+  // GET endpoints
   @Get()
-  @ApiOperation({ summary: 'Get all ${modelName}s with OData query support' })
-  @ApiQuery({ name: '$select', required: false, description: 'Select fields (comma separated)' })
-  @ApiQuery({ name: '$include', required: false, description: 'Include relations (e.g., relation1,relation2)' })
-  @ApiQuery({ name: '$where', required: false, description: 'Filter by field (JSON)' })
-  @ApiQuery({ name: '$orderBy', required: false, description: 'Sort by field (JSON: {"field": "asc"})' })
+  @ApiOperation({ summary: 'Get all ${pluralName} with OData query support' })
+  @ApiQuery({ name: '$select', required: false, description: 'Select fields' })
+  @ApiQuery({ name: '$include', required: false, description: 'Include relations' })
+  @ApiQuery({ name: '$where[field]', required: false, description: 'Filter by field' })
+  @ApiQuery({ name: '$orderBy[field]', required: false, description: 'Sort: asc/desc' })
   @ApiQuery({ name: '$skip', required: false, type: Number, description: 'Offset' })
-  @ApiQuery({ name: '$take', required: false, type: Number, description: 'Limit (max 100)' })
+  @ApiQuery({ name: '$take', required: false, type: Number, description: 'Limit' })
   @ApiQuery({ name: '$search', required: false, description: 'Search keyword' })
   async findAll(@Query() query: any) {
-    return this.${camelCase(modelName)}Service.findAll(query);
+    return super.findAll(query);
   }
 
   @Get('count')
-  @ApiOperation({ summary: 'Get count of ${modelName}s' })
+  @ApiOperation({ summary: 'Get count of ${pluralName}' })
   async getCount(@Query() query: any) {
-    return this.${camelCase(modelName)}Service.getCount(query);
+    return super.getCount(query);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get ${modelName} by ID' })
   async findById(@Param('id') id: string, @Query() query: any) {
-    return this.${camelCase(modelName)}Service.findById(id, query);
+    return super.findById(id, query);
   }
 
   @Get('by/:field/:value')
   @ApiOperation({ summary: 'Get ${modelName} by field reference' })
   async findByField(@Param('field') field: string, @Param('value') value: string, @Query() query: any) {
-    return this.${camelCase(modelName)}Service.findByField(field, value, query);
+    return super.findByField(field, value, query);
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  // WRITE ENDPOINTS (With transaction by default)
-  // ═══════════════════════════════════════════════════════════════════
-
+  // POST endpoints
   @Post()
   @ApiOperation({ summary: 'Create new ${modelName}' })
-  async create(@Body() dto: Create${modelName}Dto, @Headers() headers: HeadersRecord) {
-    return this.withTransaction(headers, async (tx) => {
-      const result = await tx.${modelName}.create({ data: dto });
-      await this.${camelCase(modelName)}Service.invalidateCache();
-      return result;
-    });
+  async create(@Body() dto: Create${modelName}Dto) {
+    return super.create(dto);
   }
 
   @Post('bulk')
-  @ApiOperation({ summary: 'Create multiple ${modelName}s' })
-  async createBulk(@Body() dtos: Create${modelName}Dto[], @Headers() headers: HeadersRecord) {
-    return this.withTransaction(headers, async (tx) => {
-      const result = await tx.${modelName}.createMany({ data: dtos });
-      await this.${camelCase(modelName)}Service.invalidateCache();
-      return result;
-    });
+  @ApiOperation({ summary: 'Create multiple ${pluralName}' })
+  async createBulk(@Body() dtos: Create${modelName}Dto[]) {
+    return super.createBulk(dtos);
   }
 
+  // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update ${modelName} by ID' })
-  async patchById(
-    @Param('id') id: string,
-    @Body() dto: Partial<Update${modelName}Dto>,
-    @Headers() headers: HeadersRecord,
-  ) {
-    return this.withTransaction(headers, async (tx) => {
-      const result = await tx.${modelName}.update({
-        where: { id: ${primaryKeyType === 'string' ? 'id' : 'parseInt(id)' } },
-        data: dto,
-      });
-      await this.${camelCase(modelName)}Service.invalidateCache();
-      return result;
-    });
+  async patchById(@Param('id') id: string, @Body() dto: Partial<Update${modelName}Dto>) {
+    return super.patchById(id, dto);
   }
 
   @Patch('by/:field/:value')
-  @ApiOperation({ summary: 'Update ${modelName}s by field reference' })
+  @ApiOperation({ summary: 'Update ${pluralName} by field reference' })
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
     @Body() dto: Partial<Update${modelName}Dto>,
-    @Headers() headers: HeadersRecord,
   ) {
-    return this.withTransaction(headers, async (tx) => {
-      const where = { [field]: value };
-      const result = await tx.${modelName}.updateMany({
-        where,
-        data: dto,
-      });
-      await this.${camelCase(modelName)}Service.invalidateCache();
-      return result;
-    });
+    return super.patchByFilterReference(field, value, dto);
   }
 
   @Patch('bulk')
-  @ApiOperation({ summary: 'Update multiple ${modelName}s' })
-  async patchBulk(
-    @Body() body: { ids: ${primaryKeyType === 'string' ? 'string[]' : 'number[]' }; data: Partial<Update${modelName}Dto> },
-    @Headers() headers: HeadersRecord,
-  ) {
-    return this.withTransaction(headers, async (tx) => {
-      const result = await tx.${modelName}.updateMany({
-        where: { id: { in: body.ids } },
-        data: body.data,
-      });
-      await this.${camelCase(modelName)}Service.invalidateCache();
-      return result;
-    });
+  @ApiOperation({ summary: 'Update multiple ${pluralName}' })
+  async patchBulk(@Body() body: { ids: ${primaryKeyType === 'string' ? 'string[]' : 'number[]' }; data: Partial<Update${modelName}Dto> }) {
+    return super.patchBulk(body);
   }
 
   // PUT (UPSERT) endpoints
   @Put()
   @ApiOperation({ summary: 'Upsert ${modelName}' })
-  async upsert(
-    @Body() body: { where: { id: ${primaryKeyType === 'string' ? 'string' : 'number'} }; create: Create${modelName}Dto; update: Partial<Update${modelName}Dto> },
-    @Headers() headers: HeadersRecord,
-  ) {
-    return this.withTransaction(headers, async (tx) => {
-      const result = await tx.${modelName}.upsert({
-        where: body.where,
-        create: body.create,
-        update: body.update,
-      });
-      await this.${camelCase(modelName)}Service.invalidateCache();
-      return result;
-    });
+  async upsert(@Body() body: { where: { id: ${primaryKeyType === 'string' ? 'string' : 'number'} }; create: Create${modelName}Dto; update: Partial<Update${modelName}Dto> }) {
+    return super.upsert(body);
   }
 
   @Put('by/:field')
@@ -726,83 +797,33 @@ export class ${modelName}Controller {
   async upsertByFilterReference(
     @Param('field') field: string,
     @Body() body: { filterValue: any; create: Create${modelName}Dto; update: Partial<Update${modelName}Dto> },
-    @Headers() headers: HeadersRecord,
   ) {
-    return this.withTransaction(headers, async (tx) => {
-      const where = { [field]: body.filterValue };
-      const result = await tx.${modelName}.upsert({
-        where,
-        create: body.create,
-        update: body.update,
-      });
-      await this.${camelCase(modelName)}Service.invalidateCache();
-      return result;
-    });
+    return super.upsertByFilterReference(field, body);
   }
 
   @Put('bulk')
-  @ApiOperation({ summary: 'Bulk upsert ${modelName}s' })
-  async upsertBulk(
-    @Body() body: { items: Array<{ where?: any; create: Create${modelName}Dto; update?: Partial<Update${modelName}Dto> }> },
-    @Headers() headers: HeadersRecord,
-  ) {
-    return this.withTransaction(headers, async (tx) => {
-      const results = [];
-      for (const item of body.items) {
-        const result = await tx.${modelName}.upsert({
-          where: item.where || { id: 0 },
-          create: item.create,
-          update: item.update || {},
-        });
-        results.push(result);
-      }
-      await this.${camelCase(modelName)}Service.invalidateCache();
-      return results;
-    });
+  @ApiOperation({ summary: 'Bulk upsert ${pluralName}' })
+  async upsertBulk(@Body() body: { items: any[] }) {
+    return super.upsertBulk(body);
   }
 
   // DELETE endpoints
   @Delete(':id')
   @ApiOperation({ summary: 'Delete ${modelName} by ID' })
-  async deleteById(@Param('id') id: string, @Headers() headers: HeadersRecord) {
-    return this.withTransaction(headers, async (tx) => {
-      const result = await tx.${modelName}.delete({
-        where: { id: ${primaryKeyType === 'string' ? 'id' : 'parseInt(id)' } },
-      });
-      await this.${camelCase(modelName)}Service.invalidateCache();
-      return result;
-    });
+  async deleteById(@Param('id') id: string) {
+    return super.deleteById(id);
   }
 
   @Delete('by/:field/:value')
-  @ApiOperation({ summary: 'Delete ${modelName}s by field reference' })
-  async deleteByFilterReference(
-    @Param('field') field: string,
-    @Param('value') value: string,
-    @Headers() headers: HeadersRecord,
-  ) {
-    return this.withTransaction(headers, async (tx) => {
-      const result = await tx.${modelName}.deleteMany({
-        where: { [field]: value },
-      });
-      await this.${camelCase(modelName)}Service.invalidateCache();
-      return result;
-    });
+  @ApiOperation({ summary: 'Delete ${pluralName} by field reference' })
+  async deleteByFilterReference(@Param('field') field: string, @Param('value') value: string) {
+    return super.deleteByFilterReference(field, value);
   }
 
   @Delete('bulk')
-  @ApiOperation({ summary: 'Delete multiple ${modelName}s' })
-  async deleteBulk(
-    @Body() body: { ids: ${primaryKeyType === 'string' ? 'string[]' : 'number[]'} },
-    @Headers() headers: HeadersRecord,
-  ) {
-    return this.withTransaction(headers, async (tx) => {
-      const result = await tx.${modelName}.deleteMany({
-        where: { id: { in: body.ids } },
-      });
-      await this.${camelCase(modelName)}Service.invalidateCache();
-      return result;
-    });
+  @ApiOperation({ summary: 'Delete multiple ${pluralName}' })
+  async deleteBulk(@Body() body: { ids: (number | string)[] }) {
+    return super.deleteBulk(body);
   }
 }
 `;
