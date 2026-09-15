@@ -393,8 +393,8 @@ class ApiClient {
 
   // ─── Auth ──────────────────────────────────────────────────
 
-  async login(email: string, password: string): Promise<ApiResponse<{ token: string; user: unknown }>> {
-    const result = await this.request<{ token: string; user: unknown }>('POST', 'auth/login', { email, password });
+  async login(companyCode: string, username: string, password: string): Promise<ApiResponse<{ token: string; user: unknown }>> {
+    const result = await this.request<{ token: string; user: unknown }>('POST', 'auth/login', { companyCode, username, password });
     if (result.success && result.data?.token) {
       this.setToken(result.data.token);
     }

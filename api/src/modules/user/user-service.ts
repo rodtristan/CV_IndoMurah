@@ -79,19 +79,23 @@ export class UserService {
   }
 
   async create(dto: CreateUserDto) {
-    const exists = await this.prisma.user.count({ where: { email: dto.email } });
+    const exists = await this.prisma.user.count({
+      where: { companyId: dto.companyId, username: dto.username },
+    });
     if (exists > 0) {
-      throw new ConflictException('Email sudah terdaftar');
+      throw new ConflictException('Username sudah terdaftar di perusahaan ini');
     }
 
     const hashedPassword = await argon2.hash(dto.password, { type: argon2.argon2id });
 
     const user = await this.prisma.user.create({
       data: {
+        companyId: dto.companyId,
+        username: dto.username,
         email: dto.email,
         password: hashedPassword,
         name: dto.name,
-        role: dto.role ?? 'cashier',
+        role: 'cashier',
         isActive: true,
       },
     });

@@ -27,10 +27,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // Backend ini single-tenant (tidak ada konsep "ID Perusahaan") — field
-      // itu dipertahankan untuk kemiripan visual dengan Ketoko.co.id, tapi
-      // hanya User ID (diisi dengan email) yang benar-benar dikirim ke API.
-      const res = await api.login(userId, password);
+      const res = await api.login(companyId, userId, password);
       if (res.success && res.data?.token) {
         router.push("/dashboard");
       } else {
@@ -128,8 +125,9 @@ export default function LoginPage() {
                 type="text"
                 value={companyId}
                 onChange={(e) => setCompanyId(e.target.value)}
-                placeholder="Masukkan ID perusahaan Anda"
+                placeholder="INDOMURAH"
                 autoComplete="off"
+                required
                 className="h-[38px] w-full rounded border border-default bg-white px-3.5 text-sm text-[#1e293b] placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
@@ -147,7 +145,7 @@ export default function LoginPage() {
                 type="text"
                 value={userId}
                 onChange={(e) => setUserId(e.target.value)}
-                placeholder="admin@tokocvindomurah.com"
+                placeholder="admin"
                 autoComplete="off"
                 required
                 className="h-[38px] w-full rounded border border-default bg-white px-3.5 text-sm text-[#1e293b] placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"

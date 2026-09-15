@@ -33,11 +33,14 @@ export class AuthService {
     }
 
     // Find user by companyId + username
+    // `password` di-omit secara global (lihat prisma-service.ts) — override di
+    // sini karena login butuh hash-nya untuk verifikasi.
     const user = await this.prisma.user.findFirst({
       where: {
         companyId: company.id,
         username: dto.username,
       },
+      omit: { password: false },
     });
 
     if (!user || !user.isActive) {
@@ -127,7 +130,6 @@ export class AuthService {
         name: true,
         username: true,
         email: true,
-        name: true,
         role: true,
         isActive: true,
         createdAt: true,

@@ -17,11 +17,12 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [companyId, setCompanyId] = useState<number | null>(null);
   const roleOptions = [
     { value: "admin", label: "Admin" },
     { value: "cashier", label: "Kasir" },
   ];
-  const [form, setForm] = useState({ name: "", email: "", password: "", role: "cashier", isActive: true });
+  const [form, setForm] = useState({ name: "", username: "", email: "", password: "", role: "cashier", isActive: true });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -31,15 +32,24 @@ export default function UsersPage() {
     } finally { setLoading(false); }
   }, [search]);
 
+  const fetchCompany = useCallback(async () => {
+    const res = await api.get("company", { $take: 1 } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+    if (res.success) {
+      const company = Array.isArray(res.data) ? res.data[0] : res.data;
+      if (company?.id) setCompanyId(company.id);
+    }
+  }, []);
+
   useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { fetchCompany(); }, [fetchCompany]);
 
   const handleSave = async () => {
     const isEdit = Boolean((form as any).id);
     if (isEdit) {
-      const payload = { name: form.name, email: form.email, role: form.role, isActive: form.isActive };
+      const payload = { name: form.name, email: form.email || undefined, isActive: form.isActive };
       await api.put("users", (form as any).id, payload).catch(() => ({}));
     } else {
-      const payload = { name: form.name, email: form.email, password: form.password, role: form.role };
+      const payload = { companyId, username: form.username, name: form.name, email: form.email || undefined, password: form.password };
       await api.post("users", payload).catch(() => ({}));
     }
     setShowForm(false);
@@ -53,6 +63,7 @@ export default function UsersPage() {
 
   const columns = [
     { key: "name", label: "Nama" },
+    { key: "username", label: "Username" },
     { key: "email", label: "Email" },
     { key: "role", label: "Role", render: (v: unknown) => <span className="capitalize">{v as string}</span> },
     { key: "isActive", label: "Status", render: (v: unknown) => v ? <Badge variant="success">Aktif</Badge> : <Badge variant="default">Nonaktif</Badge> },
@@ -60,14 +71,14 @@ export default function UsersPage() {
       key: "actions", label: "", width: "70px",
       render: (_: unknown, row: any) => (
         <div className="flex gap-1">
-          <RowEditIcon onClick={() => { setForm(row); setShowForm(true); }} />
+          <RowEditIcon onClick={() => { setForm({ ...row, password: "" }); setShowForm(true); }} />
           <RowDeleteIcon onClick={() => handleDelete(row.id)} />
         </div>
       )
     },
   ];
 
-  const openCreate = () => { setForm({ name: "", email: "", password: "", role: "cashier", isActive: true }); setShowForm(true); };
+  const openCreate = () => { setForm({ name: "", username: "", email: "", password: "", role: "cashier", isActive: true }); setShowForm(true); };
 
   return (
     <PageWrapper>
@@ -86,6 +97,9 @@ export default function UsersPage() {
       <Modal open={showForm} onClose={() => setShowForm(false)} title="Pengguna" size="md">
         <div className="space-y-4">
           <Input label="Nama" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+          {!(form as any).id && (
+            <Input label="Username" value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} />
+          )}
           <Input label="Email" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
           {!(form as any).id && (
             <Input label="Password" type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />

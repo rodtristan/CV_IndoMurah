@@ -15,12 +15,12 @@ export default function SuppliersPage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: "", code: "", email: "", phone: "", address: "", city: "", contactPerson: "" });
+  const [form, setForm] = useState({ name: "", code: "", email: "", phone: "", address: "", notes: "", contactPerson: "" });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("supplier", { $search: search || undefined, $select: "id,code,name,email,phone,address,city,contactPerson" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+      const res = await api.get("supplier", { $search: search || undefined, $select: "id,code,name,email,phone,address,notes,contactPerson" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
       if (res.success) setData(res.data || []);
     } finally { setLoading(false); }
   }, [search]);
@@ -28,10 +28,20 @@ export default function SuppliersPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleSave = async () => {
-    if ((form as any).id) {
-      await api.patch("supplier", (form as any).id, form).catch(() => ({}));
+    const isEdit = Boolean((form as any).id);
+    const payload = {
+      code: form.code,
+      name: form.name,
+      email: form.email || undefined,
+      phone: form.phone || undefined,
+      address: form.address || undefined,
+      notes: form.notes || undefined,
+      contactPerson: form.contactPerson || undefined,
+    };
+    if (isEdit) {
+      await api.patch("supplier", (form as any).id, payload).catch(() => ({}));
     } else {
-      await api.post("supplier", form).catch(() => ({}));
+      await api.post("supplier", payload).catch(() => ({}));
     }
     setShowForm(false);
     fetchData();
@@ -47,19 +57,19 @@ export default function SuppliersPage() {
     { key: "name", label: "Nama Supplier" },
     { key: "contactPerson", label: "Contact" },
     { key: "phone", label: "Telepon", render: (v: unknown) => v ? <span>{v as string}</span> : <span className="text-muted">-</span> },
-    { key: "city", label: "Kota", render: (v: unknown) => v ? <span>{v as string}</span> : <span className="text-muted">-</span> },
+    { key: "address", label: "Alamat", render: (v: unknown) => v ? <span className="text-muted">{v as string}</span> : <span className="text-muted">-</span> },
     {
       key: "actions", label: "", width: "70px",
       render: (_: unknown, row: any) => (
         <div className="flex gap-1">
-          <RowEditIcon onClick={() => { setForm(row); setShowForm(true); }} />
+          <RowEditIcon onClick={() => { setForm({ ...row, notes: row.notes || "" }); setShowForm(true); }} />
           <RowDeleteIcon onClick={() => handleDelete(row.id)} />
         </div>
       )
     },
   ];
 
-  const openCreate = () => { setForm({ name: "", code: "", email: "", phone: "", address: "", city: "", contactPerson: "" }); setShowForm(true); };
+  const openCreate = () => { setForm({ name: "", code: "", email: "", phone: "", address: "", notes: "", contactPerson: "" }); setShowForm(true); };
 
   return (
     <PageWrapper>
@@ -87,7 +97,7 @@ export default function SuppliersPage() {
           </div>
           <Input label="Email" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
           <Input label="Alamat" value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} />
-          <Input label="Kota" value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} />
+          <Input label="Catatan" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button>
             <Button variant="primary" onClick={handleSave}>Simpan</Button>

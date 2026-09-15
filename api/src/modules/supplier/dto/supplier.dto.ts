@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsInt, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsEmail } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateSupplierDto {
@@ -10,10 +10,30 @@ export class CreateSupplierDto {
   @IsString()
   name: string;
 
-  @ApiPropertyOptional({ description: 'Description' })
+  @ApiPropertyOptional({ description: 'Contact person' })
   @IsOptional()
   @IsString()
-  description?: string;
+  contactPerson?: string;
+
+  @ApiPropertyOptional({ description: 'Phone number' })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiPropertyOptional({ description: 'Email' })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @ApiPropertyOptional({ description: 'Address' })
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @ApiPropertyOptional({ description: 'Notes' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
 
   @ApiPropertyOptional({ default: true, description: 'Is active' })
   @IsOptional()
@@ -32,10 +52,30 @@ export class UpdateSupplierDto {
   @IsString()
   name?: string;
 
-  @ApiPropertyOptional({ description: 'Description' })
+  @ApiPropertyOptional({ description: 'Contact person' })
   @IsOptional()
   @IsString()
-  description?: string;
+  contactPerson?: string;
+
+  @ApiPropertyOptional({ description: 'Phone number' })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiPropertyOptional({ description: 'Email' })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @ApiPropertyOptional({ description: 'Address' })
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @ApiPropertyOptional({ description: 'Notes' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
 
   @ApiPropertyOptional({ description: 'Is active' })
   @IsOptional()
