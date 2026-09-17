@@ -364,6 +364,30 @@ const MODEL_CONFIGS = {
     pluralName: 'Notifications',
     routeName: 'notifications',
   },
+  // ─── Shelf (Rak) ───
+  Shelf: {
+    primaryKeyType: 'number',
+    searchableFields: ['code', 'name'],
+    allowedIncludes: ['warehouse', 'shelfProducts'],
+    pluralName: 'Shelves',
+    routeName: 'shelves',
+  },
+  // ─── Shelf Product ───
+  ShelfProduct: {
+    primaryKeyType: 'number',
+    searchableFields: [],
+    allowedIncludes: ['shelf', 'product'],
+    pluralName: 'Shelf Products',
+    routeName: 'shelf-products',
+  },
+  // ─── Product Group (Golongan Produk) ───
+  ProductGroup: {
+    primaryKeyType: 'number',
+    searchableFields: ['code', 'name'],
+    allowedIncludes: ['products'],
+    pluralName: 'Product Groups',
+    routeName: 'product-groups',
+  },
 };
 
 // Default config untuk model yang tidak ada di MODEL_CONFIGS

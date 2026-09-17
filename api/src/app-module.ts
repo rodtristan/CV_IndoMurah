@@ -132,6 +132,23 @@ import { SaleReturnItemModule } from './modules/sale-return-item/sale-return-ite
 import { PurchaseOrderItemModule } from './modules/purchase-order-item/purchase-order-item.module';
 import { PurchaseItemModule } from './modules/purchase-item/purchase-item.module';
 import { PurchaseReturnItemModule } from './modules/purchase-return-item/purchase-return-item.module';
+import { ActivityLogModule } from './modules/activity-log/activity-log.module';
+import { BrandLogoModule } from './modules/brand-logo/brand-logo.module';
+import { LogModule } from './modules/log/log.module';
+import { DailySalesSummaryModule } from './modules/daily-sales-summary/daily-sales-summary.module';
+import { MonthlySalesSummaryModule } from './modules/monthly-sales-summary/monthly-sales-summary.module';
+import { NotificationSettingModule } from './modules/notification-setting/notification-setting.module';
+import { ProductBarcodeModule } from './modules/product-barcode/product-barcode.module';
+import { ProductImageModule } from './modules/product-image/product-image.module';
+import { StockAlertModule } from './modules/stock-alert/stock-alert.module';
+import { ShelfModule } from './modules/shelf/shelf.module';
+import { ShelfProductModule } from './modules/shelf-product/shelf-product.module';
+import { ProductGroupModule } from './modules/product-group/product-group.module';
+import { UserRoleModule } from './modules/user-role/user-role.module';
+import { RoleMenuModule } from './modules/role-menu/role-menu.module';
+import { UserMenuModule } from './modules/user-menu/user-menu.module';
+import { LeaveModule } from './modules/leave/leave.module';
+import { LeaveBalanceModule } from './modules/leave-balance/leave-balance.module';
 
 // ── Provider Global ────────────────────────────────────────────────────
 import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
@@ -242,6 +259,23 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     PurchaseOrderItemModule,
     PurchaseItemModule,
     PurchaseReturnItemModule,
+    ActivityLogModule,
+    LogModule,
+    BrandLogoModule,
+    DailySalesSummaryModule,
+    MonthlySalesSummaryModule,
+    NotificationSettingModule,
+    ProductBarcodeModule,
+    ProductImageModule,
+    StockAlertModule,
+    ShelfModule,
+    ShelfProductModule,
+    ProductGroupModule,
+    UserRoleModule,
+    RoleMenuModule,
+    UserMenuModule,
+    LeaveModule,
+    LeaveBalanceModule,
   ],
   providers: [
     // ── [5] Guard & Interceptor Global ───────────────────────────────

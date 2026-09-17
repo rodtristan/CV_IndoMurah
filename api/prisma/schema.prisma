@@ -1,6 +1,7 @@
 // ============================================================
 // Toko CV IndoMurah — Complete Prisma Schema
 // POS System with OData Query Support
+// All Status/Type are stored as tables (no enums)
 // ============================================================
 
 generator client {
@@ -13,62 +14,407 @@ datasource db {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ENUMS
+// REFERENCE DATA TABLES (Dinamis - bisa bertambah)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-enum PaymentMethod {
-  CASH
-  TRANSFER
-  DEBIT
-  QRIS
-  CREDIT
+// ─── PaymentMethod (Metode Pembayaran) ───────────────────────────────
+model PaymentMethod {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(255)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  salePayments      SalePayment[]
+  purchasePayments   PurchasePayment[]
+
+  @@map("payment_methods")
 }
 
-enum PaymentStatus {
-  PENDING
-  PAID
-  INSTALMENT
-  PARTIAL
-  CANCELLED
+// ─── PaymentStatus (Status Pembayaran) ────────────────────────────
+model PaymentStatus {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(255)
+  color       String?  @db.VarChar(50)  // CSS color for UI
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  sales      Sale[]
+  purchases   Purchase[]
+
+  @@map("payment_statuses")
 }
 
-enum TransactionStatus {
-  DRAFT
-  PENDING
-  CONFIRMED
-  SENT
-  RECEIVED
-  COMPLETED
-  APPROVED
-  CANCELLED
+// ─── TransactionStatus (Status Transaksi) ──────────────────────
+model TransactionStatus {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(255)
+  color       String?  @db.VarChar(50)
+  isTerminal  Boolean  @default(false)  // True if this is a final status
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  saleReturns      SaleReturn[]
+  purchaseOrders   PurchaseOrder[]
+  purchases        Purchase[]
+  stockIns         StockIn[]
+  stockOuts        StockOut[]
+  stockTransfers   StockTransfer[]
+  leaves           Leave[]
+  loans            Loan[]
+  transfers        Transfer[]
+
+  @@map("transaction_statuses")
 }
 
-enum StockOpnameStatus {
-  PENDING
-  APPROVED
-  COMPLETED
+// ─── StockOpnameStatus ─────────────────────────────────────────
+model StockOpnameStatus {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(255)
+  color       String?  @db.VarChar(50)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  stockOpnames StockOpname[]
+
+  @@map("stock_opname_statuses")
 }
 
-enum AccountType {
-  ASSET
-  LIABILITY
-  EQUITY
-  REVENUE
-  EXPENSE
+// ─── AccountType (Tipe Akun) ──────────────────────────────────
+model AccountType {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(255)
+  isDebitNormal Boolean @default(true)  // Asset & Expense = debit normal
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  accounts    Account[]
+
+  @@map("account_types")
 }
 
-enum ReferenceType {
-  PURCHASE
-  RETURN
-  ADJUSTMENT
-  MANUAL
+// ─── ReferenceType (Tipe Referensi) ────────────────────────────
+model ReferenceType {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(255)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  stockIns    StockIn[]
+  stockOuts   StockOut[]
+
+  @@map("reference_types")
 }
 
-enum CustomerGroup {
-  RETAIL
-  WHOLESALE
-  VIP
-  GENERAL
+// ─── CustomerGroup (Grup Pelanggan) ────────────────────────────
+model CustomerGroup {
+  id              Int       @id @default(autoincrement())
+  code            String    @unique @db.VarChar(50)
+  name            String    @db.VarChar(100)
+  description     String?   @db.VarChar(255)
+  discountPercent Decimal    @default(0) @db.Decimal(5,2)
+  pointMultiplier Decimal    @default(1) @db.Decimal(3,2)
+  isActive        Boolean   @default(true)
+  sortOrder       Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  customers Customer[]
+
+  @@map("customer_groups")
+}
+
+// ─── EmployeeStatus ────────────────────────────────────────────
+model EmployeeStatus {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(255)
+  color       String?  @db.VarChar(50)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  employees Employee[]
+
+  @@map("employee_statuses")
+}
+
+// ─── AttendanceStatus ──────────────────────────────────────────
+model AttendanceStatus {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(255)
+  color       String?  @db.VarChar(50)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  attendances Attendance[]
+
+  @@map("attendance_statuses")
+}
+
+// ─── LeaveType ────────────────────────────────────────────────
+model LeaveType {
+  id              Int       @id @default(autoincrement())
+  code            String    @unique @db.VarChar(50)
+  name            String    @db.VarChar(100)
+  description     String?   @db.VarChar(255)
+  isPaidLeave     Boolean   @default(true)
+  defaultDays     Int       @default(0)  // Default annual entitlement
+  color           String?   @db.VarChar(50)
+  isActive        Boolean   @default(true)
+  sortOrder       Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  leaves         Leave[]
+  leaveBalances  LeaveBalance[]
+
+  @@map("leave_types")
+}
+
+// ─── LeaveStatus ────────────────────────────────────────────────
+model LeaveStatus {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(255)
+  color       String?  @db.VarChar(50)
+  requiresApproval Boolean @default(true)
+  isTerminal  Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  leaves Leave[]
+
+  @@map("leave_statuses")
+}
+
+// ─── LoanStatus ────────────────────────────────────────────────
+model LoanStatus {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(255)
+  color       String?  @db.VarChar(50)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  loans Loan[]
+
+  @@map("loan_statuses")
+}
+
+// ─── LoanType ─────────────────────────────────────────────────
+model LoanType {
+  id              Int       @id @default(autoincrement())
+  code            String    @unique @db.VarChar(50)
+  name            String    @db.VarChar(100)
+  description     String?   @db.VarChar(255)
+  maxTenorMonths  Int       @default(12)
+  maxAmount       Decimal   @default(0) @db.Decimal(15,2)
+  interestRate    Decimal   @default(0) @db.Decimal(5,2)
+  isActive        Boolean   @default(true)
+  sortOrder       Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  loans Loan[]
+
+  @@map("loan_types")
+}
+
+// ─── AssetStatus ──────────────────────────────────────────────
+model AssetStatus {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(255)
+  color       String?  @db.VarChar(50)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  assets Asset[]
+
+  @@map("asset_statuses")
+}
+
+// ─── DepreciationMethod ──────────────────────────────────────
+model DepreciationMethod {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(255)
+  formula     String?  @db.VarChar(255)  // Formula description
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  assets Asset[]
+
+  @@map("depreciation_methods")
+}
+
+// ─── RepairStatus ─────────────────────────────────────────────
+model RepairStatus {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(255)
+  color       String?  @db.VarChar(50)
+  isTerminal  Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  services Service[]
+
+  @@map("repair_statuses")
+}
+
+// ─── ProductionStatus ─────────────────────────────────────────
+model ProductionStatus {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(255)
+  color       String?  @db.VarChar(50)
+  isTerminal  Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  productions Production[]
+
+  @@map("production_statuses")
+}
+
+// ─── VoucherType ──────────────────────────────────────────────
+model VoucherType {
+  id              Int       @id @default(autoincrement())
+  code            String    @unique @db.VarChar(50)
+  name            String    @db.VarChar(100)
+  description     String?   @db.VarChar(255)
+  hasMaxDiscount  Boolean   @default(false)  // Has max discount cap
+  isActive        Boolean   @default(true)
+  sortOrder       Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  vouchers Voucher[]
+
+  @@map("voucher_types")
+}
+
+// ─── NotificationType ─────────────────────────────────────────
+model NotificationType {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(255)
+  icon        String?  @db.VarChar(50)
+  color       String?  @db.VarChar(50)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  notifications        Notification[]
+  notificationSettings NotificationSetting[]
+
+  @@map("notification_types")
+}
+
+// ─── AlertType (Stock Alert Types) ────────────────────────────
+model AlertType {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(255)
+  color       String?  @db.VarChar(50)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  stockAlerts StockAlert[]
+
+  @@map("alert_types")
+}
+
+// ─── NotificationChannel (Email, Push, In-App) ────────────────
+model NotificationChannel {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(255)
+  icon        String?  @db.VarChar(50)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  notificationSettings NotificationSetting[]
+
+  @@map("notification_channels")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -115,14 +461,12 @@ model User {
   customerDeposits CustomerDeposit[]
   supplierDeposits SupplierDeposit[]
   journalEntries   JournalEntry[]
-
-  // Relations - RBAC
-  userRoles        UserRole[]
-  userMenus        UserMenu[]
-  journals         Journal[]
-  pointRedemptions PointRedemption[]
-  approvedExpenses Expense[]
-  notifications    Notification[]
+  journals             Journal[]
+  pointRedemptions     PointRedemption[]
+  approvedExpenses     Expense[]
+  notifications        Notification[]
+  notificationSettings NotificationSetting[]
+  approvedLeaves       Leave[]
 
   @@map("users")
 }
@@ -259,6 +603,7 @@ model Brand {
   updatedAt   DateTime @updatedAt
 
   products Product[]
+  brandLogos BrandLogo[]
 
   @@map("brands")
 }
@@ -319,8 +664,57 @@ model Warehouse {
   transfersFrom     Transfer[]       @relation("TransferFromWarehouse")
   transfersTo       Transfer[]        @relation("TransferToWarehouse")
   productions        Production[]
+  shelves           Shelf[]
 
   @@map("warehouses")
+}
+
+// ─── Shelf (Rak) ─────────────────────────────────────────────
+model Shelf {
+  id          Int      @id @default(autoincrement())
+  warehouseId Int
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(255)
+  description String?  @db.VarChar(500)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  shelfProducts ShelfProduct[]
+
+  @@map("shelves")
+}
+
+// ─── Shelf Product (Produk di Rak) ───────────────────────────
+model ShelfProduct {
+  id        Int      @id @default(autoincrement())
+  shelfId   Int
+  productId Int
+  quantity  Decimal  @default(0) @db.Decimal(15, 3)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  shelf   Shelf   @relation(fields: [shelfId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([shelfId, productId])
+  @@map("shelf_products")
+}
+
+// ─── Product Group (Golongan Produk) ─────────────────────────
+model ProductGroup {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(255)
+  description String?  @db.VarChar(500)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products Product[]
+
+  @@map("product_groups")
 }
 
 // ─── Supplier ───────────────────────────────────────────────
@@ -356,13 +750,14 @@ model Customer {
   email           String?       @db.VarChar(255)
   address         String?       @db.VarChar(500)
   totalReceivable Decimal       @default(0) @db.Decimal(15, 2)
-  customerGroup   CustomerGroup @default(GENERAL)
+  customerGroupId  Int
   pointBalance    Int           @default(0)
   notes           String?       @db.VarChar(1000)
   isActive        Boolean       @default(true)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
+  customerGroup   CustomerGroup @relation(fields: [customerGroupId], references: [id])
   sales            Sale[]
   customerDeposits CustomerDeposit[]
   pointRedemptions PointRedemption[]
@@ -447,11 +842,17 @@ model Product {
   serviceItems        ServiceItem[]
   productionItems     ProductionItem[]
   productions         Production[]
+  productImages       ProductImage[]
+  productBarcodes     ProductBarcode[]
+  stockAlerts         StockAlert[]
+  productGroupId      Int?
+  productGroup        ProductGroup? @relation(fields: [productGroupId], references: [id])
+  shelfProducts       ShelfProduct[]
 
   @@map("products")
 }
 
-// ─── Product Stock (per warehouse) ───────────────────────────
+// ─── Product Stock (per warehouse) ────────────────────────────
 model ProductStock {
   id           Int      @id @default(autoincrement())
   productId    Int
@@ -488,20 +889,22 @@ model Sale {
   total           Decimal        @default(0) @db.Decimal(15, 2)
   cashAmount      Decimal        @default(0) @db.Decimal(15, 2)
   changeAmount    Decimal        @default(0) @db.Decimal(15, 2)
-  paymentStatus   PaymentStatus  @default(PENDING)
+  paymentStatusId Int
   isReturn        Boolean        @default(false)
   returnedAt      DateTime?
-  paymentMethod   PaymentMethod?
+  paymentMethodId Int?
   notes           String?        @db.VarChar(1000)
   createdById     String
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
-  customer    Customer     @relation(fields: [customerId], references: [id])
-  salesPerson SalesPerson? @relation(fields: [salesPersonId], references: [id])
-  salePoint   SalePoint?   @relation(fields: [salePointId], references: [id])
-  warehouse   Warehouse?   @relation(fields: [warehouseId], references: [id])
-  creator     User         @relation(fields: [createdById], references: [id])
+  customer      Customer        @relation(fields: [customerId], references: [id])
+  salesPerson   SalesPerson?    @relation(fields: [salesPersonId], references: [id])
+  salePoint    SalePoint?       @relation(fields: [salePointId], references: [id])
+  warehouse    Warehouse?       @relation(fields: [warehouseId], references: [id])
+  creator      User            @relation(fields: [createdById], references: [id])
+  paymentStatus PaymentStatus   @relation(fields: [paymentStatusId], references: [id])
+  paymentMethod PaymentMethod?  @relation(fields: [paymentMethodId], references: [id])
 
   saleItems    SaleItem[]
   salePayments SalePayment[]
@@ -532,9 +935,9 @@ model SaleItem {
 
 // ─── Sale Payment ────────────────────────────────────────────
 model SalePayment {
-  id              Int           @id @default(autoincrement())
+  id              Int            @id @default(autoincrement())
   saleId          Int
-  method          PaymentMethod @default(CASH)
+  methodId        Int
   amount          Decimal       @db.Decimal(15, 2)
   referenceNumber String?       @db.VarChar(100)
   date            DateTime      @default(now())
@@ -542,8 +945,9 @@ model SalePayment {
   createdById     String
   createdAt       DateTime      @default(now())
 
-  sale    Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  creator User @relation(fields: [createdById], references: [id])
+  sale    Sale           @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  method  PaymentMethod @relation(fields: [methodId], references: [id])
+  creator User           @relation(fields: [createdById], references: [id])
 
   @@map("sale_payments")
 }
@@ -558,15 +962,16 @@ model SaleReturn {
   warehouseId Int?
   totalReturn Decimal           @db.Decimal(15, 2)
   reason      String?           @db.VarChar(1000)
-  status      TransactionStatus @default(DRAFT)
+  statusId    Int               @default(1)
   createdById String
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
-  sale      Sale       @relation(fields: [saleId], references: [id])
-  customer  Customer   @relation(fields: [customerId], references: [id])
-  warehouse Warehouse? @relation(fields: [warehouseId], references: [id])
-  creator   User       @relation(fields: [createdById], references: [id])
+  sale      Sale               @relation(fields: [saleId], references: [id])
+  customer  Customer           @relation(fields: [customerId], references: [id])
+  warehouse Warehouse?          @relation(fields: [warehouseId], references: [id])
+  creator   User              @relation(fields: [createdById], references: [id])
+  status    TransactionStatus   @relation(fields: [statusId], references: [id])
 
   returnItems SaleReturnItem[]
 
@@ -609,19 +1014,21 @@ model PurchaseOrder {
   taxAmount       Decimal           @default(0) @db.Decimal(15, 2)
   total           Decimal           @default(0) @db.Decimal(15, 2)
   downPayment     Decimal           @default(0) @db.Decimal(15, 2)
-  paymentStatus   PaymentStatus     @default(PENDING)
+  paymentStatusId Int
   dueDate         DateTime?
   isInvoice       Boolean           @default(false)
   purchaseId      Int?
-  status          TransactionStatus @default(DRAFT)
+  statusId        Int               @default(1)
   notes           String?           @db.VarChar(1000)
   createdById     String
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
-  supplier  Supplier   @relation(fields: [supplierId], references: [id])
-  warehouse Warehouse? @relation(fields: [warehouseId], references: [id])
-  creator   User       @relation(fields: [createdById], references: [id])
+  supplier       Supplier         @relation(fields: [supplierId], references: [id])
+  warehouse       Warehouse?       @relation(fields: [warehouseId], references: [id])
+  creator         User            @relation(fields: [createdById], references: [id])
+  paymentStatus   PaymentStatus   @relation(fields: [paymentStatusId], references: [id])
+  status         TransactionStatus @relation(fields: [statusId], references: [id])
 
   purchaseOrderItems PurchaseOrderItem[]
 
@@ -663,19 +1070,22 @@ model Purchase {
   total           Decimal           @default(0) @db.Decimal(15, 2)
   paid            Decimal           @default(0) @db.Decimal(15, 2)
   remaining       Decimal           @default(0) @db.Decimal(15, 2)
-  paymentStatus   PaymentStatus     @default(PENDING)
-  paymentMethod   PaymentMethod?
+  paymentStatusId Int
+  paymentMethodId Int?
   dueDate         DateTime?
   isReturn        Boolean           @default(false)
-  status          TransactionStatus @default(DRAFT)
+  statusId        Int               @default(1)
   notes           String?           @db.VarChar(1000)
   createdById     String
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
-  supplier  Supplier   @relation(fields: [supplierId], references: [id])
-  warehouse Warehouse? @relation(fields: [warehouseId], references: [id])
-  creator   User       @relation(fields: [createdById], references: [id])
+  supplier       Supplier         @relation(fields: [supplierId], references: [id])
+  warehouse       Warehouse?       @relation(fields: [warehouseId], references: [id])
+  creator         User            @relation(fields: [createdById], references: [id])
+  paymentStatus   PaymentStatus   @relation(fields: [paymentStatusId], references: [id])
+  paymentMethod   PaymentMethod?  @relation(fields: [paymentMethodId], references: [id])
+  status         TransactionStatus @relation(fields: [statusId], references: [id])
 
   purchaseItems    PurchaseItem[]
   purchasePayments PurchasePayment[]
@@ -706,9 +1116,9 @@ model PurchaseItem {
 
 // ─── Purchase Payment ───────────────────────────────────────
 model PurchasePayment {
-  id              Int           @id @default(autoincrement())
+  id              Int            @id @default(autoincrement())
   purchaseId      Int
-  method          PaymentMethod @default(CASH)
+  methodId        Int
   amount          Decimal       @db.Decimal(15, 2)
   referenceNumber String?       @db.VarChar(100)
   date            DateTime      @default(now())
@@ -716,8 +1126,9 @@ model PurchasePayment {
   createdById     String
   createdAt       DateTime      @default(now())
 
-  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  creator  User     @relation(fields: [createdById], references: [id])
+  purchase Purchase       @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  method   PaymentMethod  @relation(fields: [methodId], references: [id])
+  creator  User           @relation(fields: [createdById], references: [id])
 
   @@map("purchase_payments")
 }
@@ -732,15 +1143,16 @@ model PurchaseReturn {
   warehouseId Int?
   totalReturn Decimal           @db.Decimal(15, 2)
   reason      String?           @db.VarChar(1000)
-  status      TransactionStatus @default(DRAFT)
+  statusId    Int               @default(1)
   createdById String
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
-  purchase  Purchase   @relation(fields: [purchaseId], references: [id])
-  supplier  Supplier   @relation(fields: [supplierId], references: [id])
-  warehouse Warehouse? @relation(fields: [warehouseId], references: [id])
-  creator   User       @relation(fields: [createdById], references: [id])
+  purchase  Purchase         @relation(fields: [purchaseId], references: [id])
+  supplier  Supplier         @relation(fields: [supplierId], references: [id])
+  warehouse Warehouse?        @relation(fields: [warehouseId], references: [id])
+  creator   User            @relation(fields: [createdById], references: [id])
+  status    TransactionStatus @relation(fields: [statusId], references: [id])
 
   returnItems PurchaseReturnItem[]
 
@@ -771,23 +1183,25 @@ model PurchaseReturnItem {
 
 // ─── Stock In ───────────────────────────────────────────────
 model StockIn {
-  id            Int               @id @default(autoincrement())
+  id            Int              @id @default(autoincrement())
   code          String            @unique @db.VarChar(50)
   date          DateTime          @default(now())
   warehouseId   Int
   supplierId    Int?
-  referenceType ReferenceType?
+  referenceTypeId Int?
   referenceId   Int?
   totalItems    Decimal           @default(0) @db.Decimal(15, 2)
   description   String?           @db.VarChar(1000)
-  status        TransactionStatus @default(DRAFT)
+  statusId      Int               @default(1)
   createdById   String
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
-  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
-  supplier  Supplier? @relation(fields: [supplierId], references: [id])
-  creator   User      @relation(fields: [createdById], references: [id])
+  warehouse     Warehouse       @relation(fields: [warehouseId], references: [id])
+  supplier      Supplier?       @relation(fields: [supplierId], references: [id])
+  referenceType ReferenceType?  @relation(fields: [referenceTypeId], references: [id])
+  creator       User            @relation(fields: [createdById], references: [id])
+  status        TransactionStatus @relation(fields: [statusId], references: [id])
 
   stockInItems StockInItem[]
 
@@ -814,21 +1228,23 @@ model StockInItem {
 
 // ─── Stock Out ───────────────────────────────────────────────
 model StockOut {
-  id            Int               @id @default(autoincrement())
+  id            Int              @id @default(autoincrement())
   code          String            @unique @db.VarChar(50)
   date          DateTime          @default(now())
   warehouseId   Int
-  referenceType ReferenceType?
+  referenceTypeId Int?
   referenceId   Int?
   totalItems    Decimal           @default(0) @db.Decimal(15, 2)
   description   String?           @db.VarChar(1000)
-  status        TransactionStatus @default(DRAFT)
+  statusId      Int               @default(1)
   createdById   String
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
-  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
-  creator   User      @relation(fields: [createdById], references: [id])
+  warehouse     Warehouse        @relation(fields: [warehouseId], references: [id])
+  referenceType ReferenceType?   @relation(fields: [referenceTypeId], references: [id])
+  creator       User             @relation(fields: [createdById], references: [id])
+  status        TransactionStatus @relation(fields: [statusId], references: [id])
 
   stockOutItems StockOutItem[]
 
@@ -861,15 +1277,16 @@ model StockTransfer {
   fromWarehouseId Int
   toWarehouseId   Int
   totalItems      Decimal           @default(0) @db.Decimal(15, 2)
-  status          TransactionStatus @default(DRAFT)
+  statusId        Int               @default(1)
   notes           String?           @db.VarChar(1000)
   createdById     String
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
-  fromWarehouse Warehouse @relation("TransferFrom", fields: [fromWarehouseId], references: [id])
-  toWarehouse   Warehouse @relation("TransferTo", fields: [toWarehouseId], references: [id])
-  creator       User      @relation(fields: [createdById], references: [id])
+  fromWarehouse Warehouse        @relation("TransferFrom", fields: [fromWarehouseId], references: [id])
+  toWarehouse   Warehouse        @relation("TransferTo", fields: [toWarehouseId], references: [id])
+  creator       User             @relation(fields: [createdById], references: [id])
+  status        TransactionStatus @relation(fields: [statusId], references: [id])
 
   transferItems StockTransferItem[]
 
@@ -901,14 +1318,15 @@ model StockOpname {
   date        DateTime          @default(now())
   warehouseId Int
   totalItems  Decimal           @default(0) @db.Decimal(15, 2)
-  status      StockOpnameStatus @default(PENDING)
+  statusId    Int               @default(1)
   notes       String?           @db.VarChar(1000)
   createdById String
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
-  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
-  creator   User      @relation(fields: [createdById], references: [id])
+  warehouse Warehouse         @relation(fields: [warehouseId], references: [id])
+  creator   User              @relation(fields: [createdById], references: [id])
+  status   StockOpnameStatus @relation(fields: [statusId], references: [id])
 
   opnameItems StockOpnameItem[]
 
@@ -944,7 +1362,7 @@ model Account {
   id        Int         @id @default(autoincrement())
   code      String      @unique @db.VarChar(50)
   name      String      @db.VarChar(255)
-  type      AccountType
+  typeId    Int
   parentId  Int?
   isActive  Boolean     @default(true)
   createdAt DateTime    @default(now())
@@ -952,6 +1370,7 @@ model Account {
 
   parent   Account?  @relation("AccountParent", fields: [parentId], references: [id])
   children Account[] @relation("AccountParent")
+  type     AccountType @relation(fields: [typeId], references: [id])
 
   // Accounting relations
   cashIns           CashIn[]
@@ -1183,7 +1602,7 @@ model Testing {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// EXPENSE MANAGEMENT (from Ketoko reference)
+// EXPENSE MANAGEMENT
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ─── Expense Category ─────────────────────────────────────────
@@ -1226,44 +1645,33 @@ model Expense {
 
 // ─── Transfer ──────────────────────────────────────────────────
 model Transfer {
-  id            Int       @id @default(autoincrement())
-  code          String    @unique @db.VarChar(50)
-  date          DateTime  @default(now())
+  id            Int               @id @default(autoincrement())
+  code          String            @unique @db.VarChar(50)
+  date          DateTime          @default(now())
   fromAccountId Int?
   toAccountId   Int?
   fromWarehouseId Int?
   toWarehouseId Int?
-  amount        Decimal   @db.Decimal(15, 2)
-  description   String?   @db.VarChar(1000)
-  status        TransactionStatus @default(DRAFT)
-  notes         String?   @db.VarChar(1000)
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  amount        Decimal           @db.Decimal(15, 2)
+  description   String?           @db.VarChar(1000)
+  statusId      Int               @default(1)
+  notes         String?           @db.VarChar(1000)
+  isActive      Boolean           @default(true)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
   fromAccount   Account?   @relation("TransferFromAccount", fields: [fromAccountId], references: [id])
   toAccount     Account?   @relation("TransferToAccount", fields: [toAccountId], references: [id])
   fromWarehouse Warehouse? @relation("TransferFromWarehouse", fields: [fromWarehouseId], references: [id])
   toWarehouse   Warehouse? @relation("TransferToWarehouse", fields: [toWarehouseId], references: [id])
+  status        TransactionStatus @relation(fields: [statusId], references: [id])
 
   @@map("transfers")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ASSET MANAGEMENT (from Ketoko reference)
+// ASSET MANAGEMENT
 // ═══════════════════════════════════════════════════════════════════════════════
-
-enum AssetStatus {
-  ACTIVE
-  MAINTENANCE
-  DISPOSED
-}
-
-enum DepreciationMethod {
-  STRAIGHT_LINE
-  DECLINING_BALANCE
-  UNITS_OF_PRODUCTION
-}
 
 // ─── Asset Category ────────────────────────────────────────────
 model AssetCategory {
@@ -1282,39 +1690,34 @@ model AssetCategory {
 
 // ─── Asset ─────────────────────────────────────────────────────
 model Asset {
-  id                 Int                 @id @default(autoincrement())
-  code               String              @unique @db.VarChar(50)
-  name               String              @db.VarChar(255)
+  id                 Int                @id @default(autoincrement())
+  code               String             @unique @db.VarChar(50)
+  name               String             @db.VarChar(255)
   assetCategoryId    Int?
   purchaseDate       DateTime?
-  purchasePrice      Decimal             @default(0) @db.Decimal(15, 2)
-  currentValue       Decimal             @default(0) @db.Decimal(15, 2)
-  depreciationMethod DepreciationMethod?
-  usefulLifeYears    Int                 @default(0)
-  location           String?             @db.VarChar(255)
+  purchasePrice      Decimal            @default(0) @db.Decimal(15, 2)
+  currentValue       Decimal            @default(0) @db.Decimal(15, 2)
+  depreciationMethodId Int?
+  usefulLifeYears    Int                @default(0)
+  location           String?            @db.VarChar(255)
   assignedTo         String?            @db.VarChar(255)
-  serialNumber       String?             @db.VarChar(100)
-  description        String?             @db.VarChar(1000)
-  status             AssetStatus         @default(ACTIVE)
-  isActive           Boolean             @default(true)
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  serialNumber       String?            @db.VarChar(100)
+  description        String?            @db.VarChar(1000)
+  statusId           Int                @default(1)
+  isActive           Boolean            @default(true)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
-  category AssetCategory? @relation(fields: [assetCategoryId], references: [id])
+  category          AssetCategory?       @relation(fields: [assetCategoryId], references: [id])
+  depreciationMethod DepreciationMethod? @relation(fields: [depreciationMethodId], references: [id])
+  status            AssetStatus         @relation(fields: [statusId], references: [id])
 
   @@map("assets")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// SERVICE & REPAIR MANAGEMENT (from Ketoko reference)
+// SERVICE & REPAIR MANAGEMENT
 // ═══════════════════════════════════════════════════════════════════════════════
-
-enum RepairStatus {
-  PENDING
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-}
 
 // ─── Service ───────────────────────────────────────────────────
 model Service {
@@ -1329,7 +1732,7 @@ model Service {
   serialNumber     String?      @db.VarChar(100)
   problem          String?      @db.VarChar(1000)
   diagnosis        String?      @db.VarChar(1000)
-  repairStatus    RepairStatus @default(PENDING)
+  repairStatusId  Int          @default(1)
   technician      String?      @db.VarChar(255)
   warrantyUntil    DateTime?
   subtotal        Decimal      @default(0) @db.Decimal(15, 2)
@@ -1337,10 +1740,11 @@ model Service {
   totalAmount     Decimal      @default(0) @db.Decimal(15, 2)
   notes           String?      @db.VarChar(1000)
   isActive        Boolean      @default(true)
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
-  customer Customer?   @relation(fields: [customerId], references: [id])
+  customer   Customer?     @relation(fields: [customerId], references: [id])
+  status    RepairStatus @relation(fields: [repairStatusId], references: [id])
   items    ServiceItem[]
 
   @@map("services")
@@ -1364,7 +1768,7 @@ model ServiceItem {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// PRICE HISTORY (from Ketoko reference)
+// PRICE HISTORY
 // ═══════════════════════════════════════════════════════════════════════════════
 
 model PriceHistory {
@@ -1383,23 +1787,18 @@ model PriceHistory {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// VOUCHER MANAGEMENT (from Ketoko reference)
+// VOUCHER MANAGEMENT
 // ═══════════════════════════════════════════════════════════════════════════════
 
-enum VoucherType {
-  DISCOUNT_PERCENT
-  DISCOUNT_AMOUNT
-  BUY_X_GET_Y
-}
-
+// ─── Voucher ─────────────────────────────────────────────────
 model Voucher {
   id                Int         @id @default(autoincrement())
   code              String      @unique @db.VarChar(50)
   name              String      @db.VarChar(255)
-  type              VoucherType
+  typeId            Int
   value             Decimal     @db.Decimal(15, 2)
   minPurchaseAmount Decimal     @default(0) @db.Decimal(15, 2)
-  maxDiscountAmount Decimal?   @db.Decimal(15, 2)
+  maxDiscountAmount Decimal?    @db.Decimal(15, 2)
   startDate         DateTime
   endDate           DateTime
   usageLimit        Int?        // null = unlimited
@@ -1408,13 +1807,12 @@ model Voucher {
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
+  type VoucherType @relation(fields: [typeId], references: [id])
+
   @@map("vouchers")
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// TAX CONFIGURATION (from Ketoko reference)
-// ═══════════════════════════════════════════════════════════════════════════════
-
+// ─── Tax ──────────────────────────────────────────────────────
 model Tax {
   id          Int      @id @default(autoincrement())
   code        String   @unique @db.VarChar(50)
@@ -1429,15 +1827,8 @@ model Tax {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// PRODUCTION MANAGEMENT (from Ketoko reference)
+// PRODUCTION MANAGEMENT
 // ═══════════════════════════════════════════════════════════════════════════════
-
-enum ProductionStatus {
-  PLANNING
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-}
 
 // ─── Production ───────────────────────────────────────────────
 model Production {
@@ -1452,14 +1843,15 @@ model Production {
   laborCost       Decimal           @default(0) @db.Decimal(15, 2)
   overheadCost    Decimal           @default(0) @db.Decimal(15, 2)
   totalCost       Decimal           @default(0) @db.Decimal(15, 2)
-  status          ProductionStatus  @default(PLANNING)
+  statusId        Int               @default(1)
   notes           String?           @db.VarChar(1000)
   isActive        Boolean           @default(true)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
-  warehouse Warehouse?        @relation(fields: [warehouseId], references: [id])
+  warehouse Warehouse         @relation(fields: [warehouseId], references: [id])
   product   Product?          @relation(fields: [productId], references: [id])
+  status    ProductionStatus  @relation(fields: [statusId], references: [id])
   items     ProductionItem[]
 
   @@map("productions")
@@ -1485,23 +1877,154 @@ model ProductionItem {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// HRM - HUMAN RESOURCE MANAGEMENT (from Ketoko reference)
+// DASHBOARD & ANALYTICS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-enum EmployeeStatus {
-  ACTIVE
-  INACTIVE
-  RESIGNED
-  TERMINATED
+// ─── Daily Sales Summary ────────────────────────────────────────
+model DailySalesSummary {
+  id                Int      @id @default(autoincrement())
+  date              DateTime @db.Date
+  totalTransactions Int      @default(0)
+  totalCost         Decimal  @default(0) @db.Decimal(15, 2)
+  totalSales        Decimal  @default(0) @db.Decimal(15, 2)
+  totalProfit       Decimal  @default(0) @db.Decimal(15, 2)
+  totalReturns      Decimal  @default(0) @db.Decimal(15, 2)
+  totalExpenses     Decimal  @default(0) @db.Decimal(15, 2)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([date])
+  @@map("daily_sales_summaries")
 }
 
-enum AttendanceStatus {
-  PRESENT
-  LATE
-  ABSENT
-  SICK
-  LEAVE
+// ─── Monthly Sales Summary ──────────────────────────────────────
+model MonthlySalesSummary {
+  id                Int      @id @default(autoincrement())
+  year              Int
+  month             Int
+  totalTransactions Int      @default(0)
+  totalCost         Decimal  @default(0) @db.Decimal(15, 2)
+  totalSales        Decimal  @default(0) @db.Decimal(15, 2)
+  totalProfit       Decimal  @default(0) @db.Decimal(15, 2)
+  totalReturns      Decimal  @default(0) @db.Decimal(15, 2)
+  totalExpenses     Decimal  @default(0) @db.Decimal(15, 2)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([year, month])
+  @@map("monthly_sales_summaries")
 }
+
+// ─── Activity Log ──────────────────────────────────────────────
+model ActivityLog {
+  id           Int      @id @default(autoincrement())
+  type         String   @db.VarChar(50) // SALE, PURCHASE, STOCK_IN, STOCK_OUT, PAYMENT, etc.
+  title        String   @db.VarChar(255)
+  description  String?  @db.VarChar(1000)
+  referenceType String? @db.VarChar(100)
+  referenceId   Int?
+  amount       Decimal? @db.Decimal(15, 2)
+  createdById  String?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@map("activity_logs")
+}
+
+// ─── Stock Alert ────────────────────────────────────────────────
+model StockAlert {
+  id          Int       @id @default(autoincrement())
+  productId   Int
+  alertTypeId Int
+  threshold   Decimal   @default(0) @db.Decimal(15, 3)
+  currentStock Decimal  @default(0) @db.Decimal(15, 3)
+  isRead      Boolean   @default(false)
+  isResolved  Boolean   @default(false)
+  resolvedAt  DateTime?
+  notes       String?   @db.VarChar(1000)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  product   Product   @relation(fields: [productId], references: [id])
+  alertType AlertType @relation(fields: [alertTypeId], references: [id])
+
+  @@index([isRead, isResolved])
+  @@map("stock_alerts")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PRODUCT ENHANCEMENTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Product Image ─────────────────────────────────────────────
+model ProductImage {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  url       String   @db.VarChar(500)
+  caption   String?  @db.VarChar(255)
+  sortOrder Int      @default(0)
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_images")
+}
+
+// ─── Product Barcode ────────────────────────────────────────────
+model ProductBarcode {
+  id          Int      @id @default(autoincrement())
+  productId   Int
+  barcode     String   @db.VarChar(100)
+  isDefault   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([barcode])
+  @@map("product_barcodes")
+}
+
+// ─── Brand Logo ────────────────────────────────────────────────
+model BrandLogo {
+  id        Int      @id @default(autoincrement())
+  brandId   Int?
+  name      String   @db.VarChar(255)
+  logoUrl   String   @db.VarChar(500)
+  website   String?  @db.VarChar(255)
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  brand Brand? @relation(fields: [brandId], references: [id])
+
+  @@map("brand_logos")
+}
+
+// ─── Notification Setting ──────────────────────────────────────
+model NotificationSetting {
+  id              Int      @id @default(autoincrement())
+  userId          String
+  typeId          Int
+  emailEnabled    Boolean  @default(false)
+  pushEnabled     Boolean  @default(true)
+  inAppEnabled    Boolean  @default(true)
+  threshold       Decimal? @db.Decimal(15, 2)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type  NotificationType @relation(fields: [typeId], references: [id])
+
+  @@unique([userId, typeId])
+  @@map("notification_settings")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HRM - HUMAN RESOURCE MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════════════
 
 // ─── Department ────────────────────────────────────────────────
 model Department {
@@ -1550,16 +2073,19 @@ model Employee {
   emergencyContact String?     @db.VarChar(255)
   emergencyPhone   String?     @db.VarChar(50)
   basicSalary   Decimal        @default(0) @db.Decimal(15, 2)
-  status        EmployeeStatus @default(ACTIVE)
+  statusId      Int            @default(1)
   isActive      Boolean        @default(true)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
-  department Department?   @relation(fields: [departmentId], references: [id])
-  position   Position?     @relation(fields: [positionId], references: [id])
+  department Department   @relation(fields: [departmentId], references: [id])
+  position   Position      @relation(fields: [positionId], references: [id])
+  status     EmployeeStatus @relation(fields: [statusId], references: [id])
   attendances Attendance[]
   payrolls   Payroll[]
   loans      Loan[]
+  leaves     Leave[]
+  leaveBalances LeaveBalance[]
 
   @@map("employees")
 }
@@ -1571,13 +2097,14 @@ model Attendance {
   date       DateTime
   checkIn    DateTime?
   checkOut   DateTime?
-  status     AttendanceStatus @default(PRESENT)
+  statusId    Int              @default(1)
   notes      String?          @db.VarChar(1000)
   isActive   Boolean          @default(true)
   createdAt  DateTime         @default(now())
   updatedAt  DateTime         @updatedAt
 
-  employee Employee @relation(fields: [employeeId], references: [id])
+  employee Employee          @relation(fields: [employeeId], references: [id])
+  status   AttendanceStatus @relation(fields: [statusId], references: [id])
 
   @@unique([employeeId, date])
   @@map("attendances")
@@ -1607,20 +2134,11 @@ model Payroll {
 }
 
 // ─── Loan / Pinjaman ──────────────────────────────────────────
-enum LoanStatus {
-  PENDING
-  APPROVED
-  ACTIVE
-  COMPLETED
-  REJECTED
-  CANCELLED
-}
-
 model Loan {
   id               Int        @id @default(autoincrement())
   code             String     @unique @db.VarChar(50)
   employeeId       Int
-  loanType         String     @db.VarChar(100) // PERSONAL, EMERGENCY, HOUSING, VEHICLE
+  loanTypeId       Int
   principalAmount  Decimal    @db.Decimal(15, 2)
   interestRate     Decimal    @default(0) @db.Decimal(5, 2)
   tenorMonths      Int        @default(1)
@@ -1628,19 +2146,21 @@ model Loan {
   totalAmount      Decimal    @db.Decimal(15, 2)
   remainingAmount  Decimal    @db.Decimal(15, 2)
   startDate        DateTime?
-  status           LoanStatus @default(PENDING)
+  statusId         Int        @default(1)
   notes            String?    @db.VarChar(1000)
   isActive         Boolean    @default(true)
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 
-  employee Employee   @relation(fields: [employeeId], references: [id])
+  employee Employee     @relation(fields: [employeeId], references: [id])
+  loanType LoanType      @relation(fields: [loanTypeId], references: [id])
+  status   LoanStatus    @relation(fields: [statusId], references: [id])
   installments LoanInstallment[]
 
   @@map("loans")
 }
 
-// ─── Loan Installment ──────────────────────────────────────────
+// ─── Loan Installment ─────────────────────────────────────────
 model LoanInstallment {
   id            Int      @id @default(autoincrement())
   loanId        Int
@@ -1661,29 +2181,73 @@ model LoanInstallment {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// NOTIFICATION (from Ketoko reference)
+// LEAVE MANAGEMENT (Cuti/Izin)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-enum NotificationType {
-  INFO
-  WARNING
-  ERROR
-  SUCCESS
+model Leave {
+  id            Int         @id @default(autoincrement())
+  code          String      @unique @db.VarChar(50)
+  employeeId    Int
+  typeId        Int
+  startDate     DateTime
+  endDate       DateTime
+  totalDays     Int         @default(1)
+  reason        String?     @db.VarChar(1000)
+  statusId      Int         @default(1)
+  approvedById  String?
+  approvedAt    DateTime?
+  rejectedReason String?    @db.VarChar(500)
+  notes         String?     @db.VarChar(1000)
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  employee Employee      @relation(fields: [employeeId], references: [id])
+  type     LeaveType     @relation(fields: [typeId], references: [id])
+  approver User?        @relation(fields: [approvedById], references: [id])
+  status   LeaveStatus   @relation(fields: [statusId], references: [id])
+
+  @@map("leaves")
 }
+
+// ─── Leave Balance (Sisa Cuti Karyawan) ─────────────────────
+model LeaveBalance {
+  id          Int       @id @default(autoincrement())
+  employeeId  Int
+  year        Int
+  typeId      Int
+  totalDays   Int       @default(0)
+  usedDays    Int       @default(0)
+  remainingDays Int      @default(0)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  employee Employee  @relation(fields: [employeeId], references: [id])
+  type     LeaveType @relation(fields: [typeId], references: [id])
+
+  @@unique([employeeId, year, typeId])
+  @@map("leave_balances")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// NOTIFICATION
+// ═══════════════════════════════════════════════════════════════════════════════
 
 model Notification {
   id        Int                @id @default(autoincrement())
   userId    String?
   title     String            @db.VarChar(255)
   message   String            @db.VarChar(1000)
-  type      NotificationType  @default(INFO)
+  typeId    Int                @default(1)
   isRead    Boolean           @default(false)
   referenceType String?       @db.VarChar(100)
   referenceId   Int?
   isActive  Boolean           @default(true)
   createdAt DateTime          @default(now())
 
-  user User? @relation(fields: [userId], references: [id])
+  user User              @relation(fields: [userId], references: [id])
+  type  NotificationType @relation(fields: [typeId], references: [id])
 
   @@map("notifications")
 }
