@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, UserRound, Lock, Eye, EyeOff, Loader2, HelpCircle } from "lucide-react";
 import { api } from "@/lib/api-client";
@@ -13,6 +13,10 @@ const FEATURES = [
 
 export default function LoginPage() {
   const router = useRouter();
+
+  useEffect(() => {
+    if (api.getToken()) router.replace("/dashboard");
+  }, [router]);
   const [companyId, setCompanyId] = useState("");
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");

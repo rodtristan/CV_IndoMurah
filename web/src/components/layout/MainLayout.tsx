@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth-context";
 import { POSSidebar } from "./Sidebar";
 
 interface MainLayoutProps {
@@ -37,6 +38,8 @@ const TITLE_OVERRIDES: Record<string, string> = {
   "/reports/profit": "Laporan Laba Rugi",
   "/reports/cash": "Laporan Arus Kas",
   "/settings/company": "Data Perusahaan",
+  "/settings": "Pengaturan",
+  "/settings/profile": "Profil Saya",
   "/accounting/cash-in": "Kas Masuk",
   "/accounting/cash-out": "Kas Keluar",
   "/accounting/cash-transfer": "Transfer Kas",
@@ -68,6 +71,8 @@ function pageTitle(pathname: string): string {
 
 function UserMenu() {
   const [open, setOpen] = useState(false);
+  const { user, logout } = useAuth();
+  const initial = user?.name?.charAt(0).toUpperCase() || "?";
 
   return (
     <div className="relative">
@@ -76,9 +81,9 @@ function UserMenu() {
         className="flex items-center gap-2 rounded-lg py-1 pl-1 pr-2 transition-colors hover:bg-black/5"
       >
         <div className="flex size-8 items-center justify-center rounded-full bg-success text-sm font-semibold text-white">
-          A
+          {initial}
         </div>
-        <span className="hidden text-sm font-medium text-highlighted sm:inline">ADMIN</span>
+        <span className="hidden text-sm font-medium text-highlighted sm:inline">{user?.name || "..."}</span>
         <ChevronDown className="size-3.5 text-muted" />
       </button>
 
@@ -87,7 +92,7 @@ function UserMenu() {
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           <div className="absolute right-0 top-full z-20 mt-2 w-48 rounded-lg border border-default bg-elevated py-1.5 shadow-lg">
             <Link
-              href="/settings/company"
+              href="/settings/profile"
               className="flex items-center gap-2 px-3 py-2 text-sm text-highlighted hover:bg-bg"
               onClick={() => setOpen(false)}
             >
@@ -102,7 +107,10 @@ function UserMenu() {
               <Settings className="size-4 text-muted" />
               Pengaturan
             </Link>
-            <button className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-danger hover:bg-danger/5">
+            <button
+              onClick={logout}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-danger hover:bg-danger/5"
+            >
               <LogOut className="size-4" />
               Keluar
             </button>

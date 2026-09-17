@@ -233,7 +233,7 @@ export default function DashboardPage() {
           <TrendingDown className="size-6 text-warning" />
           <span className="text-xs">Barang Keluar</span>
         </Button>
-        <Button variant="outline" className="h-auto flex-col gap-2 py-4" href="/reports/sale">
+        <Button variant="outline" className="h-auto flex-col gap-2 py-4" href="/reports/sales">
           <FileText className="size-6 text-info" />
           <span className="text-xs">Laporan</span>
         </Button>
