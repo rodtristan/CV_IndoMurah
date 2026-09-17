@@ -13,12 +13,12 @@ export class PointSettingService extends BaseService<
   UpdatePointSettingDto
 > {
   constructor(
-    readonly prisma: PrismaService,
-    readonly redis: RedisService,
-    readonly queryService: QueryService,
+    prisma: PrismaService,
+    redis: RedisService,
+    queryService: QueryService,
   ) {
     super(prisma, redis, queryService, {
-      modelName: 'point-setting',
+      modelName: 'pointSetting',
       primaryKey: 'id',
       searchableFields: ['*'],
       allowedIncludes: ['*'],

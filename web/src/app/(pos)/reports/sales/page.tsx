@@ -49,9 +49,7 @@ export default function SalesReportPage() {
     ? Math.max(...chartData.map(d => d.sales || 0), 1)
     : 1;
 
-  const paymentMethods = report ? Object.entries(report.salesByPaymentMethod)
-    .filter(([, v]) => v > 0)
-    .map(([k, v]) => ({ method: k, amount: v })) : [];
+  const byCustomer = report?.byCustomer || [];
 
   return (
     <PageWrapper>
@@ -95,25 +93,25 @@ export default function SalesReportPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Penjualan"
-          value={formatCurrency(report?.totalSales || 0)}
+          value={formatCurrency(report?.summary.totalSales || 0)}
           icon={TrendingUp}
           iconClassName="bg-success/10 text-success"
         />
         <StatCard
           title="Jumlah Transaksi"
-          value={formatNumber(report?.totalTransactions || 0)}
+          value={formatNumber(report?.summary.totalTransactions || 0)}
           icon={FileText}
           iconClassName="bg-info/10 text-info"
         />
         <StatCard
           title="Rata-rata Transaksi"
-          value={formatCurrency(report?.averageTransaction || 0)}
+          value={formatCurrency(report?.summary.averageTransaction || 0)}
           icon={Users}
           iconClassName="bg-highlight2/10 text-highlight2"
         />
         <StatCard
           title="Produk Terjual"
-          value={formatNumber(report?.topProducts?.reduce((s, p) => s + p.quantity, 0) || 0)}
+          value={formatNumber(report?.summary.totalItems || 0)}
           icon={Package}
           iconClassName="bg-warning/10 text-warning"
         />
@@ -158,19 +156,19 @@ export default function SalesReportPage() {
           )}
         </Card>
 
-        {/* By Payment Method */}
+        {/* By Customer */}
         <Card>
-          <h3 className="mb-4 font-semibold text-highlighted">Per Metode Pembayaran</h3>
+          <h3 className="mb-4 font-semibold text-highlighted">Per Pelanggan</h3>
           <div className="space-y-3">
-            {paymentMethods.length === 0 ? (
+            {byCustomer.length === 0 ? (
               <p className="text-sm text-muted">Tidak ada data</p>
             ) : (
-              paymentMethods.map((p) => {
-                const pct = report!.totalSales > 0 ? (p.amount / report!.totalSales) * 100 : 0;
+              byCustomer.map((c) => {
+                const pct = report && report.summary.totalSales > 0 ? (c.totalSales / report.summary.totalSales) * 100 : 0;
                 return (
-                  <div key={p.method} className="space-y-1.5">
+                  <div key={c.customerId} className="space-y-1.5">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium">{p.method}</span>
+                      <span className="font-medium">{c.customerName}</span>
                       <span className="text-muted">{pct.toFixed(1)}%</span>
                     </div>
                     <div className="h-2 w-full overflow-hidden rounded-full bg-elevated">
@@ -179,7 +177,7 @@ export default function SalesReportPage() {
                         style={{ width: `${pct}%` }}
                       />
                     </div>
-                    <p className="text-right text-xs font-semibold text-primary">{formatCurrency(p.amount)}</p>
+                    <p className="text-right text-xs font-semibold text-primary">{formatCurrency(c.totalSales)}</p>
                   </div>
                 );
               })
@@ -196,25 +194,23 @@ export default function SalesReportPage() {
             <thead>
               <tr className="border-b border-default bg-elevated/50">
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted">#</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted">Kode</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-muted">Nama Produk</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-muted">Terjual</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-muted">Revenue</th>
               </tr>
             </thead>
             <tbody>
-              {report?.topProducts?.map((p, i) => (
+              {report?.byProduct?.map((p, i) => (
                 <tr key={p.productId} className="border-b border-default transition-colors hover:bg-elevated/50">
                   <td className="px-4 py-3 text-muted">{i + 1}</td>
-                  <td className="px-4 py-3 font-mono text-xs">{p.productCode}</td>
                   <td className="px-4 py-3 font-medium">{p.productName}</td>
                   <td className="px-4 py-3 text-right">{formatNumber(p.quantity)}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-primary">{formatCurrency(p.revenue)}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-primary">{formatCurrency(p.totalSales)}</td>
                 </tr>
               ))}
-              {(!report?.topProducts || report.topProducts.length === 0) && (
+              {(!report?.byProduct || report.byProduct.length === 0) && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-muted">Tidak ada data</td>
+                  <td colSpan={4} className="px-4 py-8 text-center text-muted">Tidak ada data</td>
                 </tr>
               )}
             </tbody>

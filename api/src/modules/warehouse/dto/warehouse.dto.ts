@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsInt, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsBoolean } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateWarehouseDto {
@@ -10,10 +10,20 @@ export class CreateWarehouseDto {
   @IsString()
   name: string;
 
-  @ApiPropertyOptional({ description: 'Description' })
+  @ApiPropertyOptional({ description: 'Address' })
   @IsOptional()
   @IsString()
-  description?: string;
+  address?: string;
+
+  @ApiPropertyOptional({ description: 'Phone number' })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiPropertyOptional({ default: false, description: 'Is default warehouse' })
+  @IsOptional()
+  @IsBoolean()
+  isDefault?: boolean;
 
   @ApiPropertyOptional({ default: true, description: 'Is active' })
   @IsOptional()
@@ -32,10 +42,20 @@ export class UpdateWarehouseDto {
   @IsString()
   name?: string;
 
-  @ApiPropertyOptional({ description: 'Description' })
+  @ApiPropertyOptional({ description: 'Address' })
   @IsOptional()
   @IsString()
-  description?: string;
+  address?: string;
+
+  @ApiPropertyOptional({ description: 'Phone number' })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiPropertyOptional({ description: 'Is default warehouse' })
+  @IsOptional()
+  @IsBoolean()
+  isDefault?: boolean;
 
   @ApiPropertyOptional({ description: 'Is active' })
   @IsOptional()

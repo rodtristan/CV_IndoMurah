@@ -9,13 +9,14 @@ import {
   Package,
   AlertTriangle,
   RefreshCw,
+  PlayCircle,
+  BellRing,
   Plus,
-  Eye,
   FileText,
   Users,
   Coins,
 } from "lucide-react";
-import { PageWrapper, PageHeader, Card } from "@/components/layout/PageWrapper";
+import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { StatCard, Badge } from "@/components/ui/StatCard";
 import { DataTable } from "@/components/ui/DataTable";
 import { Button } from "@/components/ui/Button";
@@ -38,13 +39,31 @@ export default function DashboardPage() {
 
       // Fetch dashboard stats
       const [statsRes, salesRes, chartRes] = await Promise.all([
-        api.get<{ data: DashboardStats }>("reports/dashboard").catch(() => ({ success: false } as any)),
-        api.get<Sale[]>("sale", { $orderBy: { createdAt: "desc" }, $take: 10 }).catch(() => ({ success: false, data: [] } as any)),
+        api.get<any>("dashboard").catch(() => ({ success: false } as any)),
+        api.get<Sale[]>("sales", { $orderBy: { createdAt: "desc" }, $take: 10 }).catch(() => ({ success: false, data: [] } as any)),
         api.get<ChartDataPoint[]>("reports/sales/summary", {}).catch(() => ({ success: false, data: [] } as any)),
       ]);
 
+      // Backend's GET /dashboard returns { summary, topProducts, ...,
+      // lowStockItems, outOfStockItems, recentTransactions } — not a flat
+      // DashboardStats object — so it's remapped here rather than in the type.
       if (statsRes.success && statsRes.data) {
-        setStats(statsRes.data);
+        const d = statsRes.data;
+        setStats({
+          totalSales: d.summary?.totalSales || 0,
+          totalPurchases: d.summary?.totalPurchases || 0,
+          grossProfit: d.summary?.grossProfit || 0,
+          netProfit: d.summary?.netProfit || 0,
+          totalProducts: 0,
+          totalCategories: 0,
+          totalCustomers: 0,
+          totalSuppliers: 0,
+          newOrders: 0,
+          lowStockCount: d.lowStockItems?.length || 0,
+          outOfStockCount: d.outOfStockItems?.length || 0,
+          totalReceivable: 0,
+          totalPayable: 0,
+        });
       } else {
         setStats({
           totalSales: 0,
@@ -141,20 +160,21 @@ export default function DashboardPage() {
 
   return (
     <PageWrapper>
-      <PageHeader
-        title="Dashboard"
-        subtitle="Selamat datang di Ketoko POS"
-        actions={
-          <Button
-            variant="outline"
-            icon={RefreshCw}
-            onClick={fetchData}
-            loading={refreshing}
-          >
-            Refresh
-          </Button>
-        }
-      />
+      {/* Toolbar — matches the Refresh / Video Tutorial / Pengingat Hutang Piutang row on the real Home page */}
+      <div className="flex flex-wrap items-center gap-3 rounded border border-default bg-elevated p-3">
+        <Button variant="outline" icon={RefreshCw} onClick={fetchData} loading={refreshing}>
+          Refresh
+        </Button>
+        <Button variant="outline" icon={PlayCircle}>
+          Video Tutorial
+        </Button>
+        <Button variant="outline" icon={BellRing}>
+          Pengingat Hutang Piutang
+        </Button>
+        <span className="ml-auto text-[13px] text-toned">
+          Informasi Exp. langganan : <span className="font-medium text-highlighted">30/12/2026</span>
+        </span>
+      </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -213,7 +233,7 @@ export default function DashboardPage() {
           <TrendingDown className="size-6 text-warning" />
           <span className="text-xs">Barang Keluar</span>
         </Button>
-        <Button variant="outline" className="h-auto flex-col gap-2 py-4" href="/reports/sale">
+        <Button variant="outline" className="h-auto flex-col gap-2 py-4" href="/reports/sales">
           <FileText className="size-6 text-info" />
           <span className="text-xs">Laporan</span>
         </Button>

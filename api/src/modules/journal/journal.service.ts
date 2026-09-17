@@ -27,8 +27,7 @@ export class JournalService extends BaseService<
       maxTake: 100,
       defaultTake: 20,
       cacheTtl: 60,
-      softDelete: true,
-      softDeleteField: 'isActive',
+      softDelete: false,
     });
   }
 

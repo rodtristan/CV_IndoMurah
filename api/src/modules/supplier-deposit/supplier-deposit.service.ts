@@ -17,7 +17,7 @@ export class SupplierDepositService extends BaseService<
     readonly queryService: QueryService,
   ) {
     super(prisma, redis, queryService, {
-      modelName: 'supplier-deposit',
+      modelName: 'supplierDeposit',
       primaryKey: 'id',
       searchableFields: ['*'],
       allowedIncludes: ['*'],
@@ -27,8 +27,7 @@ export class SupplierDepositService extends BaseService<
       maxTake: 100,
       defaultTake: 20,
       cacheTtl: 60,
-      softDelete: true,
-      softDeleteField: 'isActive',
+      softDelete: false,
     });
   }
 

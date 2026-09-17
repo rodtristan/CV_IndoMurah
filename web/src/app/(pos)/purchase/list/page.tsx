@@ -1,14 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { RefreshCw, Search, Truck, Eye } from "lucide-react";
-import { PageWrapper, PageHeader, Card } from "@/components/layout/PageWrapper";
+import { Eye } from "lucide-react";
+import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
 import { Badge } from "@/components/ui/StatCard";
 import { Modal } from "@/components/ui/Modal";
 import { DataTable } from "@/components/ui/DataTable";
+import { FilterBar } from "@/components/ui/FilterBar";
 import { api } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -23,11 +22,11 @@ export default function PurchaseListPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const params: any = { $include: "supplier,purchasePayments" };
+      const params: any = { $include: "supplier,purchasePayments,purchaseItems,purchaseItems.product" };
       if (search) params.$search = search;
-      if (filterStatus) params.$where = `status eq '${filterStatus}'`;
+      if (filterStatus) params.$where = { paymentStatus: filterStatus };
       const res = await api.get("purchases", params).catch(() => ({ success: false, data: { data: [] } } as any));
-      if (res.success) setData(res.data?.data || []);
+      if (res.success) setData(res.data || []);
     } finally { setLoading(false); }
   }, [search, filterStatus]);
 
@@ -41,8 +40,8 @@ export default function PurchaseListPage() {
   const columns = [
     { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
     { key: "date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
-    { key: "supplierName", label: "Supplier" },
-    { key: "status", label: "Status", render: (v: unknown) => <Badge variant={statusColors[v as string] as any || "default"}>{v as string}</Badge> },
+    { key: "supplier", label: "Supplier", render: (v: unknown) => (v as any)?.name || "-" },
+    { key: "paymentStatus", label: "Status", render: (v: unknown) => <Badge variant={statusColors[v as string] as any || "default"}>{v as string}</Badge> },
     { key: "total", label: "Total", align: "right" as const, render: (v: unknown) => <span className="font-semibold">{formatCurrency(v as number)}</span> },
     { key: "paid", label: "Dibayar", align: "right" as const, render: (v: unknown) => <span className="text-success">{formatCurrency(v as number)}</span> },
     { key: "remaining", label: "Sisa", align: "right" as const, render: (v: unknown) => <span className={Number(v) > 0 ? "font-bold text-danger" : ""}>{formatCurrency(v as number)}</span> },
@@ -56,15 +55,18 @@ export default function PurchaseListPage() {
 
   return (
     <PageWrapper>
-      <PageHeader title="Pembelian" subtitle="Daftar pembelian"
-        actions={<Button variant="outline" icon={RefreshCw} onClick={fetchData} loading={loading}>Refresh</Button>} />
-
-      <Card>
-        <div className="mb-4 flex flex-wrap items-end gap-4">
-          <Input placeholder="Cari..." value={search} onChange={e => setSearch(e.target.value)} className="max-w-xs" leftIcon={Search} />
-          <Select label="Status" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} options={[{ value: "", label: "Semua" }, { value: "PENDING", label: "Pending" }, { value: "PAID", label: "Lunas" }, { value: "PARTIAL", label: "Sebagian" }, { value: "CANCELLED", label: "Batal" }]} />
+      <Card className="p-4">
+        <FilterBar
+          fields={[
+            { key: "search", label: "Kata Kunci", type: "text", placeholder: "Cari..." },
+            { key: "status", label: "Status", type: "select", options: [{ value: "", label: "Semua" }, { value: "PENDING", label: "Pending" }, { value: "PAID", label: "Lunas" }, { value: "PARTIAL", label: "Sebagian" }, { value: "CANCELLED", label: "Batal" }] },
+          ]}
+          onFilter={(v) => { setSearch((v.search as string) || ""); setFilterStatus((v.status as string) || ""); }}
+          loading={loading}
+        />
+        <div className="mt-4">
+          <DataTable data={data} columns={columns} loading={loading} emptyMessage="Tidak ada pembelian" />
         </div>
-        <DataTable data={data} columns={columns} loading={loading} emptyMessage="Tidak ada pembelian" />
       </Card>
 
       <Modal open={showDetail} onClose={() => setShowDetail(false)} title={`Pembelian ${detailData?.code || ""}`} size="lg">
@@ -72,8 +74,8 @@ export default function PurchaseListPage() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div><span className="text-muted">Tanggal:</span> {formatDate(detailData.date)}</div>
-              <div><span className="text-muted">Supplier:</span> {detailData.supplierName}</div>
-              <div><span className="text-muted">Status:</span> <Badge variant={statusColors[detailData.status] as any || "default"}>{detailData.status}</Badge></div>
+              <div><span className="text-muted">Supplier:</span> {detailData.supplier?.name || "-"}</div>
+              <div><span className="text-muted">Status:</span> <Badge variant={statusColors[detailData.paymentStatus] as any || "default"}>{detailData.paymentStatus}</Badge></div>
               <div><span className="text-muted">Total:</span> <span className="font-bold">{formatCurrency(detailData.total)}</span></div>
             </div>
             <div className="border-t border-default pt-4">
@@ -88,11 +90,11 @@ export default function PurchaseListPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(detailData.details || []).map((d: any, i: number) => (
+                  {(detailData.purchaseItems || []).map((d: any, i: number) => (
                     <tr key={i} className="border-b border-default">
-                      <td className="py-1">{d.productName}</td>
+                      <td className="py-1">{d.product?.name || "-"}</td>
                       <td className="text-right">{d.quantity}</td>
-                      <td className="text-right">{formatCurrency(d.price)}</td>
+                      <td className="text-right">{formatCurrency(d.unitPrice)}</td>
                       <td className="text-right font-semibold">{formatCurrency(d.subtotal)}</td>
                     </tr>
                   ))}
@@ -105,5 +107,3 @@ export default function PurchaseListPage() {
     </PageWrapper>
   );
 }
-
-

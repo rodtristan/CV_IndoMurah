@@ -4,6 +4,7 @@ import { BaseController } from '../../common/templates/base.controller';
 import { SupplierDepositService } from './supplier-deposit.service';
 import { CreateSupplierDepositDto, UpdateSupplierDepositDto } from './dto/supplier-deposit.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
+import { CurrentUser } from '../../common/decorators/current-user-decorator';
 
 @ApiTags('SupplierDeposit')
 @ApiBearerAuth()
@@ -59,8 +60,8 @@ export class SupplierDepositController extends BaseController<
   // POST endpoints
   @Post()
   @ApiOperation({ summary: 'Create new SupplierDeposit' })
-  async create(@Body() dto: CreateSupplierDepositDto) {
-    return super.create(dto);
+  async create(@Body() dto: CreateSupplierDepositDto, @CurrentUser() user?: any) {
+    return super.create({ ...dto, remainingAmount: dto.amount, createdById: user.id } as any);
   }
 
   @Post('bulk')

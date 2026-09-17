@@ -17,7 +17,7 @@ export class CashOutService extends BaseService<
     readonly queryService: QueryService,
   ) {
     super(prisma, redis, queryService, {
-      modelName: 'cash-out',
+      modelName: 'cashOut',
       primaryKey: 'id',
       searchableFields: ['*'],
       allowedSortFields: ['*'],
@@ -26,8 +26,7 @@ export class CashOutService extends BaseService<
       maxTake: 100,
       defaultTake: 20,
       cacheTtl: 60,
-      softDelete: true,
-      softDeleteField: 'isActive',
+      softDelete: false,
     });
   }
 

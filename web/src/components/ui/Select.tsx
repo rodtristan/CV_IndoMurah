@@ -43,7 +43,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         {label && (
           <label
             htmlFor={selectId}
-            className="block text-sm font-medium text-highlighted"
+            className="block text-[13px] font-medium text-gray-700"
           >
             {label}
             {props.required && <span className="ml-0.5 text-danger">*</span>}
@@ -55,7 +55,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             id={selectId}
             value={value ?? ""}
             className={cn(
-              "flex h-10 w-full appearance-none rounded-lg border border-default bg-elevated px-3 py-2 pr-10 text-sm",
+              "flex h-9 w-full appearance-none rounded border border-default bg-elevated px-3 py-2 pr-10 text-sm",
               "text-highlighted",
               "transition-colors duration-150",
               "focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20",

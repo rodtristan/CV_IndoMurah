@@ -1,44 +1,54 @@
-import { IsString, IsOptional, IsBoolean, IsInt, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsEnum } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { TransactionStatus } from '@prisma/client';
 
 export class CreateStockTransferDto {
-  @ApiProperty({ description: 'StockTransfer code' })
+  @ApiProperty({ description: 'Kode transfer' })
   @IsString()
   code: string;
 
-  @ApiProperty({ description: 'StockTransfer name' })
-  @IsString()
-  name: string;
+  @ApiProperty({ description: 'Gudang asal' })
+  @IsInt()
+  fromWarehouseId: number;
 
-  @ApiPropertyOptional({ description: 'Description' })
+  @ApiProperty({ description: 'Gudang tujuan' })
+  @IsInt()
+  toWarehouseId: number;
+
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  description?: string;
+  notes?: string;
 
-  @ApiPropertyOptional({ default: true, description: 'Is active' })
+  @ApiPropertyOptional({ enum: TransactionStatus })
   @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
+  @IsEnum(TransactionStatus)
+  status?: TransactionStatus;
 }
 
 export class UpdateStockTransferDto {
-  @ApiPropertyOptional({ description: 'StockTransfer code' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   code?: string;
 
-  @ApiPropertyOptional({ description: 'StockTransfer name' })
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  fromWarehouseId?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  toWarehouseId?: number;
+
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  name?: string;
+  notes?: string;
 
-  @ApiPropertyOptional({ description: 'Description' })
+  @ApiPropertyOptional({ enum: TransactionStatus })
   @IsOptional()
-  @IsString()
-  description?: string;
-
-  @ApiPropertyOptional({ description: 'Is active' })
-  @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
+  @IsEnum(TransactionStatus)
+  status?: TransactionStatus;
 }

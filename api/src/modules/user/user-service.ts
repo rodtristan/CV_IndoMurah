@@ -1,9 +1,10 @@
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import * as argon2 from 'argon2';
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
 import { MenuService } from '../menu/menu-service';
-import { UpdateUserDto } from './dto/user-dto';
+import { CreateUserDto, UpdateUserDto } from './dto/user-dto';
 
 @Injectable()
 export class UserService {
@@ -75,6 +76,33 @@ export class UserService {
       },
       this.CACHE_TTL,
     );
+  }
+
+  async create(dto: CreateUserDto) {
+    const exists = await this.prisma.user.count({
+      where: { companyId: dto.companyId, username: dto.username },
+    });
+    if (exists > 0) {
+      throw new ConflictException('Username sudah terdaftar di perusahaan ini');
+    }
+
+    const hashedPassword = await argon2.hash(dto.password, { type: argon2.argon2id });
+
+    const user = await this.prisma.user.create({
+      data: {
+        companyId: dto.companyId,
+        username: dto.username,
+        email: dto.email,
+        password: hashedPassword,
+        name: dto.name,
+        role: 'cashier',
+        isActive: true,
+      },
+    });
+
+    await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
+
+    return user;
   }
 
   async update(id: string, dto: UpdateUserDto) {

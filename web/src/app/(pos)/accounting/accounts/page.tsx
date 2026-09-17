@@ -50,7 +50,7 @@ export default function AccountsPage() {
         parentId: form.parentId ? Number(form.parentId) : null, isActive: form.isActive,
       };
       if (selected) {
-        await api.put("account", selected.id, payload);
+        await api.patch("account", selected.id, payload);
       } else {
         await api.post("account", payload);
       }

@@ -34,7 +34,7 @@ export class UpdateUserDto {
   @IsString()
   username?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ example: 'cashier', description: 'Default: cashier' })
   @IsOptional()
   @IsString()
   email?: string;

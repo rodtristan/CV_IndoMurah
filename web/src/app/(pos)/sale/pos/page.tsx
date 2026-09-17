@@ -142,7 +142,7 @@ function ProductSearchModal({
         .take(20)
         .toParams();
 
-      const res = await api.get<Product[]>("product", params);
+      const res = await api.get<Product[]>("products", params);
       if (res.success && res.data) {
         setProducts(res.data);
       }
@@ -514,27 +514,24 @@ export default function POSPage() {
     if (state.cart.length === 0) return;
     setSaving(true);
     try {
-      const res = await api.post("sale", {
+      const res = await api.post("sales", {
+        // customerId is required by CreateSaleDto; fall back to the seeded
+        // "Pelanggan Umum" walk-in customer (id=1, see prisma/seed.ts) when
+        // the cashier didn't pick one.
         customerId: state.customer?.id || 1,
-        subtotal,
         discountPercent: state.discountPercent,
         discountAmount: state.discountAmount,
-        discountTotal: discount,
         taxPercent: state.taxPercent,
-        taxAmount: tax,
-        total,
-        cashAmount,
-        changeAmount: Math.max(0, cashAmount - total),
         paymentMethod: method,
-        paymentStatus: cashAmount >= total ? "PAID" : "PARTIAL",
+        cashAmount,
         notes: state.notes,
-        saleItems: state.cart.map((item) => ({
+        items: state.cart.map((item) => ({
           productId: item.productId,
+          unitId: item.product.unitId,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
           discountPercent: item.discountPercent,
           discountAmount: item.discountAmount,
-          subtotal: item.subtotal,
         })),
       });
 

@@ -44,7 +44,7 @@ export class RegisterDto {
   @IsNotEmpty()
   name: string;
 
-  @ApiPropertyOptional({ example: '081234567890' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   phone?: string;

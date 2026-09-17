@@ -1,44 +1,54 @@
-import { IsString, IsOptional, IsBoolean, IsInt, IsNumber } from 'class-validator';
+import { IsOptional, IsInt, IsNumber, IsString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateJournalEntryDto {
-  @ApiProperty({ description: 'JournalEntry code' })
-  @IsString()
-  code: string;
+  @ApiProperty({ description: 'Jurnal induk' })
+  @IsInt()
+  journalId: number;
 
-  @ApiProperty({ description: 'JournalEntry name' })
-  @IsString()
-  name: string;
+  @ApiProperty({ description: 'Akun' })
+  @IsInt()
+  accountId: number;
 
-  @ApiPropertyOptional({ description: 'Description' })
+  @ApiPropertyOptional({ description: 'Debit' })
+  @IsOptional()
+  @IsNumber()
+  debit?: number;
+
+  @ApiPropertyOptional({ description: 'Kredit' })
+  @IsOptional()
+  @IsNumber()
+  credit?: number;
+
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  description?: string;
-
-  @ApiPropertyOptional({ default: true, description: 'Is active' })
-  @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
+  memo?: string;
 }
 
 export class UpdateJournalEntryDto {
-  @ApiPropertyOptional({ description: 'JournalEntry code' })
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  journalId?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  accountId?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  debit?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  credit?: number;
+
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  code?: string;
-
-  @ApiPropertyOptional({ description: 'JournalEntry name' })
-  @IsOptional()
-  @IsString()
-  name?: string;
-
-  @ApiPropertyOptional({ description: 'Description' })
-  @IsOptional()
-  @IsString()
-  description?: string;
-
-  @ApiPropertyOptional({ description: 'Is active' })
-  @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
+  memo?: string;
 }

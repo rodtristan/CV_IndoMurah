@@ -33,18 +33,21 @@ export class AuthService {
     }
 
     // Find user by companyId + username
+    // `password` di-omit secara global (lihat prisma-service.ts) — override di
+    // sini karena login butuh hash-nya untuk verifikasi.
     const user = await this.prisma.user.findFirst({
       where: {
         companyId: company.id,
         username: dto.username,
       },
+      omit: { password: false },
     });
 
     if (!user || !user.isActive) {
       throw new UnauthorizedException('Username atau password salah');
     }
 
-    const isValid = await argon2.verify(user.password ?? '', dto.password);
+    const isValid = await argon2.verify(user.password, dto.password);
     if (!isValid) {
       throw new UnauthorizedException('Username atau password salah');
     }
@@ -62,12 +65,7 @@ export class AuthService {
       roleId: mainRole?.roleId ?? 1,
     });
 
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { updatedAt: new Date() },
-    });
-
-    const menus = await this.menuService.getAccessibleMenus(user.id);
+    const menus = await this.menuService.getAccessibleMenus(user.id, mainRole?.roleId ?? null);
 
     return {
       token,

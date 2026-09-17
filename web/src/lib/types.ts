@@ -643,19 +643,21 @@ export interface ChartDataPoint {
 
 export interface TopProduct {
   productId: number;
-  productCode: string;
   productName: string;
   quantity: number;
-  revenue: number;
+  totalSales: number;
 }
 
 export interface SalesReport {
-  totalSales: number;
-  totalTransactions: number;
-  averageTransaction: number;
-  topProducts: TopProduct[];
-  salesByPaymentMethod: Record<PaymentMethod, number>;
-  salesByDate: ChartDataPoint[];
+  summary: {
+    totalSales: number;
+    totalTransactions: number;
+    totalItems: number;
+    averageTransaction: number;
+  };
+  byDate: { date: string; totalSales: number; totalTransactions: number; totalItems: number; averageTransaction: number }[];
+  byCustomer?: { customerId: number; customerName: string; totalSales: number; totalTransactions: number }[];
+  byProduct: TopProduct[];
 }
 
 export interface InventoryReport {
@@ -667,10 +669,10 @@ export interface InventoryReport {
 }
 
 export interface ProfitLossReport {
-  totalRevenue: number;
-  costOfGoodsSold: number;
+  period: { startDate: string; endDate: string };
+  income: { total: number; items: { description: string; amount: number }[] };
+  expenses: { total: number; items: { accountName: string; amount: number }[] };
   grossProfit: number;
-  totalExpenses: number;
   netProfit: number;
   profitMargin: number;
 }

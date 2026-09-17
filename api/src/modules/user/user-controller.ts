@@ -1,7 +1,7 @@
 import { Controller, Get, Put, Post, Delete, Param, Body, Query, UseGuards, NotFoundException, ParseIntPipe } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { UserService } from './user-service';
-import { UpdateUserDto, AssignRoleDto } from './dto/user-dto';
+import { CreateUserDto, UpdateUserDto, AssignRoleDto } from './dto/user-dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 import { ApiResponse } from '../../common/dto/api-response-dto';
 
@@ -14,7 +14,7 @@ export class UserController {
 
   @Get()
   @ApiOperation({ summary: 'Get all users (Smart Query supported)' })
-  @ApiQuery({ name: '$select', required: false, description: 'Select fields: id,name,email' })
+  @ApiQuery({ name: '$select', required: false, description: 'Select fields: id,name,email,role' })
   @ApiQuery({ name: '$include', required: false, description: 'Include relations: userRoles' })
   @ApiQuery({ name: '$where[isActive]', required: false, description: 'Filter: true/false' })
   @ApiQuery({ name: '$search', required: false, description: 'Search keyword' })
@@ -32,6 +32,13 @@ export class UserController {
     const data = await this.userService.findOne(id, query);
     if (!data) throw new NotFoundException('User not found');
     return ApiResponse.ok(data);
+  }
+
+  @Post()
+  @ApiOperation({ summary: 'Create user' })
+  async create(@Body() dto: CreateUserDto) {
+    const data = await this.userService.create(dto);
+    return ApiResponse.ok(data, 'User created successfully');
   }
 
   @Put(':id')

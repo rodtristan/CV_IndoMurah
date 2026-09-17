@@ -1,44 +1,55 @@
-import { IsString, IsOptional, IsBoolean, IsInt, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsEnum } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ReferenceType, TransactionStatus } from '@prisma/client';
 
 export class CreateStockOutDto {
-  @ApiProperty({ description: 'StockOut code' })
+  @ApiProperty({ description: 'Kode barang keluar' })
   @IsString()
   code: string;
 
-  @ApiProperty({ description: 'StockOut name' })
-  @IsString()
-  name: string;
+  @ApiProperty({ description: 'Gudang asal' })
+  @IsInt()
+  warehouseId: number;
 
-  @ApiPropertyOptional({ description: 'Description' })
+  @ApiPropertyOptional({ enum: ReferenceType })
+  @IsOptional()
+  @IsEnum(ReferenceType)
+  referenceType?: ReferenceType;
+
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ default: true, description: 'Is active' })
+  @ApiPropertyOptional({ enum: TransactionStatus })
   @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
+  @IsEnum(TransactionStatus)
+  status?: TransactionStatus;
 }
 
 export class UpdateStockOutDto {
-  @ApiPropertyOptional({ description: 'StockOut code' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   code?: string;
 
-  @ApiPropertyOptional({ description: 'StockOut name' })
+  @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
-  name?: string;
+  @IsInt()
+  warehouseId?: number;
 
-  @ApiPropertyOptional({ description: 'Description' })
+  @ApiPropertyOptional({ enum: ReferenceType })
+  @IsOptional()
+  @IsEnum(ReferenceType)
+  referenceType?: ReferenceType;
+
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ description: 'Is active' })
+  @ApiPropertyOptional({ enum: TransactionStatus })
   @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
+  @IsEnum(TransactionStatus)
+  status?: TransactionStatus;
 }

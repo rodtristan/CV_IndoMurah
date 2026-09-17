@@ -9,6 +9,7 @@ import { MenuModule } from '../menu/menu-module';
 
 @Module({
   imports: [
+    MenuModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       inject: [ConfigService],
@@ -19,7 +20,6 @@ import { MenuModule } from '../menu/menu-module';
         } as any,
       }),
     }),
-    MenuModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],

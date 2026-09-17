@@ -51,14 +51,14 @@ export default function ProfitReportPage() {
       {/* Summary */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard
-          title="Total Revenue"
-          value={formatCurrency(report?.totalRevenue || 0)}
+          title="Total Pendapatan"
+          value={formatCurrency(report?.income.total || 0)}
           icon={TrendingUp}
           iconClassName="bg-success/10 text-success"
         />
         <StatCard
-          title="HPP"
-          value={formatCurrency(report?.costOfGoodsSold || 0)}
+          title="Total Beban"
+          value={formatCurrency(report?.expenses.total || 0)}
           icon={TrendingDown}
           iconClassName="bg-danger/10 text-danger"
         />
@@ -77,19 +77,14 @@ export default function ProfitReportPage() {
             <div className="space-y-3">
               <div className="flex justify-between border-b border-default pb-2">
                 <span className="font-semibold text-highlighted">PENDAPATAN</span>
-                <span className="font-semibold text-success">{formatCurrency(report?.totalRevenue || 0)}</span>
+                <span className="font-semibold text-success">{formatCurrency(report?.income.total || 0)}</span>
               </div>
-              <div className="flex justify-between border-b border-default pb-2 pl-4 text-sm">
-                <span className="text-muted">Penjualan Bersih</span>
-                <span>{formatCurrency(report?.totalRevenue || 0)}</span>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex justify-between border-b border-default pb-2">
-                <span className="font-semibold text-danger">HPP / COST OF GOODS SOLD</span>
-                <span className="font-semibold text-danger">({formatCurrency(report?.costOfGoodsSold || 0)})</span>
-              </div>
+              {report?.income.items.map((item) => (
+                <div key={item.description} className="flex justify-between border-b border-default pb-2 pl-4 text-sm">
+                  <span className="text-muted">{item.description}</span>
+                  <span>{formatCurrency(item.amount)}</span>
+                </div>
+              ))}
             </div>
 
             <div className="flex justify-between border-b-2 border-default bg-success/5 px-4 py-3 rounded-lg">
@@ -100,8 +95,14 @@ export default function ProfitReportPage() {
             <div className="space-y-3">
               <div className="flex justify-between border-b border-default pb-2">
                 <span className="font-semibold text-muted">BEBAN USAHA</span>
-                <span className="font-semibold text-warning">({formatCurrency(report?.totalExpenses || 0)})</span>
+                <span className="font-semibold text-warning">({formatCurrency(report?.expenses.total || 0)})</span>
               </div>
+              {report?.expenses.items.map((item) => (
+                <div key={item.accountName} className="flex justify-between border-b border-default pb-2 pl-4 text-sm">
+                  <span className="text-muted">{item.accountName}</span>
+                  <span>({formatCurrency(item.amount)})</span>
+                </div>
+              ))}
             </div>
 
             <div className="flex justify-between border-b-2 border-primary bg-primary/5 px-4 py-3 rounded-lg">

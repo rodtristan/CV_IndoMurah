@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Download, RefreshCw, ClipboardCheck, CheckCircle, AlertTriangle } from "lucide-react";
-import { PageWrapper, PageHeader, Card } from "@/components/layout/PageWrapper";
-import { Button } from "@/components/ui/Button";
+import { Download, ClipboardCheck, CheckCircle, AlertTriangle } from "lucide-react";
+import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { StatCard } from "@/components/ui/StatCard";
 import { Badge } from "@/components/ui/StatCard";
 import { DataTable } from "@/components/ui/DataTable";
+import { FilterBar } from "@/components/ui/FilterBar";
+import { UtilityButton } from "@/components/ui/GridActions";
 import { api } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -45,18 +46,23 @@ export default function StockOpnameReportPage() {
 
   return (
     <PageWrapper>
-      <PageHeader title="Laporan Stok Opname" subtitle="Riwayat stock opname"
-        actions={<><Button variant="outline" icon={Download}>Export</Button><Button variant="primary" icon={RefreshCw} onClick={fetchData} loading={loading}>Refresh</Button></>} />
-
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard title="Total Opname" value={summary.totalOpnames || 0} icon={ClipboardCheck} iconClassName="bg-info/10 text-info" />
         <StatCard title="Selesai" value={summary.completedOpnames || 0} icon={CheckCircle} iconClassName="bg-success/10 text-success" />
         <StatCard title="Total Nilai Selisih" value={formatCurrency(summary.totalVarianceValue || 0)} icon={AlertTriangle} iconClassName="bg-warning/10 text-warning" />
       </div>
 
-      <Card>
-        <h3 className="mb-4 font-semibold text-highlighted">Riwayat Opname</h3>
-        <DataTable data={opnames} columns={columns} loading={loading} emptyMessage="Tidak ada data" />
+      <Card className="p-4">
+        <FilterBar
+          fields={[]}
+          onFilter={() => fetchData()}
+          loading={loading}
+          actions={<UtilityButton icon={Download}>Export</UtilityButton>}
+        />
+        <div className="mt-4">
+          <h3 className="mb-4 font-semibold text-highlighted">Riwayat Opname</h3>
+          <DataTable data={opnames} columns={columns} loading={loading} emptyMessage="Tidak ada data" />
+        </div>
       </Card>
     </PageWrapper>
   );

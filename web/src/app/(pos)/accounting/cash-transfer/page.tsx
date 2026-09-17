@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, RefreshCw, Search, ArrowRight } from "lucide-react";
-import { PageWrapper, PageHeader, Card } from "@/components/layout/PageWrapper";
+import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Modal } from "@/components/ui/Modal";
 import { DataTable } from "@/components/ui/DataTable";
+import { FilterBar } from "@/components/ui/FilterBar";
+import { GridActions } from "@/components/ui/GridActions";
 import { api } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -22,21 +23,33 @@ export default function CashTransferPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("cash-transfer", { $search: search || undefined } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-      if (res.success) setTransfers(res.data?.data || []);
+      const res = await api.get("cash-transfer", { $search: search || undefined, $include: "fromAccount,toAccount" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+      if (res.success) setTransfers(res.data || []);
     } finally { setLoading(false); }
   }, [search]);
 
   const fetchAccounts = useCallback(async () => {
-    const res = await api.get("accounts", { $select: "id,code,name", $where: "type eq ASSET" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-    if (res.success) setAccounts(res.data?.data || []);
+    const res = await api.get("account", { $select: "id,code,name", $where: { type: "ASSET" } } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+    if (res.success) setAccounts(res.data || []);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
 
   const handleSave = async () => {
-    await api.post("cash-transfer", form).catch(() => ({}));
+    const isEdit = Boolean((form as any).id);
+    const payload = {
+      code: form.code || `CT-${Date.now()}`,
+      fromAccountId: Number(form.fromAccountId),
+      toAccountId: Number(form.toAccountId),
+      amount: Number(form.amount),
+      description: form.description || undefined,
+    };
+    if (isEdit) {
+      await api.patch("cash-transfer", (form as any).id, payload).catch(() => ({}));
+    } else {
+      await api.post("cash-transfer", payload).catch(() => ({}));
+    }
     setShowForm(false);
     fetchData();
   };
@@ -44,23 +57,26 @@ export default function CashTransferPage() {
   const columns = [
     { key: "date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
     { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "fromAccountName", label: "Dari" },
-    { key: "toAccountName", label: "Ke" },
+    { key: "fromAccount", label: "Dari", render: (v: unknown) => (v as any)?.name || "-" },
+    { key: "toAccount", label: "Ke", render: (v: unknown) => (v as any)?.name || "-" },
     { key: "amount", label: "Jumlah", align: "right" as const, render: (v: unknown) => <span className="font-bold text-primary">{formatCurrency(v as number)}</span> },
     { key: "description", label: "Keterangan" },
   ];
 
+  const openCreate = () => { setForm({ date: new Date().toISOString().split("T")[0], code: "", fromAccountId: "", toAccountId: "", amount: 0, description: "" }); setShowForm(true); };
+
   return (
     <PageWrapper>
-      <PageHeader title="Transfer Kas" subtitle="Transfer antar akun kas/bank"
-        actions={<Button variant="primary" icon={Plus} onClick={() => { setForm({ date: new Date().toISOString().split("T")[0], code: "", fromAccountId: "", toAccountId: "", amount: 0, description: "" }); setShowForm(true); }}>Tambah</Button>} />
-
-      <Card>
-        <div className="mb-4 flex gap-4">
-          <Input placeholder="Cari..." value={search} onChange={e => setSearch(e.target.value)} className="max-w-xs" leftIcon={Search} />
-          <Button variant="outline" icon={RefreshCw} onClick={fetchData} loading={loading}>Refresh</Button>
+      <Card className="p-4">
+        <FilterBar
+          fields={[{ key: "search", label: "Kata Kunci", type: "text", placeholder: "Cari..." }]}
+          onFilter={(v) => setSearch((v.search as string) || "")}
+          loading={loading}
+          actions={<GridActions onAdd={openCreate} />}
+        />
+        <div className="mt-4">
+          <DataTable data={transfers} columns={columns} loading={loading} emptyMessage="Tidak ada transfer" />
         </div>
-        <DataTable data={transfers} columns={columns} loading={loading} emptyMessage="Tidak ada transfer" />
       </Card>
 
       <Modal open={showForm} onClose={() => setShowForm(false)} title="Transfer Baru" size="md">

@@ -1,44 +1,45 @@
-import { IsString, IsOptional, IsBoolean, IsInt, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsEnum } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { StockOpnameStatus } from '@prisma/client';
 
 export class CreateStockOpnameDto {
-  @ApiProperty({ description: 'StockOpname code' })
+  @ApiProperty({ description: 'Kode stock opname' })
   @IsString()
   code: string;
 
-  @ApiProperty({ description: 'StockOpname name' })
-  @IsString()
-  name: string;
+  @ApiProperty({ description: 'Gudang yang di-opname' })
+  @IsInt()
+  warehouseId: number;
 
-  @ApiPropertyOptional({ description: 'Description' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  description?: string;
+  notes?: string;
 
-  @ApiPropertyOptional({ default: true, description: 'Is active' })
+  @ApiPropertyOptional({ enum: StockOpnameStatus })
   @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
+  @IsEnum(StockOpnameStatus)
+  status?: StockOpnameStatus;
 }
 
 export class UpdateStockOpnameDto {
-  @ApiPropertyOptional({ description: 'StockOpname code' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   code?: string;
 
-  @ApiPropertyOptional({ description: 'StockOpname name' })
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  warehouseId?: number;
+
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  name?: string;
+  notes?: string;
 
-  @ApiPropertyOptional({ description: 'Description' })
+  @ApiPropertyOptional({ enum: StockOpnameStatus })
   @IsOptional()
-  @IsString()
-  description?: string;
-
-  @ApiPropertyOptional({ description: 'Is active' })
-  @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
+  @IsEnum(StockOpnameStatus)
+  status?: StockOpnameStatus;
 }

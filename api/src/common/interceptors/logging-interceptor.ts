@@ -48,7 +48,7 @@ interface LogPayload {
   responseData: unknown;
   responseStatus: number;
   message: string;
-  userId: number | null;
+  userId: string | null;
   userFullName: string | null;
   ipAddress: string | null;
   userAgent: string | null;
@@ -73,9 +73,11 @@ export class LoggingInterceptor implements NestInterceptor {
 
     const requestBody = this.redactSensitiveFields(req.body);
 
-    const user = req.user as { id?: number; name?: string } | undefined;
-    const userId: number | null = user?.id ?? null;
-    const userFullName: string | null = user?.name ?? null;
+    // Info user yang login (diisi oleh Passport setelah JWT divalidasi)
+    // Jika endpoint tidak butuh login, user akan bernilai undefined/null
+    const user = req.user as { id?: string; email?: string } | undefined;
+    const userId: string | null       = user?.id ?? null;
+    const userFullName: string | null = user?.email ?? null;
 
     return next.handle().pipe(
       tap((responseData: unknown) => {
@@ -163,18 +165,19 @@ export class LoggingInterceptor implements NestInterceptor {
     try {
       await this.prisma.log.create({
         data: {
-          method: log.method,
-          endpoint: log.endpoint,
-          headers: {},
-          payload: (log.requestBody as object) ?? {},
-          responseStatus: log.responseStatus,
-          message: log.message,
-          requesterLoginId: log.userId,
+          method:            log.method,
+          endpoint:          log.endpoint,
+          headers:           {},  // Header sudah di-redact, tidak disimpan
+          payload:           (log.requestBody as object) ?? {},
+          responseStatus:    log.responseStatus,
+          message:           log.message,
+          // requesterLoginId is Int? in schema but User.id is now a uuid
+          // string (see auth-service.ts) — nothing sensible to store here.
           requesterFullName: log.userFullName,
-          ipAddress: log.ipAddress,
-          userAgent: log.userAgent,
-          durationMs: log.durationMs,
-          logDatetime: log.logDatetime,
+          ipAddress:         log.ipAddress,
+          userAgent:         log.userAgent,
+          durationMs:        log.durationMs,
+          logDatetime:       log.logDatetime,
         },
       });
     } catch {

@@ -17,7 +17,7 @@ export class CashTransferService extends BaseService<
     readonly queryService: QueryService,
   ) {
     super(prisma, redis, queryService, {
-      modelName: 'cash-transfer',
+      modelName: 'cashTransfer',
       primaryKey: 'id',
       searchableFields: ['*'],
       allowedIncludes: ['*'],
@@ -27,8 +27,7 @@ export class CashTransferService extends BaseService<
       maxTake: 100,
       defaultTake: 20,
       cacheTtl: 60,
-      softDelete: true,
-      softDeleteField: 'isActive',
+      softDelete: false,
     });
   }
 

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Edit2, Trash2, RefreshCw, Search } from "lucide-react";
-import { PageWrapper, PageHeader, Card } from "@/components/layout/PageWrapper";
+import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { DataTable } from "@/components/ui/DataTable";
+import { FilterBar } from "@/components/ui/FilterBar";
+import { GridActions, RowEditIcon, RowDeleteIcon } from "@/components/ui/GridActions";
 import { api } from "@/lib/api-client";
 
 export default function BrandsPage() {
@@ -19,21 +20,25 @@ export default function BrandsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("brands", { $search: search || undefined, $select: "id,code,name,description" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-      if (res.success) setData(res.data?.data || []);
+      const res = await api.get("brand", { $search: search || undefined, $select: "id,code,name,description" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+      if (res.success) setData(res.data || []);
     } finally { setLoading(false); }
   }, [search]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleSave = async () => {
-    await api.post("brands", form).catch(() => ({}));
+    if ((form as any).id) {
+      await api.patch("brand", (form as any).id, form).catch(() => ({}));
+    } else {
+      await api.post("brand", form).catch(() => ({}));
+    }
     setShowForm(false);
     fetchData();
   };
 
   const handleDelete = async (id: string) => {
-    await api.delete(`brands`, id).catch(() => ({}));
+    await api.delete(`brand`, id).catch(() => ({}));
     fetchData();
   };
 
@@ -42,27 +47,30 @@ export default function BrandsPage() {
     { key: "name", label: "Nama Merek" },
     { key: "description", label: "Deskripsi", render: (v: unknown) => v ? <span className="text-muted">{v as string}</span> : <span className="text-muted">-</span> },
     {
-      key: "actions", label: "", width: "80px",
+      key: "actions", label: "", width: "70px",
       render: (_: unknown, row: any) => (
-        <div className="flex gap-2">
-          <Button size="sm" variant="ghost" icon={Edit2} onClick={() => { setForm(row); setShowForm(true); }} />
-          <Button size="sm" variant="ghost" icon={Trash2} onClick={() => handleDelete(row.id)} />
+        <div className="flex gap-1">
+          <RowEditIcon onClick={() => { setForm(row); setShowForm(true); }} />
+          <RowDeleteIcon onClick={() => handleDelete(row.id)} />
         </div>
       )
     },
   ];
 
+  const openCreate = () => { setForm({ name: "", code: "", description: "" }); setShowForm(true); };
+
   return (
     <PageWrapper>
-      <PageHeader title="Merek" subtitle="Master merek produk"
-        actions={<Button variant="primary" icon={Plus} onClick={() => { setForm({ name: "", code: "", description: "" }); setShowForm(true); }}>Tambah</Button>} />
-
-      <Card>
-        <div className="mb-4 flex gap-4">
-          <Input placeholder="Cari merek..." value={search} onChange={e => setSearch(e.target.value)} className="max-w-xs" leftIcon={Search} />
-          <Button variant="outline" icon={RefreshCw} onClick={fetchData} loading={loading}>Refresh</Button>
+      <Card className="p-4">
+        <FilterBar
+          fields={[{ key: "search", label: "Kata Kunci", type: "text", placeholder: "Cari merek..." }]}
+          onFilter={(v) => setSearch((v.search as string) || "")}
+          loading={loading}
+          actions={<GridActions onAdd={openCreate} />}
+        />
+        <div className="mt-4">
+          <DataTable data={data} columns={columns} loading={loading} emptyMessage="Tidak ada merek" />
         </div>
-        <DataTable data={data} columns={columns} loading={loading} emptyMessage="Tidak ada merek" />
       </Card>
 
       <Modal open={showForm} onClose={() => setShowForm(false)} title="Merek" size="sm">

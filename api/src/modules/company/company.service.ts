@@ -13,9 +13,9 @@ export class CompanyService extends BaseService<
   UpdateCompanyDto
 > {
   constructor(
-    readonly prisma: PrismaService,
-    readonly redis: RedisService,
-    readonly queryService: QueryService,
+    prisma: PrismaService,
+    redis: RedisService,
+    queryService: QueryService,
   ) {
     super(prisma, redis, queryService, {
       modelName: 'company',
@@ -28,8 +28,7 @@ export class CompanyService extends BaseService<
       maxTake: 100,
       defaultTake: 20,
       cacheTtl: 60,
-      softDelete: true,
-      softDeleteField: 'isActive',
+      softDelete: false,
     });
   }
 

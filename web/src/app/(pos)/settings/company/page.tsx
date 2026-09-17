@@ -8,26 +8,42 @@ import { Input } from "@/components/ui/Input";
 import { api } from "@/lib/api-client";
 
 export default function CompanySettingsPage() {
+  const [companyId, setCompanyId] = useState<number | null>(null);
   const [form, setForm] = useState({
-    name: "", code: "", address: "", city: "", phone: "", fax: "",
-    email: "", website: "", taxId: "", NPWP: "",
+    name: "", address: "", city: "", province: "", postalCode: "", phone: "",
+    email: "", taxId: "",
   });
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
 
   const fetchData = useCallback(async () => {
-    const res = await api.get("company").catch(() => ({ success: false, data: null } as any));
-    if (res.success && res.data) setForm(res.data);
+    const res = await api.get<any[]>("company", { $take: 1 } as any).catch(() => ({ success: false, data: [] } as any));
+    const company = res.success ? res.data?.[0] : null;
+    if (company) {
+      setCompanyId(company.id);
+      setForm({
+        name: company.name ?? "", address: company.address ?? "", city: company.city ?? "",
+        province: company.province ?? "", postalCode: company.postalCode ?? "",
+        phone: company.phone ?? "", email: company.email ?? "", taxId: company.taxId ?? "",
+      });
+    }
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleSave = async () => {
     setLoading(true);
-    await api.put("company", "", form).catch(() => ({}));
-    setLoading(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    try {
+      if (companyId) {
+        await api.patch("company", companyId, form);
+      } else {
+        const res = await api.post<any>("company", form);
+        if (res.success && res.data) setCompanyId(res.data.id);
+      }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   };
 
   return (
@@ -40,23 +56,19 @@ export default function CompanySettingsPage() {
           <div className="space-y-4">
             <h3 className="font-semibold text-highlighted flex items-center gap-2"><Building2 className="w-4 h-4" /> Info Umum</h3>
             <Input label="Nama Perusahaan" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-            <Input label="Kode Perusahaan" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} />
             <Input label="Alamat" value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} />
             <Input label="Kota" value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} />
+            <Input label="Provinsi" value={form.province} onChange={e => setForm(f => ({ ...f, province: e.target.value }))} />
+            <Input label="Kode Pos" value={form.postalCode} onChange={e => setForm(f => ({ ...f, postalCode: e.target.value }))} />
           </div>
           <div className="space-y-4">
             <h3 className="font-semibold text-highlighted">Kontak</h3>
             <Input label="Telepon" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
-            <Input label="Fax" value={form.fax} onChange={e => setForm(f => ({ ...f, fax: e.target.value }))} />
             <Input label="Email" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
-            <Input label="Website" value={form.website} onChange={e => setForm(f => ({ ...f, website: e.target.value }))} />
           </div>
           <div className="space-y-4 lg:col-span-2">
             <h3 className="font-semibold text-highlighted">Pajak</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <Input label="NPWP" value={form.NPWP} onChange={e => setForm(f => ({ ...f, NPWP: e.target.value }))} />
-              <Input label="No. PKP / Tax ID" value={form.taxId} onChange={e => setForm(f => ({ ...f, taxId: e.target.value }))} />
-            </div>
+            <Input label="No. PKP / Tax ID" value={form.taxId} onChange={e => setForm(f => ({ ...f, taxId: e.target.value }))} />
           </div>
         </div>
       </Card>
