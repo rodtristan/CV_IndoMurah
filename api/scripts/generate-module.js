@@ -646,8 +646,17 @@ export class Query${modelName}Dto {
   return createDto;
 }
 
-function generateService(modelName, config, fileName) {
-  const softDelete = config.softDelete !== false;
+function generateService(modelName, config, fileName, fields = []) {
+  // BUG (found & fixed 2026-09-17): this used to hardcode `softDelete: true` +
+  // `softDeleteField: 'isActive'` regardless of whether the model actually has
+  // an `isActive` column, and used the kebab-case `fileName` as `modelName`
+  // instead of the camelCase Prisma Client accessor — both caused every
+  // generated module's findAll/findById/etc. to throw or silently 500 at
+  // runtime. See modules like product-stock, activity-log, sale-item, etc.
+  // (fixed by hand across ~29 already-generated modules that hit this).
+  const hasIsActive = fields.some((f) => f.name === 'isActive');
+  const softDelete = config.softDelete !== false && hasIsActive;
+  const modelAccessor = camelCase(modelName);
 
   return `import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma-service';
@@ -669,7 +678,7 @@ export class ${modelName}Service extends BaseService<
     readonly queryService: QueryService,
   ) {
     super(prisma, redis, queryService, {
-      modelName: '${fileName}',
+      modelName: '${modelAccessor}',
       primaryKey: 'id',
       // Use '*' to allow all fields (searchable, sortable, selectable, includable)
       searchableFields: ['*'],
@@ -680,8 +689,7 @@ export class ${modelName}Service extends BaseService<
       maxTake: 100,
       defaultTake: 20,
       cacheTtl: 60,
-      softDelete: ${softDelete},
-      softDeleteField: 'isActive',
+      softDelete: ${softDelete},${softDelete ? "\n      softDeleteField: 'isActive'," : ''}
     });
   }
 
@@ -1059,7 +1067,7 @@ function main() {
   // 2. Service
   writeFile(
     path.join(moduleDir, `${fileName}.service.ts`),
-    generateService(modelName, config, fileName),
+    generateService(modelName, config, fileName, fields),
   );
 
   // 3. Controller

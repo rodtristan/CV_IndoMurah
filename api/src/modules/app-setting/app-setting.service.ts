@@ -3,14 +3,14 @@ import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
 import { BaseService } from '../../common/templates/base.service';
-import { CreateSaleReturnItemDto, UpdateSaleReturnItemDto } from './dto/sale-return-item.dto';
+import { CreateAppSettingDto, UpdateAppSettingDto } from './dto/app-setting.dto';
 import { Prisma } from '@prisma/client';
 
 @Injectable()
-export class SaleReturnItemService extends BaseService<
+export class AppSettingService extends BaseService<
   any,
-  CreateSaleReturnItemDto,
-  UpdateSaleReturnItemDto
+  CreateAppSettingDto,
+  UpdateAppSettingDto
 > {
   constructor(
     readonly prisma: PrismaService,
@@ -18,7 +18,7 @@ export class SaleReturnItemService extends BaseService<
     readonly queryService: QueryService,
   ) {
     super(prisma, redis, queryService, {
-      modelName: 'saleReturnItem',
+      modelName: 'appSetting',
       primaryKey: 'id',
       // Use '*' to allow all fields (searchable, sortable, selectable, includable)
       searchableFields: ['*'],
@@ -39,16 +39,16 @@ export class SaleReturnItemService extends BaseService<
   // Tambahkan method bisnis logic di sini
   // Contoh:
   //
-  // async processTransaction(data: CreateSaleReturnItemDto, userId: string) {
+  // async processTransaction(data: CreateAppSettingDto, userId: string) {
   //   return this.prisma.$transaction(async (tx) => {
   //     // 1. Create record
-  //     const result = await tx.SaleReturnItem.create({ data });
+  //     const result = await tx.AppSetting.create({ data });
   //
   //     // 2. Update related records
   //     // await tx.relatedModel.update(...);
   //
   //     // 3. Invalidate cache
-  //     await this.redis.del('cache:sale-return-item:*');
+  //     await this.redis.del('cache:app-setting:*');
   //
   //     return result;
   //   });

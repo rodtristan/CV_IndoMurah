@@ -18,7 +18,7 @@ export class LoanInstallmentService extends BaseService<
     readonly queryService: QueryService,
   ) {
     super(prisma, redis, queryService, {
-      modelName: 'loan-installment',
+      modelName: 'loanInstallment',
       primaryKey: 'id',
       searchableFields: ['*'],
       allowedIncludes: ['*'],

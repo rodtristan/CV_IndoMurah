@@ -18,7 +18,7 @@ export class ProductBarcodeService extends BaseService<
     readonly queryService: QueryService,
   ) {
     super(prisma, redis, queryService, {
-      modelName: 'product-barcode',
+      modelName: 'productBarcode',
       primaryKey: 'id',
       // Use '*' to allow all fields (searchable, sortable, selectable, includable)
       searchableFields: ['*'],

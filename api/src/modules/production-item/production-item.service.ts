@@ -18,7 +18,7 @@ export class ProductionItemService extends BaseService<
     readonly queryService: QueryService,
   ) {
     super(prisma, redis, queryService, {
-      modelName: 'production-item',
+      modelName: 'productionItem',
       primaryKey: 'id',
       searchableFields: ['*'],
       allowedIncludes: ['*'],
@@ -28,8 +28,7 @@ export class ProductionItemService extends BaseService<
       maxTake: 100,
       defaultTake: 20,
       cacheTtl: 60,
-      softDelete: true,
-      softDeleteField: 'isActive',
+      softDelete: false,
     });
   }
 
