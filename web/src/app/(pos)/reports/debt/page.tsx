@@ -1,18 +1,134 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Download, Truck, AlertTriangle } from "lucide-react";
+import { Download, Truck, AlertTriangle, Wallet, Trash2 } from "lucide-react";
 import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { StatCard, Badge } from "@/components/ui/StatCard";
 import { DataTable } from "@/components/ui/DataTable";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { UtilityButton } from "@/components/ui/GridActions";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { Modal } from "@/components/ui/Modal";
 import { api } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
+
+function PaymentModal({ row, onClose, onPaid }: { row: any; onClose: () => void; onPaid: () => void }) {
+  const [methods, setMethods] = useState<any[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [form, setForm] = useState({ methodId: "", amount: "", referenceNumber: "", notes: "" });
+
+  const load = useCallback(async () => {
+    const [methodsRes, paymentsRes] = await Promise.all([
+      api.get("payment-methods").catch(() => ({ success: false, data: [] } as any)),
+      api.get(`PurchasePayments/purchase/${row.purchaseId}`).catch(() => ({ success: false, data: [] } as any)),
+    ]);
+    setMethods(methodsRes.success ? methodsRes.data || [] : []);
+    setPayments(paymentsRes.success ? paymentsRes.data || [] : []);
+    if (methodsRes.success && methodsRes.data?.[0]) {
+      setForm((f) => ({ ...f, methodId: String(methodsRes.data[0].ID) }));
+    }
+  }, [row.purchaseId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleSave = async () => {
+    setError("");
+    const amount = Number(form.amount);
+    if (!form.methodId || !amount || amount <= 0) { setError("Pilih metode dan isi jumlah bayar."); return; }
+    if (amount > row.remaining) { setError(`Jumlah melebihi sisa hutang (${formatCurrency(row.remaining)}).`); return; }
+
+    setSaving(true);
+    try {
+      const res = await api.post("PurchasePayments", {
+        PurchaseID: row.purchaseId,
+        MethodID: Number(form.methodId),
+        Amount: amount,
+        ReferenceNumber: form.referenceNumber || undefined,
+        Notes: form.notes || undefined,
+      }).catch(() => ({ success: false } as any));
+      if (res.success) {
+        setForm({ methodId: form.methodId, amount: "", referenceNumber: "", notes: "" });
+        await load();
+        onPaid();
+      } else {
+        setError(res?.message || "Gagal menyimpan pembayaran.");
+      }
+    } finally { setSaving(false); }
+  };
+
+  const handleDeletePayment = async (id: number) => {
+    await api.delete("PurchasePayments", id).catch(() => ({}));
+    await load();
+    onPaid();
+  };
+
+  return (
+    <Modal open onClose={onClose} title={`Pembayaran — ${row.code}`} size="md">
+      <div className="space-y-4">
+        <div className="grid grid-cols-3 gap-3 rounded-lg bg-elevated p-3 text-sm">
+          <div><span className="text-muted">Total</span><p className="font-semibold">{formatCurrency(row.total)}</p></div>
+          <div><span className="text-muted">Dibayar</span><p className="font-semibold text-success">{formatCurrency(row.paid)}</p></div>
+          <div><span className="text-muted">Sisa</span><p className="font-semibold text-danger">{formatCurrency(row.remaining)}</p></div>
+        </div>
+
+        {payments.length > 0 && (
+          <div>
+            <p className="mb-2 text-sm font-medium text-highlighted">Riwayat Pembayaran</p>
+            <div className="max-h-40 space-y-1 overflow-y-auto">
+              {payments.map((p) => (
+                <div key={p.ID} className="flex items-center justify-between rounded-lg border border-default px-3 py-2 text-sm">
+                  <div>
+                    <p className="font-medium">{formatCurrency(Number(p.Amount))}</p>
+                    <p className="text-xs text-muted">{formatDate(p.Date)} {p.ReferenceNumber ? `· ${p.ReferenceNumber}` : ""}</p>
+                  </div>
+                  <button onClick={() => handleDeletePayment(p.ID)} className="rounded p-1.5 text-muted hover:bg-danger/10 hover:text-danger">
+                    <Trash2 className="size-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {row.remaining > 0 && (
+          <div className="space-y-3 border-t border-default pt-4">
+            <p className="text-sm font-medium text-highlighted">Bayar Sekarang</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Select
+                label="Metode Bayar"
+                value={form.methodId}
+                onChange={(e) => setForm((f) => ({ ...f, methodId: e.target.value }))}
+                options={methods.map((m) => ({ value: String(m.ID), label: m.Name }))}
+              />
+              <Input label="Jumlah" type="number" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} />
+            </div>
+            <Input label="No. Referensi (opsional)" value={form.referenceNumber} onChange={(e) => setForm((f) => ({ ...f, referenceNumber: e.target.value }))} placeholder="No. giro/cek/transfer" />
+            <Input label="Catatan" value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
+            {error && <p className="text-sm text-danger">{error}</p>}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={onClose}>Tutup</Button>
+              <Button variant="primary" icon={Wallet} onClick={handleSave} loading={saving}>Simpan Pembayaran</Button>
+            </div>
+          </div>
+        )}
+        {row.remaining <= 0 && (
+          <div className="flex justify-end pt-2">
+            <Button variant="outline" onClick={onClose}>Tutup</Button>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
 
 export default function DebtReportPage() {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
+  const [payRow, setPayRow] = useState<any>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -40,6 +156,12 @@ export default function DebtReportPage() {
     {
       key: "agingBucket", label: "Umur Hutang",
       render: (v: unknown) => <Badge variant={agingVariant(v as string)}>{v as string}</Badge>,
+    },
+    {
+      key: "actions", label: "", width: "90px",
+      render: (_: unknown, row: any) => (
+        <Button variant="outline" size="sm" icon={Wallet} onClick={() => setPayRow(row)}>Bayar</Button>
+      ),
     },
   ];
 
@@ -78,6 +200,8 @@ export default function DebtReportPage() {
           <DataTable data={debts} columns={columns} loading={loading} emptyMessage="Tidak ada data hutang" />
         </div>
       </Card>
+
+      {payRow && <PaymentModal row={payRow} onClose={() => setPayRow(null)} onPaid={fetchData} />}
     </PageWrapper>
   );
 }

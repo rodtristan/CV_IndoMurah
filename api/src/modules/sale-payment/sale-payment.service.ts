@@ -112,6 +112,7 @@ export class SalePaymentService {
 
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
     await this.redis.invalidatePattern(`sales:${dto.SaleID}*`);
+    await this.redis.invalidatePattern('reports:*');
 
     return this.serialize(payment);
   }
@@ -136,6 +137,7 @@ export class SalePaymentService {
     await this.updateSalePaymentStatus(payment.SaleID);
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
     await this.redis.invalidatePattern(`sales:${payment.SaleID}*`);
+    await this.redis.invalidatePattern('reports:*');
 
     return this.serialize(updated);
   }
@@ -149,6 +151,7 @@ export class SalePaymentService {
 
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
     await this.redis.invalidatePattern(`sales:${payment.SaleID}*`);
+    await this.redis.invalidatePattern('reports:*');
 
     return { id };
   }

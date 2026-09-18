@@ -127,6 +127,7 @@ import { PayrollModule } from './modules/payroll/payroll.module';
 import { LoanModule } from './modules/loan/loan.module';
 import { LoanInstallmentModule } from './modules/loan-installment/loan-installment.module';
 import { NotificationModule } from './modules/notification/notification.module';
+import { PaymentMethodModule } from './modules/payment-method/payment-method.module';
 import { ProductStockModule } from './modules/product-stock/product-stock.module';
 import { StockInItemModule } from './modules/stock-in-item/stock-in-item.module';
 import { StockOutItemModule } from './modules/stock-out-item/stock-out-item.module';
@@ -261,6 +262,7 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     LoanModule,
     LoanInstallmentModule,
     NotificationModule,
+    PaymentMethodModule,
     ProductStockModule,
     StockInItemModule,
     StockOutItemModule,

@@ -112,6 +112,7 @@ export class PurchasePaymentService {
 
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
     await this.redis.invalidatePattern(`purchases:${dto.PurchaseID}*`);
+    await this.redis.invalidatePattern('reports:*');
 
     return this.serialize(payment);
   }
@@ -136,6 +137,7 @@ export class PurchasePaymentService {
     await this.updatePurchasePaymentStatus(payment.PurchaseID);
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
     await this.redis.invalidatePattern(`purchases:${payment.PurchaseID}*`);
+    await this.redis.invalidatePattern('reports:*');
 
     return this.serialize(updated);
   }
@@ -149,6 +151,7 @@ export class PurchasePaymentService {
 
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
     await this.redis.invalidatePattern(`purchases:${payment.PurchaseID}*`);
+    await this.redis.invalidatePattern('reports:*');
 
     return { id };
   }
