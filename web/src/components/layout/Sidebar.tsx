@@ -88,6 +88,9 @@ const MENU_GROUPS: MenuGroup[] = [
       { label: "Kasir (POS)", href: "/sale/pos", badge: "baru" },
       { label: "Daftar Penjualan", href: "/sale/list" },
       { label: "Retur Penjualan", href: "/sale/returns" },
+      { label: "History Harga Jual", href: "/sale/price-history" },
+      { label: "Point Penjualan", href: "/sale/points" },
+      { label: "Data Pengiriman", href: "/sale/shipping" },
     ],
   },
   {

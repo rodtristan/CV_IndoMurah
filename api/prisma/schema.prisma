@@ -818,6 +818,10 @@ model Sale {
   returnedAt      DateTime?
   paymentMethod   PaymentMethod?
   notes           String?        @db.VarChar(1000)
+  // Data Pengiriman (DataPengiriman1.html) — status/no resi ekspedisi.
+  shippingStatus   String?       @default("PENDING") @db.VarChar(20) // PENDING | SHIPPED
+  shippingDate     DateTime?
+  trackingNumber   String?       @db.VarChar(100)
   createdById     String
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt

@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { QueryService } from '../../common/query/query-service';
 import { Prisma } from '@prisma/client';
-import { CreateSaleDto, UpdateSaleDto, PaymentDto, UpdateStatusDto } from './dto/sale.dto';
+import { CreateSaleDto, UpdateSaleDto, PaymentDto, UpdateStatusDto, UpdateShippingDto } from './dto/sale.dto';
 
 @Injectable()
 export class SaleService {
@@ -192,6 +192,24 @@ export class SaleService {
         warehouse: true,
         saleItems: { include: { product: true, unit: true } },
       },
+    });
+
+    return this.serialize(updated);
+  }
+
+  async updateShipping(id: number, dto: UpdateShippingDto) {
+    const sale = await this.prisma.sale.findUnique({ where: { id } });
+    if (!sale) throw new NotFoundException('Sale not found');
+
+    const updateData: Record<string, unknown> = {};
+    if (dto.shippingStatus !== undefined) updateData.shippingStatus = dto.shippingStatus;
+    if (dto.shippingDate !== undefined) updateData.shippingDate = dto.shippingDate ? new Date(dto.shippingDate) : null;
+    if (dto.trackingNumber !== undefined) updateData.trackingNumber = dto.trackingNumber;
+
+    const updated = await this.prisma.sale.update({
+      where: { id },
+      data: updateData,
+      include: { customer: true },
     });
 
     return this.serialize(updated);

@@ -57,6 +57,9 @@ const TITLE_OVERRIDES: Record<string, string> = {
   "/reports/debt": "Hutang",
   "/reports/receivable": "Piutang",
   "/sale/returns": "Retur Penjualan",
+  "/sale/price-history": "History Harga Jual",
+  "/sale/points": "Point Penjualan",
+  "/sale/shipping": "Data Pengiriman",
   "/settings/roles": "Hak Akses",
   "/settings/users": "Pengguna",
 };

@@ -181,3 +181,20 @@ export class UpdateStatusDto {
   @IsEnum(PaymentStatus)
   paymentStatus: PaymentStatus;
 }
+
+export class UpdateShippingDto {
+  @ApiPropertyOptional({ description: 'Shipping status', enum: ['PENDING', 'SHIPPED'] })
+  @IsOptional()
+  @IsString()
+  shippingStatus?: string;
+
+  @ApiPropertyOptional({ description: 'Shipping date', type: String })
+  @IsOptional()
+  @IsString()
+  shippingDate?: string;
+
+  @ApiPropertyOptional({ description: 'Tracking / resi number' })
+  @IsOptional()
+  @IsString()
+  trackingNumber?: string;
+}
