@@ -16,6 +16,8 @@ import {
   DebtReportResponseDto,
   ReceivableReportResponseDto,
   StockMutationResponseDto,
+  SalesSummaryPoint,
+  StockOpnameReportResponseDto,
 } from './dto/report.dto';
 
 @Injectable()
@@ -889,6 +891,106 @@ export class ReportService {
       totalIn,
       totalOut,
       mutations,
+    };
+
+    await this.redis.set(cacheKey, JSON.stringify(result), this.CACHE_TTL);
+    return result;
+  }
+
+  // ─── Sales Summary (chart: sales vs purchases vs profit per day) ──────────
+
+  async salesSummaryReport(filter: DateRangeFilterDto): Promise<SalesSummaryPoint[]> {
+    const cacheKey = `${this.CACHE_PREFIX}:sales-summary:${JSON.stringify(filter)}`;
+    const cached = await this.redis.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+
+    const endDate = filter.endDate ? new Date(filter.endDate + 'T23:59:59') : new Date();
+    const startDate = filter.startDate
+      ? new Date(filter.startDate)
+      : new Date(endDate.getTime() - 29 * 86400000);
+
+    const paidStatusIds = await this.getPaidStatusIds();
+
+    const [sales, purchases] = await Promise.all([
+      this.prisma.sale.findMany({
+        where: { PaymentStatusID: { in: paidStatusIds }, Date: { gte: startDate, lte: endDate } },
+        select: { Date: true, Total: true },
+      }),
+      this.prisma.purchase.findMany({
+        where: { PaymentStatusID: { in: paidStatusIds }, Date: { gte: startDate, lte: endDate } },
+        select: { Date: true, Total: true },
+      }),
+    ]);
+
+    const byDate = new Map<string, { sales: number; purchases: number }>();
+    for (const sale of sales) {
+      const key = sale.Date.toISOString().split('T')[0];
+      const existing = byDate.get(key) || { sales: 0, purchases: 0 };
+      existing.sales += Number(sale.Total);
+      byDate.set(key, existing);
+    }
+    for (const purchase of purchases) {
+      const key = purchase.Date.toISOString().split('T')[0];
+      const existing = byDate.get(key) || { sales: 0, purchases: 0 };
+      existing.purchases += Number(purchase.Total);
+      byDate.set(key, existing);
+    }
+
+    const result: SalesSummaryPoint[] = [];
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+      const key = d.toISOString().split('T')[0];
+      const point = byDate.get(key) || { sales: 0, purchases: 0 };
+      result.push({
+        label: key,
+        sales: point.sales,
+        purchases: point.purchases,
+        profit: point.sales - point.purchases,
+      });
+    }
+
+    await this.redis.set(cacheKey, JSON.stringify(result), this.CACHE_TTL);
+    return result;
+  }
+
+  // ─── Stock Opname Report ────────────────────────────────────────────────
+
+  async stockOpnameReport(): Promise<StockOpnameReportResponseDto> {
+    const cacheKey = `${this.CACHE_PREFIX}:stock-opname`;
+    const cached = await this.redis.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+
+    const opnameRows = await this.prisma.stockOpname.findMany({
+      include: { Warehouse: true, Status: true, OpnameItems: true },
+      orderBy: { Date: 'desc' },
+    });
+
+    const opnames = opnameRows.map((op) => {
+      const systemQty = op.OpnameItems.reduce((sum, i) => sum + Number(i.SystemStock), 0);
+      const actualQty = op.OpnameItems.reduce((sum, i) => sum + Number(i.CountedStock), 0);
+      const totalValue = op.OpnameItems.reduce(
+        (sum, i) => sum + Math.abs(Number(i.Difference)) * Number(i.UnitPrice || 0),
+        0,
+      );
+      return {
+        id: op.ID,
+        code: op.Code,
+        date: op.Date.toISOString().split('T')[0],
+        warehouseName: op.Warehouse.Name,
+        status: op.Status.Code,
+        systemQty,
+        actualQty,
+        variance: actualQty - systemQty,
+        totalValue,
+      };
+    });
+
+    const result: StockOpnameReportResponseDto = {
+      summary: {
+        totalOpnames: opnames.length,
+        completedOpnames: opnames.filter((o) => o.status === 'COMPLETED').length,
+        totalVarianceValue: opnames.reduce((sum, o) => sum + o.totalValue, 0),
+      },
+      opnames,
     };
 
     await this.redis.set(cacheKey, JSON.stringify(result), this.CACHE_TTL);

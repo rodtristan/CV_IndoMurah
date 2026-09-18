@@ -15,7 +15,7 @@ export class StockOutController extends BaseController<
   CreateStockOutDto,
   UpdateStockOutDto
 > {
-  constructor(stockOutService: StockOutService) {
+  constructor(private readonly stockOutService: StockOutService) {
     super(stockOutService, {
       modelName: 'StockOut',
       pluralName: 'StockOuts',
@@ -61,7 +61,8 @@ export class StockOutController extends BaseController<
   @Post()
   @ApiOperation({ summary: 'Create new StockOut' })
   async create(@Body() dto: CreateStockOutDto, @CurrentUser() user?: any) {
-    return super.create({ ...dto, createdById: user.id } as any);
+    const data = await this.stockOutService.createStockOut(dto, user.id);
+    return { success: true, data, message: 'StockOut created successfully' };
   }
 
   @Post('bulk')

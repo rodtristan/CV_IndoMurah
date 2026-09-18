@@ -291,3 +291,29 @@ export class StockMutationResponseDto {
     balance: number;
   }>;
 }
+
+export interface SalesSummaryPoint {
+  label: string;
+  sales: number;
+  purchases: number;
+  profit: number;
+}
+
+export interface StockOpnameReportResponseDto {
+  summary: {
+    totalOpnames: number;
+    completedOpnames: number;
+    totalVarianceValue: number;
+  };
+  opnames: Array<{
+    id: number;
+    code: string;
+    date: string;
+    warehouseName: string;
+    status: string;
+    systemQty: number;
+    actualQty: number;
+    variance: number;
+    totalValue: number;
+  }>;
+}

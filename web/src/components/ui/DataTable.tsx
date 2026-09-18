@@ -118,12 +118,13 @@ export function DataTable<T = any>({
               </tr>
             ) : (
               data.map((row, index) => {
-                const rowId = (row as Record<string, unknown>)["id"];
+                const record = row as Record<string, unknown>;
+                const rowId = record["id"] ?? record["ID"];
                 const isSelected = selectedId !== undefined && rowId === selectedId;
 
                 return (
                   <tr
-                    key={String(rowId) || index}
+                    key={rowId !== undefined && rowId !== null ? String(rowId) : index}
                     onClick={() => onRowClick?.(row)}
                     className={cn(
                       "border-b border-default transition-colors last:border-b-0",

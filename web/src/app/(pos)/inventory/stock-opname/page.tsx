@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { Package, X } from "lucide-react";
 import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -10,8 +11,17 @@ import { Badge } from "@/components/ui/StatCard";
 import { DataTable } from "@/components/ui/DataTable";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { GridActions } from "@/components/ui/GridActions";
-import { api } from "@/lib/api-client";
+import { api, odata } from "@/lib/api-client";
 import { formatDate } from "@/lib/utils";
+import type { Product } from "@/lib/types";
+
+interface DraftItem {
+  productId: number;
+  productName: string;
+  systemStock: number;
+  countedStock: number;
+  unitId: number;
+}
 
 export default function StockOpnamePage() {
   const [data, setData] = useState<any[]>([]);
@@ -19,7 +29,12 @@ export default function StockOpnamePage() {
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [warehouses, setWarehouses] = useState<any[]>([]);
-  const [form, setForm] = useState({ date: "", code: "", warehouseId: "", notes: "" });
+  const [products, setProducts] = useState<Product[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [form, setForm] = useState({ date: "", warehouseId: "", notes: "" });
+  const [items, setItems] = useState<DraftItem[]>([]);
+  const [draft, setDraft] = useState({ productId: "", countedStock: "" });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -29,28 +44,74 @@ export default function StockOpnamePage() {
     } finally { setLoading(false); }
   }, [search]);
 
-  const fetchWarehouses = useCallback(async () => {
-    const res = await api.get("warehouse", { $select: "id,name" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-    if (res.success) setWarehouses(res.data || []);
+  const fetchLookups = useCallback(async () => {
+    const [whRes, prodRes] = await Promise.all([
+      api.get("warehouse", odata().take(100).toParams()).catch(() => ({ success: false, data: [] } as any)),
+      api.get<Product[]>("products", odata().include(["category", "unit"]).take(200).toParams()).catch(() => ({ success: false, data: [] } as any)),
+    ]);
+    setWarehouses(whRes.data || []);
+    setProducts(prodRes.data || []);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
-  useEffect(() => { fetchWarehouses(); }, [fetchWarehouses]);
+
+  const resetForm = () => {
+    setForm({ date: new Date().toISOString().split("T")[0], warehouseId: "", notes: "" });
+    setItems([]);
+    setDraft({ productId: "", countedStock: "" });
+    setFormError("");
+  };
+
+  const selectedDraftProduct = products.find(p => p.ID === Number(draft.productId));
+
+  const handleAddItem = () => {
+    if (!draft.productId) return;
+    const product = products.find(p => p.ID === Number(draft.productId));
+    if (!product) return;
+    const counted = draft.countedStock !== "" ? Number(draft.countedStock) : 0;
+
+    setItems(prev => {
+      const idx = prev.findIndex(i => i.productId === product.ID);
+      const entry: DraftItem = { productId: product.ID, productName: product.Name, systemStock: Number(product.Stock), countedStock: counted, unitId: product.UnitID };
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = entry;
+        return next;
+      }
+      return [...prev, entry];
+    });
+    setDraft({ productId: "", countedStock: "" });
+  };
+
+  const handleRemoveItem = (productId: number) => setItems(prev => prev.filter(i => i.productId !== productId));
+
+  const openCreate = () => { resetForm(); fetchLookups(); setShowForm(true); };
 
   const handleSave = async () => {
-    const isEdit = Boolean((form as any).id);
-    const payload = {
-      code: form.code || `SOP-${Date.now()}`,
-      warehouseId: Number(form.warehouseId),
-      notes: form.notes || undefined,
-    };
-    if (isEdit) {
-      await api.patch("stock-opname", (form as any).id, payload).catch(() => ({}));
-    } else {
-      await api.post("stock-opname", payload).catch(() => ({}));
-    }
-    setShowForm(false);
-    fetchData();
+    setFormError("");
+    if (!form.warehouseId) { setFormError("Gudang wajib dipilih"); return; }
+    if (items.length === 0) { setFormError("Tambahkan minimal 1 item"); return; }
+
+    setSaving(true);
+    try {
+      const res = await api.post("stock-opname", {
+        WarehouseID: Number(form.warehouseId),
+        Date: form.date || undefined,
+        Notes: form.notes || undefined,
+        Items: items.map(i => ({
+          ProductID: i.productId,
+          SystemStock: i.systemStock,
+          CountedStock: i.countedStock,
+          Difference: i.countedStock - i.systemStock,
+          UnitID: i.unitId,
+        })),
+      });
+      if (res.success) { setShowForm(false); fetchData(); }
+      else setFormError((res as any).message || "Gagal menyimpan");
+    } catch (e: any) {
+      setFormError(e?.message || "Gagal menyimpan");
+      console.error(e);
+    } finally { setSaving(false); }
   };
 
   const columns = [
@@ -63,8 +124,6 @@ export default function StockOpnamePage() {
     }},
     { key: "Notes", label: "Catatan", render: (v: unknown) => v ? <span className="text-muted">{v as string}</span> : <span className="text-muted">-</span> },
   ];
-
-  const openCreate = () => { setForm({ date: new Date().toISOString().split("T")[0], code: "", warehouseId: "", notes: "" }); setShowForm(true); };
 
   return (
     <PageWrapper>
@@ -80,14 +139,68 @@ export default function StockOpnamePage() {
         </div>
       </Card>
 
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="Stock Opname Baru" size="sm">
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="Stock Opname Baru" size="xl"
+        footer={<><Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button><Button variant="primary" onClick={handleSave} loading={saving}>Simpan</Button></>}>
         <div className="space-y-4">
-          <Input label="Tanggal" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
-          <Select label="Gudang" value={form.warehouseId} onChange={e => setForm(f => ({ ...f, warehouseId: e.target.value }))} options={warehouses.map(w => ({ value: w.ID, label: w.Name }))} />
+          {formError && <div className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{formError}</div>}
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="Tanggal" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+            <Select label="Gudang *" value={form.warehouseId} onChange={e => setForm(f => ({ ...f, warehouseId: e.target.value }))} options={[{ value: "", label: "Pilih..." }, ...warehouses.map(w => ({ value: w.ID, label: w.Name }))]} required />
+          </div>
           <Input label="Catatan" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button>
-            <Button variant="primary" onClick={handleSave}>Mulai Opname</Button>
+
+          <div className="rounded-lg border border-default p-4">
+            <p className="mb-3 text-sm font-semibold text-highlighted">Item Opname</p>
+            <div className="grid grid-cols-12 gap-2">
+              <div className="col-span-5">
+                <Select label="Produk" value={draft.productId} onChange={e => setDraft(d => ({ ...d, productId: e.target.value }))}
+                  options={[{ value: "", label: "Pilih produk..." }, ...products.map(p => ({ value: p.ID, label: `${p.Code} - ${p.Name}` }))]} />
+              </div>
+              <div className="col-span-3">
+                <Input label="Stok Sistem" type="number" value={selectedDraftProduct ? Number(selectedDraftProduct.Stock) : ""} readOnly disabled />
+              </div>
+              <div className="col-span-3">
+                <Input label="Stok Fisik" type="number" min={0} value={draft.countedStock} onChange={e => setDraft(d => ({ ...d, countedStock: e.target.value }))} />
+              </div>
+              <div className="col-span-1 flex items-end">
+                <Button variant="secondary" className="w-full justify-center" onClick={handleAddItem}>+</Button>
+              </div>
+            </div>
+
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-default text-left text-xs text-muted">
+                    <th className="py-2">Produk</th>
+                    <th className="py-2 text-right">Stok Sistem</th>
+                    <th className="py-2 text-right">Stok Fisik</th>
+                    <th className="py-2 text-right">Selisih</th>
+                    <th className="py-2 w-8"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.length === 0 ? (
+                    <tr><td colSpan={5} className="py-6 text-center text-muted">
+                      <Package className="mx-auto mb-1 size-6" />
+                      Belum ada item
+                    </td></tr>
+                  ) : items.map(i => {
+                    const diff = i.countedStock - i.systemStock;
+                    return (
+                      <tr key={i.productId} className="border-b border-default/50">
+                        <td className="py-2">{i.productName}</td>
+                        <td className="py-2 text-right">{i.systemStock}</td>
+                        <td className="py-2 text-right">{i.countedStock}</td>
+                        <td className={`py-2 text-right font-medium ${diff > 0 ? "text-success" : diff < 0 ? "text-danger" : ""}`}>{diff > 0 ? `+${diff}` : diff}</td>
+                        <td className="py-2 text-right">
+                          <button onClick={() => handleRemoveItem(i.productId)} className="text-muted hover:text-danger"><X className="size-4" /></button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </Modal>

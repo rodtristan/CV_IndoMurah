@@ -83,6 +83,25 @@ export class ReportController {
     return ApiResponse.ok(data);
   }
 
+  @Get('sales/summary')
+  @ApiOperation({ summary: 'Sales vs Purchases vs Profit chart (per day)' })
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  async salesSummaryReport(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const data = await this.reportService.salesSummaryReport({ startDate, endDate });
+    return ApiResponse.ok(data);
+  }
+
+  @Get('stock-opname')
+  @ApiOperation({ summary: 'Stock Opname Report' })
+  async stockOpnameReport() {
+    const data = await this.reportService.stockOpnameReport();
+    return ApiResponse.ok(data);
+  }
+
   @Get('stock-mutation')
   @ApiOperation({ summary: 'Stock Mutation Report (Kartu Stok / Mutasi Stok)' })
   @ApiQuery({ name: 'productId', required: true })
