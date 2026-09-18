@@ -1,10 +1,33 @@
-import { IsString, IsOptional, IsInt, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsBoolean, IsNumber, IsArray, ValidateNested, IsDateString } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-export class CreateJournalDto {
-  @ApiProperty({ description: 'Kode jurnal' })
+export class CreateJournalEntryLineDto {
+  @ApiProperty({ description: 'Account ID' })
+  @IsInt()
+  accountId: number;
+
+  @ApiPropertyOptional({ description: 'Debit amount' })
+  @IsOptional()
+  @IsNumber()
+  debit?: number;
+
+  @ApiPropertyOptional({ description: 'Credit amount' })
+  @IsOptional()
+  @IsNumber()
+  credit?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
-  code: string;
+  memo?: string;
+}
+
+export class CreateJournalDto {
+  @ApiPropertyOptional({ description: 'Journal date', type: String })
+  @IsOptional()
+  @IsDateString()
+  date?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -20,6 +43,12 @@ export class CreateJournalDto {
   @IsOptional()
   @IsInt()
   referenceId?: number;
+
+  @ApiProperty({ description: 'Journal entry lines (debit/credit per account), must balance', type: [CreateJournalEntryLineDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateJournalEntryLineDto)
+  entries: CreateJournalEntryLineDto[];
 }
 
 export class UpdateJournalDto {

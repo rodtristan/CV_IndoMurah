@@ -15,7 +15,7 @@ export class JournalController extends BaseController<
   CreateJournalDto,
   UpdateJournalDto
 > {
-  constructor(journalService: JournalService) {
+  constructor(private readonly journalService: JournalService) {
     super(journalService, {
       modelName: 'Journal',
       pluralName: 'Journals',
@@ -61,7 +61,8 @@ export class JournalController extends BaseController<
   @Post()
   @ApiOperation({ summary: 'Create new Journal' })
   async create(@Body() dto: CreateJournalDto, @CurrentUser() user?: any) {
-    return super.create({ ...dto, createdById: user.id } as any);
+    const data = await this.journalService.createJournal(dto, user.id);
+    return { success: true, data, message: 'Journal created successfully' };
   }
 
   @Post('bulk')

@@ -1583,6 +1583,32 @@ model Company {
   @@map("Companies")
 }
 
+// ─── AppSetting (Pengaturan Umum/Transaksi/Desimal) ──────────────────
+model AppSetting {
+  ID                      Int      @id @default(autoincrement())
+  ReportDesignEnabled     Boolean  @default(false)
+  ItemAddMode             String   @default("SEDANG") @db.VarChar(50)
+  DisplayMode             String   @default("ACTIVE_ONLY") @db.VarChar(50)
+  DisplayRowMode          String   @default("SINGLE_ROW") @db.VarChar(50)
+  Timezone                String   @default("Asia/Jakarta") @db.VarChar(100)
+  MaxSearchRows           Int      @default(100)
+  AddressBinding          String   @default("COMPANY") @db.VarChar(50)
+  ShowImageOnTransaction  Boolean  @default(true)
+  WarnPriceBelowCost      Boolean  @default(true)
+  ShowBrandColumn         Boolean  @default(false)
+  ShowInfoColumn          Boolean  @default(false)
+  EditRequiresAccess      Boolean  @default(false)
+  AutoShowSalesOnCustomer Boolean  @default(false)
+  DecimalPrice            Int      @default(0)
+  DecimalQty              Int      @default(0)
+  DecimalTax              Int      @default(0)
+  DecimalDiscount         Int      @default(0)
+  CreatedAt               DateTime @default(now())
+  UpdatedAt               DateTime @updatedAt
+
+  @@map("AppSettings")
+}
+
 // ─── NumberingFormat ───────────────────────────────────────
 model Numbering {
   ID         Int      @id @default(autoincrement())
