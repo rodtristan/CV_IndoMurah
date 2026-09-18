@@ -18,19 +18,18 @@ export class ProductStockService extends BaseService<
     readonly queryService: QueryService,
   ) {
     super(prisma, redis, queryService, {
-      modelName: 'product-stock',
+      modelName: 'productStock',
       primaryKey: 'id',
       // Use '*' to allow all fields (searchable, sortable, selectable, includable)
       searchableFields: ['*'],
       allowedIncludes: ['*'],
       allowedSortFields: ['*'],
       allowedSelectFields: ['*'],
-      defaultOrderBy: { createdAt: 'desc' },
+      defaultOrderBy: { updatedAt: 'desc' },
       maxTake: 100,
       defaultTake: 20,
       cacheTtl: 60,
-      softDelete: true,
-      softDeleteField: 'isActive',
+      softDelete: false,
     });
   }
 

@@ -1,5 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsString, IsOptional, IsNumber } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateProductStockDto {
@@ -15,16 +14,10 @@ export class CreateProductStockDto {
   @IsNumber()
   quantity: number;
 
-  @ApiProperty({ description: 'minimumStock' })
+  @ApiPropertyOptional({ description: 'minimumStock' })
+  @IsOptional()
   @IsNumber()
-  minimumStock: number;
-
-  @ApiProperty({ description: 'product' })
-  product: any;
-
-  @ApiProperty({ description: 'warehouse' })
-  warehouse: any;
-
+  minimumStock?: number;
 }
 
 export class UpdateProductStockDto {
@@ -47,36 +40,6 @@ export class UpdateProductStockDto {
   @IsOptional()
   @IsNumber()
   minimumStock?: number;
-
-  @ApiPropertyOptional({ description: 'product' })
-  @IsOptional()
-  product?: any;
-
-  @ApiPropertyOptional({ description: 'warehouse' })
-  @IsOptional()
-  warehouse?: any;
-
-}
-
-export class ProductStockResponseDto {
-  @ApiProperty({ description: 'productId' })
-  productId: number;
-
-  @ApiProperty({ description: 'warehouseId' })
-  warehouseId: number;
-
-  @ApiProperty({ description: 'quantity' })
-  quantity: number;
-
-  @ApiProperty({ description: 'minimumStock' })
-  minimumStock: number;
-
-  @ApiProperty({ description: 'product' })
-  product: any;
-
-  @ApiProperty({ description: 'warehouse' })
-  warehouse: any;
-
 }
 
 export class QueryProductStockDto {
@@ -93,13 +56,11 @@ export class QueryProductStockDto {
   @ApiPropertyOptional({ description: 'Number of records to skip' })
   @IsOptional()
   @IsNumber()
-  @Type(() => Number)
   $skip?: number;
 
   @ApiPropertyOptional({ description: 'Number of records to take' })
   @IsOptional()
   @IsNumber()
-  @Type(() => Number)
   $take?: number;
 
   @ApiPropertyOptional({ description: 'Search keyword' })

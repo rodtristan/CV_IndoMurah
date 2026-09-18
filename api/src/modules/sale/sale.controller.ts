@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { SaleService } from './sale.service';
-import { CreateSaleDto, UpdateSaleDto, PaymentDto, UpdateStatusDto } from './dto/sale.dto';
+import { CreateSaleDto, UpdateSaleDto, PaymentDto, UpdateStatusDto, UpdateShippingDto } from './dto/sale.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 import { CurrentUser } from '../../common/decorators/current-user-decorator';
 import { ApiResponse } from '../../common/dto/api-response-dto';
@@ -81,6 +81,13 @@ export class SaleController {
   async updateStatus(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateStatusDto) {
     const data = await this.saleService.updateStatus(id, dto);
     return ApiResponse.ok(data, 'Sale status updated');
+  }
+
+  @Put(':id/shipping')
+  @ApiOperation({ summary: 'Update sale shipping info (Data Pengiriman)' })
+  async updateShipping(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateShippingDto) {
+    const data = await this.saleService.updateShipping(id, dto);
+    return ApiResponse.ok(data, 'Shipping info updated');
   }
 
   @Post(':id/cancel')

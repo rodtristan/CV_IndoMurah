@@ -18,7 +18,7 @@ export class AssetCategoryService extends BaseService<
     readonly queryService: QueryService,
   ) {
     super(prisma, redis, queryService, {
-      modelName: 'asset-category',
+      modelName: 'assetCategory',
       primaryKey: 'id',
       searchableFields: ['*'],
       allowedIncludes: ['*'],

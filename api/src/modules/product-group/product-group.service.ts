@@ -18,7 +18,7 @@ export class ProductGroupService extends BaseService<
     readonly queryService: QueryService,
   ) {
     super(prisma, redis, queryService, {
-      modelName: 'product-group',
+      modelName: 'productGroup',
       primaryKey: 'id',
       // Use '*' to allow all fields (searchable, sortable, selectable, includable)
       searchableFields: ['*'],

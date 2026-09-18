@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Building2, UserRound, ShieldCheck, KeyRound } from "lucide-react";
+import { Building2, UserRound, ShieldCheck, KeyRound, Settings2, Hash } from "lucide-react";
 import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { useAuth } from "@/lib/auth-context";
 
@@ -10,6 +10,8 @@ const SETTINGS_LINKS = [
   { href: "/settings/company", label: "Data Perusahaan", description: "Kelola informasi perusahaan", icon: Building2 },
   { href: "/settings/users", label: "Pengguna", description: "Kelola akun pengguna", icon: KeyRound },
   { href: "/settings/roles", label: "Hak Akses", description: "Kelola role & izin", icon: ShieldCheck },
+  { href: "/settings/general", label: "Pengaturan Umum", description: "Umum, transaksi, dan desimal digit", icon: Settings2 },
+  { href: "/settings/numbering", label: "Setting Nomor", description: "Format penomoran otomatis transaksi", icon: Hash },
 ];
 
 export default function SettingsHubPage() {

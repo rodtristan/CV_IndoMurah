@@ -18,7 +18,7 @@ export class NotificationSettingService extends BaseService<
     readonly queryService: QueryService,
   ) {
     super(prisma, redis, queryService, {
-      modelName: 'notification-setting',
+      modelName: 'notificationSetting',
       primaryKey: 'id',
       // Use '*' to allow all fields (searchable, sortable, selectable, includable)
       searchableFields: ['*'],
@@ -29,8 +29,7 @@ export class NotificationSettingService extends BaseService<
       maxTake: 100,
       defaultTake: 20,
       cacheTtl: 60,
-      softDelete: true,
-      softDeleteField: 'isActive',
+      softDelete: false,
     });
   }
 

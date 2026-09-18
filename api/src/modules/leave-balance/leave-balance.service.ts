@@ -18,7 +18,7 @@ export class LeaveBalanceService extends BaseService<
     readonly queryService: QueryService,
   ) {
     super(prisma, redis, queryService, {
-      modelName: 'leave-balance',
+      modelName: 'leaveBalance',
       primaryKey: 'id',
       // Use '*' to allow all fields (searchable, sortable, selectable, includable)
       searchableFields: ['*'],

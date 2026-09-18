@@ -18,7 +18,7 @@ export class PurchaseReturnItemService extends BaseService<
     readonly queryService: QueryService,
   ) {
     super(prisma, redis, queryService, {
-      modelName: 'purchase-return-item',
+      modelName: 'purchaseReturnItem',
       primaryKey: 'id',
       // Use '*' to allow all fields (searchable, sortable, selectable, includable)
       searchableFields: ['*'],
@@ -29,8 +29,7 @@ export class PurchaseReturnItemService extends BaseService<
       maxTake: 100,
       defaultTake: 20,
       cacheTtl: 60,
-      softDelete: true,
-      softDeleteField: 'isActive',
+      softDelete: false,
     });
   }
 

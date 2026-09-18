@@ -18,7 +18,7 @@ export class ServiceItemService extends BaseService<
     readonly queryService: QueryService,
   ) {
     super(prisma, redis, queryService, {
-      modelName: 'service-item',
+      modelName: 'serviceItem',
       primaryKey: 'id',
       searchableFields: ['*'],
       allowedIncludes: ['*'],
@@ -28,8 +28,7 @@ export class ServiceItemService extends BaseService<
       maxTake: 100,
       defaultTake: 20,
       cacheTtl: 60,
-      softDelete: true,
-      softDeleteField: 'isActive',
+      softDelete: false,
     });
   }
 

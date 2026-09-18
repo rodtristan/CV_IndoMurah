@@ -88,6 +88,9 @@ const MENU_GROUPS: MenuGroup[] = [
       { label: "Kasir (POS)", href: "/sale/pos", badge: "baru" },
       { label: "Daftar Penjualan", href: "/sale/list" },
       { label: "Retur Penjualan", href: "/sale/returns" },
+      { label: "History Harga Jual", href: "/sale/price-history" },
+      { label: "Point Penjualan", href: "/sale/points" },
+      { label: "Data Pengiriman", href: "/sale/shipping" },
     ],
   },
   {
@@ -106,6 +109,7 @@ const MENU_GROUPS: MenuGroup[] = [
       { label: "Barang Keluar", href: "/inventory/stock-out" },
       { label: "Transfer Stock", href: "/inventory/transfers" },
       { label: "Stock Opname", href: "/inventory/stock-opname" },
+      { label: "Saldo Awal", href: "/inventory/opening-stock" },
       { label: "Stock Minim", href: "/inventory/minimum-stock", disabled: true },
     ],
   },
@@ -150,6 +154,8 @@ const MENU_GROUPS: MenuGroup[] = [
       { label: "Perusahaan", href: "/settings/company" },
       { label: "Pengguna", href: "/settings/users" },
       { label: "Hak Akses", href: "/settings/roles" },
+      { label: "Pengaturan Umum", href: "/settings/general" },
+      { label: "Setting Nomor", href: "/settings/numbering" },
     ],
   },
   {
