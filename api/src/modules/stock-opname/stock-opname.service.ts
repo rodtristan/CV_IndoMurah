@@ -18,7 +18,7 @@ export class StockOpnameService extends BaseService<
   ) {
     super(prisma, redis, queryService, {
       modelName: 'stockOpname',
-      primaryKey: 'id',
+      primaryKey: 'ID',
       searchableFields: ['*'],
       allowedIncludes: ['*'],
       allowedSortFields: ['*'],

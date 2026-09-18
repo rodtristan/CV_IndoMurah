@@ -13,6 +13,16 @@ import { api, odata } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import type { Account, AccountType } from "@/lib/types";
 
+// AccountType is now its own table (see api/prisma/schema.prisma model
+// AccountType) referenced by Account.TypeID, instead of a plain string on
+// Account. There is no /account-type list endpoint, so this maps the codes
+// seeded in api/prisma/seed.ts (in insertion order) to their IDs. If the DB
+// was ever seeded in a different order this mapping will be wrong — verify
+// against the live AccountTypes table if account type assignment looks off.
+const accountTypeCodeToId: Record<AccountType, number> = {
+  ASSET: 1, LIABILITY: 2, EQUITY: 3, REVENUE: 4, EXPENSE: 5,
+};
+
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,14 +39,14 @@ export default function AccountsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get<Account[]>("account", odata().include(["parent", "children"]).orderByMulti({ type: "asc", code: "asc" }).take(200).toParams());
+      const res = await api.get<Account[]>("account", odata().include(["Type", "Parent", "Children"]).orderByMulti({ TypeID: "asc", Code: "asc" }).take(200).toParams());
       if (res.success) setAccounts(res.data || []);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   }, []);
 
   const fetchParents = async () => {
-    const res = await api.get<Account[]>("account", odata().where({ parentId: null }).take(100).toParams()).catch(() => ({ data: [] } as any));
+    const res = await api.get<Account[]>("account", odata().where({ ParentID: null }).include(["Type"]).take(100).toParams()).catch(() => ({ data: [] } as any));
     setParentAccounts(res.data || []);
   };
 
@@ -46,11 +56,11 @@ export default function AccountsPage() {
     setSaving(true);
     try {
       const payload = {
-        code: form.code, name: form.name, type: form.type,
-        parentId: form.parentId ? Number(form.parentId) : null, isActive: form.isActive,
+        Code: form.code, Name: form.name, TypeID: accountTypeCodeToId[form.type],
+        ParentID: form.parentId ? Number(form.parentId) : null, IsActive: form.isActive,
       };
       if (selected) {
-        await api.patch("account", selected.id, payload);
+        await api.patch("account", selected.ID, payload);
       } else {
         await api.post("account", payload);
       }
@@ -64,7 +74,7 @@ export default function AccountsPage() {
     if (!selected) return;
     setSaving(true);
     try {
-      await api.delete("account", selected.id);
+      await api.delete("account", selected.ID);
       setShowDelete(false);
       fetchData();
     } catch (e) { console.error(e); }
@@ -81,7 +91,7 @@ export default function AccountsPage() {
   };
 
   // Build tree
-  const rootAccounts = accounts.filter(a => !a.parentId);
+  const rootAccounts = accounts.filter(a => !a.ParentID);
 
   const toggleExpand = (id: number) => {
     setExpanded(prev => {
@@ -93,31 +103,32 @@ export default function AccountsPage() {
   };
 
   const renderAccount = (account: Account, level = 0): React.ReactNode => {
-    const children = accounts.filter(a => a.parentId === account.id);
+    const children = accounts.filter(a => a.ParentID === account.ID);
     const hasChildren = children.length > 0;
-    const isExpanded = expanded.has(account.id);
+    const isExpanded = expanded.has(account.ID);
+    const typeCode = (account.Type?.Code || "ASSET") as AccountType;
 
     return (
-      <div key={account.id}>
+      <div key={account.ID}>
         <div className={cn("flex items-center gap-2 rounded-lg border border-transparent px-3 py-2.5 transition-colors hover:bg-elevated", level > 0 && "ml-6 border-l border-default")}>
           {hasChildren && (
-            <button onClick={() => toggleExpand(account.id)} className="flex size-5 items-center justify-center rounded text-muted transition-colors hover:text-highlighted">
+            <button onClick={() => toggleExpand(account.ID)} className="flex size-5 items-center justify-center rounded text-muted transition-colors hover:text-highlighted">
               <ChevronRight className={cn("size-3.5 transition-transform", isExpanded && "rotate-90")} />
             </button>
           )}
           {!hasChildren && <div className="size-5" />}
           <div className="flex size-7 items-center justify-center rounded bg-elevated">
-            <span className={cn("text-xs font-bold", typeColors[account.type])}>{account.code}</span>
+            <span className={cn("text-xs font-bold", typeColors[typeCode])}>{account.Code}</span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{account.name}</p>
+            <p className="text-sm font-medium truncate">{account.Name}</p>
           </div>
-          <Badge variant={account.isActive ? "success" : "danger"} size="sm">
-            {account.isActive ? "Aktif" : "Nonaktif"}
+          <Badge variant={account.IsActive ? "success" : "danger"} size="sm">
+            {account.IsActive ? "Aktif" : "Nonaktif"}
           </Badge>
-          <span className={cn("text-xs font-semibold", typeColors[account.type])}>{typeLabels[account.type]}</span>
+          <span className={cn("text-xs font-semibold", typeColors[typeCode])}>{typeLabels[typeCode]}</span>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" icon={Edit} onClick={() => { setSelected(account); setForm({ code: account.code, name: account.name, type: account.type, parentId: String(account.parentId || ""), isActive: account.isActive }); fetchParents(); setShowForm(true); }} />
+            <Button variant="ghost" size="icon" icon={Edit} onClick={() => { setSelected(account); setForm({ code: account.Code, name: account.Name, type: typeCode, parentId: String(account.ParentID || ""), isActive: account.IsActive }); fetchParents(); setShowForm(true); }} />
             <Button variant="ghost" size="icon" icon={Trash2} onClick={() => { setSelected(account); setShowDelete(true); }} />
           </div>
         </div>
@@ -156,7 +167,7 @@ export default function AccountsPage() {
           </div>
           <Input label="Nama Akun" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />
           <Select label="Induk (Parent)" value={form.parentId} onChange={e => setForm(f => ({ ...f, parentId: e.target.value }))}
-            options={[{ value: "", label: "Tanpa Induk (Root)" }, ...parentAccounts.filter(a => a.id !== selected?.id).map(a => ({ value: a.id, label: `${a.code} - ${a.name}` }))]} />
+            options={[{ value: "", label: "Tanpa Induk (Root)" }, ...parentAccounts.filter(a => a.ID !== selected?.ID).map(a => ({ value: a.ID, label: `${a.Code} - ${a.Name}` }))]} />
           <div className="flex items-center gap-2">
             <input type="checkbox" id="isActive" checked={form.isActive} onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))} className="size-4 rounded border-default" />
             <label htmlFor="isActive" className="text-sm">Akun Aktif</label>
@@ -165,7 +176,7 @@ export default function AccountsPage() {
       </Modal>
 
       <ConfirmModal open={showDelete} onClose={() => setShowDelete(false)} onConfirm={handleDelete}
-        title="Hapus Akun" message={`Yakin menghapus akun "${selected?.name}"?`} confirmText="Hapus" variant="danger" loading={saving} />
+        title="Hapus Akun" message={`Yakin menghapus akun "${selected?.Name}"?`} confirmText="Hapus" variant="danger" loading={saving} />
     </PageWrapper>
   );
 }

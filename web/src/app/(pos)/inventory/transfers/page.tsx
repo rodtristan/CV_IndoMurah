@@ -24,7 +24,7 @@ export default function TransfersPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("stock-transfer", { $search: search || undefined, $include: "fromWarehouse,toWarehouse" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+      const res = await api.get("stock-transfer", { $search: search || undefined, $include: "fromWarehouse,toWarehouse,status" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
       if (res.success) setData(res.data || []);
     } finally { setLoading(false); }
   }, [search]);
@@ -55,14 +55,14 @@ export default function TransfersPage() {
   };
 
   const columns = [
-    { key: "date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
-    { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "fromWarehouse", label: "Dari", render: (v: unknown) => (v as any)?.name || "-" },
-    { key: "toWarehouse", label: "Ke", render: (v: unknown) => (v as any)?.name || "-" },
-    { key: "totalItems", label: "Total Item", align: "right" as const },
-    { key: "status", label: "Status", render: (v: unknown) => {
-      const s = v as string;
-      return s === "COMPLETED" ? <Badge variant="success">Selesai</Badge> : s === "PENDING" ? <Badge variant="warning">Pending</Badge> : <Badge variant="default">{s}</Badge>;
+    { key: "Date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
+    { key: "Code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
+    { key: "FromWarehouse", label: "Dari", render: (v: unknown) => (v as any)?.Name || "-" },
+    { key: "ToWarehouse", label: "Ke", render: (v: unknown) => (v as any)?.Name || "-" },
+    { key: "TotalItems", label: "Total Item", align: "right" as const },
+    { key: "Status", label: "Status", render: (v: unknown) => {
+      const s = (v as any)?.Code as string | undefined;
+      return s === "COMPLETED" ? <Badge variant="success">Selesai</Badge> : s === "PENDING" ? <Badge variant="warning">Pending</Badge> : <Badge variant="default">{s || "-"}</Badge>;
     }},
   ];
 
@@ -86,9 +86,9 @@ export default function TransfersPage() {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <Input label="Tanggal" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
-            <Select label="Dari Gudang" value={form.fromWarehouseId} onChange={e => setForm(f => ({ ...f, fromWarehouseId: e.target.value }))} options={warehouses.map(w => ({ value: w.id, label: w.name }))} />
+            <Select label="Dari Gudang" value={form.fromWarehouseId} onChange={e => setForm(f => ({ ...f, fromWarehouseId: e.target.value }))} options={warehouses.map(w => ({ value: w.ID, label: w.Name }))} />
           </div>
-          <Select label="Ke Gudang" value={form.toWarehouseId} onChange={e => setForm(f => ({ ...f, toWarehouseId: e.target.value }))} options={warehouses.map(w => ({ value: w.id, label: w.name }))} />
+          <Select label="Ke Gudang" value={form.toWarehouseId} onChange={e => setForm(f => ({ ...f, toWarehouseId: e.target.value }))} options={warehouses.map(w => ({ value: w.ID, label: w.Name }))} />
           <Input label="Catatan" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button>

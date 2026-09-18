@@ -36,7 +36,7 @@ export default function UsersPage() {
     const res = await api.get("company", { $take: 1 } as any).catch(() => ({ success: false, data: { data: [] } } as any));
     if (res.success) {
       const company = Array.isArray(res.data) ? res.data[0] : res.data;
-      if (company?.id) setCompanyId(company.id);
+      if (company?.ID) setCompanyId(company.ID);
     }
   }, []);
 
@@ -62,17 +62,17 @@ export default function UsersPage() {
   };
 
   const columns = [
-    { key: "name", label: "Nama" },
-    { key: "username", label: "Username" },
-    { key: "email", label: "Email" },
-    { key: "role", label: "Role", render: (v: unknown) => <span className="capitalize">{v as string}</span> },
-    { key: "isActive", label: "Status", render: (v: unknown) => v ? <Badge variant="success">Aktif</Badge> : <Badge variant="default">Nonaktif</Badge> },
+    { key: "Name", label: "Nama" },
+    { key: "Username", label: "Username" },
+    { key: "Email", label: "Email" },
+    { key: "Role", label: "Role", render: (v: unknown) => <span className="capitalize">{v as string}</span> },
+    { key: "IsActive", label: "Status", render: (v: unknown) => v ? <Badge variant="success">Aktif</Badge> : <Badge variant="default">Nonaktif</Badge> },
     {
       key: "actions", label: "", width: "70px",
       render: (_: unknown, row: any) => (
         <div className="flex gap-1">
-          <RowEditIcon onClick={() => { setForm({ ...row, password: "" }); setShowForm(true); }} />
-          <RowDeleteIcon onClick={() => handleDelete(row.id)} />
+          <RowEditIcon onClick={() => { setForm({ id: row.ID, name: row.Name, username: row.Username, email: row.Email || "", password: "", role: row.Role, isActive: row.IsActive } as any); setShowForm(true); }} />
+          <RowDeleteIcon onClick={() => handleDelete(row.ID)} />
         </div>
       )
     },

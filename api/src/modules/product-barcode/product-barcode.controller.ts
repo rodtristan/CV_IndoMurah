@@ -8,7 +8,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 @ApiTags('ProductBarcodes')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('ProductBarcode')
+@Controller('product-barcode')
 export class ProductBarcodeController extends BaseController<
   any,
   CreateProductBarcodeDto,

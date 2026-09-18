@@ -3,7 +3,7 @@ import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
 import { Prisma } from '@prisma/client';
-import { CreateSaleReturnDto, UpdateSaleReturnDto, UpdateStatusDto } from './dto/sale-return.dto';
+import { CreateSaleReturnDto, UpdateSaleReturnDto, UpdateSaleReturnStatusDto } from './dto/sale-return.dto';
 
 @Injectable()
 export class SaleReturnService {
@@ -25,7 +25,7 @@ export class SaleReturnService {
         const prismaQuery = this.queryService.buildPrismaQuery(query, {
           searchableFields: ['*'],
           allowedIncludes: ['*'],
-          defaultOrderBy: { createdAt: 'desc' },
+          defaultOrderBy: { CreatedAt: 'desc' },
         });
 
         const findArgs: any = {
@@ -63,7 +63,7 @@ export class SaleReturnService {
           allowedIncludes: ['*'],
         });
 
-        const findArgs: any = { where: { id } };
+        const findArgs: any = { where: { ID: id } };
 
         if (prismaQuery.select) {
           findArgs.select = prismaQuery.select;
@@ -80,44 +80,45 @@ export class SaleReturnService {
 
   async create(dto: CreateSaleReturnDto, userId: string) {
     // Verify sale exists
-    const sale = await this.prisma.sale.findUnique({ where: { id: dto.saleId } });
+    const sale = await this.prisma.sale.findUnique({ where: { ID: dto.SaleID } });
     if (!sale) throw new NotFoundException('Sale not found');
 
     const code = await this.generateCode();
+    const draftStatus = await this.getStatusByCode('DRAFT');
 
     // Calculate total return
-    const itemsData = dto.items.map((item) => {
-      const subtotal = item.unitPrice * item.quantity;
+    const itemsData = dto.Items.map((item) => {
+      const subtotal = item.UnitPrice * item.Quantity;
       return {
-        productId: item.productId,
-        quantity: new Prisma.Decimal(item.quantity.toString()),
-        unitPrice: new Prisma.Decimal(item.unitPrice.toString()),
-        subtotal: new Prisma.Decimal(subtotal.toString()),
+        ProductID: item.ProductID,
+        Quantity: new Prisma.Decimal(item.Quantity.toString()),
+        UnitPrice: new Prisma.Decimal(item.UnitPrice.toString()),
+        Subtotal: new Prisma.Decimal(subtotal.toString()),
       };
     });
 
-    const totalReturn = itemsData.reduce((sum, item) => sum + Number(item.subtotal), 0);
+    const totalReturn = itemsData.reduce((sum, item) => sum + Number(item.Subtotal), 0);
 
     const saleReturn = await this.prisma.saleReturn.create({
       data: {
-        code,
-        saleId: dto.saleId,
-        customerId: dto.customerId || sale.customerId,
-        warehouseId: dto.warehouseId,
-        date: dto.date ? new Date(dto.date) : new Date(),
-        totalReturn: new Prisma.Decimal(totalReturn.toString()),
-        reason: dto.reason,
-        status: 'DRAFT',
-        createdById: userId,
-        returnItems: {
+        Code: code,
+        SaleID: dto.SaleID,
+        CustomerID: dto.CustomerID || sale.CustomerID,
+        WarehouseID: dto.WarehouseID,
+        Date: dto.Date ? new Date(dto.Date) : new Date(),
+        TotalReturn: new Prisma.Decimal(totalReturn.toString()),
+        Reason: dto.Reason,
+        StatusID: draftStatus.ID,
+        CreatedByID: userId,
+        ReturnItems: {
           create: itemsData,
         },
       },
       include: {
-        sale: true,
-        customer: true,
-        warehouse: true,
-        returnItems: { include: { product: true, unit: true } },
+        Sale: true,
+        Customer: true,
+        Warehouse: true,
+        ReturnItems: { include: { Product: true, Unit: true } },
       },
     });
 
@@ -127,24 +128,25 @@ export class SaleReturnService {
   }
 
   async update(id: number, dto: UpdateSaleReturnDto) {
-    const saleReturn = await this.prisma.saleReturn.findUnique({ where: { id } });
+    const saleReturn = await this.prisma.saleReturn.findUnique({ where: { ID: id } });
     if (!saleReturn) throw new NotFoundException('Sale return not found');
-    if (saleReturn.status !== 'DRAFT') {
+    const status = await this.getStatusById(saleReturn.StatusID);
+    if (status?.Code !== 'DRAFT') {
       throw new BadRequestException('Can only update draft sale returns');
     }
 
     const updated = await this.prisma.saleReturn.update({
-      where: { id },
+      where: { ID: id },
       data: {
-        warehouseId: dto.warehouseId,
-        date: dto.date ? new Date(dto.date) : undefined,
-        reason: dto.reason,
+        WarehouseID: dto.WarehouseID,
+        Date: dto.Date ? new Date(dto.Date) : undefined,
+        Reason: dto.Reason,
       },
       include: {
-        sale: true,
-        customer: true,
-        warehouse: true,
-        returnItems: { include: { product: true, unit: true } },
+        Sale: true,
+        Customer: true,
+        Warehouse: true,
+        ReturnItems: { include: { Product: true, Unit: true } },
       },
     });
 
@@ -153,31 +155,36 @@ export class SaleReturnService {
     return this.serialize(updated);
   }
 
-  async updateStatus(id: number, dto: UpdateStatusDto) {
+  async updateStatus(id: number, dto: UpdateSaleReturnStatusDto) {
     const saleReturn = await this.prisma.saleReturn.findUnique({
-      where: { id },
-      include: { returnItems: true },
+      where: { ID: id },
+      include: { ReturnItems: true },
     });
     if (!saleReturn) throw new NotFoundException('Sale return not found');
+
+    const currentStatus = await this.getStatusById(saleReturn.StatusID);
+    const currentCode = currentStatus?.Code ?? 'DRAFT';
 
     const validTransitions: Record<string, string[]> = {
       DRAFT: ['CONFIRMED', 'CANCELLED'],
       CONFIRMED: ['COMPLETED', 'CANCELLED'],
     };
 
-    const allowed = validTransitions[saleReturn.status] || [];
-    if (!allowed.includes(dto.status)) {
-      throw new BadRequestException(`Cannot transition from '${saleReturn.status}' to '${dto.status}'`);
+    const allowed = validTransitions[currentCode] || [];
+    if (!allowed.includes(dto.StatusCode)) {
+      throw new BadRequestException(`Cannot transition from '${currentCode}' to '${dto.StatusCode}'`);
     }
 
+    const newStatus = await this.getStatusByCode(dto.StatusCode);
+
     const updated = await this.prisma.saleReturn.update({
-      where: { id },
-      data: { status: dto.status as any },
+      where: { ID: id },
+      data: { StatusID: newStatus.ID },
       include: {
-        sale: true,
-        customer: true,
-        warehouse: true,
-        returnItems: { include: { product: true, unit: true } },
+        Sale: true,
+        Customer: true,
+        Warehouse: true,
+        ReturnItems: { include: { Product: true, Unit: true } },
       },
     });
 
@@ -187,16 +194,29 @@ export class SaleReturnService {
   }
 
   async delete(id: number) {
-    const saleReturn = await this.prisma.saleReturn.findUnique({ where: { id } });
+    const saleReturn = await this.prisma.saleReturn.findUnique({ where: { ID: id } });
     if (!saleReturn) throw new NotFoundException('Sale return not found');
-    if (saleReturn.status !== 'DRAFT') {
+    const status = await this.getStatusById(saleReturn.StatusID);
+    if (status?.Code !== 'DRAFT') {
       throw new BadRequestException('Can only delete draft sale returns');
     }
 
-    await this.prisma.saleReturn.delete({ where: { id } });
+    await this.prisma.saleReturn.delete({ where: { ID: id } });
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
 
     return { id };
+  }
+
+  // ─── TransactionStatus lookup helpers ───────────────────────────────────
+
+  private async getStatusByCode(code: string) {
+    const status = await this.prisma.transactionStatus.findUnique({ where: { Code: code } });
+    if (!status) throw new BadRequestException(`Status '${code}' tidak ditemukan`);
+    return status;
+  }
+
+  private async getStatusById(id: number) {
+    return this.prisma.transactionStatus.findUnique({ where: { ID: id } });
   }
 
   private async generateCode(): Promise<string> {
@@ -206,14 +226,14 @@ export class SaleReturnService {
     const prefix = `SR-${year}${month}`;
 
     const lastReturn = await this.prisma.saleReturn.findFirst({
-      where: { code: { startsWith: prefix } },
-      orderBy: { code: 'desc' },
-      select: { code: true },
+      where: { Code: { startsWith: prefix } },
+      orderBy: { Code: 'desc' },
+      select: { Code: true },
     });
 
     let nextNumber = 1;
     if (lastReturn) {
-      const lastSeq = parseInt(lastReturn.code.split('-').pop() || '0', 10);
+      const lastSeq = parseInt(lastReturn.Code.split('-').pop() || '0', 10);
       nextNumber = lastSeq + 1;
     }
 
@@ -234,8 +254,8 @@ export class SaleReturnService {
       }
     }
 
-    if (data.returnItems && Array.isArray(data.returnItems)) {
-      result.returnItems = data.returnItems.map((item: any) => this.serialize(item));
+    if (data.ReturnItems && Array.isArray(data.ReturnItems)) {
+      result.ReturnItems = data.ReturnItems.map((item: any) => this.serialize(item));
     }
 
     return result;

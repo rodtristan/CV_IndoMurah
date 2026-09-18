@@ -51,6 +51,17 @@ export class InventoryReportFilterDto {
   categoryId?: number;
 }
 
+export class StockMutationFilterDto extends DateRangeFilterDto {
+  @ApiProperty({ description: 'Product ID' })
+  @IsInt()
+  productId: number;
+
+  @ApiPropertyOptional({ description: 'Warehouse ID filter' })
+  @IsOptional()
+  @IsInt()
+  warehouseId?: number;
+}
+
 // ─── Response DTOs ──────────────────────────────────────────────────────────
 
 export class SalesReportItemDto {
@@ -213,6 +224,12 @@ export class ProfitLossReportResponseDto {
   profitMargin: number;
 }
 
+export interface AgingBucket {
+  label: string;
+  count: number;
+  amount: number;
+}
+
 export class DebtReportResponseDto {
   summary: {
     totalDebt: number;
@@ -220,6 +237,7 @@ export class DebtReportResponseDto {
     remainingDebt: number;
     overdueCount: number;
   };
+  aging: AgingBucket[];
   debts: Array<{
     purchaseId: number;
     code: string;
@@ -228,6 +246,8 @@ export class DebtReportResponseDto {
     total: number;
     paid: number;
     remaining: number;
+    ageDays: number;
+    agingBucket: string;
   }>;
 }
 
@@ -238,6 +258,7 @@ export class ReceivableReportResponseDto {
     remainingReceivable: number;
     overdueCount: number;
   };
+  aging: AgingBucket[];
   receivables: Array<{
     saleId: number;
     code: string;
@@ -246,5 +267,27 @@ export class ReceivableReportResponseDto {
     total: number;
     paid: number;
     remaining: number;
+    ageDays: number;
+    agingBucket: string;
+  }>;
+}
+
+export class StockMutationResponseDto {
+  productId: number;
+  productCode: string;
+  productName: string;
+  openingBalance: number;
+  closingBalance: number;
+  totalIn: number;
+  totalOut: number;
+  mutations: Array<{
+    date: string;
+    type: 'IN' | 'OUT' | 'TRANSFER_IN' | 'TRANSFER_OUT' | 'OPNAME';
+    code: string;
+    warehouseName: string;
+    description: string | null;
+    qtyIn: number;
+    qtyOut: number;
+    balance: number;
   }>;
 }

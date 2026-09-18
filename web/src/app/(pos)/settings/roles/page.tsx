@@ -11,19 +11,19 @@ import { FilterBar } from "@/components/ui/FilterBar";
 import { GridActions, RowEditIcon, RowDeleteIcon } from "@/components/ui/GridActions";
 import { api } from "@/lib/api-client";
 
-// Backend Role model (prisma/schema.prisma): id, roleName, roleDescription,
-// isActive — no `code`/`isDefault` fields exist, so this form only edits
+// Backend Role model (prisma/schema.prisma): ID, RoleName, RoleDescription,
+// IsActive — no `code`/`isDefault` fields exist, so this form only edits
 // the fields that are actually persisted.
 export default function RolesPage() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ roleName: "", roleDescription: "" });
+  const [form, setForm] = useState<{ id?: number; roleName: string; roleDescription: string }>({ roleName: "", roleDescription: "" });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("roles", { $select: "id,roleName,roleDescription,isActive" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+      const res = await api.get("roles", { $select: "ID,RoleName,RoleDescription,IsActive" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
       if (res.success) setData(res.data || []);
     } finally { setLoading(false); }
   }, []);
@@ -47,15 +47,15 @@ export default function RolesPage() {
   };
 
   const columns = [
-    { key: "roleName", label: "Nama Role" },
-    { key: "roleDescription", label: "Deskripsi", render: (v: unknown) => v || "-" },
-    { key: "isActive", label: "Status", render: (v: unknown) => v ? <Badge variant="success">Aktif</Badge> : <Badge variant="default">Nonaktif</Badge> },
+    { key: "RoleName", label: "Nama Role" },
+    { key: "RoleDescription", label: "Deskripsi", render: (v: unknown) => v || "-" },
+    { key: "IsActive", label: "Status", render: (v: unknown) => v ? <Badge variant="success">Aktif</Badge> : <Badge variant="default">Nonaktif</Badge> },
     {
       key: "actions", label: "", width: "70px",
       render: (_: unknown, row: any) => (
         <div className="flex gap-1">
-          <RowEditIcon onClick={() => { setForm(row); setShowForm(true); }} />
-          <RowDeleteIcon onClick={() => handleDelete(row.id)} />
+          <RowEditIcon onClick={() => { setForm({ id: row.ID, roleName: row.RoleName, roleDescription: row.RoleDescription || "" }); setShowForm(true); }} />
+          <RowDeleteIcon onClick={() => handleDelete(row.ID)} />
         </div>
       )
     },

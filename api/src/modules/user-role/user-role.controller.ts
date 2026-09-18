@@ -8,7 +8,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 @ApiTags('UserRoles')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('UserRole')
+@Controller('user-role')
 export class UserRoleController extends BaseController<
   any,
   CreateUserRoleDto,

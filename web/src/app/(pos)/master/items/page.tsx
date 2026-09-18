@@ -87,12 +87,12 @@ export default function MasterItemsPage() {
   const openEdit = (product: Product) => {
     setSelectedProduct(product);
     setForm({
-      code: product.code, barcode: product.barcode || "", name: product.name,
-      categoryId: String(product.categoryId || ""), brandId: String(product.brandId || ""),
-      unitId: String(product.unitId), warehouseId: String(product.warehouseId || ""),
-      purchasePrice: String(product.purchasePrice), sellingPrice: String(product.sellingPrice),
-      stock: String(product.stock), minimumStock: String(product.minimumStock),
-      description: product.description || "", isActive: product.isActive,
+      code: product.Code, barcode: product.Barcode || "", name: product.Name,
+      categoryId: String(product.CategoryID || ""), brandId: String(product.BrandID || ""),
+      unitId: String(product.UnitID), warehouseId: String(product.WarehouseID || ""),
+      purchasePrice: String(product.PurchasePrice), sellingPrice: String(product.SellingPrice),
+      stock: String(product.Stock), minimumStock: String(product.MinimumStock),
+      description: product.Description || "", isActive: product.IsActive,
     });
     fetchLookups();
     setShowForm(true);
@@ -117,7 +117,7 @@ export default function MasterItemsPage() {
       if (selectedProduct) {
         // UpdateProductDto deliberately excludes `stock` — stock changes go
         // through the dedicated adjust-stock endpoint for auditability.
-        await api.patch("products", selectedProduct.id, basePayload);
+        await api.patch("products", selectedProduct.ID, basePayload);
       } else {
         await api.post("products", { ...basePayload, stock: Number(form.stock) });
       }
@@ -134,7 +134,7 @@ export default function MasterItemsPage() {
     if (!selectedProduct) return;
     setSaving(true);
     try {
-      await api.delete("products", selectedProduct.id);
+      await api.delete("products", selectedProduct.ID);
       setShowDelete(false);
       fetchProducts();
     } catch (e) {
@@ -151,30 +151,30 @@ export default function MasterItemsPage() {
       width: 36,
       render: (_: unknown, row: Product) => <RowEditIcon onClick={() => openEdit(row)} />,
     },
-    { key: "code", label: "Kode Item" },
-    { key: "barcode", label: "Barcode", render: (v: unknown) => (v as string) || "-" },
+    { key: "Code", label: "Kode Item" },
+    { key: "Barcode", label: "Barcode", render: (v: unknown) => (v as string) || "-" },
     { key: "sku", label: "SKU", render: () => "-" },
     {
-      key: "name",
+      key: "Name",
       label: "Nama Item",
       render: (v: unknown) => <span className="font-medium">{String(v)}</span>,
     },
     {
-      key: "stock",
+      key: "Stock",
       label: "Stok Fisik",
       align: "right" as const,
       render: (v: unknown) => formatNumber(Number(v)),
     },
     {
-      key: "unit",
+      key: "Unit",
       label: "Satuan",
-      render: (_: unknown, row: Product) => row.unit?.abbreviation || row.unit?.code || "-",
+      render: (_: unknown, row: Product) => row.Unit?.Abbreviation || row.Unit?.Code || "-",
     },
-    { key: "category.name", label: "Jenis", render: (_: unknown, row: Product) => row.category?.name || "-" },
-    { key: "brand.name", label: "Merek", render: (_: unknown, row: Product) => row.brand?.name || "-" },
+    { key: "Category.Name", label: "Jenis", render: (_: unknown, row: Product) => row.Category?.Name || "-" },
+    { key: "Brand.Name", label: "Merek", render: (_: unknown, row: Product) => row.Brand?.Name || "-" },
     { key: "rak", label: "Rak", render: () => "-" },
     {
-      key: "purchasePrice",
+      key: "PurchasePrice",
       label: "Harga Pokok",
       align: "right" as const,
       render: (v: unknown) => formatNumber(Number(v)),
@@ -186,13 +186,13 @@ export default function MasterItemsPage() {
       render: () => "0",
     },
     {
-      key: "sellingPrice",
+      key: "SellingPrice",
       label: "Harga Jual",
       align: "right" as const,
       render: (v: unknown) => formatNumber(Number(v)),
     },
     {
-      key: "description",
+      key: "Description",
       label: "Keterangan",
       render: (v: unknown) => (v as string) || "-",
     },
@@ -204,9 +204,9 @@ export default function MasterItemsPage() {
         <FilterBar
           fields={[
             { key: "search", label: "Kata Kunci", type: "text", placeholder: "Cari nama / kode / barcode" },
-            { key: "warehouseId", label: "Dept/Gudang", type: "select", options: [{ value: "", label: "Semua Gudang" }, ...warehouses.map(w => ({ value: w.id, label: w.name }))] },
-            { key: "categoryId", label: "Jenis", type: "select", options: [{ value: "", label: "Semua" }, ...categories.map(c => ({ value: c.id, label: c.name }))] },
-            { key: "brandId", label: "Merek", type: "select", options: [{ value: "", label: "Semua" }, ...brands.map(b => ({ value: b.id, label: b.name }))] },
+            { key: "warehouseId", label: "Dept/Gudang", type: "select", options: [{ value: "", label: "Semua Gudang" }, ...warehouses.map(w => ({ value: w.ID, label: w.Name }))] },
+            { key: "categoryId", label: "Jenis", type: "select", options: [{ value: "", label: "Semua" }, ...categories.map(c => ({ value: c.ID, label: c.Name }))] },
+            { key: "brandId", label: "Merek", type: "select", options: [{ value: "", label: "Semua" }, ...brands.map(b => ({ value: b.ID, label: b.Name }))] },
             { key: "isActive", label: "Pilihan Item", type: "select", options: [{ value: "", label: "Semua Data" }, { value: "true", label: "Aktif" }, { value: "false", label: "Nonaktif" }] },
           ]}
           onFilter={setFilters}
@@ -235,7 +235,7 @@ export default function MasterItemsPage() {
             columns={columns}
             loading={loading}
             emptyMessage="Tidak ada item"
-            selectedId={selectedProduct?.id ?? null}
+            selectedId={selectedProduct?.ID ?? null}
             onRowClick={(row) => setSelectedProduct(row)}
             pagination={{
               page: pagination.page,
@@ -260,10 +260,10 @@ export default function MasterItemsPage() {
           <Input label="Kode" value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} required />
           <Input label="Barcode" value={form.barcode} onChange={(e) => setForm((f) => ({ ...f, barcode: e.target.value }))} />
           <div className="col-span-2"><Input label="Nama Produk" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required /></div>
-          <Select label="Kategori" value={form.categoryId} onChange={(e) => setForm((f) => ({ ...f, categoryId: e.target.value }))} options={[{ value: "", label: "Pilih..." }, ...categories.map(c => ({ value: c.id, label: c.name }))]} />
-          <Select label="Merek" value={form.brandId} onChange={(e) => setForm((f) => ({ ...f, brandId: e.target.value }))} options={[{ value: "", label: "Pilih..." }, ...brands.map(b => ({ value: b.id, label: b.name }))]} />
-          <Select label="Satuan" value={form.unitId} onChange={(e) => setForm((f) => ({ ...f, unitId: e.target.value }))} options={[{ value: "", label: "Pilih..." }, ...units.map(u => ({ value: u.id, label: `${u.name} (${u.abbreviation || u.code})` }))]} required />
-          <Select label="Gudang" value={form.warehouseId} onChange={(e) => setForm((f) => ({ ...f, warehouseId: e.target.value }))} options={[{ value: "", label: "Pilih..." }, ...warehouses.map(w => ({ value: w.id, label: w.name }))]} />
+          <Select label="Kategori" value={form.categoryId} onChange={(e) => setForm((f) => ({ ...f, categoryId: e.target.value }))} options={[{ value: "", label: "Pilih..." }, ...categories.map(c => ({ value: c.ID, label: c.Name }))]} />
+          <Select label="Merek" value={form.brandId} onChange={(e) => setForm((f) => ({ ...f, brandId: e.target.value }))} options={[{ value: "", label: "Pilih..." }, ...brands.map(b => ({ value: b.ID, label: b.Name }))]} />
+          <Select label="Satuan" value={form.unitId} onChange={(e) => setForm((f) => ({ ...f, unitId: e.target.value }))} options={[{ value: "", label: "Pilih..." }, ...units.map(u => ({ value: u.ID, label: `${u.Name} (${u.Abbreviation || u.Code})` }))]} required />
+          <Select label="Gudang" value={form.warehouseId} onChange={(e) => setForm((f) => ({ ...f, warehouseId: e.target.value }))} options={[{ value: "", label: "Pilih..." }, ...warehouses.map(w => ({ value: w.ID, label: w.Name }))]} />
           <Input label="Harga Beli" type="number" value={form.purchasePrice} onChange={(e) => setForm((f) => ({ ...f, purchasePrice: e.target.value }))} required />
           <Input label="Harga Jual" type="number" value={form.sellingPrice} onChange={(e) => setForm((f) => ({ ...f, sellingPrice: e.target.value }))} required />
           <Input label="Stok" type="number" value={form.stock} onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))} required />
@@ -276,7 +276,7 @@ export default function MasterItemsPage() {
         onClose={() => setShowDelete(false)}
         onConfirm={handleDelete}
         title="Hapus Produk"
-        message={`Yakin ingin menghapus "${selectedProduct?.name}"? Tindakan ini tidak dapat dibatalkan.`}
+        message={`Yakin ingin menghapus "${selectedProduct?.Name}"? Tindakan ini tidak dapat dibatalkan.`}
         confirmText="Hapus"
         variant="danger"
         loading={saving}

@@ -32,7 +32,7 @@ export default function JournalsPage() {
   }, [search]);
 
   const fetchAccounts = useCallback(async () => {
-    const res = await api.get("account", { $select: "id,code,name,type" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+    const res = await api.get("account", { $select: "ID,Code,Name" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
     if (res.success) setAccounts(res.data || []);
   }, []);
 
@@ -64,18 +64,18 @@ export default function JournalsPage() {
   };
 
   const columns = [
-    { key: "date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
-    { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "description", label: "Keterangan" },
-    { key: "reference", label: "Referensi", render: (v: unknown) => v ? <span className="text-muted">{v as string}</span> : <span className="text-muted">-</span> },
+    { key: "Date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
+    { key: "Code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
+    { key: "Description", label: "Keterangan" },
+    { key: "ReferenceType", label: "Referensi", render: (v: unknown) => v ? <span className="text-muted">{v as string}</span> : <span className="text-muted">-</span> },
     { key: "totalDebit", label: "Debit", align: "right" as const, render: (v: unknown) => <span className="font-semibold">{formatCurrency(v as number)}</span> },
     { key: "totalCredit", label: "Kredit", align: "right" as const, render: (v: unknown) => <span className="font-semibold">{formatCurrency(v as number)}</span> },
     {
       key: "actions", label: "", width: "70px",
       render: (_: unknown, row: any) => (
         <div className="flex gap-1">
-          <RowEditIcon onClick={() => { setEditData(row); setForm({ date: row.date, description: row.description, reference: row.reference || "", totalDebit: row.totalDebit, totalCredit: row.totalCredit, details: row.details || [] }); setShowForm(true); }} />
-          <RowDeleteIcon onClick={() => setDeleteId(row.id)} />
+          <RowEditIcon onClick={() => { setEditData(row); setForm({ date: row.Date ? String(row.Date).split("T")[0] : "", description: row.Description || "", reference: row.ReferenceType || "", totalDebit: row.totalDebit, totalCredit: row.totalCredit, details: row.details || [] }); setShowForm(true); }} />
+          <RowDeleteIcon onClick={() => setDeleteId(row.ID)} />
         </div>
       )
     },

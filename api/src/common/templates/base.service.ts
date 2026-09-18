@@ -51,6 +51,30 @@ import {
   UpsertReference,
 } from './model-metadata';
 
+// ================================================================
+// DTO → Prisma field-name mapping
+// ================================================================
+// Generated DTOs (Create*/Update*) were never renamed when the schema
+// moved to PascalCase (Code, Name, IsActive, CategoryID, ...). Rather
+// than hand-rename every generated DTO, translate keys generically at
+// the point they cross into Prisma: capitalize the first letter, and
+// normalize a trailing "Id" (from camelCase FK fields like categoryId)
+// to "ID" to match the schema's `XxxID` foreign-key convention.
+function toPascalKey(key: string): string {
+  if (!key) return key;
+  const capitalized = key.charAt(0).toUpperCase() + key.slice(1);
+  return capitalized.replace(/Id\b/g, 'ID');
+}
+
+function toPrismaData<TIn extends Record<string, any> | undefined | null>(obj: TIn): any {
+  if (!obj || typeof obj !== 'object') return obj;
+  const result: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    result[toPascalKey(key)] = value;
+  }
+  return result;
+}
+
 @Injectable()
 export class BaseService<
   T extends Record<string, any>,
@@ -74,8 +98,8 @@ export class BaseService<
       defaultTake: 20,
       cacheTtl: 60,
       softDelete: false,
-      softDeleteField: 'isActive',
-      defaultOrderBy: { createdAt: 'desc' as const },
+      softDeleteField: 'IsActive',
+      defaultOrderBy: { CreatedAt: 'desc' as const },
       ...config,
     };
     this.CACHE_PREFIX = config.modelName;
@@ -227,7 +251,7 @@ export class BaseService<
    */
   async create(dto: CreateDto): Promise<T> {
     // Generate code if configured
-    let data: any = { ...dto };
+    let data: any = toPrismaData({ ...dto });
     if (this.config.autoRelations) {
       for (const relation of this.config.autoRelations) {
         data[relation.field] = relation.value;
@@ -253,7 +277,7 @@ export class BaseService<
 
     for (const dto of dtos) {
       try {
-        let data: any = { ...dto };
+        let data: any = toPrismaData({ ...dto });
         if (this.config.autoRelations) {
           for (const relation of this.config.autoRelations) {
             data[relation.field] = relation.value;
@@ -303,7 +327,7 @@ export class BaseService<
 
     const result = await model.update({
       where: { [this.config.primaryKey]: id } as any,
-      data: dto,
+      data: toPrismaData(dto),
     });
 
     await this.invalidateCache();
@@ -318,22 +342,23 @@ export class BaseService<
    */
   async patchByFilterReference(filter: FilterReference, dto: Partial<UpdateDto>): Promise<T[]> {
     const model = this.getModel();
+    const where = toPrismaData(filter as any);
 
     // Check if any exists
-    const count = await model.count({ where: filter as any });
+    const count = await model.count({ where });
     if (count === 0) {
       throw new NotFoundException(`${this.config.modelName}(s) not found`);
     }
 
     const results = await model.updateMany({
-      where: filter as any,
-      data: dto,
+      where,
+      data: toPrismaData(dto),
     });
 
     await this.invalidateCache();
 
     // Return updated records
-    return model.findMany({ where: filter as any });
+    return model.findMany({ where });
   }
 
   /**
@@ -351,7 +376,7 @@ export class BaseService<
       try {
         const result = await model.update({
           where: { [this.config.primaryKey]: id } as any,
-          data: dto,
+          data: toPrismaData(dto),
         });
         success.push(result);
       } catch (error) {
@@ -426,9 +451,10 @@ export class BaseService<
    */
   async deleteByFilterReference(filter: FilterReference): Promise<{ count: number }> {
     const model = this.getModel();
+    const where = toPrismaData(filter as any);
 
     // Check if any exists
-    const count = await model.count({ where: filter as any });
+    const count = await model.count({ where });
     if (count === 0) {
       throw new NotFoundException(`${this.config.modelName}(s) not found`);
     }
@@ -438,13 +464,13 @@ export class BaseService<
     if (this.config.softDelete && this.config.softDeleteField) {
       // Soft delete
       result = await model.updateMany({
-        where: filter as any,
+        where,
         data: { [this.config.softDeleteField]: false } as any,
       });
     } else {
       // Hard delete
       result = await model.deleteMany({
-        where: filter as any,
+        where,
       });
     }
 
@@ -525,9 +551,9 @@ export class BaseService<
     const model = this.getModel();
 
     const result = await model.upsert({
-      where: where as any,
-      create: createDto,
-      update: updateDto,
+      where: toPrismaData(where as any),
+      create: toPrismaData(createDto as any),
+      update: toPrismaData(updateDto as any),
     });
 
     await this.invalidateCache();
@@ -545,24 +571,25 @@ export class BaseService<
     updateDto: Partial<UpdateDto>,
   ): Promise<T> {
     const model = this.getModel();
+    const where = toPrismaData(filter as any);
 
     // Check if exists
     const existing = await model.findFirst({
-      where: filter as any,
+      where,
     });
 
     if (existing) {
       // Update
       const result = await model.update({
         where: { [this.config.primaryKey]: (existing as any)[this.config.primaryKey] } as any,
-        data: updateDto,
+        data: toPrismaData(updateDto as any),
       });
       await this.invalidateCache();
       return result;
     } else {
       // Create
       const result = await model.create({
-        data: { ...filter, ...createDto } as any,
+        data: toPrismaData({ ...filter, ...createDto } as any),
       });
       await this.invalidateCache();
       return result;
@@ -584,19 +611,20 @@ export class BaseService<
     for (const item of items) {
       try {
         // Check if exists
+        const itemWhere = toPrismaData(item.where as any);
         const existing = await model.findFirst({
-          where: item.where as any,
+          where: itemWhere,
         });
 
         let result: T;
         if (existing) {
           result = await model.update({
             where: { [this.config.primaryKey]: (existing as any)[this.config.primaryKey] } as any,
-            data: item.update,
+            data: toPrismaData(item.update as any),
           });
         } else {
           result = await model.create({
-            data: { ...item.where, ...item.create } as any,
+            data: toPrismaData({ ...item.where, ...item.create } as any),
           });
         }
         success.push(result);

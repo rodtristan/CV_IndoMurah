@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Download, Users, AlertTriangle } from "lucide-react";
 import { PageWrapper, Card } from "@/components/layout/PageWrapper";
-import { StatCard } from "@/components/ui/StatCard";
+import { StatCard, Badge } from "@/components/ui/StatCard";
 import { DataTable } from "@/components/ui/DataTable";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { UtilityButton } from "@/components/ui/GridActions";
@@ -25,7 +25,10 @@ export default function ReceivableReportPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const { summary = {}, receivables = [] } = data || {};
+  const { summary = {}, receivables = [], aging = [] } = data || {};
+
+  const agingVariant = (label: string) =>
+    label === "Belum Jatuh Tempo" ? "success" : label === "> 90 Hari" ? "danger" : "warning";
 
   const columns = [
     { key: "code", label: "Kode Penjualan", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
@@ -34,6 +37,10 @@ export default function ReceivableReportPage() {
     { key: "total", label: "Total", align: "right" as const, render: (v: unknown) => formatCurrency(v as number) },
     { key: "paid", label: "Dibayar", align: "right" as const, render: (v: unknown) => formatCurrency(v as number) },
     { key: "remaining", label: "Sisa Piutang", align: "right" as const, render: (v: unknown) => <span className="font-bold text-warning">{formatCurrency(v as number)}</span> },
+    {
+      key: "agingBucket", label: "Umur Piutang",
+      render: (v: unknown) => <Badge variant={agingVariant(v as string)}>{v as string}</Badge>,
+    },
   ];
 
   return (
@@ -43,6 +50,21 @@ export default function ReceivableReportPage() {
         <StatCard title="Sudah Dibayar" value={formatCurrency(summary.totalPaid || 0)} icon={Users} iconClassName="bg-success/10 text-success" />
         <StatCard title="Sisa Piutang" value={formatCurrency(summary.remainingReceivable || 0)} icon={AlertTriangle} iconClassName="bg-danger/10 text-danger" />
       </div>
+
+      {aging.length > 0 && (
+        <Card className="p-4">
+          <h3 className="mb-3 font-semibold text-highlighted">Umur Piutang (Aging)</h3>
+          <div className="flex flex-wrap gap-3">
+            {aging.map((bucket: any) => (
+              <div key={bucket.label} className="flex items-center gap-2 rounded-lg border border-default px-3 py-2">
+                <Badge variant={agingVariant(bucket.label)}>{bucket.label}</Badge>
+                <span className="text-sm text-muted">{bucket.count} transaksi</span>
+                <span className="text-sm font-semibold">{formatCurrency(bucket.amount)}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <Card className="p-4">
         <FilterBar

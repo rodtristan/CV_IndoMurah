@@ -8,7 +8,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 @ApiTags('UserMenus')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('UserMenu')
+@Controller('user-menu')
 export class UserMenuController extends BaseController<
   any,
   CreateUserMenuDto,

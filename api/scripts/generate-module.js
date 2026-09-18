@@ -679,17 +679,17 @@ export class ${modelName}Service extends BaseService<
   ) {
     super(prisma, redis, queryService, {
       modelName: '${modelAccessor}',
-      primaryKey: 'id',
+      primaryKey: 'ID',
       // Use '*' to allow all fields (searchable, sortable, selectable, includable)
       searchableFields: ['*'],
       allowedIncludes: ['*'],
       allowedSortFields: ['*'],
       allowedSelectFields: ['*'],
-      defaultOrderBy: { createdAt: 'desc' },
+      defaultOrderBy: { CreatedAt: 'desc' },
       maxTake: 100,
       defaultTake: 20,
       cacheTtl: 60,
-      softDelete: ${softDelete},${softDelete ? "\n      softDeleteField: 'isActive'," : ''}
+      softDelete: ${softDelete},${softDelete ? "\n      softDeleteField: 'IsActive'," : ''}
     });
   }
 

@@ -31,7 +31,7 @@ export default function OpeningStockPage() {
       let rows: any[] = res.success ? res.data || [] : [];
       if (search) {
         const q = search.toLowerCase();
-        rows = rows.filter((r) => r.product?.name?.toLowerCase().includes(q) || r.product?.code?.toLowerCase().includes(q));
+        rows = rows.filter((r) => r.Product?.Name?.toLowerCase().includes(q) || r.Product?.Code?.toLowerCase().includes(q));
       }
       setData(rows);
     } finally { setLoading(false); }
@@ -51,8 +51,8 @@ export default function OpeningStockPage() {
 
   const openCreate = () => {
     setForm({
-      productId: products[0]?.id ? String(products[0].id) : "",
-      warehouseId: warehouses[0]?.id ? String(warehouses[0].id) : "",
+      productId: products[0]?.ID ? String(products[0].ID) : "",
+      warehouseId: warehouses[0]?.ID ? String(warehouses[0].ID) : "",
       quantity: 0,
       minimumStock: 0,
     });
@@ -83,17 +83,17 @@ export default function OpeningStockPage() {
   };
 
   const columns = [
-    { key: "productCode", label: "Kode Item", render: (_: unknown, row: any) => <span className="font-mono text-xs">{row.product?.code || "-"}</span> },
-    { key: "product", label: "Nama Item", render: (v: unknown) => (v as any)?.name || "-" },
-    { key: "warehouse", label: "Gudang", render: (v: unknown) => (v as any)?.name || "-" },
-    { key: "quantity", label: "Saldo Awal", align: "right" as const, render: (v: unknown) => <span className="font-semibold">{formatNumber(v as number)}</span> },
-    { key: "minimumStock", label: "Stok Minimum", align: "right" as const, render: (v: unknown) => formatNumber(v as number) },
+    { key: "productCode", label: "Kode Item", render: (_: unknown, row: any) => <span className="font-mono text-xs">{row.Product?.Code || "-"}</span> },
+    { key: "Product", label: "Nama Item", render: (v: unknown) => (v as any)?.Name || "-" },
+    { key: "Warehouse", label: "Gudang", render: (v: unknown) => (v as any)?.Name || "-" },
+    { key: "Quantity", label: "Saldo Awal", align: "right" as const, render: (v: unknown) => <span className="font-semibold">{formatNumber(v as number)}</span> },
+    { key: "MinimumStock", label: "Stok Minimum", align: "right" as const, render: (v: unknown) => formatNumber(v as number) },
     {
       key: "actions", label: "", width: "70px",
       render: (_: unknown, row: any) => (
         <div className="flex gap-1">
-          <RowEditIcon onClick={() => { setForm({ id: row.id, productId: row.productId, warehouseId: row.warehouseId, quantity: row.quantity, minimumStock: row.minimumStock } as any); setShowForm(true); }} />
-          <RowDeleteIcon onClick={() => handleDelete(row.id)} />
+          <RowEditIcon onClick={() => { setForm({ id: row.ID, productId: row.ProductID, warehouseId: row.WarehouseID, quantity: row.Quantity, minimumStock: row.MinimumStock } as any); setShowForm(true); }} />
+          <RowDeleteIcon onClick={() => handleDelete(row.ID)} />
         </div>
       )
     },
@@ -109,7 +109,7 @@ export default function OpeningStockPage() {
         <FilterBar
           fields={[
             { key: "search", label: "Kata Kunci", type: "text", placeholder: "Cari item..." },
-            { key: "warehouse", label: "Gudang", type: "select", options: [{ value: "", label: "Semua Gudang" }, ...warehouses.map((w) => ({ value: String(w.id), label: w.name }))] },
+            { key: "warehouse", label: "Gudang", type: "select", options: [{ value: "", label: "Semua Gudang" }, ...warehouses.map((w) => ({ value: String(w.ID), label: w.Name }))] },
           ]}
           onFilter={(v) => { setSearch((v.search as string) || ""); setWarehouseFilter((v.warehouse as string) || ""); }}
           loading={loading}
@@ -126,14 +126,14 @@ export default function OpeningStockPage() {
             label="Item"
             value={form.productId}
             onChange={(e) => setForm((f) => ({ ...f, productId: e.target.value }))}
-            options={products.map((p) => ({ value: p.id, label: `${p.code} - ${p.name}` }))}
+            options={products.map((p) => ({ value: p.ID, label: `${p.Code} - ${p.Name}` }))}
             disabled={Boolean((form as any).id)}
           />
           <Select
             label="Gudang"
             value={form.warehouseId}
             onChange={(e) => setForm((f) => ({ ...f, warehouseId: e.target.value }))}
-            options={warehouses.map((w) => ({ value: w.id, label: w.name }))}
+            options={warehouses.map((w) => ({ value: w.ID, label: w.Name }))}
             disabled={Boolean((form as any).id)}
           />
           <Input label="Jumlah Saldo Awal" type="number" value={form.quantity} onChange={(e) => setForm((f) => ({ ...f, quantity: Number(e.target.value) }))} />

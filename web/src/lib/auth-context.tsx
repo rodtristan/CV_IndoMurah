@@ -11,7 +11,7 @@ export interface CurrentUser {
   email: string | null;
   role: string;
   isActive: boolean;
-  company: { id: number; companyCode: string; name: string } | null;
+  company: { ID: number; CompanyCode: string; Name: string } | null;
   menus: unknown[];
 }
 

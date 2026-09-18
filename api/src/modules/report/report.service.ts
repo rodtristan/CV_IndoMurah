@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import {
@@ -6,6 +6,7 @@ import {
   PurchaseReportFilterDto,
   InventoryReportFilterDto,
   DateRangeFilterDto,
+  StockMutationFilterDto,
   SalesReportResponseDto,
   PurchaseReportResponseDto,
   InventoryReportResponseDto,
@@ -14,6 +15,7 @@ import {
   ProfitLossReportResponseDto,
   DebtReportResponseDto,
   ReceivableReportResponseDto,
+  StockMutationResponseDto,
 } from './dto/report.dto';
 
 @Injectable()
@@ -600,6 +602,29 @@ export class ReportService {
     return result;
   }
 
+  // ─── Aging helper (umur hutang/piutang) ────────────────────────────────────
+
+  private agingBucketFor(ageDays: number): string {
+    if (ageDays <= 0) return 'Belum Jatuh Tempo';
+    if (ageDays <= 30) return '1-30 Hari';
+    if (ageDays <= 60) return '31-60 Hari';
+    if (ageDays <= 90) return '61-90 Hari';
+    return '> 90 Hari';
+  }
+
+  private buildAgingSummary(items: Array<{ agingBucket: string; remaining: number }>) {
+    const order = ['Belum Jatuh Tempo', '1-30 Hari', '31-60 Hari', '61-90 Hari', '> 90 Hari'];
+    const map = new Map<string, { count: number; amount: number }>();
+    for (const label of order) map.set(label, { count: 0, amount: 0 });
+    for (const item of items) {
+      const bucket = map.get(item.agingBucket) || { count: 0, amount: 0 };
+      bucket.count += 1;
+      bucket.amount += item.remaining;
+      map.set(item.agingBucket, bucket);
+    }
+    return order.map((label) => ({ label, ...map.get(label)! }));
+  }
+
   // ─── Debt Report (Unpaid Purchases) ────────────────────────────────────────
 
   async debtReport(): Promise<DebtReportResponseDto> {
@@ -620,9 +645,12 @@ export class ReportService {
       orderBy: { Date: 'asc' },
     });
 
+    const now = Date.now();
     const debts = purchases.map((purchase) => {
       const totalPaid = purchase.PurchasePayments.reduce((sum, p) => sum + Number(p.Amount), 0);
       const remaining = Number(purchase.Total) - totalPaid;
+      const dueDate = purchase.DueDate ?? purchase.Date;
+      const ageDays = Math.max(0, Math.floor((now - dueDate.getTime()) / 86400000));
 
       return {
         purchaseId: purchase.ID,
@@ -632,20 +660,24 @@ export class ReportService {
         total: Number(purchase.Total),
         paid: totalPaid,
         remaining,
+        ageDays,
+        agingBucket: this.agingBucketFor(ageDays),
       };
     });
 
     const totalDebt = debts.reduce((sum, d) => sum + d.total, 0);
     const totalPaid = debts.reduce((sum, d) => sum + d.paid, 0);
     const remainingDebt = debts.reduce((sum, d) => sum + d.remaining, 0);
+    const overdueCount = debts.filter((d) => d.ageDays > 0).length;
 
     const result: DebtReportResponseDto = {
       summary: {
         totalDebt,
         totalPaid,
         remainingDebt,
-        overdueCount: 0,
+        overdueCount,
       },
+      aging: this.buildAgingSummary(debts),
       debts,
     };
 
@@ -673,9 +705,11 @@ export class ReportService {
       orderBy: { Date: 'asc' },
     });
 
+    const now = Date.now();
     const receivables = sales.map((sale) => {
       const totalPaid = sale.SalePayments.reduce((sum, p) => sum + Number(p.Amount), 0);
       const remaining = Number(sale.Total) - totalPaid;
+      const ageDays = Math.max(0, Math.floor((now - sale.Date.getTime()) / 86400000));
 
       return {
         saleId: sale.ID,
@@ -685,21 +719,176 @@ export class ReportService {
         total: Number(sale.Total),
         paid: totalPaid,
         remaining,
+        ageDays,
+        agingBucket: this.agingBucketFor(ageDays),
       };
     });
 
     const totalReceivable = receivables.reduce((sum, r) => sum + r.total, 0);
     const totalPaid = receivables.reduce((sum, r) => sum + r.paid, 0);
     const remainingReceivable = receivables.reduce((sum, r) => sum + r.remaining, 0);
+    const overdueCount = receivables.filter((r) => r.ageDays > 0).length;
 
     const result: ReceivableReportResponseDto = {
       summary: {
         totalReceivable,
         totalPaid,
         remainingReceivable,
-        overdueCount: 0,
+        overdueCount,
       },
+      aging: this.buildAgingSummary(receivables),
       receivables,
+    };
+
+    await this.redis.set(cacheKey, JSON.stringify(result), this.CACHE_TTL);
+    return result;
+  }
+
+  // ─── Stock Mutation Report (Kartu Stok / Mutasi Stok) ──────────────────────
+
+  async stockMutationReport(filter: StockMutationFilterDto): Promise<StockMutationResponseDto> {
+    const cacheKey = `${this.CACHE_PREFIX}:stock-mutation:${JSON.stringify(filter)}`;
+    const cached = await this.redis.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+
+    const product = await this.prisma.product.findUnique({ where: { ID: filter.productId } });
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    const startDate = filter.startDate ? new Date(filter.startDate) : undefined;
+    const endDate = filter.endDate ? new Date(filter.endDate + 'T23:59:59') : undefined;
+    const warehouseFilter = filter.warehouseId;
+
+    type RawMove = {
+      date: Date;
+      type: 'IN' | 'OUT' | 'TRANSFER_IN' | 'TRANSFER_OUT' | 'OPNAME';
+      code: string;
+      warehouseName: string;
+      description: string | null;
+      qty: number;
+    };
+
+    const moves: RawMove[] = [];
+
+    const stockIns = await this.prisma.stockInItem.findMany({
+      where: {
+        ProductID: filter.productId,
+        StockIn: warehouseFilter ? { WarehouseID: warehouseFilter } : undefined,
+      },
+      include: { StockIn: { include: { Warehouse: true } } },
+    });
+    for (const item of stockIns) {
+      moves.push({
+        date: item.StockIn.Date,
+        type: 'IN',
+        code: item.StockIn.Code,
+        warehouseName: item.StockIn.Warehouse.Name,
+        description: item.StockIn.Description,
+        qty: Number(item.Quantity),
+      });
+    }
+
+    const stockOuts = await this.prisma.stockOutItem.findMany({
+      where: {
+        ProductID: filter.productId,
+        StockOut: warehouseFilter ? { WarehouseID: warehouseFilter } : undefined,
+      },
+      include: { StockOut: { include: { Warehouse: true } } },
+    });
+    for (const item of stockOuts) {
+      moves.push({
+        date: item.StockOut.Date,
+        type: 'OUT',
+        code: item.StockOut.Code,
+        warehouseName: item.StockOut.Warehouse.Name,
+        description: item.StockOut.Description,
+        qty: Number(item.Quantity),
+      });
+    }
+
+    const transfers = await this.prisma.stockTransferItem.findMany({
+      where: { ProductID: filter.productId },
+      include: { StockTransfer: { include: { FromWarehouse: true, ToWarehouse: true } } },
+    });
+    for (const item of transfers) {
+      const t = item.StockTransfer;
+      const qty = Number(item.Quantity);
+      if (!warehouseFilter || t.FromWarehouseID === warehouseFilter) {
+        moves.push({
+          date: t.Date, type: 'TRANSFER_OUT', code: t.Code,
+          warehouseName: t.FromWarehouse.Name, description: t.Notes, qty,
+        });
+      }
+      if (!warehouseFilter || t.ToWarehouseID === warehouseFilter) {
+        moves.push({
+          date: t.Date, type: 'TRANSFER_IN', code: t.Code,
+          warehouseName: t.ToWarehouse.Name, description: t.Notes, qty,
+        });
+      }
+    }
+
+    const opnames = await this.prisma.stockOpnameItem.findMany({
+      where: {
+        ProductID: filter.productId,
+        StockOpname: warehouseFilter ? { WarehouseID: warehouseFilter } : undefined,
+      },
+      include: { StockOpname: { include: { Warehouse: true } } },
+    });
+    for (const item of opnames) {
+      moves.push({
+        date: item.StockOpname.Date,
+        type: 'OPNAME',
+        code: item.StockOpname.Code,
+        warehouseName: item.StockOpname.Warehouse.Name,
+        description: item.Note,
+        qty: Number(item.Difference),
+      });
+    }
+
+    moves.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    const isInbound = (type: RawMove['type'], qty: number) =>
+      type === 'IN' || type === 'TRANSFER_IN' || (type === 'OPNAME' && qty >= 0);
+
+    const beforePeriod = startDate ? moves.filter((m) => m.date < startDate) : [];
+    const openingBalance = beforePeriod.reduce((bal, m) => {
+      const qty = Math.abs(m.qty);
+      return bal + (isInbound(m.type, m.qty) ? qty : -qty);
+    }, 0);
+
+    const inPeriod = moves.filter(
+      (m) => (!startDate || m.date >= startDate) && (!endDate || m.date <= endDate),
+    );
+
+    let balance = openingBalance;
+    let totalIn = 0;
+    let totalOut = 0;
+    const mutations = inPeriod.map((m) => {
+      const qty = Math.abs(m.qty);
+      const inbound = isInbound(m.type, m.qty);
+      if (inbound) { balance += qty; totalIn += qty; } else { balance -= qty; totalOut += qty; }
+      return {
+        date: m.date.toISOString().split('T')[0],
+        type: m.type,
+        code: m.code,
+        warehouseName: m.warehouseName,
+        description: m.description,
+        qtyIn: inbound ? qty : 0,
+        qtyOut: inbound ? 0 : qty,
+        balance,
+      };
+    });
+
+    const result: StockMutationResponseDto = {
+      productId: product.ID,
+      productCode: product.Code,
+      productName: product.Name,
+      openingBalance,
+      closingBalance: balance,
+      totalIn,
+      totalOut,
+      mutations,
     };
 
     await this.redis.set(cacheKey, JSON.stringify(result), this.CACHE_TTL);

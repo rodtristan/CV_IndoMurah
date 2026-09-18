@@ -137,6 +137,7 @@ const MENU_GROUPS: MenuGroup[] = [
       { label: "Penjualan", href: "/reports/sales" },
       { label: "Pembelian", href: "/reports/purchase" },
       { label: "Inventory", href: "/reports/inventory" },
+      { label: "Mutasi Stok", href: "/reports/stock-mutation" },
       { label: "Keuangan", href: "/reports/financial" },
       { label: "Laba Rugi", href: "/reports/profit" },
       { label: "Arus Kas", href: "/reports/cash" },

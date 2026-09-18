@@ -34,6 +34,7 @@ const TITLE_OVERRIDES: Record<string, string> = {
   "/reports/sales": "Laporan Penjualan",
   "/reports/purchase": "Laporan Pembelian",
   "/reports/inventory": "Laporan Persediaan",
+  "/reports/stock-mutation": "Mutasi Stok",
   "/reports/financial": "Laporan Keuangan",
   "/reports/profit": "Laporan Laba Rugi",
   "/reports/cash": "Laporan Arus Kas",

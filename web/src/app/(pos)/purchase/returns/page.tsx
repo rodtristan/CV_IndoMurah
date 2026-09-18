@@ -30,10 +30,10 @@ export default function PurchaseReturnsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const params: any = { $include: "purchase,supplier,returnItems,returnItems.product" };
+      const params: any = { $include: "Purchase,Supplier,Status,ReturnItems,ReturnItems.Product" };
       if (search) params.$search = search;
-      if (filterStatus) params.$where = { status: filterStatus };
-      const res = await api.get("purchase-returns", params).catch(() => ({ success: false, data: { data: [] } } as any));
+      if (filterStatus) params.$where = { Status: { Code: filterStatus } };
+      const res = await api.get("PurchaseReturns", params).catch(() => ({ success: false, data: { data: [] } } as any));
       if (res.success) setData(res.data || []);
     } finally { setLoading(false); }
   }, [search, filterStatus]);
@@ -41,7 +41,7 @@ export default function PurchaseReturnsPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const fetchPurchases = useCallback(async () => {
-    const res = await api.get("purchases", { $select: "id,code,supplierId", $orderBy: { createdAt: "desc" }, $take: 50 } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+    const res = await api.get("purchases", { $select: "ID,Code,SupplierID", $orderBy: { createdAt: "desc" }, $take: 50 } as any).catch(() => ({ success: false, data: { data: [] } } as any));
     if (res.success) setPurchases(res.data || []);
   }, []);
 
@@ -57,15 +57,15 @@ export default function PurchaseReturnsPage() {
     setSelectedPurchaseId(purchaseId);
     setItems([]);
     if (!purchaseId) return;
-    const res = await api.get(`purchases/${purchaseId}`, { $include: "purchaseItems,purchaseItems.product" } as any).catch(() => ({ success: false, data: null } as any));
+    const res = await api.get(`purchases/${purchaseId}`, { $include: "PurchaseItems,PurchaseItems.Product" } as any).catch(() => ({ success: false, data: null } as any));
     if (res.success && res.data) {
       const purchase = res.data as any;
-      setItems((purchase.purchaseItems || []).map((it: any) => ({
-        productId: it.productId,
-        productName: it.product?.name || "-",
-        unitId: it.unitId,
-        unitPrice: Number(it.unitPrice),
-        maxQuantity: Number(it.quantity),
+      setItems((purchase.PurchaseItems || []).map((it: any) => ({
+        productId: it.ProductID,
+        productName: it.Product?.Name || "-",
+        unitId: it.UnitID,
+        unitPrice: Number(it.UnitPrice),
+        maxQuantity: Number(it.Quantity),
         quantity: 0,
       })));
     }
@@ -77,16 +77,16 @@ export default function PurchaseReturnsPage() {
 
   const handleSave = async () => {
     const returnItems = items.filter((it) => it.quantity > 0).map((it) => ({
-      productId: it.productId,
-      unitId: it.unitId,
-      quantity: it.quantity,
-      unitPrice: it.unitPrice,
+      ProductID: it.productId,
+      UnitID: it.unitId,
+      Quantity: it.quantity,
+      UnitPrice: it.unitPrice,
     }));
     if (!selectedPurchaseId || returnItems.length === 0) return;
-    await api.post("purchase-returns", {
-      purchaseId: Number(selectedPurchaseId),
-      reason: reason || undefined,
-      items: returnItems,
+    await api.post("PurchaseReturns", {
+      PurchaseID: Number(selectedPurchaseId),
+      Reason: reason || undefined,
+      Items: returnItems,
     }).catch(() => ({}));
     setShowForm(false);
     fetchData();
@@ -97,13 +97,13 @@ export default function PurchaseReturnsPage() {
   };
 
   const columns = [
-    { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
-    { key: "purchase", label: "Ref. Pembelian", render: (v: unknown) => <span className="font-mono text-xs">{(v as any)?.code || "-"}</span> },
-    { key: "supplier", label: "Supplier", render: (v: unknown) => (v as any)?.name || "-" },
-    { key: "status", label: "Status", render: (v: unknown) => <Badge variant={(statusColors[v as string] || "default") as any}>{v as string}</Badge> },
-    { key: "totalReturn", label: "Total Retur", align: "right" as const, render: (v: unknown) => <span className="font-bold text-danger">{formatCurrency(v as number)}</span> },
-    { key: "reason", label: "Alasan" },
+    { key: "Code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
+    { key: "Date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
+    { key: "Purchase", label: "Ref. Pembelian", render: (v: unknown) => <span className="font-mono text-xs">{(v as any)?.Code || "-"}</span> },
+    { key: "Supplier", label: "Supplier", render: (v: unknown) => (v as any)?.Name || "-" },
+    { key: "Status.Code", label: "Status", render: (v: unknown) => <Badge variant={(statusColors[v as string] || "default") as any}>{v as string}</Badge> },
+    { key: "TotalReturn", label: "Total Retur", align: "right" as const, render: (v: unknown) => <span className="font-bold text-danger">{formatCurrency(v as number)}</span> },
+    { key: "Reason", label: "Alasan" },
   ];
 
   return (
@@ -133,10 +133,10 @@ export default function PurchaseReturnsPage() {
         {detailData && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><span className="text-muted">Tanggal:</span> {formatDate(detailData.date)}</div>
-              <div><span className="text-muted">Supplier:</span> {detailData.supplier?.name || "-"}</div>
-              <div><span className="text-muted">Status:</span> <Badge variant={(statusColors[detailData.status] || "default") as any}>{detailData.status}</Badge></div>
-              <div><span className="text-muted">Total:</span> <span className="font-bold text-danger">{formatCurrency(detailData.totalReturn)}</span></div>
+              <div><span className="text-muted">Tanggal:</span> {formatDate(detailData.Date)}</div>
+              <div><span className="text-muted">Supplier:</span> {detailData.Supplier?.Name || "-"}</div>
+              <div><span className="text-muted">Status:</span> <Badge variant={(statusColors[detailData.Status?.Code] || "default") as any}>{detailData.Status?.Code}</Badge></div>
+              <div><span className="text-muted">Total:</span> <span className="font-bold text-danger">{formatCurrency(detailData.TotalReturn)}</span></div>
             </div>
             <div className="border-t border-default pt-4">
               <h4 className="font-semibold mb-2">Item Retur</h4>
@@ -150,12 +150,12 @@ export default function PurchaseReturnsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(detailData.returnItems || []).map((d: any, i: number) => (
+                  {(detailData.ReturnItems || []).map((d: any, i: number) => (
                     <tr key={i} className="border-b border-default">
-                      <td className="py-1">{d.product?.name || "-"}</td>
-                      <td className="text-right">{d.quantity}</td>
-                      <td className="text-right">{formatCurrency(d.unitPrice)}</td>
-                      <td className="text-right font-semibold">{formatCurrency(d.subtotal)}</td>
+                      <td className="py-1">{d.Product?.Name || "-"}</td>
+                      <td className="text-right">{d.Quantity}</td>
+                      <td className="text-right">{formatCurrency(d.UnitPrice)}</td>
+                      <td className="text-right font-semibold">{formatCurrency(d.Subtotal)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -171,7 +171,7 @@ export default function PurchaseReturnsPage() {
             label="Pembelian"
             value={selectedPurchaseId}
             onChange={(e) => handleSelectPurchase(e.target.value)}
-            options={purchases.map((p) => ({ value: p.id, label: p.code }))}
+            options={purchases.map((p) => ({ value: p.ID, label: p.Code }))}
           />
           <Input label="Alasan" value={reason} onChange={(e) => setReason(e.target.value)} />
           {items.length > 0 && (

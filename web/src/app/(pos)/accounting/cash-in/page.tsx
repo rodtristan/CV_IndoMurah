@@ -31,7 +31,7 @@ export default function CashInPage() {
   }, [search]);
 
   const fetchAccounts = useCallback(async () => {
-    const res = await api.get("account", { $select: "id,code,name", $where: { type: { $in: "REVENUE,ASSET" } } } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+    const res = await api.get("account", { $select: "ID,Code,Name", $where: { Type: { Code: { in: ["REVENUE", "ASSET"] } } } } as any).catch(() => ({ success: false, data: { data: [] } } as any));
     if (res.success) setAccounts(res.data || []);
   }, []);
 
@@ -61,17 +61,17 @@ export default function CashInPage() {
   };
 
   const columns = [
-    { key: "date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
-    { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "account", label: "Akun", render: (v: unknown) => (v as any)?.name || "-" },
-    { key: "description", label: "Keterangan" },
-    { key: "amount", label: "Jumlah", align: "right" as const, render: (v: unknown) => <span className="font-bold text-success">{formatCurrency(v as number)}</span> },
+    { key: "Date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
+    { key: "Code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
+    { key: "Account", label: "Akun", render: (v: unknown) => (v as any)?.Name || "-" },
+    { key: "Description", label: "Keterangan" },
+    { key: "Amount", label: "Jumlah", align: "right" as const, render: (v: unknown) => <span className="font-bold text-success">{formatCurrency(v as number)}</span> },
     {
       key: "actions", label: "", width: "70px",
       render: (_: unknown, row: any) => (
         <div className="flex gap-1">
-          <RowEditIcon onClick={() => { setForm(row); setShowForm(true); }} />
-          <RowDeleteIcon onClick={() => handleDelete(row.id)} />
+          <RowEditIcon onClick={() => { setForm({ id: row.ID, date: row.Date ? String(row.Date).split("T")[0] : "", code: row.Code, accountId: row.AccountID != null ? String(row.AccountID) : "", amount: row.Amount, description: row.Description || "" } as any); setShowForm(true); }} />
+          <RowDeleteIcon onClick={() => handleDelete(row.ID)} />
         </div>
       )
     },
@@ -96,7 +96,7 @@ export default function CashInPage() {
       <Modal open={showForm} onClose={() => setShowForm(false)} title="Kas Masuk Baru" size="md">
         <div className="space-y-4">
           <Input label="Tanggal" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
-          <Select label="Akun" value={form.accountId} onChange={e => setForm(f => ({ ...f, accountId: e.target.value }))} options={accounts.map(a => ({ value: a.id, label: `${a.code} - ${a.name}` }))} />
+          <Select label="Akun" value={form.accountId} onChange={e => setForm(f => ({ ...f, accountId: e.target.value }))} options={accounts.map(a => ({ value: a.ID, label: `${a.Code} - ${a.Name}` }))} />
           <Input label="Jumlah" type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: Number(e.target.value) }))} />
           <Input label="Keterangan" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
           <div className="flex justify-end gap-2 pt-4">

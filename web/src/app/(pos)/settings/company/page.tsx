@@ -20,11 +20,11 @@ export default function CompanySettingsPage() {
     const res = await api.get<any[]>("company", { $take: 1 } as any).catch(() => ({ success: false, data: [] } as any));
     const company = res.success ? res.data?.[0] : null;
     if (company) {
-      setCompanyId(company.id);
+      setCompanyId(company.ID);
       setForm({
-        name: company.name ?? "", address: company.address ?? "", city: company.city ?? "",
-        province: company.province ?? "", postalCode: company.postalCode ?? "",
-        phone: company.phone ?? "", email: company.email ?? "", taxId: company.taxId ?? "",
+        name: company.Name ?? "", address: company.Address ?? "", city: company.City ?? "",
+        province: company.Province ?? "", postalCode: company.PostalCode ?? "",
+        phone: company.Phone ?? "", email: company.Email ?? "", taxId: company.TaxID ?? "",
       });
     }
   }, []);
@@ -38,7 +38,7 @@ export default function CompanySettingsPage() {
         await api.patch("company", companyId, form);
       } else {
         const res = await api.post<any>("company", form);
-        if (res.success && res.data) setCompanyId(res.data.id);
+        if (res.success && res.data) setCompanyId(res.data.ID);
       }
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);

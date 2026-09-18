@@ -15,7 +15,7 @@ export default function CategoriesPage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: "", code: "", description: "" });
+  const [form, setForm] = useState<{ id?: number; name: string; code: string; description: string }>({ name: "", code: "", description: "" });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -28,8 +28,8 @@ export default function CategoriesPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleSave = async () => {
-    if ((form as any).id) {
-      await api.patch("categories", (form as any).id, form).catch(() => ({}));
+    if (form.id) {
+      await api.patch("categories", form.id, form).catch(() => ({}));
     } else {
       await api.post("categories", form).catch(() => ({}));
     }
@@ -43,15 +43,15 @@ export default function CategoriesPage() {
   };
 
   const columns = [
-    { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "name", label: "Nama Kategori" },
-    { key: "description", label: "Deskripsi", render: (v: unknown) => v ? <span className="text-muted">{v as string}</span> : <span className="text-muted">-</span> },
+    { key: "Code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
+    { key: "Name", label: "Nama Kategori" },
+    { key: "Description", label: "Deskripsi", render: (v: unknown) => v ? <span className="text-muted">{v as string}</span> : <span className="text-muted">-</span> },
     {
       key: "actions", label: "", width: "70px",
       render: (_: unknown, row: any) => (
         <div className="flex gap-1">
-          <RowEditIcon onClick={() => { setForm(row); setShowForm(true); }} />
-          <RowDeleteIcon onClick={() => handleDelete(row.id)} />
+          <RowEditIcon onClick={() => { setForm({ id: row.ID, code: row.Code, name: row.Name, description: row.Description || "" }); setShowForm(true); }} />
+          <RowDeleteIcon onClick={() => handleDelete(row.ID)} />
         </div>
       )
     },

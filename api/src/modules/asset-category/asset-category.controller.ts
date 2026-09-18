@@ -8,7 +8,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 @ApiTags('Asset Categories')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('AssetCategories')
+@Controller('asset-category')
 export class AssetCategoryController extends BaseController<
   any,
   CreateAssetCategoryDto,

@@ -25,7 +25,7 @@ export class SalePaymentService {
         const prismaQuery = this.queryService.buildPrismaQuery(query, {
           searchableFields: ['*'],
           allowedIncludes: ['*'],
-          defaultOrderBy: { createdAt: 'desc' },
+          defaultOrderBy: { CreatedAt: 'desc' },
         });
 
         const findArgs: any = {
@@ -63,7 +63,7 @@ export class SalePaymentService {
           allowedIncludes: ['*'],
         });
 
-        const findArgs: any = { where: { id } };
+        const findArgs: any = { where: { ID: id } };
 
         if (prismaQuery.select) {
           findArgs.select = prismaQuery.select;
@@ -80,75 +80,75 @@ export class SalePaymentService {
 
   async create(dto: CreateSalePaymentDto, userId: string) {
     // Verify sale exists
-    const sale = await this.prisma.sale.findUnique({ where: { id: dto.saleId } });
+    const sale = await this.prisma.sale.findUnique({ where: { ID: dto.SaleID } });
     if (!sale) throw new NotFoundException('Sale not found');
 
     // Check if payment would exceed sale total
     const existingPayments = await this.prisma.salePayment.findMany({
-      where: { saleId: dto.saleId },
+      where: { SaleID: dto.SaleID },
     });
-    const paidAmount = existingPayments.reduce((sum, p) => sum + Number(p.amount), 0);
-    const newTotal = paidAmount + dto.amount;
+    const paidAmount = existingPayments.reduce((sum, p) => sum + Number(p.Amount), 0);
+    const newTotal = paidAmount + dto.Amount;
 
-    if (newTotal > Number(sale.total)) {
+    if (newTotal > Number(sale.Total)) {
       throw new BadRequestException('Payment amount exceeds sale total');
     }
 
     const payment = await this.prisma.salePayment.create({
       data: {
-        saleId: dto.saleId,
-        method: dto.method,
-        amount: new Prisma.Decimal(dto.amount.toString()),
-        referenceNumber: dto.referenceNumber,
-        date: dto.date ? new Date(dto.date) : new Date(),
-        notes: dto.notes,
-        createdById: userId,
+        SaleID: dto.SaleID,
+        MethodID: dto.MethodID,
+        Amount: new Prisma.Decimal(dto.Amount.toString()),
+        ReferenceNumber: dto.ReferenceNumber,
+        Date: dto.Date ? new Date(dto.Date) : new Date(),
+        Notes: dto.Notes,
+        CreatedByID: userId,
       },
-      include: { sale: true, creator: true },
+      include: { Sale: true, Creator: true },
     });
 
     // Update sale payment status
-    await this.updateSalePaymentStatus(dto.saleId);
+    await this.updateSalePaymentStatus(dto.SaleID);
 
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
-    await this.redis.invalidatePattern(`sales:${dto.saleId}*`);
+    await this.redis.invalidatePattern(`sales:${dto.SaleID}*`);
 
     return this.serialize(payment);
   }
 
   async update(id: number, dto: UpdateSalePaymentDto) {
-    const payment = await this.prisma.salePayment.findUnique({ where: { id } });
+    const payment = await this.prisma.salePayment.findUnique({ where: { ID: id } });
     if (!payment) throw new NotFoundException('Sale payment not found');
 
     const updateData: any = {};
-    if (dto.method) updateData.method = dto.method;
-    if (dto.amount) updateData.amount = new Prisma.Decimal(dto.amount.toString());
-    if (dto.referenceNumber !== undefined) updateData.referenceNumber = dto.referenceNumber;
-    if (dto.date) updateData.date = new Date(dto.date);
-    if (dto.notes !== undefined) updateData.notes = dto.notes;
+    if (dto.MethodID) updateData.MethodID = dto.MethodID;
+    if (dto.Amount) updateData.Amount = new Prisma.Decimal(dto.Amount.toString());
+    if (dto.ReferenceNumber !== undefined) updateData.ReferenceNumber = dto.ReferenceNumber;
+    if (dto.Date) updateData.Date = new Date(dto.Date);
+    if (dto.Notes !== undefined) updateData.Notes = dto.Notes;
 
     const updated = await this.prisma.salePayment.update({
-      where: { id },
+      where: { ID: id },
       data: updateData,
-      include: { sale: true, creator: true },
+      include: { Sale: true, Creator: true },
     });
 
-    await this.updateSalePaymentStatus(payment.saleId);
+    await this.updateSalePaymentStatus(payment.SaleID);
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
-    await this.redis.invalidatePattern(`sales:${payment.saleId}*`);
+    await this.redis.invalidatePattern(`sales:${payment.SaleID}*`);
 
     return this.serialize(updated);
   }
 
   async delete(id: number) {
-    const payment = await this.prisma.salePayment.findUnique({ where: { id } });
+    const payment = await this.prisma.salePayment.findUnique({ where: { ID: id } });
     if (!payment) throw new NotFoundException('Sale payment not found');
 
-    await this.prisma.salePayment.delete({ where: { id } });
-    await this.updateSalePaymentStatus(payment.saleId);
+    await this.prisma.salePayment.delete({ where: { ID: id } });
+    await this.updateSalePaymentStatus(payment.SaleID);
 
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
-    await this.redis.invalidatePattern(`sales:${payment.saleId}*`);
+    await this.redis.invalidatePattern(`sales:${payment.SaleID}*`);
 
     return { id };
   }
@@ -156,11 +156,11 @@ export class SalePaymentService {
   async findBySale(saleId: number, query: Record<string, any> = {}) {
     const prismaQuery = this.queryService.buildPrismaQuery(query, {
       allowedIncludes: ['*'],
-      defaultOrderBy: { createdAt: 'desc' },
+      defaultOrderBy: { CreatedAt: 'desc' },
     });
 
     const findArgs: any = {
-      where: { saleId: saleId, ...prismaQuery.where },
+      where: { SaleID: saleId, ...prismaQuery.where },
       orderBy: prismaQuery.orderBy,
       skip: prismaQuery.skip,
       take: prismaQuery.take,
@@ -172,7 +172,7 @@ export class SalePaymentService {
 
     const [data, total] = await Promise.all([
       this.prisma.salePayment.findMany(findArgs),
-      this.prisma.salePayment.count({ where: { saleId: saleId } }),
+      this.prisma.salePayment.count({ where: { SaleID: saleId } }),
     ]);
 
     const serializedData = data.map((item) => this.serialize(item));
@@ -181,25 +181,27 @@ export class SalePaymentService {
 
   private async updateSalePaymentStatus(saleId: number) {
     const sale = await this.prisma.sale.findUnique({
-      where: { id: saleId },
-      include: { salePayments: true },
+      where: { ID: saleId },
+      include: { SalePayments: true },
     });
 
     if (!sale) return;
 
-    const paidAmount = sale.salePayments.reduce((sum, p) => sum + Number(p.amount), 0);
-    const totalAmount = Number(sale.total);
+    const paidAmount = sale.SalePayments.reduce((sum, p) => sum + Number(p.Amount), 0);
+    const totalAmount = Number(sale.Total);
 
-    let paymentStatus: 'PENDING' | 'PARTIAL' | 'PAID' = 'PENDING';
+    let paymentStatusCode: 'PENDING' | 'PARTIAL' | 'PAID' = 'PENDING';
     if (paidAmount > 0 && paidAmount < totalAmount) {
-      paymentStatus = 'PARTIAL';
+      paymentStatusCode = 'PARTIAL';
     } else if (paidAmount >= totalAmount) {
-      paymentStatus = 'PAID';
+      paymentStatusCode = 'PAID';
     }
 
+    const paymentStatus = await this.prisma.paymentStatus.findUnique({ where: { Code: paymentStatusCode } });
+
     await this.prisma.sale.update({
-      where: { id: saleId },
-      data: { paymentStatus },
+      where: { ID: saleId },
+      data: { PaymentStatusID: paymentStatus?.ID ?? sale.PaymentStatusID },
     });
   }
 

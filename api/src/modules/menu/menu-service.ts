@@ -18,8 +18,8 @@ export class MenuService {
 
   async findAll(query: Record<string, unknown>) {
     const q = this.queryService.buildPrismaQuery(query, {
-      searchableFields: ['menuName'],
-      defaultOrderBy: { id: 'asc' },
+      searchableFields: ['MenuName'],
+      defaultOrderBy: { ID: 'asc' },
     });
 
     const findArgs: Record<string, unknown> = {
@@ -45,46 +45,65 @@ export class MenuService {
 
   async findOne(id: number) {
     const menu = await this.prisma.menu.findUnique({
-      where: { id },
-      include: { childMenus: true, roleMenus: true },
+      where: { ID: id },
+      include: { ChildMenus: true, RoleMenus: true },
     });
     if (!menu) throw new NotFoundException('Menu not found');
     return menu;
   }
 
   async create(dto: CreateMenuDto) {
-    return this.prisma.menu.create({ data: dto });
+    return this.prisma.menu.create({
+      data: {
+        MenuName: dto.menuName,
+        MenuType: dto.menuType,
+        Icon: dto.icon,
+        Route: dto.route,
+        ParentMenuID: dto.parentMenuId,
+        IsActive: dto.isActive,
+        SortOrder: dto.sortOrder,
+      },
+    });
   }
 
   async update(id: number, dto: UpdateMenuDto) {
-    return this.prisma.menu.update({ where: { id }, data: dto });
+    const data: Record<string, unknown> = {};
+    if (dto.menuName !== undefined) data.MenuName = dto.menuName;
+    if (dto.menuType !== undefined) data.MenuType = dto.menuType;
+    if (dto.icon !== undefined) data.Icon = dto.icon;
+    if (dto.route !== undefined) data.Route = dto.route;
+    if (dto.parentMenuId !== undefined) data.ParentMenuID = dto.parentMenuId;
+    if (dto.isActive !== undefined) data.IsActive = dto.isActive;
+    if (dto.sortOrder !== undefined) data.SortOrder = dto.sortOrder;
+
+    return this.prisma.menu.update({ where: { ID: id }, data });
   }
 
   async remove(id: number) {
-    return this.prisma.menu.update({ where: { id }, data: { isActive: false } });
+    return this.prisma.menu.update({ where: { ID: id }, data: { IsActive: false } });
   }
 
   // ─── Role Menu ───────────────────────────────────────────
 
   async getRoleMenus(roleId: number) {
     return this.prisma.roleMenu.findMany({
-      where: { roleId, isActive: true },
-      include: { menu: true },
+      where: { RoleID: roleId, IsActive: true },
+      include: { Menu: true },
     });
   }
 
   async assignMenuToRole(roleId: number, menuId: number) {
     return this.prisma.roleMenu.upsert({
-      where: { roleId_menuId: { roleId, menuId } },
-      create: { roleId, menuId, isActive: true },
-      update: { isActive: true },
+      where: { RoleID_MenuID: { RoleID: roleId, MenuID: menuId } },
+      create: { RoleID: roleId, MenuID: menuId, IsActive: true },
+      update: { IsActive: true },
     });
   }
 
   async revokeMenuFromRole(roleId: number, menuId: number) {
     return this.prisma.roleMenu.update({
-      where: { roleId_menuId: { roleId, menuId } },
-      data: { isActive: false },
+      where: { RoleID_MenuID: { RoleID: roleId, MenuID: menuId } },
+      data: { IsActive: false },
     });
   }
 
@@ -92,23 +111,23 @@ export class MenuService {
 
   async getUserMenus(userId: string) {
     return this.prisma.userMenu.findMany({
-      where: { userId, isActive: true },
-      include: { menu: true },
+      where: { UserID: userId, IsActive: true },
+      include: { Menu: true },
     });
   }
 
   async assignMenuToUser(userId: string, menuId: number) {
     return this.prisma.userMenu.upsert({
-      where: { userId_menuId: { userId, menuId } },
-      create: { userId, menuId, isActive: true },
-      update: { isActive: true },
+      where: { UserID_MenuID: { UserID: userId, MenuID: menuId } },
+      create: { UserID: userId, MenuID: menuId, IsActive: true },
+      update: { IsActive: true },
     });
   }
 
   async revokeMenuFromUser(userId: string, menuId: number) {
     return this.prisma.userMenu.update({
-      where: { userId_menuId: { userId, menuId } },
-      data: { isActive: false },
+      where: { UserID_MenuID: { UserID: userId, MenuID: menuId } },
+      data: { IsActive: false },
     });
   }
 
@@ -118,8 +137,8 @@ export class MenuService {
    */
   async provisionUserMenusFromRole(userId: string, roleId: number): Promise<void> {
     const roleMenus = await this.prisma.roleMenu.findMany({
-      where: { roleId, isActive: true },
-      select: { menuId: true },
+      where: { RoleID: roleId, IsActive: true },
+      select: { MenuID: true },
     });
 
     if (!roleMenus.length) return;
@@ -127,9 +146,9 @@ export class MenuService {
     await Promise.all(
       roleMenus.map((rm) =>
         this.prisma.userMenu.upsert({
-          where: { userId_menuId: { userId, menuId: rm.menuId } },
-          create: { userId, menuId: rm.menuId, isActive: true },
-          update: { isActive: true },
+          where: { UserID_MenuID: { UserID: userId, MenuID: rm.MenuID } },
+          create: { UserID: userId, MenuID: rm.MenuID, IsActive: true },
+          update: { IsActive: true },
         }),
       ),
     );
@@ -140,11 +159,11 @@ export class MenuService {
    */
   async resolveRoleIds(userId: string, mainRoleId?: number | null): Promise<number[]> {
     const extraRoles = await this.prisma.userRole.findMany({
-      where: { userId, isActive: true },
-      select: { roleId: true },
+      where: { UserID: userId, IsActive: true },
+      select: { RoleID: true },
     });
 
-    const ids = new Set<number>(extraRoles.map((r) => r.roleId));
+    const ids = new Set<number>(extraRoles.map((r) => r.RoleID));
     if (mainRoleId) ids.add(mainRoleId);
     return [...ids];
   }
@@ -154,14 +173,14 @@ export class MenuService {
    */
   async checkUserAccess(userId: string, mainRoleId: number | undefined, menuName: string): Promise<boolean> {
     const menu = await this.prisma.menu.findFirst({
-      where: { menuName, isActive: true },
-      select: { id: true },
+      where: { MenuName: menuName, IsActive: true },
+      select: { ID: true },
     });
 
     if (!menu) return true; // Menu not configured = open
 
     const userMenu = await this.prisma.userMenu.findFirst({
-      where: { userId, menuId: menu.id, isActive: true },
+      where: { UserID: userId, MenuID: menu.ID, IsActive: true },
     });
 
     if (userMenu) return true;
@@ -170,7 +189,7 @@ export class MenuService {
     if (!roleIds.length) return false;
 
     const roleMenu = await this.prisma.roleMenu.findFirst({
-      where: { roleId: { in: roleIds }, menuId: menu.id, isActive: true },
+      where: { RoleID: { in: roleIds }, MenuID: menu.ID, IsActive: true },
     });
 
     return !!roleMenu;
@@ -184,24 +203,24 @@ export class MenuService {
 
     const roleMenuIds = roleIds.length
       ? await this.prisma.roleMenu.findMany({
-          where: { roleId: { in: roleIds }, isActive: true },
-          select: { menuId: true },
+          where: { RoleID: { in: roleIds }, IsActive: true },
+          select: { MenuID: true },
         })
       : [];
 
     const userMenus = await this.prisma.userMenu.findMany({
-      where: { userId, isActive: true },
-      select: { menuId: true },
+      where: { UserID: userId, IsActive: true },
+      select: { MenuID: true },
     });
 
     const allMenuIds = new Set([
-      ...roleMenuIds.map((r) => r.menuId),
-      ...userMenus.map((u) => u.menuId),
+      ...roleMenuIds.map((r) => r.MenuID),
+      ...userMenus.map((u) => u.MenuID),
     ]);
 
     return this.prisma.menu.findMany({
-      where: { id: { in: [...allMenuIds] }, isActive: true },
-      orderBy: { id: 'asc' },
+      where: { ID: { in: [...allMenuIds] }, IsActive: true },
+      orderBy: { ID: 'asc' },
     });
   }
 }

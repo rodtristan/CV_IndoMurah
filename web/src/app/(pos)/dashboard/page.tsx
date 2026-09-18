@@ -40,7 +40,7 @@ export default function DashboardPage() {
       // Fetch dashboard stats
       const [statsRes, salesRes, chartRes] = await Promise.all([
         api.get<any>("dashboard").catch(() => ({ success: false } as any)),
-        api.get<Sale[]>("sales", { $orderBy: { createdAt: "desc" }, $take: 10 }).catch(() => ({ success: false, data: [] } as any)),
+        api.get<Sale[]>("sales", { $include: "Customer,PaymentStatus", $orderBy: { createdAt: "desc" }, $take: 10 }).catch(() => ({ success: false, data: [] } as any)),
         api.get<ChartDataPoint[]>("reports/sales/summary", {}).catch(() => ({ success: false, data: [] } as any)),
       ]);
 
@@ -109,7 +109,7 @@ export default function DashboardPage() {
 
   const columns = [
     {
-      key: "code",
+      key: "Code",
       label: "Kode",
       sortable: true,
       render: (v: unknown) => (
@@ -117,18 +117,18 @@ export default function DashboardPage() {
       ),
     },
     {
-      key: "date",
+      key: "Date",
       label: "Tanggal",
       sortable: true,
       render: (v: unknown) => formatDate(v as string),
     },
     {
-      key: "customer.name",
+      key: "Customer.Name",
       label: "Pelanggan",
-      render: (_: unknown, row: Sale) => row.customer?.name || "-",
+      render: (_: unknown, row: Sale) => row.Customer?.Name || "-",
     },
     {
-      key: "total",
+      key: "Total",
       label: "Total",
       align: "right" as const,
       sortable: true,
@@ -137,7 +137,7 @@ export default function DashboardPage() {
       ),
     },
     {
-      key: "paymentStatus",
+      key: "PaymentStatus.Code",
       label: "Status",
       render: (v: unknown) => {
         const status = v as string;

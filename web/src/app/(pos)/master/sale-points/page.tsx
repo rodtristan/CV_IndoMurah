@@ -17,7 +17,7 @@ export default function SalePointsPage() {
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [warehouses, setWarehouses] = useState<any[]>([]);
-  const [form, setForm] = useState({ name: "", code: "", warehouseId: "", description: "", isActive: true });
+  const [form, setForm] = useState<{ id?: number; name: string; code: string; warehouseId: string; description: string; isActive: boolean }>({ name: "", code: "", warehouseId: "", description: "", isActive: true });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -36,7 +36,7 @@ export default function SalePointsPage() {
   useEffect(() => { fetchWarehouses(); }, [fetchWarehouses]);
 
   const handleSave = async () => {
-    const isEdit = Boolean((form as any).id);
+    const isEdit = Boolean(form.id);
     const payload = {
       code: form.code,
       name: form.name,
@@ -45,7 +45,7 @@ export default function SalePointsPage() {
       isActive: form.isActive,
     };
     if (isEdit) {
-      await api.patch("sale-point", (form as any).id, payload).catch(() => ({}));
+      await api.patch("sale-point", form.id!, payload).catch(() => ({}));
     } else {
       await api.post("sale-point", payload).catch(() => ({}));
     }
@@ -59,17 +59,17 @@ export default function SalePointsPage() {
   };
 
   const columns = [
-    { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "name", label: "Nama POS" },
-    { key: "warehouse", label: "Gudang", render: (v: unknown) => (v as any)?.name || "-" },
-    { key: "description", label: "Keterangan", render: (v: unknown) => v ? <span className="text-muted">{v as string}</span> : <span className="text-muted">-</span> },
-    { key: "isActive", label: "Status", render: (v: unknown) => v ? <span className="text-xs text-success font-medium">Aktif</span> : <span className="text-xs text-muted">Nonaktif</span> },
+    { key: "Code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
+    { key: "Name", label: "Nama POS" },
+    { key: "Warehouse", label: "Gudang", render: (v: unknown) => (v as any)?.Name || "-" },
+    { key: "Description", label: "Keterangan", render: (v: unknown) => v ? <span className="text-muted">{v as string}</span> : <span className="text-muted">-</span> },
+    { key: "IsActive", label: "Status", render: (v: unknown) => v ? <span className="text-xs text-success font-medium">Aktif</span> : <span className="text-xs text-muted">Nonaktif</span> },
     {
       key: "actions", label: "", width: "70px",
       render: (_: unknown, row: any) => (
         <div className="flex gap-1">
-          <RowEditIcon onClick={() => { setForm({ ...row, warehouseId: row.warehouseId ?? "" }); setShowForm(true); }} />
-          <RowDeleteIcon onClick={() => handleDelete(row.id)} />
+          <RowEditIcon onClick={() => { setForm({ id: row.ID, code: row.Code, name: row.Name, description: row.Description || "", isActive: row.IsActive, warehouseId: row.WarehouseID != null ? String(row.WarehouseID) : "" }); setShowForm(true); }} />
+          <RowDeleteIcon onClick={() => handleDelete(row.ID)} />
         </div>
       )
     },
@@ -97,7 +97,7 @@ export default function SalePointsPage() {
             <Input label="Kode" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} />
             <Input label="Nama" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
           </div>
-          <Select label="Gudang" value={form.warehouseId} onChange={e => setForm(f => ({ ...f, warehouseId: e.target.value }))} options={warehouses.map(w => ({ value: w.id, label: w.name }))} />
+          <Select label="Gudang" value={form.warehouseId} onChange={e => setForm(f => ({ ...f, warehouseId: e.target.value }))} options={warehouses.map(w => ({ value: w.ID, label: w.Name }))} />
           <Input label="Keterangan" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button>

@@ -15,7 +15,7 @@ export default function SalesPersonsPage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: "", code: "", email: "", phone: "", address: "", isActive: true });
+  const [form, setForm] = useState<{ id?: number; name: string; code: string; email: string; phone: string; address: string; isActive: boolean }>({ name: "", code: "", email: "", phone: "", address: "", isActive: true });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -28,9 +28,9 @@ export default function SalesPersonsPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleSave = async () => {
-    const isEdit = Boolean((form as any).id);
+    const isEdit = Boolean(form.id);
     if (isEdit) {
-      await api.patch("sales-person", (form as any).id, form).catch(() => ({}));
+      await api.patch("sales-person", form.id!, form).catch(() => ({}));
     } else {
       await api.post("sales-person", form).catch(() => ({}));
     }
@@ -44,17 +44,17 @@ export default function SalesPersonsPage() {
   };
 
   const columns = [
-    { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "name", label: "Nama Sales" },
-    { key: "email", label: "Email", render: (v: unknown) => v ? <span>{v as string}</span> : <span className="text-muted">-</span> },
-    { key: "phone", label: "Telepon", render: (v: unknown) => v ? <span>{v as string}</span> : <span className="text-muted">-</span> },
-    { key: "isActive", label: "Status", render: (v: unknown) => v ? <span className="text-xs text-success font-medium">Aktif</span> : <span className="text-xs text-muted">Nonaktif</span> },
+    { key: "Code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
+    { key: "Name", label: "Nama Sales" },
+    { key: "Email", label: "Email", render: (v: unknown) => v ? <span>{v as string}</span> : <span className="text-muted">-</span> },
+    { key: "Phone", label: "Telepon", render: (v: unknown) => v ? <span>{v as string}</span> : <span className="text-muted">-</span> },
+    { key: "IsActive", label: "Status", render: (v: unknown) => v ? <span className="text-xs text-success font-medium">Aktif</span> : <span className="text-xs text-muted">Nonaktif</span> },
     {
       key: "actions", label: "", width: "70px",
       render: (_: unknown, row: any) => (
         <div className="flex gap-1">
-          <RowEditIcon onClick={() => { setForm(row); setShowForm(true); }} />
-          <RowDeleteIcon onClick={() => handleDelete(row.id)} />
+          <RowEditIcon onClick={() => { setForm({ id: row.ID, code: row.Code, name: row.Name, email: row.Email || "", phone: row.Phone || "", address: row.Address || "", isActive: row.IsActive }); setShowForm(true); }} />
+          <RowDeleteIcon onClick={() => handleDelete(row.ID)} />
         </div>
       )
     },

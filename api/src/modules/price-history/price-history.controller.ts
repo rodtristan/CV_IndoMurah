@@ -8,7 +8,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 @ApiTags('Price Histories')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('PriceHistories')
+@Controller('price-history')
 export class PriceHistoryController extends BaseController<
   any,
   CreatePriceHistoryDto,

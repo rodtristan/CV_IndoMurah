@@ -16,14 +16,14 @@ export default function MinimumStockPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const params: any = { $where: "minimumStock > 0", $include: "category,unit" };
+      const params: any = { $include: "category,unit" };
       if (warehouseId) params.warehouseId = warehouseId;
       const res = await api.get("products", params).catch(() => ({ success: false, data: { data: [] } } as any));
       if (res.success) {
         const items = res.data || [];
         setData(items.filter((p: any) => {
-          const stock = p.productStocks?.[0]?.quantity || 0;
-          return stock <= (p.minimumStock || 0);
+          const stock = Number(p.Stock) || 0;
+          return stock <= (Number(p.MinimumStock) || 0);
         }));
       }
     } finally { setLoading(false); }
@@ -32,15 +32,15 @@ export default function MinimumStockPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const columns = [
-    { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "name", label: "Nama Produk" },
-    { key: "categoryName", label: "Kategori", render: (v: unknown) => v || "-" },
-    { key: "quantity", label: "Stok", align: "right" as const, render: (v: unknown) => formatNumber(Number(v)) },
-    { key: "minimumStock", label: "Min Stock", align: "right" as const, render: (v: unknown) => formatNumber(Number(v)) },
+    { key: "Code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
+    { key: "Name", label: "Nama Produk" },
+    { key: "Category", label: "Kategori", render: (v: unknown) => (v as any)?.Name || "-" },
+    { key: "Stock", label: "Stok", align: "right" as const, render: (v: unknown) => formatNumber(Number(v)) },
+    { key: "MinimumStock", label: "Min Stock", align: "right" as const, render: (v: unknown) => formatNumber(Number(v)) },
     { key: "status", label: "Status", render: (_: unknown, row: any): any => {
-      const stock = row.quantity || 0;
+      const stock = Number(row.Stock) || 0;
       if (stock === 0) return <Badge variant="danger">Habis</Badge>;
-      if (stock <= (row.minimumStock || 0)) return <Badge variant="warning">Di Bawah Min</Badge>;
+      if (stock <= (Number(row.MinimumStock) || 0)) return <Badge variant="warning">Di Bawah Min</Badge>;
       return <Badge variant="success">Normal</Badge>;
     }},
   ];

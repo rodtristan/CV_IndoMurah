@@ -81,20 +81,20 @@ export default function NumberingSettingsPage() {
 
   const handleResetLastNumber = async () => {
     if (!resetTarget) return;
-    await api.patch("numbering", resetTarget.id, { lastNumber: 0 }).catch(() => ({}));
+    await api.patch("numbering", resetTarget.ID, { lastNumber: 0 }).catch(() => ({}));
     setResetTarget(null);
     fetchData();
   };
 
   const columns = [
-    { key: "type", label: "Modul", render: (v: unknown) => MODULE_OPTIONS.find((m) => m.value === v)?.label || (v as string) },
-    { key: "prefix", label: "Prefix", render: (v: unknown) => <span className="font-mono text-xs">{(v as string) || "-"}</span> },
-    { key: "suffix", label: "Suffix", render: (v: unknown) => <span className="font-mono text-xs">{(v as string) || "-"}</span> },
-    { key: "digitCount", label: "Digit Counter", align: "right" as const },
-    { key: "lastNumber", label: "No. Terakhir", align: "right" as const },
+    { key: "Type", label: "Modul", render: (v: unknown) => MODULE_OPTIONS.find((m) => m.value === v)?.label || (v as string) },
+    { key: "Prefix", label: "Prefix", render: (v: unknown) => <span className="font-mono text-xs">{(v as string) || "-"}</span> },
+    { key: "Suffix", label: "Suffix", render: (v: unknown) => <span className="font-mono text-xs">{(v as string) || "-"}</span> },
+    { key: "DigitCount", label: "Digit Counter", align: "right" as const },
+    { key: "LastNumber", label: "No. Terakhir", align: "right" as const },
     {
       key: "preview", label: "Contoh Nomor Berikutnya",
-      render: (_: unknown, row: any) => <span className="font-mono text-xs text-primary">{preview(row.prefix, row.digitCount, row.lastNumber, row.suffix)}</span>,
+      render: (_: unknown, row: any) => <span className="font-mono text-xs text-primary">{preview(row.Prefix, row.DigitCount, row.LastNumber, row.Suffix)}</span>,
     },
     {
       key: "actions", label: "", width: "110px",
@@ -107,8 +107,8 @@ export default function NumberingSettingsPage() {
           >
             <RotateCcw className="size-4" />
           </button>
-          <RowEditIcon onClick={() => { setForm(row); setShowForm(true); }} />
-          <RowDeleteIcon onClick={() => handleDelete(row.id)} />
+          <RowEditIcon onClick={() => { setForm({ id: row.ID, type: row.Type, prefix: row.Prefix || "", suffix: row.Suffix || "", digitCount: row.DigitCount, lastNumber: row.LastNumber } as any); setShowForm(true); }} />
+          <RowDeleteIcon onClick={() => handleDelete(row.ID)} />
         </div>
       )
     },
@@ -161,7 +161,7 @@ export default function NumberingSettingsPage() {
         onClose={() => setResetTarget(null)}
         onConfirm={handleResetLastNumber}
         title="Reset No Terakhir"
-        message={`Yakin ingin mereset nomor terakhir untuk modul "${MODULE_OPTIONS.find((m) => m.value === resetTarget?.type)?.label || resetTarget?.type}" menjadi 0?`}
+        message={`Yakin ingin mereset nomor terakhir untuk modul "${MODULE_OPTIONS.find((m) => m.value === resetTarget?.Type)?.label || resetTarget?.Type}" menjadi 0?`}
         confirmText="Reset"
         variant="danger"
       />

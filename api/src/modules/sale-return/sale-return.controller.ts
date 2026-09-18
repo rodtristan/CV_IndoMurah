@@ -51,7 +51,7 @@ export class SaleReturnController {
   @Post()
   @ApiOperation({ summary: 'Create sale return' })
   async create(@Body() dto: CreateSaleReturnDto, @CurrentUser() user: any) {
-    const data = await this.saleReturnService.create(dto, user.ID);
+    const data = await this.saleReturnService.create(dto, user.id);
     return ApiResponse.ok(data, 'Sale return created successfully');
   }
 

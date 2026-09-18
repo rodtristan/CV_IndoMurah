@@ -22,7 +22,7 @@ export default function SettingsHubPage() {
       <Card className="p-4">
         <p className="mb-4 text-sm text-muted">
           Masuk sebagai <span className="font-semibold text-highlighted">{user?.name}</span>
-          {user?.company && <> &middot; {user.company.name}</>}
+          {user?.company && <> &middot; {user.company.Name}</>}
         </p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {SETTINGS_LINKS.map(({ href, label, description, icon: Icon }) => (

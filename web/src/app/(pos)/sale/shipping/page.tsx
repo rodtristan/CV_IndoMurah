@@ -22,8 +22,8 @@ export default function SaleShippingPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const params: any = { $include: "customer", $orderBy: { date: "desc" }, $take: 200 };
-      if (statusFilter) params.$where = { shippingStatus: statusFilter };
+      const params: any = { $include: "Customer", $orderBy: { Date: "desc" }, $take: 200 };
+      if (statusFilter) params.$where = { ShippingStatus: statusFilter };
       const res = await api.get("sales", params).catch(() => ({ success: false, data: [] } as any));
       if (res.success) setRows(res.data || []);
     } finally { setLoading(false); }
@@ -34,20 +34,20 @@ export default function SaleShippingPage() {
   const openEdit = (row: any) => {
     setEditRow(row);
     setForm({
-      shippingStatus: row.shippingStatus || "PENDING",
-      shippingDate: row.shippingDate ? row.shippingDate.split("T")[0] : "",
-      trackingNumber: row.trackingNumber || "",
+      shippingStatus: row.ShippingStatus || "PENDING",
+      shippingDate: row.ShippingDate ? row.ShippingDate.split("T")[0] : "",
+      trackingNumber: row.TrackingNumber || "",
     });
   };
 
   const handleSave = async () => {
     if (!editRow) return;
     const payload = {
-      shippingStatus: form.shippingStatus,
-      shippingDate: form.shippingDate || undefined,
-      trackingNumber: form.trackingNumber || undefined,
+      ShippingStatus: form.shippingStatus,
+      ShippingDate: form.shippingDate || undefined,
+      TrackingNumber: form.trackingNumber || undefined,
     };
-    const res = await api.put("sales", `${editRow.id}/shipping`, payload).catch(() => ({ success: false } as any));
+    const res = await api.put("sales", `${editRow.ID}/shipping`, payload).catch(() => ({ success: false } as any));
     if (res.success) {
       setEditRow(null);
       fetchData();
@@ -55,14 +55,14 @@ export default function SaleShippingPage() {
   };
 
   const columns = [
-    { key: "code", label: "No. Transaksi", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
-    { key: "customerName", label: "Pelanggan", render: (_: unknown, row: any) => row.customer?.name || "-" },
-    { key: "total", label: "Total", align: "right" as const, render: (v: unknown) => formatCurrency(v as number) },
-    { key: "trackingNumber", label: "No. Resi", render: (v: unknown) => (v as string) || <span className="text-muted">-</span> },
-    { key: "shippingDate", label: "Tgl Kirim", render: (v: unknown) => v ? formatDate(v as string) : <span className="text-muted">-</span> },
+    { key: "Code", label: "No. Transaksi", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
+    { key: "Date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
+    { key: "Customer.Name", label: "Pelanggan", render: (_: unknown, row: any) => row.Customer?.Name || "-" },
+    { key: "Total", label: "Total", align: "right" as const, render: (v: unknown) => formatCurrency(v as number) },
+    { key: "TrackingNumber", label: "No. Resi", render: (v: unknown) => (v as string) || <span className="text-muted">-</span> },
+    { key: "ShippingDate", label: "Tgl Kirim", render: (v: unknown) => v ? formatDate(v as string) : <span className="text-muted">-</span> },
     {
-      key: "shippingStatus", label: "Status Kirim",
+      key: "ShippingStatus", label: "Status Kirim",
       render: (v: unknown) => <Badge variant={v === "SHIPPED" ? "success" : "warning"}>{v === "SHIPPED" ? "Terkirim" : "Pending"}</Badge>,
     },
     {

@@ -19,12 +19,12 @@ export default function StockOutPage() {
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [warehouses, setWarehouses] = useState<any[]>([]);
-  const [form, setForm] = useState({ date: "", code: "", warehouseId: "", description: "" });
+  const [form, setForm] = useState<{ id?: number; date: string; code: string; warehouseId: string; description: string }>({ date: "", code: "", warehouseId: "", description: "" });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("stock-out", { $search: search || undefined, $include: "warehouse" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+      const res = await api.get("stock-out", { $search: search || undefined, $include: "warehouse,status" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
       if (res.success) setData(res.data || []);
     } finally { setLoading(false); }
   }, [search]);
@@ -38,14 +38,14 @@ export default function StockOutPage() {
   useEffect(() => { fetchWarehouses(); }, [fetchWarehouses]);
 
   const handleSave = async () => {
-    const isEdit = Boolean((form as any).id);
+    const isEdit = Boolean(form.id);
     const payload = {
       code: form.code || `SO-${Date.now()}`,
       warehouseId: Number(form.warehouseId),
       description: form.description || undefined,
     };
     if (isEdit) {
-      await api.patch("stock-out", (form as any).id, payload).catch(() => ({}));
+      await api.patch("stock-out", form.id!, payload).catch(() => ({}));
     } else {
       await api.post("stock-out", payload).catch(() => ({}));
     }
@@ -59,21 +59,21 @@ export default function StockOutPage() {
   };
 
   const columns = [
-    { key: "date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
-    { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "warehouse", label: "Gudang", render: (v: unknown) => (v as any)?.name || "-" },
-    { key: "description", label: "Keterangan" },
-    { key: "status", label: "Status", render: (v: unknown) => {
-      const s = v as string;
-      return s === "COMPLETED" ? <Badge variant="success">Selesai</Badge> : s === "PENDING" ? <Badge variant="warning">Pending</Badge> : <Badge variant="default">{s}</Badge>;
+    { key: "Date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
+    { key: "Code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
+    { key: "Warehouse", label: "Gudang", render: (v: unknown) => (v as any)?.Name || "-" },
+    { key: "Description", label: "Keterangan" },
+    { key: "Status", label: "Status", render: (v: unknown) => {
+      const s = (v as any)?.Code as string | undefined;
+      return s === "COMPLETED" ? <Badge variant="success">Selesai</Badge> : s === "PENDING" ? <Badge variant="warning">Pending</Badge> : <Badge variant="default">{s || "-"}</Badge>;
     }},
-    { key: "totalItems", label: "Total Item", align: "right" as const },
+    { key: "TotalItems", label: "Total Item", align: "right" as const },
     {
       key: "actions", label: "", width: "70px",
       render: (_: unknown, row: any) => (
         <div className="flex gap-1">
-          <RowEditIcon onClick={() => { setForm(row); setShowForm(true); }} />
-          <RowDeleteIcon onClick={() => handleDelete(row.id)} />
+          <RowEditIcon onClick={() => { setForm({ id: row.ID, date: row.Date ? String(row.Date).split("T")[0] : "", code: row.Code, warehouseId: row.WarehouseID != null ? String(row.WarehouseID) : "", description: row.Description || "" }); setShowForm(true); }} />
+          <RowDeleteIcon onClick={() => handleDelete(row.ID)} />
         </div>
       )
     },
@@ -99,7 +99,7 @@ export default function StockOutPage() {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <Input label="Tanggal" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
-            <Select label="Gudang" value={form.warehouseId} onChange={e => setForm(f => ({ ...f, warehouseId: e.target.value }))} options={warehouses.map(w => ({ value: w.id, label: w.name }))} />
+            <Select label="Gudang" value={form.warehouseId} onChange={e => setForm(f => ({ ...f, warehouseId: e.target.value }))} options={warehouses.map(w => ({ value: w.ID, label: w.Name }))} />
           </div>
           <Input label="Keterangan" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
           <div className="flex justify-end gap-2 pt-4">

@@ -8,7 +8,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 @ApiTags('PointSetting')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('PointSetting')
+@Controller('point-setting')
 export class PointSettingController extends BaseController<
   any,
   CreatePointSettingDto,

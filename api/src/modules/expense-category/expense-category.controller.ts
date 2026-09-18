@@ -8,7 +8,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 @ApiTags('ExpenseCategories')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('ExpenseCategories')
+@Controller('expense-category')
 export class ExpenseCategoryController extends BaseController<
   any,
   CreateExpenseCategoryDto,

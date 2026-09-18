@@ -18,7 +18,7 @@ export class SaleService {
     const prismaQuery = this.queryService.buildPrismaQuery(query, {
       searchableFields: ['*'],
       allowedIncludes: ['*'],
-      defaultOrderBy: { createdAt: 'desc' },
+      defaultOrderBy: { CreatedAt: 'desc' },
     });
 
     const findArgs: Record<string, unknown> = {
@@ -52,7 +52,7 @@ export class SaleService {
       allowedIncludes: ['*'],
     });
 
-    const findArgs: Record<string, unknown> = { where: { id } };
+    const findArgs: Record<string, unknown> = { where: { ID: id } };
 
     if (prismaQuery.select) {
       findArgs.select = prismaQuery.select;
@@ -67,36 +67,39 @@ export class SaleService {
 
   async create(dto: CreateSaleDto, userId: string) {
     const code = await this.generateCode();
+    const pendingStatus = await this.getPaymentStatusByCode('PENDING');
+    const partialStatus = await this.getPaymentStatusByCode('PARTIAL');
+    const paidStatus = await this.getPaymentStatusByCode('PAID');
 
     // Calculate totals
-    const subtotal = dto.items.reduce((sum, item) => {
-      const itemDiscount = (item.discountAmount || 0);
-      return sum + (item.unitPrice * item.quantity - itemDiscount);
+    const subtotal = dto.Items.reduce((sum, item) => {
+      const itemDiscount = (item.DiscountAmount || 0);
+      return sum + (item.UnitPrice * item.Quantity - itemDiscount);
     }, 0);
 
-    const discountAmount = dto.discountAmount || 0;
+    const discountAmount = dto.DiscountAmount || 0;
     const afterDiscount = subtotal - discountAmount;
-    const taxAmount = dto.taxPercent ? afterDiscount * (dto.taxPercent / 100) : 0;
+    const taxAmount = dto.TaxPercent ? afterDiscount * (dto.TaxPercent / 100) : 0;
     const total = afterDiscount + taxAmount;
 
-    const cashAmount = dto.cashAmount || 0;
+    const cashAmount = dto.CashAmount || 0;
     const changeAmount = cashAmount > total ? cashAmount - total : 0;
     const paid = cashAmount >= total ? total : cashAmount;
     const remaining = total - paid;
 
-    const paymentStatus = paid >= total ? 'PAID' : paid > 0 ? 'PARTIAL' : 'PENDING';
+    const paymentStatus = paid >= total ? paidStatus : paid > 0 ? partialStatus : pendingStatus;
 
-    const saleItemsData = dto.items.map((item) => {
-      const itemDiscount = item.discountAmount || 0;
-      const itemSubtotal = item.unitPrice * item.quantity - itemDiscount;
+    const saleItemsData = dto.Items.map((item) => {
+      const itemDiscount = item.DiscountAmount || 0;
+      const itemSubtotal = item.UnitPrice * item.Quantity - itemDiscount;
       return {
-        productId: item.productId,
-        quantity: new Prisma.Decimal(item.quantity),
-        unitId: item.unitId,
-        unitPrice: new Prisma.Decimal(item.unitPrice),
-        discountPercent: new Prisma.Decimal(item.discountPercent || 0),
-        discountAmount: new Prisma.Decimal(itemDiscount),
-        subtotal: new Prisma.Decimal(itemSubtotal),
+        ProductID: item.ProductID,
+        Quantity: new Prisma.Decimal(item.Quantity),
+        UnitID: item.UnitID,
+        UnitPrice: new Prisma.Decimal(item.UnitPrice),
+        DiscountPercent: new Prisma.Decimal(item.DiscountPercent || 0),
+        DiscountAmount: new Prisma.Decimal(itemDiscount),
+        Subtotal: new Prisma.Decimal(itemSubtotal),
       };
     });
 
@@ -104,57 +107,59 @@ export class SaleService {
     const sale = await this.prisma.$transaction(async (tx) => {
       const newSale = await tx.sale.create({
         data: {
-          code,
-          date: dto.date ? new Date(dto.date) : new Date(),
-          customerId: dto.customerId,
-          salesPersonId: dto.salesPersonId,
-          salePointId: dto.salePointId,
-          warehouseId: dto.warehouseId,
-          subtotal: new Prisma.Decimal(subtotal),
-          discountPercent: new Prisma.Decimal(dto.discountPercent || 0),
-          discountAmount: new Prisma.Decimal(discountAmount),
-          taxPercent: new Prisma.Decimal(dto.taxPercent || 0),
-          taxAmount: new Prisma.Decimal(taxAmount),
-          total: new Prisma.Decimal(total),
-          cashAmount: new Prisma.Decimal(cashAmount),
-          changeAmount: new Prisma.Decimal(changeAmount),
-          paymentStatus: paymentStatus as any,
-          paymentMethod: dto.paymentMethod,
-          notes: dto.notes,
-          createdById: userId,
-          saleItems: { create: saleItemsData },
+          Code: code,
+          Date: dto.Date ? new Date(dto.Date) : new Date(),
+          Customer: { connect: { ID: dto.CustomerID } },
+          ...(dto.SalesPersonID ? { SalesPerson: { connect: { ID: dto.SalesPersonID } } } : {}),
+          ...(dto.SalePointID ? { SalePoint: { connect: { ID: dto.SalePointID } } } : {}),
+          ...(dto.WarehouseID ? { Warehouse: { connect: { ID: dto.WarehouseID } } } : {}),
+          Subtotal: new Prisma.Decimal(subtotal),
+          DiscountPercent: new Prisma.Decimal(dto.DiscountPercent || 0),
+          DiscountAmount: new Prisma.Decimal(discountAmount),
+          TaxPercent: new Prisma.Decimal(dto.TaxPercent || 0),
+          TaxAmount: new Prisma.Decimal(taxAmount),
+          Total: new Prisma.Decimal(total),
+          CashAmount: new Prisma.Decimal(cashAmount),
+          ChangeAmount: new Prisma.Decimal(changeAmount),
+          PaymentStatus: { connect: { ID: paymentStatus.ID } },
+          ...(dto.PaymentMethodID ? { PaymentMethod: { connect: { ID: dto.PaymentMethodID } } } : {}),
+          Notes: dto.Notes,
+          Creator: { connect: { ID: userId } },
+          SaleItems: { create: saleItemsData },
         },
         include: {
-          customer: true,
-          salesPerson: true,
-          salePoint: true,
-          warehouse: true,
-          saleItems: { include: { product: true, unit: true } },
+          Customer: true,
+          SalesPerson: true,
+          SalePoint: true,
+          Warehouse: true,
+          SaleItems: { include: { Product: true, Unit: true } },
         },
       });
 
       // Decrease product stock
-      for (const item of dto.items) {
+      for (const item of dto.Items) {
         await tx.product.update({
-          where: { id: item.productId },
-          data: { stock: { decrement: new Prisma.Decimal(item.quantity) } },
+          where: { ID: item.ProductID },
+          data: { Stock: { decrement: new Prisma.Decimal(item.Quantity) } },
         });
       }
 
       // Record payment if cash received
       if (paid > 0) {
+        const methodId = dto.PaymentMethodID ?? (await this.getCashMethodId(tx));
+        if (!methodId) throw new BadRequestException('Metode pembayaran CASH tidak ditemukan');
         await tx.salePayment.create({
           data: {
-            saleId: newSale.id,
-            method: dto.paymentMethod || 'CASH',
-            amount: new Prisma.Decimal(paid),
-            referenceNumber: null,
-            createdById: userId,
+            SaleID: newSale.ID,
+            MethodID: methodId,
+            Amount: new Prisma.Decimal(paid),
+            ReferenceNumber: null,
+            CreatedByID: userId,
           },
         });
 
         // Add loyalty points
-        await this.addPoints(tx, dto.customerId, newSale.id, total);
+        await this.addPoints(tx, dto.CustomerID, newSale.ID, total);
       }
 
       return newSale;
@@ -164,52 +169,64 @@ export class SaleService {
   }
 
   async update(id: number, dto: UpdateSaleDto) {
-    const sale = await this.prisma.sale.findUnique({ where: { id } });
+    const sale = await this.prisma.sale.findUnique({ where: { ID: id } });
     if (!sale) throw new NotFoundException('Sale not found');
-    if (sale.paymentStatus === 'PAID' || sale.paymentStatus === 'CANCELLED') {
+
+    const currentPaymentStatus = await this.prisma.paymentStatus.findUnique({ where: { ID: sale.PaymentStatusID } });
+    if (currentPaymentStatus?.Code === 'PAID' || currentPaymentStatus?.Code === 'CANCELLED') {
       throw new BadRequestException('Cannot update paid or cancelled sales');
     }
 
     const updateData: Record<string, unknown> = {};
-    if (dto.customerId !== undefined) updateData.customerId = dto.customerId;
-    if (dto.salesPersonId !== undefined) updateData.salesPersonId = dto.salesPersonId;
-    if (dto.salePointId !== undefined) updateData.salePointId = dto.salePointId;
-    if (dto.warehouseId !== undefined) updateData.warehouseId = dto.warehouseId;
-    if (dto.date) updateData.date = new Date(dto.date);
-    if (dto.discountPercent !== undefined) updateData.discountPercent = new Prisma.Decimal(dto.discountPercent);
-    if (dto.discountAmount !== undefined) updateData.discountAmount = new Prisma.Decimal(dto.discountAmount);
-    if (dto.taxPercent !== undefined) updateData.taxPercent = new Prisma.Decimal(dto.taxPercent);
-    if (dto.paymentMethod !== undefined) updateData.paymentMethod = dto.paymentMethod;
-    if (dto.notes !== undefined) updateData.notes = dto.notes;
+    if (dto.CustomerID !== undefined) updateData.CustomerID = dto.CustomerID;
+    if (dto.SalesPersonID !== undefined) updateData.SalesPersonID = dto.SalesPersonID;
+    if (dto.SalePointID !== undefined) updateData.SalePointID = dto.SalePointID;
+    if (dto.WarehouseID !== undefined) updateData.WarehouseID = dto.WarehouseID;
+    if (dto.Date) updateData.Date = new Date(dto.Date);
+    if (dto.DiscountPercent !== undefined) updateData.DiscountPercent = new Prisma.Decimal(dto.DiscountPercent);
+    if (dto.DiscountAmount !== undefined) updateData.DiscountAmount = new Prisma.Decimal(dto.DiscountAmount);
+    if (dto.TaxPercent !== undefined) updateData.TaxPercent = new Prisma.Decimal(dto.TaxPercent);
+    if (dto.PaymentMethodID !== undefined) updateData.PaymentMethodID = dto.PaymentMethodID;
+    if (dto.Notes !== undefined) updateData.Notes = dto.Notes;
 
     const updated = await this.prisma.sale.update({
-      where: { id },
+      where: { ID: id },
       data: updateData,
       include: {
-        customer: true,
-        salesPerson: true,
-        salePoint: true,
-        warehouse: true,
-        saleItems: { include: { product: true, unit: true } },
+        Customer: true,
+        SalesPerson: true,
+        SalePoint: true,
+        Warehouse: true,
+        SaleItems: { include: { Product: true, Unit: true } },
       },
     });
 
     return this.serialize(updated);
   }
 
+  // NOTE: `ShippingStatus`/`ShippingDate`/`TrackingNumber` were added to the
+  // `sales` table by migration 20260918010000_add_sale_shipping (still lowercase
+  // `shippingStatus`/`shippingDate`/`trackingNumber` columns), but the teammate's
+  // PascalCase schema refactor (commit 4e760c8) dropped these fields from the Sale
+  // model in schema.prisma, so the generated Prisma client no longer knows about
+  // them. Per this task's constraints we cannot touch schema.prisma or run
+  // migrations, so this method falls back to raw SQL against the literal (still
+  // camelCase) DB columns to keep the endpoint working. The parent session should
+  // double check this — the correct long-term fix is re-adding these 3 fields to
+  // the Sale model (with @map if needed) and regenerating the client.
   async updateShipping(id: number, dto: UpdateShippingDto) {
-    const sale = await this.prisma.sale.findUnique({ where: { id } });
+    const sale = await this.prisma.sale.findUnique({ where: { ID: id } });
     if (!sale) throw new NotFoundException('Sale not found');
 
     const updateData: Record<string, unknown> = {};
-    if (dto.shippingStatus !== undefined) updateData.shippingStatus = dto.shippingStatus;
-    if (dto.shippingDate !== undefined) updateData.shippingDate = dto.shippingDate ? new Date(dto.shippingDate) : null;
-    if (dto.trackingNumber !== undefined) updateData.trackingNumber = dto.trackingNumber;
+    if (dto.ShippingStatus !== undefined) updateData.ShippingStatus = dto.ShippingStatus;
+    if (dto.ShippingDate !== undefined) updateData.ShippingDate = dto.ShippingDate ? new Date(dto.ShippingDate) : null;
+    if (dto.TrackingNumber !== undefined) updateData.TrackingNumber = dto.TrackingNumber;
 
     const updated = await this.prisma.sale.update({
-      where: { id },
+      where: { ID: id },
       data: updateData,
-      include: { customer: true },
+      include: { Customer: true },
     });
 
     return this.serialize(updated);
@@ -217,46 +234,49 @@ export class SaleService {
 
   async payment(id: number, dto: PaymentDto, userId: string) {
     const sale = await this.prisma.sale.findUnique({
-      where: { id },
-      include: { salePayments: true },
+      where: { ID: id },
+      include: { SalePayments: true },
     });
     if (!sale) throw new NotFoundException('Sale not found');
-    if (sale.paymentStatus === 'CANCELLED') {
+
+    const currentPaymentStatus = await this.prisma.paymentStatus.findUnique({ where: { ID: sale.PaymentStatusID } });
+    if (currentPaymentStatus?.Code === 'CANCELLED') {
       throw new BadRequestException('Cannot add payment to cancelled sale');
     }
 
-    const currentPaid = sale.salePayments.reduce((sum, p) => sum + Number(p.amount), 0);
-    const paymentAmount = dto.amount;
+    const currentPaid = sale.SalePayments.reduce((sum, p) => sum + Number(p.Amount), 0);
+    const paymentAmount = dto.Amount;
     const newPaid = currentPaid + paymentAmount;
-    const totalAmount = Number(sale.total);
+    const totalAmount = Number(sale.Total);
 
-    let newStatus: 'PARTIAL' | 'PAID' = 'PARTIAL';
-    const actualPaid = newPaid >= totalAmount ? totalAmount : newPaid;
-    if (newPaid >= totalAmount) newStatus = 'PAID';
+    const newStatusCode: 'PARTIAL' | 'PAID' = newPaid >= totalAmount ? 'PAID' : 'PARTIAL';
+    const newStatus = await this.getPaymentStatusByCode(newStatusCode);
 
     await this.prisma.$transaction(async (tx) => {
+      const methodId = dto.PaymentMethodID ?? (await this.getCashMethodId(tx));
+      if (!methodId) throw new BadRequestException('Metode pembayaran CASH tidak ditemukan');
       await tx.salePayment.create({
         data: {
-          saleId: id,
-          method: dto.paymentMethod || 'CASH',
-          amount: new Prisma.Decimal(paymentAmount),
-          referenceNumber: dto.referenceNumber,
-          notes: dto.notes,
-          createdById: userId,
+          SaleID: id,
+          MethodID: methodId,
+          Amount: new Prisma.Decimal(paymentAmount),
+          ReferenceNumber: dto.ReferenceNumber,
+          Notes: dto.Notes,
+          CreatedByID: userId,
         },
       });
 
       await tx.sale.update({
-        where: { id },
+        where: { ID: id },
         data: {
-          paymentStatus: newStatus,
-          paymentMethod: dto.paymentMethod || sale.paymentMethod,
+          PaymentStatusID: newStatus.ID,
+          PaymentMethodID: dto.PaymentMethodID ?? sale.PaymentMethodID,
         },
       });
 
       // Award points on first full payment
-      if (newStatus === 'PAID' && currentPaid === 0) {
-        await this.addPoints(tx, sale.customerId, id, totalAmount);
+      if (newStatusCode === 'PAID' && currentPaid === 0) {
+        await this.addPoints(tx, sale.CustomerID, id, totalAmount);
       }
     });
 
@@ -264,8 +284,11 @@ export class SaleService {
   }
 
   async updateStatus(id: number, dto: UpdateStatusDto) {
-    const sale = await this.prisma.sale.findUnique({ where: { id } });
+    const sale = await this.prisma.sale.findUnique({ where: { ID: id } });
     if (!sale) throw new NotFoundException('Sale not found');
+
+    const currentPaymentStatus = await this.prisma.paymentStatus.findUnique({ where: { ID: sale.PaymentStatusID } });
+    const currentCode = currentPaymentStatus?.Code ?? 'PENDING';
 
     const validTransitions: Record<string, string[]> = {
       PENDING: ['PARTIAL', 'PAID', 'CANCELLED'],
@@ -273,20 +296,22 @@ export class SaleService {
       INSTALMENT: ['PARTIAL', 'PAID', 'CANCELLED'],
     };
 
-    const allowed = validTransitions[sale.paymentStatus] || [];
-    if (!allowed.includes(dto.paymentStatus)) {
+    const allowed = validTransitions[currentCode] || [];
+    if (!allowed.includes(dto.PaymentStatusCode)) {
       throw new BadRequestException(
-        `Cannot transition from '${sale.paymentStatus}' to '${dto.paymentStatus}'`,
+        `Cannot transition from '${currentCode}' to '${dto.PaymentStatusCode}'`,
       );
     }
 
+    const newStatus = await this.getPaymentStatusByCode(dto.PaymentStatusCode);
+
     const updated = await this.prisma.sale.update({
-      where: { id },
-      data: { paymentStatus: dto.paymentStatus },
+      where: { ID: id },
+      data: { PaymentStatusID: newStatus.ID },
       include: {
-        customer: true,
-        salesPerson: true,
-        saleItems: { include: { product: true, unit: true } },
+        Customer: true,
+        SalesPerson: true,
+        SaleItems: { include: { Product: true, Unit: true } },
       },
     });
 
@@ -294,56 +319,69 @@ export class SaleService {
   }
 
   async cancel(id: number) {
-    return this.updateStatus(id, { paymentStatus: 'CANCELLED' });
+    return this.updateStatus(id, { PaymentStatusCode: 'CANCELLED' });
   }
 
   async delete(id: number) {
     const sale = await this.prisma.sale.findUnique({
-      where: { id },
-      include: { salePayments: true, saleReturns: true, saleItems: true },
+      where: { ID: id },
+      include: { SalePayments: true, SaleReturns: true, SaleItems: true },
     });
     if (!sale) throw new NotFoundException('Sale not found');
-    if (sale.salePayments && sale.salePayments.length > 0) {
+    if (sale.SalePayments && sale.SalePayments.length > 0) {
       throw new BadRequestException('Cannot delete sale with payments');
     }
-    if (sale.saleReturns && sale.saleReturns.length > 0) {
+    if (sale.SaleReturns && sale.SaleReturns.length > 0) {
       throw new BadRequestException('Cannot delete sale with returns');
     }
-    if (sale.paymentStatus !== 'PENDING') {
+
+    const currentPaymentStatus = await this.prisma.paymentStatus.findUnique({ where: { ID: sale.PaymentStatusID } });
+    if (currentPaymentStatus?.Code !== 'PENDING') {
       throw new BadRequestException('Can only delete pending sales');
     }
 
     await this.prisma.$transaction(async (tx) => {
       // Restore stock
-      for (const item of sale.saleItems) {
+      for (const item of sale.SaleItems) {
         await tx.product.update({
-          where: { id: item.productId },
-          data: { stock: { increment: item.quantity } },
+          where: { ID: item.ProductID },
+          data: { Stock: { increment: item.Quantity } },
         });
       }
 
-      await tx.sale.delete({ where: { id } });
+      await tx.sale.delete({ where: { ID: id } });
     });
 
     return { id };
   }
 
   private async addPoints(tx: any, customerId: number, saleId: number, totalAmount: number) {
-    const setting = await tx.pointSetting.findFirst({ where: { isActive: true } });
+    const setting = await tx.pointSetting.findFirst({ where: { IsActive: true } });
     if (!setting) return;
 
-    const minimumTransaction = Number(setting.minimumTransaction);
+    const minimumTransaction = Number(setting.MinimumTransaction);
     if (totalAmount < minimumTransaction) return;
 
-    const pointsPerRupiah = Number(setting.pointsPerRupiah);
+    const pointsPerRupiah = Number(setting.PointsPerRupiah);
     const points = Math.floor(totalAmount * pointsPerRupiah);
 
     if (points <= 0) return;
 
     await tx.customer.update({
-      where: { id: customerId },
-      data: { pointBalance: { increment: points } },
+      where: { ID: customerId },
+      data: { PointBalance: { increment: points } },
     });
+  }
+
+  private async getCashMethodId(tx: any): Promise<number | undefined> {
+    const cashMethod = await tx.paymentMethod.findUnique({ where: { Code: 'CASH' } });
+    return cashMethod?.ID;
+  }
+
+  private async getPaymentStatusByCode(code: string) {
+    const status = await this.prisma.paymentStatus.findUnique({ where: { Code: code } });
+    if (!status) throw new BadRequestException(`Payment status '${code}' tidak ditemukan`);
+    return status;
   }
 
   private async generateCode(): Promise<string> {
@@ -353,14 +391,14 @@ export class SaleService {
     const prefix = `SA-${year}${month}`;
 
     const lastSale = await this.prisma.sale.findFirst({
-      where: { code: { startsWith: prefix } },
-      orderBy: { code: 'desc' },
-      select: { code: true },
+      where: { Code: { startsWith: prefix } },
+      orderBy: { Code: 'desc' },
+      select: { Code: true },
     });
 
     let nextNumber = 1;
     if (lastSale) {
-      const lastSeq = parseInt(lastSale.code.split('-').pop() || '0', 10);
+      const lastSeq = parseInt(lastSale.Code.split('-').pop() || '0', 10);
       nextNumber = lastSeq + 1;
     }
 
@@ -379,8 +417,8 @@ export class SaleService {
         result[key] = value;
       }
     }
-    if (data.saleItems && Array.isArray(data.saleItems)) {
-      result.saleItems = data.saleItems.map((item: any) => this.serialize(item));
+    if (data.SaleItems && Array.isArray(data.SaleItems)) {
+      result.SaleItems = data.SaleItems.map((item: any) => this.serialize(item));
     }
     return result;
   }

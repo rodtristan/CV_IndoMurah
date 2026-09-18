@@ -21,7 +21,7 @@ import { ApiResponse } from '../../common/dto/api-response-dto';
 @ApiTags('Sale Orders')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('SaleOrders')
+@Controller('sale-order')
 export class SaleOrderController {
   constructor(private saleOrderService: SaleOrderService) {}
 

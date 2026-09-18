@@ -20,9 +20,9 @@ export class RoleService {
       cacheKey,
       async () => {
         const pq = this.queryService.buildPrismaQuery(query, {
-          searchableFields: ['roleName', 'roleDescription'],
-          allowedIncludes: ['users'],
-          defaultOrderBy: { createdAt: 'desc' },
+          searchableFields: ['RoleName', 'RoleDescription'],
+          allowedIncludes: ['UserRoles'],
+          defaultOrderBy: { CreatedAt: 'desc' },
         });
         const findArgs: any = { where: pq.where, orderBy: pq.orderBy, skip: pq.skip, take: pq.take };
         if (pq.select) findArgs.select = pq.select; else if (pq.include) findArgs.include = pq.include;
@@ -41,8 +41,8 @@ export class RoleService {
     return this.redis.getOrSet(
       cacheKey,
       async () => {
-        const pq = this.queryService.buildPrismaQuery(query, { allowedIncludes: ['users'] });
-        const findArgs: any = { where: { id } };
+        const pq = this.queryService.buildPrismaQuery(query, { allowedIncludes: ['UserRoles'] });
+        const findArgs: any = { where: { ID: id } };
         if (pq.select) findArgs.select = pq.select; else if (pq.include) findArgs.include = pq.include;
         return this.prisma.role.findUnique(findArgs);
       },
@@ -57,17 +57,17 @@ export class RoleService {
   }
 
   async update(id: number, data: any) {
-    const role = await this.prisma.role.findUnique({ where: { id } });
+    const role = await this.prisma.role.findUnique({ where: { ID: id } });
     if (!role) throw new NotFoundException('Role not found');
-    const result = await this.prisma.role.update({ where: { id }, data });
+    const result = await this.prisma.role.update({ where: { ID: id }, data });
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
     return result;
   }
 
   async remove(id: number) {
-    const role = await this.prisma.role.findUnique({ where: { id } });
+    const role = await this.prisma.role.findUnique({ where: { ID: id } });
     if (!role) throw new NotFoundException('Role not found');
-    const result = await this.prisma.role.update({ where: { id }, data: { isActive: false } });
+    const result = await this.prisma.role.update({ where: { ID: id }, data: { IsActive: false } });
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
     return result;
   }

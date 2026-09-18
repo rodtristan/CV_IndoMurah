@@ -29,7 +29,7 @@ export default function CashTransferPage() {
   }, [search]);
 
   const fetchAccounts = useCallback(async () => {
-    const res = await api.get("account", { $select: "id,code,name", $where: { type: "ASSET" } } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+    const res = await api.get("account", { $select: "ID,Code,Name", $where: { Type: { Code: "ASSET" } } } as any).catch(() => ({ success: false, data: { data: [] } } as any));
     if (res.success) setAccounts(res.data || []);
   }, []);
 
@@ -55,12 +55,12 @@ export default function CashTransferPage() {
   };
 
   const columns = [
-    { key: "date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
-    { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "fromAccount", label: "Dari", render: (v: unknown) => (v as any)?.name || "-" },
-    { key: "toAccount", label: "Ke", render: (v: unknown) => (v as any)?.name || "-" },
-    { key: "amount", label: "Jumlah", align: "right" as const, render: (v: unknown) => <span className="font-bold text-primary">{formatCurrency(v as number)}</span> },
-    { key: "description", label: "Keterangan" },
+    { key: "Date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
+    { key: "Code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
+    { key: "FromAccount", label: "Dari", render: (v: unknown) => (v as any)?.Name || "-" },
+    { key: "ToAccount", label: "Ke", render: (v: unknown) => (v as any)?.Name || "-" },
+    { key: "Amount", label: "Jumlah", align: "right" as const, render: (v: unknown) => <span className="font-bold text-primary">{formatCurrency(v as number)}</span> },
+    { key: "Description", label: "Keterangan" },
   ];
 
   const openCreate = () => { setForm({ date: new Date().toISOString().split("T")[0], code: "", fromAccountId: "", toAccountId: "", amount: 0, description: "" }); setShowForm(true); };
@@ -82,8 +82,8 @@ export default function CashTransferPage() {
       <Modal open={showForm} onClose={() => setShowForm(false)} title="Transfer Baru" size="md">
         <div className="space-y-4">
           <Input label="Tanggal" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
-          <Select label="Dari Akun" value={form.fromAccountId} onChange={e => setForm(f => ({ ...f, fromAccountId: e.target.value }))} options={accounts.map(a => ({ value: a.id, label: `${a.code} - ${a.name}` }))} />
-          <Select label="Ke Akun" value={form.toAccountId} onChange={e => setForm(f => ({ ...f, toAccountId: e.target.value }))} options={accounts.map(a => ({ value: a.id, label: `${a.code} - ${a.name}` }))} />
+          <Select label="Dari Akun" value={form.fromAccountId} onChange={e => setForm(f => ({ ...f, fromAccountId: e.target.value }))} options={accounts.map(a => ({ value: a.ID, label: `${a.Code} - ${a.Name}` }))} />
+          <Select label="Ke Akun" value={form.toAccountId} onChange={e => setForm(f => ({ ...f, toAccountId: e.target.value }))} options={accounts.map(a => ({ value: a.ID, label: `${a.Code} - ${a.Name}` }))} />
           <Input label="Jumlah" type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: Number(e.target.value) }))} />
           <Input label="Keterangan" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
           <div className="flex justify-end gap-2 pt-4">

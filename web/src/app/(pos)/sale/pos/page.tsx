@@ -77,7 +77,7 @@ function CartItemRow({
         <Package className="size-5 text-muted" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-highlighted">{item.product.name}</p>
+        <p className="truncate text-sm font-medium text-highlighted">{item.product.Name}</p>
         <p className="text-xs text-muted">{formatCurrency(item.unitPrice)} x {item.quantity}</p>
       </div>
       <div className="flex items-center gap-1">
@@ -200,7 +200,7 @@ function ProductSearchModal({
           <div className="max-h-[400px] space-y-1 overflow-y-auto">
             {products.map((product, i) => (
               <button
-                key={product.id}
+                key={product.ID}
                 onClick={() => {
                   onSelect(product);
                   onClose();
@@ -216,14 +216,14 @@ function ProductSearchModal({
                   <Package className="size-5 text-muted" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-highlighted">{product.name}</p>
+                  <p className="truncate text-sm font-medium text-highlighted">{product.Name}</p>
                   <p className="text-xs text-muted">
-                    {product.code} {product.barcode ? `| ${product.barcode}` : ""}
+                    {product.Code} {product.Barcode ? `| ${product.Barcode}` : ""}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-semibold text-primary">{formatCurrency(product.sellingPrice)}</p>
-                  <p className="text-xs text-muted">Stock: {Number(product.stock)}</p>
+                  <p className="text-sm font-semibold text-primary">{formatCurrency(product.SellingPrice)}</p>
+                  <p className="text-xs text-muted">Stock: {Number(product.Stock)}</p>
                 </div>
               </button>
             ))}
@@ -260,7 +260,7 @@ function CustomerModal({
   const fetchCustomers = async (query: string) => {
     setLoading(true);
     try {
-      const params = odata().search(query, ["code", "name", "phone"]).take(20).toParams();
+      const params = odata().search(query, ["Code", "Name", "Phone"]).include(["CustomerGroup"]).take(20).toParams();
       const res = await api.get<Customer[]>("customer", params);
       if (res.success && res.data) setCustomers(res.data);
     } catch (e) {
@@ -275,7 +275,7 @@ function CustomerModal({
       <div className="space-y-4">
         <Input
           placeholder="Cari pelanggan..."
-          leftIcon={<Search className="size-4" />}
+          leftIcon={Search}
           onChange={(e) => {
             setSearch(e.target.value);
             fetchCustomers(e.target.value);
@@ -299,7 +299,7 @@ function CustomerModal({
           </button>
           {customers.map((c) => (
             <button
-              key={c.id}
+              key={c.ID}
               onClick={() => {
                 onSelect(c);
                 onClose();
@@ -310,10 +310,10 @@ function CustomerModal({
                 <User className="size-5 text-primary" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-highlighted">{c.name}</p>
-                <p className="text-xs text-muted">{c.phone || c.code}</p>
+                <p className="text-sm font-medium text-highlighted">{c.Name}</p>
+                <p className="text-xs text-muted">{c.Phone || c.Code}</p>
               </div>
-              <Badge variant="info">{c.customerGroup}</Badge>
+              <Badge variant="info">{c.CustomerGroup?.Name}</Badge>
             </button>
           ))}
         </div>
@@ -403,7 +403,7 @@ function PaymentModal({
               type="number"
               value={cash}
               onChange={(e) => setCash(Number(e.target.value))}
-              leftIcon={<Banknote className="size-4" />}
+              leftIcon={Banknote}
             />
             {cash >= total && (
               <div className="rounded-lg bg-success/10 p-3 text-center">
@@ -449,12 +449,12 @@ export default function POSPage() {
 
   const addToCart = useCallback((product: Product) => {
     setState((prev) => {
-      const existing = prev.cart.find((item) => item.productId === product.id);
+      const existing = prev.cart.find((item) => item.productId === product.ID);
       if (existing) {
         return {
           ...prev,
           cart: prev.cart.map((item) =>
-            item.productId === product.id
+            item.productId === product.ID
               ? {
                   ...item,
                   quantity: item.quantity + 1,
@@ -469,13 +469,13 @@ export default function POSPage() {
         cart: [
           ...prev.cart,
           {
-            productId: product.id,
+            productId: product.ID,
             product,
             quantity: 1,
-            unitPrice: Number(product.sellingPrice),
-            discountPercent: Number(product.discountPercent),
+            unitPrice: Number(product.SellingPrice),
+            discountPercent: Number(product.DiscountPercent),
             discountAmount: 0,
-            subtotal: Number(product.sellingPrice),
+            subtotal: Number(product.SellingPrice),
           },
         ],
       };
@@ -515,23 +515,30 @@ export default function POSPage() {
     setSaving(true);
     try {
       const res = await api.post("sales", {
-        // customerId is required by CreateSaleDto; fall back to the seeded
+        // CustomerID is required by CreateSaleDto; fall back to the seeded
         // "Pelanggan Umum" walk-in customer (id=1, see prisma/seed.ts) when
         // the cashier didn't pick one.
-        customerId: state.customer?.id || 1,
-        discountPercent: state.discountPercent,
-        discountAmount: state.discountAmount,
-        taxPercent: state.taxPercent,
-        paymentMethod: method,
-        cashAmount,
-        notes: state.notes,
-        items: state.cart.map((item) => ({
-          productId: item.productId,
-          unitId: item.product.unitId,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          discountPercent: item.discountPercent,
-          discountAmount: item.discountAmount,
+        CustomerID: state.customer?.ID || 1,
+        DiscountPercent: state.discountPercent,
+        DiscountAmount: state.discountAmount,
+        TaxPercent: state.taxPercent,
+        // NOTE: CreateSaleDto has no "paymentMethod" field (only the numeric
+        // PaymentMethodID FK) — this was already true before the PascalCase
+        // rename, so the selected `method` string was never actually reaching
+        // the backend. Sending it at all makes the whole request fail
+        // class-validator's whitelist check ("property paymentMethod should
+        // not exist"), which blocked sale creation entirely, so it's dropped
+        // here. The backend falls back to the CASH payment method when
+        // PaymentMethodID is omitted (see SaleService.create -> getCashMethodId).
+        CashAmount: cashAmount,
+        Notes: state.notes,
+        Items: state.cart.map((item) => ({
+          ProductID: item.productId,
+          UnitID: item.product.UnitID,
+          Quantity: item.quantity,
+          UnitPrice: item.unitPrice,
+          DiscountPercent: item.discountPercent,
+          DiscountAmount: item.discountAmount,
         })),
       });
 
@@ -570,7 +577,7 @@ export default function POSPage() {
           >
             <User className="size-5 text-muted" />
             <span className="text-sm font-medium">
-              {state.customer?.name || "Pilih Pelanggan"}
+              {state.customer?.Name || "Pilih Pelanggan"}
             </span>
           </button>
         </div>

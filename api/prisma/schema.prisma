@@ -898,6 +898,9 @@ model Sale {
   ReturnedAt      DateTime?
   PaymentMethodID Int?
   Notes           String?        @db.VarChar(1000)
+  ShippingStatus  String?        @default("PENDING") @db.VarChar(20)
+  ShippingDate    DateTime?
+  TrackingNumber  String?        @db.VarChar(100)
   CreatedByID     String
   CreatedAt       DateTime       @default(now())
   UpdatedAt       DateTime       @updatedAt

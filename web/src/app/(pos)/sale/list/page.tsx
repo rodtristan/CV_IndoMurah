@@ -24,16 +24,13 @@ export default function SaleListPage() {
     setLoading(true);
     try {
       const query = odata()
-        .include(["customer", "warehouse", "salePoint", "creator"])
+        .include(["Customer", "Warehouse", "SalePoint", "Creator", "PaymentStatus", "PaymentMethod"])
         .orderByMulti({ createdAt: "desc" })
         .skip((pagination.page - 1) * pagination.pageSize)
         .take(pagination.pageSize);
 
       if (params.search) {
-        query.search(params.search as string, ["code", "customer.name"]);
-      }
-      if (params.paymentStatus) {
-        query.where({ paymentStatus: params.paymentStatus });
+        query.search(params.search as string, ["Code", "Customer.Name"]);
       }
       if (params.dateFrom) {
         query.where({ date: { gte: new Date(params.dateFrom as string) } });
@@ -42,7 +39,19 @@ export default function SaleListPage() {
         query.where({ date: { lte: new Date(params.dateTo as string) } });
       }
 
-      const res = await api.get<Sale[]>("sales", query.toParams());
+      const queryParams = query.toParams();
+      // PaymentStatus is now a relation (Sale.PaymentStatusID -> PaymentStatus.Code)
+      // instead of a flat string, so it needs a nested Prisma-style filter that
+      // the ODataQueryBuilder's .where() helper (which just stringifies its
+      // value) can't express — build it directly instead.
+      if (params.paymentStatus) {
+        queryParams.$where = {
+          ...(queryParams.$where as Record<string, unknown> | undefined),
+          PaymentStatus: { Code: params.paymentStatus },
+        };
+      }
+
+      const res = await api.get<Sale[]>("sales", queryParams);
       if (res.success) {
         setSales(res.data || []);
         if (res.meta) {
@@ -66,41 +75,42 @@ export default function SaleListPage() {
 
   const columns = [
     {
-      key: "code",
+      key: "Code",
       label: "Kode",
       sortable: true,
       render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span>,
     },
     {
-      key: "date",
+      key: "Date",
       label: "Tanggal",
       sortable: true,
       render: (v: unknown) => formatDate(v as string),
     },
     {
-      key: "customer.name",
+      key: "Customer.Name",
       label: "Pelanggan",
-      render: (_: unknown, row: Sale) => row.customer?.name || "-",
+      render: (_: unknown, row: Sale) => row.Customer?.Name || "-",
     },
     {
-      key: "total",
+      key: "Total",
       label: "Total",
       align: "right" as const,
       sortable: true,
       render: (v: unknown) => <span className="font-semibold">{formatCurrency(v as number)}</span>,
     },
     {
-      key: "paymentMethod",
+      key: "PaymentMethod.Code",
       label: "Metode",
-      render: (v: unknown) => {
+      render: (_: unknown, row: Sale) => {
         const methods: Record<string, string> = {
           CASH: "Tunai", TRANSFER: "Transfer", DEBIT: "Debit", QRIS: "QRIS", CREDIT: "Kredit",
         };
-        return <span className="text-xs">{methods[v as string] || (v as string)}</span>;
+        const v = row.PaymentMethod?.Code;
+        return <span className="text-xs">{methods[v as string] || v || "-"}</span>;
       },
     },
     {
-      key: "paymentStatus",
+      key: "PaymentStatus.Code",
       label: "Status",
       render: (v: unknown) => {
         const status = v as string;
@@ -114,9 +124,9 @@ export default function SaleListPage() {
       },
     },
     {
-      key: "creator.name",
+      key: "Creator.Name",
       label: "Kasir",
-      render: (_: unknown, row: Sale) => row.creator?.name || "-",
+      render: (_: unknown, row: Sale) => row.Creator?.Name || "-",
     },
     {
       key: "actions",
@@ -191,7 +201,7 @@ export default function SaleListPage() {
       <Modal
         open={showDetail}
         onClose={() => setShowDetail(false)}
-        title={`Detail Penjualan ${selectedSale?.code || ""}`}
+        title={`Detail Penjualan ${selectedSale?.Code || ""}`}
         size="lg"
         footer={
           <>
@@ -212,20 +222,20 @@ export default function SaleListPage() {
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-muted">Tanggal</p>
-                <p className="font-medium">{formatDateTime(selectedSale.date)}</p>
+                <p className="font-medium">{formatDateTime(selectedSale.Date)}</p>
               </div>
               <div>
                 <p className="text-muted">Pelanggan</p>
-                <p className="font-medium">{selectedSale.customer?.name || "Umum"}</p>
+                <p className="font-medium">{selectedSale.Customer?.Name || "Umum"}</p>
               </div>
               <div>
                 <p className="text-muted">Metode Bayar</p>
-                <p className="font-medium">{selectedSale.paymentMethod}</p>
+                <p className="font-medium">{selectedSale.PaymentMethod?.Code}</p>
               </div>
               <div>
                 <p className="text-muted">Status</p>
-                <Badge variant={selectedSale.paymentStatus === "PAID" ? "success" : "warning"}>
-                  {selectedSale.paymentStatus}
+                <Badge variant={selectedSale.PaymentStatus?.Code === "PAID" ? "success" : "warning"}>
+                  {selectedSale.PaymentStatus?.Code}
                 </Badge>
               </div>
             </div>
@@ -243,12 +253,12 @@ export default function SaleListPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(selectedSale.saleItems || []).map((item) => (
-                      <tr key={item.id} className="border-t border-default">
-                        <td className="px-3 py-2">{item.product?.name || `Product #${item.productId}`}</td>
-                        <td className="px-3 py-2 text-right">{item.quantity}</td>
-                        <td className="px-3 py-2 text-right">{formatCurrency(item.unitPrice)}</td>
-                        <td className="px-3 py-2 text-right font-medium">{formatCurrency(item.subtotal)}</td>
+                    {(selectedSale.SaleItems || []).map((item) => (
+                      <tr key={item.ID} className="border-t border-default">
+                        <td className="px-3 py-2">{item.Product?.Name || `Product #${item.ProductID}`}</td>
+                        <td className="px-3 py-2 text-right">{item.Quantity}</td>
+                        <td className="px-3 py-2 text-right">{formatCurrency(item.UnitPrice)}</td>
+                        <td className="px-3 py-2 text-right font-medium">{formatCurrency(item.Subtotal)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -259,23 +269,23 @@ export default function SaleListPage() {
             <div className="space-y-2 border-t border-default pt-4">
               <div className="flex justify-between text-sm">
                 <span className="text-muted">Subtotal</span>
-                <span>{formatCurrency(selectedSale.subtotal)}</span>
+                <span>{formatCurrency(selectedSale.Subtotal)}</span>
               </div>
-              {Number(selectedSale.discountAmount) > 0 && (
+              {Number(selectedSale.DiscountAmount) > 0 && (
                 <div className="flex justify-between text-sm text-success">
                   <span>Diskon</span>
-                  <span>-{formatCurrency(selectedSale.discountAmount)}</span>
+                  <span>-{formatCurrency(selectedSale.DiscountAmount)}</span>
                 </div>
               )}
-              {Number(selectedSale.taxAmount) > 0 && (
+              {Number(selectedSale.TaxAmount) > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-muted">PPN</span>
-                  <span>{formatCurrency(selectedSale.taxAmount)}</span>
+                  <span>{formatCurrency(selectedSale.TaxAmount)}</span>
                 </div>
               )}
               <div className="flex justify-between text-lg font-bold">
                 <span>Total</span>
-                <span className="text-primary">{formatCurrency(selectedSale.total)}</span>
+                <span className="text-primary">{formatCurrency(selectedSale.Total)}</span>
               </div>
             </div>
           </div>

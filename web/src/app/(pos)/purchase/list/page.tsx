@@ -22,9 +22,9 @@ export default function PurchaseListPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const params: any = { $include: "supplier,purchasePayments,purchaseItems,purchaseItems.product" };
+      const params: any = { $include: "Supplier,PaymentStatus,PurchasePayments,PurchaseItems,PurchaseItems.Product" };
       if (search) params.$search = search;
-      if (filterStatus) params.$where = { paymentStatus: filterStatus };
+      if (filterStatus) params.$where = { PaymentStatus: { Code: filterStatus } };
       const res = await api.get("purchases", params).catch(() => ({ success: false, data: { data: [] } } as any));
       if (res.success) setData(res.data || []);
     } finally { setLoading(false); }
@@ -38,13 +38,13 @@ export default function PurchaseListPage() {
   };
 
   const columns = [
-    { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
-    { key: "supplier", label: "Supplier", render: (v: unknown) => (v as any)?.name || "-" },
-    { key: "paymentStatus", label: "Status", render: (v: unknown) => <Badge variant={statusColors[v as string] as any || "default"}>{v as string}</Badge> },
-    { key: "total", label: "Total", align: "right" as const, render: (v: unknown) => <span className="font-semibold">{formatCurrency(v as number)}</span> },
-    { key: "paid", label: "Dibayar", align: "right" as const, render: (v: unknown) => <span className="text-success">{formatCurrency(v as number)}</span> },
-    { key: "remaining", label: "Sisa", align: "right" as const, render: (v: unknown) => <span className={Number(v) > 0 ? "font-bold text-danger" : ""}>{formatCurrency(v as number)}</span> },
+    { key: "Code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
+    { key: "Date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
+    { key: "Supplier", label: "Supplier", render: (v: unknown) => (v as any)?.Name || "-" },
+    { key: "PaymentStatus.Code", label: "Status", render: (v: unknown) => <Badge variant={statusColors[v as string] as any || "default"}>{v as string}</Badge> },
+    { key: "Total", label: "Total", align: "right" as const, render: (v: unknown) => <span className="font-semibold">{formatCurrency(v as number)}</span> },
+    { key: "Paid", label: "Dibayar", align: "right" as const, render: (v: unknown) => <span className="text-success">{formatCurrency(v as number)}</span> },
+    { key: "Remaining", label: "Sisa", align: "right" as const, render: (v: unknown) => <span className={Number(v) > 0 ? "font-bold text-danger" : ""}>{formatCurrency(v as number)}</span> },
     {
       key: "actions", label: "", width: "60px",
       render: (_: unknown, row: any) => (
@@ -69,14 +69,14 @@ export default function PurchaseListPage() {
         </div>
       </Card>
 
-      <Modal open={showDetail} onClose={() => setShowDetail(false)} title={`Pembelian ${detailData?.code || ""}`} size="lg">
+      <Modal open={showDetail} onClose={() => setShowDetail(false)} title={`Pembelian ${detailData?.Code || ""}`} size="lg">
         {detailData && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><span className="text-muted">Tanggal:</span> {formatDate(detailData.date)}</div>
-              <div><span className="text-muted">Supplier:</span> {detailData.supplier?.name || "-"}</div>
-              <div><span className="text-muted">Status:</span> <Badge variant={statusColors[detailData.paymentStatus] as any || "default"}>{detailData.paymentStatus}</Badge></div>
-              <div><span className="text-muted">Total:</span> <span className="font-bold">{formatCurrency(detailData.total)}</span></div>
+              <div><span className="text-muted">Tanggal:</span> {formatDate(detailData.Date)}</div>
+              <div><span className="text-muted">Supplier:</span> {detailData.Supplier?.Name || "-"}</div>
+              <div><span className="text-muted">Status:</span> <Badge variant={statusColors[detailData.PaymentStatus?.Code] as any || "default"}>{detailData.PaymentStatus?.Code}</Badge></div>
+              <div><span className="text-muted">Total:</span> <span className="font-bold">{formatCurrency(detailData.Total)}</span></div>
             </div>
             <div className="border-t border-default pt-4">
               <h4 className="font-semibold mb-2">Item Pembelian</h4>
@@ -90,12 +90,12 @@ export default function PurchaseListPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(detailData.purchaseItems || []).map((d: any, i: number) => (
+                  {(detailData.PurchaseItems || []).map((d: any, i: number) => (
                     <tr key={i} className="border-b border-default">
-                      <td className="py-1">{d.product?.name || "-"}</td>
-                      <td className="text-right">{d.quantity}</td>
-                      <td className="text-right">{formatCurrency(d.unitPrice)}</td>
-                      <td className="text-right font-semibold">{formatCurrency(d.subtotal)}</td>
+                      <td className="py-1">{d.Product?.Name || "-"}</td>
+                      <td className="text-right">{d.Quantity}</td>
+                      <td className="text-right">{formatCurrency(d.UnitPrice)}</td>
+                      <td className="text-right font-semibold">{formatCurrency(d.Subtotal)}</td>
                     </tr>
                   ))}
                 </tbody>

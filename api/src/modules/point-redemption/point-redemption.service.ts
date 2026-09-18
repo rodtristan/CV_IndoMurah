@@ -19,12 +19,12 @@ export class PointRedemptionService extends BaseService<
   ) {
     super(prisma, redis, queryService, {
       modelName: 'pointRedemption',
-      primaryKey: 'id',
+      primaryKey: 'ID',
       searchableFields: ['*'],
       allowedIncludes: ['*'],
       allowedSortFields: ['*'],
       allowedSelectFields: ['*'],
-      defaultOrderBy: { createdAt: 'desc' },
+      defaultOrderBy: { CreatedAt: 'desc' },
       maxTake: 100,
       defaultTake: 20,
       cacheTtl: 60,
@@ -41,16 +41,26 @@ export class PointRedemptionService extends BaseService<
 
   async create(dto: CreatePointRedemptionDto): Promise<any> {
     return this.prisma.$transaction(async (tx) => {
-      const customer = await tx.customer.findUnique({ where: { id: dto.customerId } });
+      const customer = await tx.customer.findUnique({ where: { ID: dto.customerId } });
       if (!customer) throw new BadRequestException('Pelanggan tidak ditemukan');
-      if (customer.pointBalance < dto.pointsRedeemed) {
+      if (customer.PointBalance < dto.pointsRedeemed) {
         throw new BadRequestException('Point pelanggan tidak cukup');
       }
 
-      const result = await tx.pointRedemption.create({ data: dto as any });
+      const result = await tx.pointRedemption.create({
+        data: {
+          CustomerID: dto.customerId,
+          Code: dto.code,
+          PointsRedeemed: dto.pointsRedeemed,
+          RewardName: dto.rewardName,
+          RewardValue: dto.rewardValue,
+          Date: dto.date,
+          CreatedByID: (dto as any).createdById,
+        } as any,
+      });
       await tx.customer.update({
-        where: { id: dto.customerId },
-        data: { pointBalance: { decrement: dto.pointsRedeemed } },
+        where: { ID: dto.customerId },
+        data: { PointBalance: { decrement: dto.pointsRedeemed } },
       });
 
       await this.invalidateCache();
@@ -61,13 +71,13 @@ export class PointRedemptionService extends BaseService<
 
   async deleteById(id: any): Promise<any> {
     return this.prisma.$transaction(async (tx) => {
-      const redemption = await tx.pointRedemption.findUnique({ where: { id: Number(id) } });
+      const redemption = await tx.pointRedemption.findUnique({ where: { ID: Number(id) } });
       if (!redemption) throw new BadRequestException('Data point redemption tidak ditemukan');
 
-      const result = await tx.pointRedemption.delete({ where: { id: Number(id) } });
+      const result = await tx.pointRedemption.delete({ where: { ID: Number(id) } });
       await tx.customer.update({
-        where: { id: redemption.customerId },
-        data: { pointBalance: { increment: redemption.pointsRedeemed } },
+        where: { ID: redemption.CustomerID },
+        data: { PointBalance: { increment: redemption.PointsRedeemed } },
       });
 
       await this.invalidateCache();

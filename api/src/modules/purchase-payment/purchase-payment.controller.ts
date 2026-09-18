@@ -57,7 +57,7 @@ export class PurchasePaymentController {
   @Post()
   @ApiOperation({ summary: 'Create purchase payment' })
   async create(@Body() dto: CreatePurchasePaymentDto, @CurrentUser() user: any) {
-    const data = await this.purchasePaymentService.create(dto, user.ID);
+    const data = await this.purchasePaymentService.create(dto, user.id);
     return ApiResponse.ok(data, 'Purchase payment created successfully');
   }
 

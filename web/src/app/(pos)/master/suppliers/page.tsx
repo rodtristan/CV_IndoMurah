@@ -15,7 +15,7 @@ export default function SuppliersPage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: "", code: "", email: "", phone: "", address: "", notes: "", contactPerson: "" });
+  const [form, setForm] = useState<{ id?: number; name: string; code: string; email: string; phone: string; address: string; notes: string; contactPerson: string }>({ name: "", code: "", email: "", phone: "", address: "", notes: "", contactPerson: "" });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -28,7 +28,7 @@ export default function SuppliersPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleSave = async () => {
-    const isEdit = Boolean((form as any).id);
+    const isEdit = Boolean(form.id);
     const payload = {
       code: form.code,
       name: form.name,
@@ -39,7 +39,7 @@ export default function SuppliersPage() {
       contactPerson: form.contactPerson || undefined,
     };
     if (isEdit) {
-      await api.patch("supplier", (form as any).id, payload).catch(() => ({}));
+      await api.patch("supplier", form.id!, payload).catch(() => ({}));
     } else {
       await api.post("supplier", payload).catch(() => ({}));
     }
@@ -53,17 +53,17 @@ export default function SuppliersPage() {
   };
 
   const columns = [
-    { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "name", label: "Nama Supplier" },
-    { key: "contactPerson", label: "Contact" },
-    { key: "phone", label: "Telepon", render: (v: unknown) => v ? <span>{v as string}</span> : <span className="text-muted">-</span> },
-    { key: "address", label: "Alamat", render: (v: unknown) => v ? <span className="text-muted">{v as string}</span> : <span className="text-muted">-</span> },
+    { key: "Code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
+    { key: "Name", label: "Nama Supplier" },
+    { key: "ContactPerson", label: "Contact" },
+    { key: "Phone", label: "Telepon", render: (v: unknown) => v ? <span>{v as string}</span> : <span className="text-muted">-</span> },
+    { key: "Address", label: "Alamat", render: (v: unknown) => v ? <span className="text-muted">{v as string}</span> : <span className="text-muted">-</span> },
     {
       key: "actions", label: "", width: "70px",
       render: (_: unknown, row: any) => (
         <div className="flex gap-1">
-          <RowEditIcon onClick={() => { setForm({ ...row, notes: row.notes || "" }); setShowForm(true); }} />
-          <RowDeleteIcon onClick={() => handleDelete(row.id)} />
+          <RowEditIcon onClick={() => { setForm({ id: row.ID, code: row.Code, name: row.Name, email: row.Email || "", phone: row.Phone || "", address: row.Address || "", notes: row.Notes || "", contactPerson: row.ContactPerson || "" }); setShowForm(true); }} />
+          <RowDeleteIcon onClick={() => handleDelete(row.ID)} />
         </div>
       )
     },

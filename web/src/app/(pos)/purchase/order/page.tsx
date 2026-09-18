@@ -23,7 +23,7 @@ export default function PurchaseOrderPage() {
       if (search) params.$search = search;
       if (filterSupplier) params.supplierId = filterSupplier;
       if (filterStatus) params.$where = `status eq '${filterStatus}'`;
-      const res = await api.get("purchase-orders", params).catch(() => ({ success: false, data: { data: [] } } as any));
+      const res = await api.get("PurchaseOrders", params).catch(() => ({ success: false, data: { data: [] } } as any));
       if (res.success) setData(res.data || []);
     } finally { setLoading(false); }
   }, [search, filterSupplier, filterStatus]);
@@ -42,12 +42,12 @@ export default function PurchaseOrderPage() {
   };
 
   const columns = [
-    { key: "code", label: "Kode PO", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
-    { key: "dueDate", label: "Jatuh Tempo", render: (v: unknown) => v ? formatDate(v as string) : "-" },
+    { key: "Code", label: "Kode PO", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
+    { key: "Date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
+    { key: "DueDate", label: "Jatuh Tempo", render: (v: unknown) => v ? formatDate(v as string) : "-" },
     { key: "supplierName", label: "Supplier" },
     { key: "status", label: "Status", render: (v: unknown) => <Badge variant={statusColors[v as string] as any || "default"}>{v as string}</Badge> },
-    { key: "total", label: "Total", align: "right" as const, render: (v: unknown) => <span className="font-semibold">{formatCurrency(v as number)}</span> },
+    { key: "Total", label: "Total", align: "right" as const, render: (v: unknown) => <span className="font-semibold">{formatCurrency(v as number)}</span> },
     { key: "paid", label: "Dibayar", align: "right" as const, render: (v: unknown) => formatCurrency(v as number) },
   ];
 

@@ -165,19 +165,19 @@ export class LoggingInterceptor implements NestInterceptor {
     try {
       await this.prisma.log.create({
         data: {
-          method:            log.method,
-          endpoint:          log.endpoint,
-          headers:           {},  // Header sudah di-redact, tidak disimpan
-          payload:           (log.requestBody as object) ?? {},
-          responseStatus:    log.responseStatus,
-          message:           log.message,
-          // requesterLoginId is Int? in schema but User.id is now a uuid
+          Method:            log.method,
+          Endpoint:          log.endpoint,
+          Headers:           {},  // Header sudah di-redact, tidak disimpan
+          Payload:           (log.requestBody as object) ?? {},
+          ResponseStatus:    log.responseStatus,
+          Message:           log.message,
+          // RequesterLoginID is Int? in schema but User.ID is now a uuid
           // string (see auth-service.ts) — nothing sensible to store here.
-          requesterFullName: log.userFullName,
-          ipAddress:         log.ipAddress,
-          userAgent:         log.userAgent,
-          durationMs:        log.durationMs,
-          logDatetime:       log.logDatetime,
+          RequesterFullName: log.userFullName,
+          IpAddress:         log.ipAddress,
+          UserAgent:         log.userAgent,
+          DurationMs:        log.durationMs,
+          LogDatetime:       log.logDatetime,
         },
       });
     } catch {

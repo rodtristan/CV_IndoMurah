@@ -25,9 +25,9 @@ export class UserService {
       cacheKey,
       async () => {
         const prismaQuery = this.queryService.buildPrismaQuery(query, {
-          searchableFields: ['name', 'email'],
-          allowedIncludes: ['userRoles'],
-          defaultOrderBy: { createdAt: 'desc' },
+          searchableFields: ['Name', 'Email'],
+          allowedIncludes: ['UserRoles'],
+          defaultOrderBy: { CreatedAt: 'desc' },
         });
 
         const findArgs: any = {
@@ -61,10 +61,10 @@ export class UserService {
       cacheKey,
       async () => {
         const prismaQuery = this.queryService.buildPrismaQuery(query, {
-          allowedIncludes: ['userRoles', 'userMenus'],
+          allowedIncludes: ['UserRoles', 'UserMenus'],
         });
 
-        const findArgs: any = { where: { id } };
+        const findArgs: any = { where: { ID: id } };
 
         if (prismaQuery.select) {
           findArgs.select = prismaQuery.select;
@@ -80,7 +80,7 @@ export class UserService {
 
   async create(dto: CreateUserDto) {
     const exists = await this.prisma.user.count({
-      where: { companyId: dto.companyId, username: dto.username },
+      where: { CompanyID: dto.companyId, Username: dto.username },
     });
     if (exists > 0) {
       throw new ConflictException('Username sudah terdaftar di perusahaan ini');
@@ -90,13 +90,13 @@ export class UserService {
 
     const user = await this.prisma.user.create({
       data: {
-        companyId: dto.companyId,
-        username: dto.username,
-        email: dto.email,
-        password: hashedPassword,
-        name: dto.name,
-        role: 'cashier',
-        isActive: true,
+        CompanyID: dto.companyId,
+        Username: dto.username,
+        Email: dto.email,
+        Password: hashedPassword,
+        Name: dto.name,
+        Role: 'cashier',
+        IsActive: true,
       },
     });
 
@@ -106,10 +106,16 @@ export class UserService {
   }
 
   async update(id: string, dto: UpdateUserDto) {
-    const user = await this.prisma.user.findUnique({ where: { id } });
+    const user = await this.prisma.user.findUnique({ where: { ID: id } });
     if (!user) throw new NotFoundException('User not found');
 
-    const updated = await this.prisma.user.update({ where: { id }, data: dto });
+    const data: Record<string, unknown> = {};
+    if (dto.username !== undefined) data.Username = dto.username;
+    if (dto.email !== undefined) data.Email = dto.email;
+    if (dto.name !== undefined) data.Name = dto.name;
+    if (dto.isActive !== undefined) data.IsActive = dto.isActive;
+
+    const updated = await this.prisma.user.update({ where: { ID: id }, data });
 
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
     await this.redis.del(`user:me:${id}`);
@@ -118,12 +124,12 @@ export class UserService {
   }
 
   async softDelete(id: string) {
-    const user = await this.prisma.user.findUnique({ where: { id } });
+    const user = await this.prisma.user.findUnique({ where: { ID: id } });
     if (!user) throw new NotFoundException('User not found');
 
     const updated = await this.prisma.user.update({
-      where: { id },
-      data: { isActive: false },
+      where: { ID: id },
+      data: { IsActive: false },
     });
 
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
@@ -136,33 +142,33 @@ export class UserService {
 
   async getRoles(userId: string) {
     const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { role: true, userRoles: { where: { isActive: true }, include: { role: true } } },
+      where: { ID: userId },
+      select: { Role: true, UserRoles: { where: { IsActive: true }, include: { Role: true } } },
     });
     if (!user) throw new NotFoundException('User not found');
 
-    return { mainRole: user.role, extraRoles: user.userRoles.map((ur) => ur.role) };
+    return { mainRole: user.Role, extraRoles: user.UserRoles.map((ur) => ur.Role) };
   }
 
   async assignRole(userId: string, roleId: number) {
     const [user, role] = await Promise.all([
-      this.prisma.user.findUnique({ where: { id: userId } }),
-      this.prisma.role.findUnique({ where: { id: roleId } }),
+      this.prisma.user.findUnique({ where: { ID: userId } }),
+      this.prisma.role.findUnique({ where: { ID: roleId } }),
     ]);
     if (!user) throw new NotFoundException('User not found');
     if (!role) throw new NotFoundException('Role not found');
 
     const existing = await this.prisma.userRole.findUnique({
-      where: { userId_roleId: { userId, roleId } },
+      where: { UserID_RoleID: { UserID: userId, RoleID: roleId } },
     });
-    if (existing?.isActive) {
+    if (existing?.IsActive) {
       throw new ConflictException('User already has this role');
     }
 
     const userRole = await this.prisma.userRole.upsert({
-      where: { userId_roleId: { userId, roleId } },
-      create: { userId, roleId, isActive: true },
-      update: { isActive: true },
+      where: { UserID_RoleID: { UserID: userId, RoleID: roleId } },
+      create: { UserID: userId, RoleID: roleId, IsActive: true },
+      update: { IsActive: true },
     });
 
     // Seed the menus that come with this role so access is immediate.
@@ -175,13 +181,13 @@ export class UserService {
 
   async revokeRole(userId: string, roleId: number) {
     const existing = await this.prisma.userRole.findUnique({
-      where: { userId_roleId: { userId, roleId } },
+      where: { UserID_RoleID: { UserID: userId, RoleID: roleId } },
     });
     if (!existing) throw new NotFoundException('User does not have this role');
 
     const userRole = await this.prisma.userRole.update({
-      where: { userId_roleId: { userId, roleId } },
-      data: { isActive: false },
+      where: { UserID_RoleID: { UserID: userId, RoleID: roleId } },
+      data: { IsActive: false },
     });
 
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);

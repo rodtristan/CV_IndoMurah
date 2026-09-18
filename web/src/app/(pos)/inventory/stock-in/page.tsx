@@ -33,7 +33,7 @@ export default function StockInPage() {
     setLoading(true);
     try {
       const query = odata()
-        .include(["warehouse", "supplier", "creator"])
+        .include(["warehouse", "supplier", "creator", "status"])
         .orderByMulti({ createdAt: "desc" })
         .skip((pagination.page - 1) * pagination.pageSize)
         .take(pagination.pageSize);
@@ -87,7 +87,7 @@ export default function StockInPage() {
     if (!selected) return;
     setSaving(true);
     try {
-      await api.delete("stock-in", selected.id);
+      await api.delete("stock-in", selected.ID);
       setShowDelete(false);
       fetchData();
     } catch (e) { console.error(e); }
@@ -102,13 +102,13 @@ export default function StockInPage() {
   };
 
   const columns = [
-    { key: "code", label: "Kode", sortable: true, render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "date", label: "Tanggal", sortable: true, render: (v: unknown) => formatDate(v as string) },
-    { key: "warehouse.name", label: "Gudang", render: (_: unknown, row: StockIn) => row.warehouse?.name || "-" },
-    { key: "supplier.name", label: "Supplier", render: (_: unknown, row: StockIn) => row.supplier?.name || "-" },
-    { key: "totalItems", label: "Total Item", align: "right" as const, render: (v: unknown): ReactNode => formatCurrency(Number(v)) },
-    { key: "status", label: "Status", render: (v: unknown): ReactNode => <Badge variant={(statusVariants[v as string] || "default") as any}>{statusLabels[v as string] || (v as string)}</Badge> },
-    { key: "createdBy", label: "Dibuat", render: (_: unknown, row: any) => (row as any).createdBy || (row as any).creatorName || "-" },
+    { key: "Code", label: "Kode", sortable: true, render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
+    { key: "Date", label: "Tanggal", sortable: true, render: (v: unknown) => formatDate(v as string) },
+    { key: "Warehouse.Name", label: "Gudang", render: (_: unknown, row: StockIn) => row.Warehouse?.Name || "-" },
+    { key: "Supplier.Name", label: "Supplier", render: (_: unknown, row: StockIn) => row.Supplier?.Name || "-" },
+    { key: "TotalItems", label: "Total Item", align: "right" as const, render: (v: unknown): ReactNode => formatCurrency(Number(v)) },
+    { key: "Status", label: "Status", render: (_: unknown, row: StockIn) => { const code = row.Status?.Code || ""; return <Badge variant={(statusVariants[code] || "default") as any}>{statusLabels[code] || code || "-"}</Badge>; } },
+    { key: "Creator", label: "Dibuat", render: (_: unknown, row: any) => row.Creator?.Name || "-" },
     { key: "actions", label: "", width: 100, render: (_: unknown, row: StockIn) => (
       <div className="flex items-center gap-1">
         <Button variant="ghost" size="icon" icon={Eye} onClick={() => { setSelected(row); setShowDetail(true); }} />
@@ -125,7 +125,7 @@ export default function StockInPage() {
 
       <Card>
         <FilterBar fields={[
-          { key: "warehouseId", label: "Gudang", type: "select", options: [{ value: "", label: "Semua" }, ...warehouses.map(w => ({ value: w.id, label: w.name }))] },
+          { key: "warehouseId", label: "Gudang", type: "select", options: [{ value: "", label: "Semua" }, ...warehouses.map(w => ({ value: w.ID, label: w.Name }))] },
           { key: "dateFrom", label: "Dari", type: "date" },
           { key: "dateTo", label: "Sampai", type: "date" },
         ]} onFilter={setFilters} loading={loading} />
@@ -139,9 +139,9 @@ export default function StockInPage() {
         footer={<><Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button><Button variant="primary" onClick={handleSave} loading={saving}>Simpan</Button></>}>
         <div className="grid grid-cols-2 gap-4">
           <Select label="Gudang *" value={form.warehouseId} onChange={e => setForm(f => ({ ...f, warehouseId: e.target.value }))}
-            options={[{ value: "", label: "Pilih..." }, ...warehouses.map(w => ({ value: w.id, label: w.name }))]} required />
+            options={[{ value: "", label: "Pilih..." }, ...warehouses.map(w => ({ value: w.ID, label: w.Name }))]} required />
           <Select label="Supplier" value={form.supplierId} onChange={e => setForm(f => ({ ...f, supplierId: e.target.value }))}
-            options={[{ value: "", label: "Pilih..." }, ...suppliers.map(s => ({ value: s.id, label: s.name }))]} />
+            options={[{ value: "", label: "Pilih..." }, ...suppliers.map(s => ({ value: s.ID, label: s.Name }))]} />
           <Select label="Tipe Referensi" value={form.referenceType} onChange={e => setForm(f => ({ ...f, referenceType: e.target.value }))}
             options={[{ value: "", label: "Pilih..." }, { value: "PURCHASE", label: "Pembelian" }, { value: "RETURN", label: "Retur" }, { value: "MANUAL", label: "Manual" }]} />
           <div className="col-span-2"><Input label="Keterangan" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} /></div>
@@ -149,7 +149,7 @@ export default function StockInPage() {
       </Modal>
 
       <ConfirmModal open={showDelete} onClose={() => setShowDelete(false)} onConfirm={handleDelete}
-        title="Hapus Barang Masuk" message={`Yakin menghapus "${selected?.code}"?`} confirmText="Hapus" variant="danger" loading={saving} />
+        title="Hapus Barang Masuk" message={`Yakin menghapus "${selected?.Code}"?`} confirmText="Hapus" variant="danger" loading={saving} />
     </PageWrapper>
   );
 }

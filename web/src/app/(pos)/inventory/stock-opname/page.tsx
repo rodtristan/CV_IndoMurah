@@ -24,7 +24,7 @@ export default function StockOpnamePage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("stock-opname", { $search: search || undefined, $include: "warehouse" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+      const res = await api.get("stock-opname", { $search: search || undefined, $include: "warehouse,status" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
       if (res.success) setData(res.data || []);
     } finally { setLoading(false); }
   }, [search]);
@@ -54,14 +54,14 @@ export default function StockOpnamePage() {
   };
 
   const columns = [
-    { key: "date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
-    { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "warehouse", label: "Gudang", render: (v: unknown) => (v as any)?.name || "-" },
-    { key: "status", label: "Status", render: (v: unknown) => {
-      const s = v as string;
-      return s === "COMPLETED" ? <Badge variant="success">Selesai</Badge> : s === "IN_PROGRESS" ? <Badge variant="warning">Proses</Badge> : <Badge variant="default">{s}</Badge>;
+    { key: "Date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
+    { key: "Code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
+    { key: "Warehouse", label: "Gudang", render: (v: unknown) => (v as any)?.Name || "-" },
+    { key: "Status", label: "Status", render: (v: unknown) => {
+      const s = (v as any)?.Code as string | undefined;
+      return s === "COMPLETED" ? <Badge variant="success">Selesai</Badge> : s === "IN_PROGRESS" ? <Badge variant="warning">Proses</Badge> : <Badge variant="default">{s || "-"}</Badge>;
     }},
-    { key: "notes", label: "Catatan", render: (v: unknown) => v ? <span className="text-muted">{v as string}</span> : <span className="text-muted">-</span> },
+    { key: "Notes", label: "Catatan", render: (v: unknown) => v ? <span className="text-muted">{v as string}</span> : <span className="text-muted">-</span> },
   ];
 
   const openCreate = () => { setForm({ date: new Date().toISOString().split("T")[0], code: "", warehouseId: "", notes: "" }); setShowForm(true); };
@@ -83,7 +83,7 @@ export default function StockOpnamePage() {
       <Modal open={showForm} onClose={() => setShowForm(false)} title="Stock Opname Baru" size="sm">
         <div className="space-y-4">
           <Input label="Tanggal" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
-          <Select label="Gudang" value={form.warehouseId} onChange={e => setForm(f => ({ ...f, warehouseId: e.target.value }))} options={warehouses.map(w => ({ value: w.id, label: w.name }))} />
+          <Select label="Gudang" value={form.warehouseId} onChange={e => setForm(f => ({ ...f, warehouseId: e.target.value }))} options={warehouses.map(w => ({ value: w.ID, label: w.Name }))} />
           <Input label="Catatan" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button>

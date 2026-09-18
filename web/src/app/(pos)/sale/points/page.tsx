@@ -27,14 +27,14 @@ export default function SalePointsPage() {
   const [takeForm, setTakeForm] = useState({ customerId: "", pointsRedeemed: 0, rewardName: "", rewardValue: 0 });
 
   const fetchCustomers = useCallback(async () => {
-    const res = await api.get("customer", { $select: "id,name,pointBalance" } as any).catch(() => ({ success: false, data: [] } as any));
+    const res = await api.get("customer", { $select: "ID,Name,PointBalance" } as any).catch(() => ({ success: false, data: [] } as any));
     if (res.success) setCustomers(res.data || []);
   }, []);
 
   const runReport = useCallback(async () => {
     setLoading(true);
     try {
-      const params: any = { $include: "customer", $orderBy: { date: "desc" }, $take: 200 };
+      const params: any = { $include: "Customer", $orderBy: { date: "desc" }, $take: 200 };
       if (customerId) params.$where = { customerId: Number(customerId) };
       const res = await api.get("point-redemption", params).catch(() => ({ success: false, data: [] } as any));
       let data: any[] = res.success ? res.data || [] : [];
@@ -53,7 +53,7 @@ export default function SalePointsPage() {
   useEffect(() => { runReport(); }, [runReport]);
 
   const openTakePoint = () => {
-    setTakeForm({ customerId: customers[0]?.id ? String(customers[0].id) : "", pointsRedeemed: 0, rewardName: "", rewardValue: 0 });
+    setTakeForm({ customerId: customers[0]?.ID ? String(customers[0].ID) : "", pointsRedeemed: 0, rewardName: "", rewardValue: 0 });
     setShowTakeForm(true);
   };
 
@@ -85,7 +85,7 @@ export default function SalePointsPage() {
   const columns = [
     { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
     { key: "date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
-    { key: "customerName", label: "Pelanggan", render: (_: unknown, row: any) => row.customer?.name || "-" },
+    { key: "customerName", label: "Pelanggan", render: (_: unknown, row: any) => row.Customer?.Name || "-" },
     { key: "rewardName", label: "Keterangan" },
     { key: "pointsRedeemed", label: "Point Diambil", align: "right" as const, render: (v: unknown) => <span className="font-semibold text-danger">-{v as number}</span> },
     {
@@ -94,7 +94,7 @@ export default function SalePointsPage() {
     },
   ];
 
-  const selectedCustomer = customers.find((c) => String(c.id) === customerId);
+  const selectedCustomer = customers.find((c) => String(c.ID) === customerId);
 
   return (
     <PageWrapper>
@@ -108,7 +108,7 @@ export default function SalePointsPage() {
             label="Pelanggan"
             value={customerId}
             onChange={(e) => setCustomerId(e.target.value)}
-            options={[{ value: "", label: "Semua Pelanggan" }, ...customers.map((c) => ({ value: String(c.id), label: `${c.name} (${c.pointBalance} pt)` }))]}
+            options={[{ value: "", label: "Semua Pelanggan" }, ...customers.map((c) => ({ value: String(c.ID), label: `${c.Name} (${c.PointBalance} pt)` }))]}
           />
           <Input type="date" label="Dari Tanggal" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
           <Input type="date" label="Sampai Tanggal" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
@@ -118,7 +118,7 @@ export default function SalePointsPage() {
         </div>
         {selectedCustomer && (
           <div className="mt-3 rounded-lg bg-elevated p-3 text-sm">
-            Saldo point saat ini untuk <span className="font-semibold">{selectedCustomer.name}</span>: <span className="font-semibold text-primary">{selectedCustomer.pointBalance} pt</span>
+            Saldo point saat ini untuk <span className="font-semibold">{selectedCustomer.Name}</span>: <span className="font-semibold text-primary">{selectedCustomer.PointBalance} pt</span>
           </div>
         )}
         <div className="mt-4">
@@ -132,7 +132,7 @@ export default function SalePointsPage() {
             label="Pelanggan"
             value={takeForm.customerId}
             onChange={(e) => setTakeForm((f) => ({ ...f, customerId: e.target.value }))}
-            options={customers.map((c) => ({ value: String(c.id), label: `${c.name} (${c.pointBalance} pt)` }))}
+            options={customers.map((c) => ({ value: String(c.ID), label: `${c.Name} (${c.PointBalance} pt)` }))}
           />
           <Input label="Jumlah Point Diambil" type="number" value={takeForm.pointsRedeemed} onChange={(e) => setTakeForm((f) => ({ ...f, pointsRedeemed: Number(e.target.value) }))} />
           <Input label="Keterangan" value={takeForm.rewardName} onChange={(e) => setTakeForm((f) => ({ ...f, rewardName: e.target.value }))} placeholder="Contoh: Tukar voucher belanja" />

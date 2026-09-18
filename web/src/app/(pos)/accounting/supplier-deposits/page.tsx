@@ -29,7 +29,7 @@ export default function SupplierDepositsPage() {
   }, [search]);
 
   const fetchSuppliers = useCallback(async () => {
-    const res = await api.get("supplier", { $select: "id,name" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+    const res = await api.get("supplier", { $select: "ID,Name" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
     if (res.success) setSuppliers(res.data || []);
   }, []);
 
@@ -54,12 +54,12 @@ export default function SupplierDepositsPage() {
   };
 
   const columns = [
-    { key: "date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
-    { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "supplier", label: "Supplier", render: (v: unknown) => (v as any)?.name || "-" },
-    { key: "amount", label: "Jumlah", align: "right" as const, render: (v: unknown) => <span className="font-bold text-warning">{formatCurrency(v as number)}</span> },
-    { key: "remainingAmount", label: "Sisa", align: "right" as const, render: (v: unknown) => formatCurrency(v as number) },
-    { key: "description", label: "Keterangan" },
+    { key: "Date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
+    { key: "Code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
+    { key: "Supplier", label: "Supplier", render: (v: unknown) => (v as any)?.Name || "-" },
+    { key: "Amount", label: "Jumlah", align: "right" as const, render: (v: unknown) => <span className="font-bold text-warning">{formatCurrency(v as number)}</span> },
+    { key: "RemainingAmount", label: "Sisa", align: "right" as const, render: (v: unknown) => formatCurrency(v as number) },
+    { key: "Description", label: "Keterangan" },
   ];
 
   const openCreate = () => { setForm({ date: new Date().toISOString().split("T")[0], code: "", supplierId: "", amount: 0, description: "" }); setShowForm(true); };
@@ -81,7 +81,7 @@ export default function SupplierDepositsPage() {
       <Modal open={showForm} onClose={() => setShowForm(false)} title="Deposit Baru" size="md">
         <div className="space-y-4">
           <Input label="Tanggal" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
-          <Select label="Supplier" value={form.supplierId} onChange={e => setForm(f => ({ ...f, supplierId: e.target.value }))} options={suppliers.map(s => ({ value: s.id, label: s.name }))} />
+          <Select label="Supplier" value={form.supplierId} onChange={e => setForm(f => ({ ...f, supplierId: e.target.value }))} options={suppliers.map(s => ({ value: s.ID, label: s.Name }))} />
           <Input label="Jumlah" type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: Number(e.target.value) }))} />
           <Input label="Keterangan" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
           <div className="flex justify-end gap-2 pt-4">

@@ -18,6 +18,15 @@ const groupOptions = [
   { value: "VIP", label: "VIP" },
 ];
 
+// CustomerGroupID is now a foreign key (see api/prisma/schema.prisma model
+// CustomerGroup) instead of a plain string on Customer. There is no
+// /customer-group list endpoint, so this maps the group codes seeded in
+// api/prisma/seed.ts (in insertion order) to their IDs. If the DB was ever
+// seeded in a different order this mapping will be wrong — verify against
+// the live CustomerGroups table if customer group assignment looks off.
+const groupCodeToId: Record<string, number> = { GENERAL: 1, RETAIL: 2, WHOLESALE: 3, VIP: 4 };
+const groupIdToCode: Record<number, string> = { 1: "GENERAL", 2: "RETAIL", 3: "WHOLESALE", 4: "VIP" };
+
 export default function CustomersPage() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -28,7 +37,7 @@ export default function CustomersPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("customer", { $search: search || undefined } as any).catch(() => ({ success: false, data: { data: [] } } as any));
+      const res = await api.get("customer", { $search: search || undefined, $include: "CustomerGroup" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
       if (res.success) setData(res.data || []);
     } finally { setLoading(false); }
   }, [search]);
@@ -36,18 +45,18 @@ export default function CustomersPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleSave = async () => {
-    const isEdit = Boolean((form as any).id);
+    const isEdit = Boolean((form as any).ID);
     const payload = {
-      code: form.code,
-      name: form.name,
-      email: form.email || undefined,
-      phone: form.phone || undefined,
-      address: form.address || undefined,
-      notes: form.notes || undefined,
-      customerGroup: form.customerGroup,
+      Code: form.code,
+      Name: form.name,
+      Email: form.email || undefined,
+      Phone: form.phone || undefined,
+      Address: form.address || undefined,
+      Notes: form.notes || undefined,
+      CustomerGroupID: groupCodeToId[form.customerGroup] ?? undefined,
     };
     if (isEdit) {
-      await api.patch("customer", (form as any).id, payload).catch(() => ({}));
+      await api.patch("customer", (form as any).ID, payload).catch(() => ({}));
     } else {
       await api.post("customer", payload).catch(() => ({}));
     }
@@ -61,21 +70,35 @@ export default function CustomersPage() {
   };
 
   const columns = [
-    { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "name", label: "Nama Pelanggan" },
-    { key: "phone", label: "Telepon", render: (v: unknown) => v ? <span>{v as string}</span> : <span className="text-muted">-</span> },
-    { key: "address", label: "Alamat", render: (v: unknown) => v ? <span className="text-muted">{v as string}</span> : <span className="text-muted">-</span> },
-    { key: "customerGroup", label: "Grup", render: (v: unknown) => <span className="text-xs uppercase">{v as string}</span> },
+    { key: "Code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
+    { key: "Name", label: "Nama Pelanggan" },
+    { key: "Phone", label: "Telepon", render: (v: unknown) => v ? <span>{v as string}</span> : <span className="text-muted">-</span> },
+    { key: "Address", label: "Alamat", render: (v: unknown) => v ? <span className="text-muted">{v as string}</span> : <span className="text-muted">-</span> },
+    { key: "CustomerGroup.Name", label: "Grup", render: (v: unknown) => <span className="text-xs uppercase">{(v as string) || "-"}</span> },
     {
       key: "actions", label: "", width: "70px",
       render: (_: unknown, row: any) => (
         <div className="flex gap-1">
-          <RowEditIcon onClick={() => { setForm({ ...row, notes: row.notes || "" }); setShowForm(true); }} />
-          <RowDeleteIcon onClick={() => handleDelete(row.id)} />
+          <RowEditIcon onClick={() => setEditRow(row)} />
+          <RowDeleteIcon onClick={() => handleDelete(row.ID)} />
         </div>
       )
     },
   ];
+
+  const setEditRow = (row: any) => {
+    setForm({
+      ...row,
+      name: row.Name || "",
+      code: row.Code || "",
+      email: row.Email || "",
+      phone: row.Phone || "",
+      address: row.Address || "",
+      notes: row.Notes || "",
+      customerGroup: groupIdToCode[row.CustomerGroupID] || "GENERAL",
+    });
+    setShowForm(true);
+  };
 
   const openCreate = () => { setForm({ name: "", code: "", email: "", phone: "", address: "", notes: "", customerGroup: "GENERAL" }); setShowForm(true); };
 
