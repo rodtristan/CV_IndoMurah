@@ -62,6 +62,8 @@ const TITLE_OVERRIDES: Record<string, string> = {
   "/sale/points": "Point Penjualan",
   "/sale/shipping": "Data Pengiriman",
   "/settings/roles": "Hak Akses",
+  "/settings/menus": "Menu Aplikasi",
+  "/settings/activity-log": "Log Aktivitas",
   "/settings/users": "Pengguna",
 };
 

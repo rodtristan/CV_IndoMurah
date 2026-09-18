@@ -155,6 +155,8 @@ const MENU_GROUPS: MenuGroup[] = [
       { label: "Perusahaan", href: "/settings/company" },
       { label: "Pengguna", href: "/settings/users" },
       { label: "Hak Akses", href: "/settings/roles" },
+      { label: "Menu Aplikasi", href: "/settings/menus" },
+      { label: "Log Aktivitas", href: "/settings/activity-log" },
       { label: "Pengaturan Umum", href: "/settings/general" },
       { label: "Setting Nomor", href: "/settings/numbering" },
     ],

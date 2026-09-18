@@ -29,8 +29,7 @@ export class LogService extends BaseService<
       maxTake: 100,
       defaultTake: 20,
       cacheTtl: 60,
-      softDelete: true,
-      softDeleteField: 'IsActive',
+      softDelete: false,
     });
   }
 
