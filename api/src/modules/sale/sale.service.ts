@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { QueryService } from '../../common/query/query-service';
+import { NotificationService } from '../notification/notification.service';
 import { Prisma } from '@prisma/client';
 import { CreateSaleDto, UpdateSaleDto, PaymentDto, UpdateStatusDto, UpdateShippingDto } from './dto/sale.dto';
 
@@ -12,6 +13,7 @@ export class SaleService {
   constructor(
     private prisma: PrismaService,
     private queryService: QueryService,
+    private notificationService: NotificationService,
   ) {}
 
   async findAll(query: Record<string, unknown>) {
@@ -165,7 +167,32 @@ export class SaleService {
       return newSale;
     });
 
+    await this.notificationService.notify({
+      title: 'Penjualan Baru',
+      message: `Transaksi ${sale.Code} sebesar ${this.formatIdr(Number(sale.Total))} telah dibuat`,
+      typeCode: 'SALE',
+      referenceType: 'Sale',
+      referenceId: sale.ID,
+    });
+
+    for (const item of dto.Items) {
+      const product = await this.prisma.product.findUnique({ where: { ID: item.ProductID } });
+      if (product && Number(product.Stock) <= Number(product.MinimumStock)) {
+        await this.notificationService.notify({
+          title: Number(product.Stock) <= 0 ? 'Stok Habis' : 'Stok Menipis',
+          message: `${product.Name} (${product.Code}) sisa stok ${Number(product.Stock)}`,
+          typeCode: 'STOCK',
+          referenceType: 'Product',
+          referenceId: product.ID,
+        });
+      }
+    }
+
     return this.serialize(sale);
+  }
+
+  private formatIdr(value: number): string {
+    return `Rp ${value.toLocaleString('id-ID')}`;
   }
 
   async update(id: number, dto: UpdateSaleDto) {

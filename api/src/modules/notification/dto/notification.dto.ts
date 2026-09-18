@@ -1,118 +1,47 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNumber, IsInt } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateNotificationDto {
-  @ApiProperty({ description: 'userId' })
-  @IsString()
-  userId: string;
-
-  @ApiProperty({ description: 'title' })
-  @IsString()
-  title: string;
-
-  @ApiProperty({ description: 'message' })
-  @IsString()
-  message: string;
-
-  @ApiProperty({ description: 'type' })
-  type: any;
-
-  @ApiProperty({ description: 'isRead' })
-  @IsBoolean()
-  isRead: boolean;
-
-  @ApiProperty({ description: 'referenceType' })
-  @IsString()
-  referenceType: string;
-
-  @ApiProperty({ description: 'referenceId' })
-  @IsNumber()
-  referenceId: number;
-
-  @ApiProperty({ description: 'isActive' })
-  @IsBoolean()
-  isActive: boolean;
-
-  @ApiProperty({ description: 'user' })
-  user: any;
-
-}
-
-export class UpdateNotificationDto {
-  @ApiPropertyOptional({ description: 'userId' })
+  @ApiPropertyOptional({ description: 'Target user ID (omit for a broadcast notification visible to everyone)' })
   @IsOptional()
   @IsString()
   userId?: string;
 
-  @ApiPropertyOptional({ description: 'title' })
+  @ApiProperty({ description: 'Notification title' })
+  @IsString()
+  title: string;
+
+  @ApiProperty({ description: 'Notification message' })
+  @IsString()
+  message: string;
+
+  @ApiPropertyOptional({ description: 'Type code (SALE, PURCHASE, STOCK, PAYMENT, APPOINTMENT, REMINDER)', default: 'REMINDER' })
   @IsOptional()
   @IsString()
-  title?: string;
+  typeCode?: string;
 
-  @ApiPropertyOptional({ description: 'message' })
-  @IsOptional()
-  @IsString()
-  message?: string;
-
-  @ApiPropertyOptional({ description: 'type' })
-  @IsOptional()
-  type?: any;
-
-  @ApiPropertyOptional({ description: 'isRead' })
-  @IsOptional()
-  @IsBoolean()
-  isRead?: boolean;
-
-  @ApiPropertyOptional({ description: 'referenceType' })
+  @ApiPropertyOptional({ description: 'Reference type (e.g. Sale, Purchase, Product)' })
   @IsOptional()
   @IsString()
   referenceType?: string;
 
-  @ApiPropertyOptional({ description: 'referenceId' })
+  @ApiPropertyOptional({ description: 'Reference ID' })
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   referenceId?: number;
+}
 
-  @ApiPropertyOptional({ description: 'isActive' })
+export class UpdateNotificationDto {
+  @ApiPropertyOptional({ description: 'Mark as read/unread' })
+  @IsOptional()
+  @IsBoolean()
+  isRead?: boolean;
+
+  @ApiPropertyOptional({ description: 'Is active' })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
-
-  @ApiPropertyOptional({ description: 'user' })
-  @IsOptional()
-  user?: any;
-
-}
-
-export class NotificationResponseDto {
-  @ApiProperty({ description: 'userId' })
-  userId: string;
-
-  @ApiProperty({ description: 'title' })
-  title: string;
-
-  @ApiProperty({ description: 'message' })
-  message: string;
-
-  @ApiProperty({ description: 'type' })
-  type: any;
-
-  @ApiProperty({ description: 'isRead' })
-  isRead: boolean;
-
-  @ApiProperty({ description: 'referenceType' })
-  referenceType: string;
-
-  @ApiProperty({ description: 'referenceId' })
-  referenceId: number;
-
-  @ApiProperty({ description: 'isActive' })
-  isActive: boolean;
-
-  @ApiProperty({ description: 'user' })
-  user: any;
-
 }
 
 export class QueryNotificationDto {

@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
+import { NotificationService } from '../notification/notification.service';
 import { Prisma } from '@prisma/client';
 import { CreatePurchaseDto, UpdatePurchaseDto, UpdateStatusDto } from './dto/purchase.dto';
 
@@ -14,6 +15,7 @@ export class PurchaseService {
     private prisma: PrismaService,
     private redis: RedisService,
     private queryService: QueryService,
+    private notificationService: NotificationService,
   ) {}
 
   async findAll(query: Record<string, any>) {
@@ -142,6 +144,13 @@ export class PurchaseService {
       });
 
       await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
+      await this.notificationService.notify({
+        title: 'Pembelian Baru',
+        message: `Transaksi ${purchase.Code} dari ${supplier.Name} sebesar Rp ${Number(purchase.Total).toLocaleString('id-ID')}`,
+        typeCode: 'PURCHASE',
+        referenceType: 'Purchase',
+        referenceId: purchase.ID,
+      });
       return this.serialize(purchase);
     }
 
@@ -177,6 +186,13 @@ export class PurchaseService {
     });
 
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
+    await this.notificationService.notify({
+      title: 'Pembelian Baru',
+      message: `Transaksi ${purchase.Code} dari ${supplier.Name} sebesar Rp ${Number(purchase.Total).toLocaleString('id-ID')}`,
+      typeCode: 'PURCHASE',
+      referenceType: 'Purchase',
+      referenceId: purchase.ID,
+    });
     return this.serialize(purchase);
   }
 

@@ -4,6 +4,7 @@ import { BaseController } from '../../common/templates/base.controller';
 import { NotificationService } from './notification.service';
 import { CreateNotificationDto, UpdateNotificationDto } from './dto/notification.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
+import { CurrentUser } from '../../common/decorators/current-user-decorator';
 
 @ApiTags('Notifications')
 @ApiBearerAuth()
@@ -14,7 +15,7 @@ export class NotificationController extends BaseController<
   CreateNotificationDto,
   UpdateNotificationDto
 > {
-  constructor(notificationService: NotificationService) {
+  constructor(private readonly notificationService: NotificationService) {
     super(notificationService, {
       modelName: 'Notification',
       pluralName: 'Notifications',
@@ -44,6 +45,27 @@ export class NotificationController extends BaseController<
     return super.getCount(query);
   }
 
+  @Get('unread-count')
+  @ApiOperation({ summary: 'Get unread notification count for the current user' })
+  async unreadCount(@CurrentUser() user: any) {
+    const count = await this.notificationService.unreadCount(user.id);
+    return { success: true, data: { count } };
+  }
+
+  @Patch('mark-all-read')
+  @ApiOperation({ summary: 'Mark all notifications as read for the current user' })
+  async markAllRead(@CurrentUser() user: any) {
+    const data = await this.notificationService.markAllRead(user.id);
+    return { success: true, data, message: 'All notifications marked as read' };
+  }
+
+  @Patch(':id/read')
+  @ApiOperation({ summary: 'Mark one notification as read' })
+  async markRead(@Param('id') id: string) {
+    const data = await this.notificationService.markRead(Number(id));
+    return { success: true, data, message: 'Notification marked as read' };
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get Notification by ID' })
   async findById(@Param('id') id: string, @Query() query: any) {
@@ -60,7 +82,8 @@ export class NotificationController extends BaseController<
   @Post()
   @ApiOperation({ summary: 'Create new Notification' })
   async create(@Body() dto: CreateNotificationDto) {
-    return super.create(dto);
+    const data = await this.notificationService.createNotification(dto);
+    return { success: true, data, message: 'Notification created successfully' };
   }
 
   @Post('bulk')
