@@ -1,218 +1,162 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNumber, IsInt, IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateEmployeeDto {
-  @ApiProperty({ description: 'code' })
+  @ApiProperty({ description: 'Employee code' })
   @IsString()
   code: string;
 
-  @ApiProperty({ description: 'name' })
+  @ApiProperty({ description: 'Employee name' })
   @IsString()
   name: string;
 
-  @ApiProperty({ description: 'departmentId' })
-  @IsNumber()
-  departmentId: number;
-
-  @ApiProperty({ description: 'positionId' })
-  @IsNumber()
-  positionId: number;
-
-  @ApiProperty({ description: 'joinDate' })
-  joinDate: Date;
-
-  @ApiProperty({ description: 'endDate' })
-  endDate: Date;
-
-  @ApiProperty({ description: 'birthDate' })
-  birthDate: Date;
-
-  @ApiProperty({ description: 'gender' })
-  @IsString()
-  gender: string;
-
-  @ApiProperty({ description: 'phone' })
-  @IsString()
-  phone: string;
-
-  @ApiProperty({ description: 'email' })
-  @IsString()
-  email: string;
-
-  @ApiProperty({ description: 'address' })
-  @IsString()
-  address: string;
-
-  @ApiProperty({ description: 'emergencyContact' })
-  @IsString()
-  emergencyContact: string;
-
-  @ApiProperty({ description: 'emergencyPhone' })
-  @IsString()
-  emergencyPhone: string;
-
-  @ApiProperty({ description: 'basicSalary' })
-  @IsNumber()
-  basicSalary: number;
-
-  @ApiProperty({ description: 'status' })
-  status: any;
-
-  @ApiProperty({ description: 'isActive' })
-  @IsBoolean()
-  isActive: boolean;
-
-  @ApiProperty({ description: 'department' })
-  department: any;
-
-  @ApiProperty({ description: 'position' })
-  position: any;
-
-}
-
-export class UpdateEmployeeDto {
-  @ApiPropertyOptional({ description: 'code' })
+  @ApiPropertyOptional({ description: 'Department ID' })
   @IsOptional()
-  @IsString()
-  code?: string;
-
-  @ApiPropertyOptional({ description: 'name' })
-  @IsOptional()
-  @IsString()
-  name?: string;
-
-  @ApiPropertyOptional({ description: 'departmentId' })
-  @IsOptional()
-  @IsNumber()
+  @IsInt()
   departmentId?: number;
 
-  @ApiPropertyOptional({ description: 'positionId' })
+  @ApiPropertyOptional({ description: 'Position ID' })
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   positionId?: number;
 
-  @ApiPropertyOptional({ description: 'joinDate' })
+  @ApiPropertyOptional({ description: 'Join date', type: String })
   @IsOptional()
-  joinDate?: Date;
+  @IsDateString()
+  joinDate?: string;
 
-  @ApiPropertyOptional({ description: 'endDate' })
+  @ApiPropertyOptional({ description: 'End date', type: String })
   @IsOptional()
-  endDate?: Date;
+  @IsDateString()
+  endDate?: string;
 
-  @ApiPropertyOptional({ description: 'birthDate' })
+  @ApiPropertyOptional({ description: 'Birth date', type: String })
   @IsOptional()
-  birthDate?: Date;
+  @IsDateString()
+  birthDate?: string;
 
-  @ApiPropertyOptional({ description: 'gender' })
+  @ApiPropertyOptional({ description: 'Gender' })
   @IsOptional()
   @IsString()
   gender?: string;
 
-  @ApiPropertyOptional({ description: 'phone' })
+  @ApiPropertyOptional({ description: 'Phone' })
   @IsOptional()
   @IsString()
   phone?: string;
 
-  @ApiPropertyOptional({ description: 'email' })
+  @ApiPropertyOptional({ description: 'Email' })
   @IsOptional()
   @IsString()
   email?: string;
 
-  @ApiPropertyOptional({ description: 'address' })
+  @ApiPropertyOptional({ description: 'Address' })
   @IsOptional()
   @IsString()
   address?: string;
 
-  @ApiPropertyOptional({ description: 'emergencyContact' })
+  @ApiPropertyOptional({ description: 'Emergency contact name' })
   @IsOptional()
   @IsString()
   emergencyContact?: string;
 
-  @ApiPropertyOptional({ description: 'emergencyPhone' })
+  @ApiPropertyOptional({ description: 'Emergency contact phone' })
   @IsOptional()
   @IsString()
   emergencyPhone?: string;
 
-  @ApiPropertyOptional({ description: 'basicSalary' })
+  @ApiPropertyOptional({ description: 'Basic salary', default: 0 })
   @IsOptional()
   @IsNumber()
   basicSalary?: number;
 
-  @ApiPropertyOptional({ description: 'status' })
+  @ApiPropertyOptional({ description: 'Status code (ACTIVE, ON_LEAVE, SUSPENDED, RESIGNED, TERMINATED)', default: 'ACTIVE' })
   @IsOptional()
-  status?: any;
+  @IsString()
+  statusCode?: string;
+}
 
-  @ApiPropertyOptional({ description: 'isActive' })
+export class UpdateEmployeeDto {
+  @ApiPropertyOptional({ description: 'Employee code' })
+  @IsOptional()
+  @IsString()
+  code?: string;
+
+  @ApiPropertyOptional({ description: 'Employee name' })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiPropertyOptional({ description: 'Department ID' })
+  @IsOptional()
+  @IsInt()
+  departmentId?: number;
+
+  @ApiPropertyOptional({ description: 'Position ID' })
+  @IsOptional()
+  @IsInt()
+  positionId?: number;
+
+  @ApiPropertyOptional({ description: 'Join date', type: String })
+  @IsOptional()
+  @IsDateString()
+  joinDate?: string;
+
+  @ApiPropertyOptional({ description: 'End date', type: String })
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
+
+  @ApiPropertyOptional({ description: 'Birth date', type: String })
+  @IsOptional()
+  @IsDateString()
+  birthDate?: string;
+
+  @ApiPropertyOptional({ description: 'Gender' })
+  @IsOptional()
+  @IsString()
+  gender?: string;
+
+  @ApiPropertyOptional({ description: 'Phone' })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiPropertyOptional({ description: 'Email' })
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @ApiPropertyOptional({ description: 'Address' })
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @ApiPropertyOptional({ description: 'Emergency contact name' })
+  @IsOptional()
+  @IsString()
+  emergencyContact?: string;
+
+  @ApiPropertyOptional({ description: 'Emergency contact phone' })
+  @IsOptional()
+  @IsString()
+  emergencyPhone?: string;
+
+  @ApiPropertyOptional({ description: 'Basic salary' })
+  @IsOptional()
+  @IsNumber()
+  basicSalary?: number;
+
+  @ApiPropertyOptional({ description: 'Status code' })
+  @IsOptional()
+  @IsString()
+  statusCode?: string;
+
+  @ApiPropertyOptional({ description: 'Is active' })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
-
-  @ApiPropertyOptional({ description: 'department' })
-  @IsOptional()
-  department?: any;
-
-  @ApiPropertyOptional({ description: 'position' })
-  @IsOptional()
-  position?: any;
-
-}
-
-export class EmployeeResponseDto {
-  @ApiProperty({ description: 'code' })
-  code: string;
-
-  @ApiProperty({ description: 'name' })
-  name: string;
-
-  @ApiProperty({ description: 'departmentId' })
-  departmentId: number;
-
-  @ApiProperty({ description: 'positionId' })
-  positionId: number;
-
-  @ApiProperty({ description: 'joinDate' })
-  joinDate: Date;
-
-  @ApiProperty({ description: 'endDate' })
-  endDate: Date;
-
-  @ApiProperty({ description: 'birthDate' })
-  birthDate: Date;
-
-  @ApiProperty({ description: 'gender' })
-  gender: string;
-
-  @ApiProperty({ description: 'phone' })
-  phone: string;
-
-  @ApiProperty({ description: 'email' })
-  email: string;
-
-  @ApiProperty({ description: 'address' })
-  address: string;
-
-  @ApiProperty({ description: 'emergencyContact' })
-  emergencyContact: string;
-
-  @ApiProperty({ description: 'emergencyPhone' })
-  emergencyPhone: string;
-
-  @ApiProperty({ description: 'basicSalary' })
-  basicSalary: number;
-
-  @ApiProperty({ description: 'status' })
-  status: any;
-
-  @ApiProperty({ description: 'isActive' })
-  isActive: boolean;
-
-  @ApiProperty({ description: 'department' })
-  department: any;
-
-  @ApiProperty({ description: 'position' })
-  position: any;
-
 }
 
 export class QueryEmployeeDto {

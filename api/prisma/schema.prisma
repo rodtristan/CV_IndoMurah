@@ -2125,11 +2125,15 @@ model Employee {
 
 // ─── Attendance ───────────────────────────────────────────────
 model Attendance {
-  ID         Int              @id @default(autoincrement())
-  EmployeeID Int
-  Date       DateTime
-  CheckIn    DateTime?
-  CheckOut   DateTime?
+  ID               Int              @id @default(autoincrement())
+  EmployeeID       Int
+  Date             DateTime
+  CheckIn          DateTime?
+  CheckInLatitude  Decimal?         @db.Decimal(10, 7)
+  CheckInLongitude Decimal?         @db.Decimal(10, 7)
+  CheckOut         DateTime?
+  CheckOutLatitude  Decimal?        @db.Decimal(10, 7)
+  CheckOutLongitude Decimal?        @db.Decimal(10, 7)
   StatusID    Int              @default(1)
   Notes      String?          @db.VarChar(1000)
   IsActive   Boolean          @default(true)

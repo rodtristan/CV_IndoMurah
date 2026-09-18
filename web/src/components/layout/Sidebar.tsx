@@ -15,6 +15,7 @@ import {
   Store,
   ChevronDown,
   ChevronRight,
+  UserCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, type CSSProperties } from "react";
@@ -119,13 +120,23 @@ const MENU_GROUPS: MenuGroup[] = [
     icon: Landmark,
     iconColor: "#00ACC1",
     items: [
-      { label: "Chart of Accounts", href: "/accounting/accounts", disabled: true },
-      { label: "Jurnal Umum", href: "/accounting/journals", disabled: true },
+      { label: "Chart of Accounts", href: "/accounting/accounts" },
+      { label: "Jurnal Umum", href: "/accounting/journals" },
       { label: "Kas Masuk", href: "/accounting/cash-in" },
       { label: "Kas Keluar", href: "/accounting/cash-out" },
       { label: "Transfer Kas", href: "/accounting/cash-transfer", disabled: true },
       { label: "Setoran Pelanggan", href: "/accounting/customer-deposits" },
       { label: "Setoran Supplier", href: "/accounting/supplier-deposits" },
+    ],
+  },
+  {
+    key: "hr",
+    label: "Kepegawaian",
+    icon: UserCheck,
+    iconColor: "#8E24AA",
+    items: [
+      { label: "Absensi", href: "/hr/attendance" },
+      { label: "Karyawan", href: "/hr/employees" },
     ],
   },
   {

@@ -14,7 +14,7 @@ export class EmployeeController extends BaseController<
   CreateEmployeeDto,
   UpdateEmployeeDto
 > {
-  constructor(employeeService: EmployeeService) {
+  constructor(private readonly employeeService: EmployeeService) {
     super(employeeService, {
       modelName: 'Employee',
       pluralName: 'Employees',
@@ -60,7 +60,8 @@ export class EmployeeController extends BaseController<
   @Post()
   @ApiOperation({ summary: 'Create new Employee' })
   async create(@Body() dto: CreateEmployeeDto) {
-    return super.create(dto);
+    const data = await this.employeeService.createEmployee(dto);
+    return { success: true, data, message: 'Employee created successfully' };
   }
 
   @Post('bulk')
@@ -73,7 +74,8 @@ export class EmployeeController extends BaseController<
   @Patch(':id')
   @ApiOperation({ summary: 'Update Employee by ID' })
   async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateEmployeeDto>) {
-    return super.patchById(id, dto);
+    const data = await this.employeeService.updateEmployee(Number(id), dto);
+    return { success: true, data, message: 'Employee updated successfully' };
   }
 
   @Patch('by/:field/:value')
