@@ -8,7 +8,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 @ApiTags('Service Items')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('service-items')
+@Controller('ServiceItems')
 export class ServiceItemController extends BaseController<
   any,
   CreateServiceItemDto,

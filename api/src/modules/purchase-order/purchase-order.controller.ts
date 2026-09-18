@@ -17,7 +17,7 @@ import {
   CreatePurchaseOrderDto,
   UpdatePurchaseOrderDto,
   AddPurchaseOrderItemDto,
-  UpdateStatusDto,
+  UpdatePurchaseOrderStatusDto,
 } from './dto/purchase-order.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 import { ApiResponse } from '../../common/dto/api-response-dto';
@@ -26,7 +26,7 @@ import { CurrentUser } from '../../common/decorators/current-user-decorator';
 @ApiTags('Purchase Orders')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('purchase-orders')
+@Controller('PurchaseOrders')
 export class PurchaseOrderController {
   constructor(private purchaseOrderService: PurchaseOrderService) {}
 
@@ -55,8 +55,8 @@ export class PurchaseOrderController {
 
   @Post()
   @ApiOperation({ summary: 'Create new purchase order' })
-  async create(@Body() dto: CreatePurchaseOrderDto, @CurrentUser('id') userId: number) {
-    const data = await this.purchaseOrderService.create(dto, userId);
+  async create(@Body() dto: CreatePurchaseOrderDto, @CurrentUser() user: any) {
+    const data = await this.purchaseOrderService.create(dto, user.ID);
     return ApiResponse.ok(data, 'Purchase order created successfully');
   }
 
@@ -104,21 +104,21 @@ export class PurchaseOrderController {
   @Put(':id/confirm')
   @ApiOperation({ summary: 'Confirm purchase order' })
   async confirm(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.purchaseOrderService.updateStatus(id, { status: 'confirmed' });
+    const data = await this.purchaseOrderService.updateStatus(id, { StatusCode: 'CONFIRMED' });
     return ApiResponse.ok(data, 'Purchase order confirmed');
   }
 
   @Put(':id/complete')
   @ApiOperation({ summary: 'Complete purchase order' })
   async complete(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.purchaseOrderService.updateStatus(id, { status: 'completed' });
+    const data = await this.purchaseOrderService.updateStatus(id, { StatusCode: 'COMPLETED' });
     return ApiResponse.ok(data, 'Purchase order completed');
   }
 
   @Put(':id/cancel')
   @ApiOperation({ summary: 'Cancel purchase order' })
   async cancel(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.purchaseOrderService.updateStatus(id, { status: 'cancelled' });
+    const data = await this.purchaseOrderService.updateStatus(id, { StatusCode: 'CANCELLED' });
     return ApiResponse.ok(data, 'Purchase order cancelled');
   }
 
@@ -126,7 +126,7 @@ export class PurchaseOrderController {
   @ApiOperation({ summary: 'Update purchase order status' })
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateStatusDto,
+    @Body() dto: UpdatePurchaseOrderStatusDto,
   ) {
     const data = await this.purchaseOrderService.updateStatus(id, dto);
     return ApiResponse.ok(data, 'Status updated successfully');

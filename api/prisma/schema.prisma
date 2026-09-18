@@ -2,6 +2,7 @@
 // Toko CV IndoMurah — Complete Prisma Schema
 // POS System with OData Query Support
 // All Status/Type are stored as tables (no enums)
+// PascalCase naming convention for tables and columns
 // ============================================================
 
 generator client {
@@ -19,402 +20,401 @@ datasource db {
 
 // ─── PaymentMethod (Metode Pembayaran) ───────────────────────────────
 model PaymentMethod {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(100)
-  description String?  @db.VarChar(255)
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          Int      @id @default(autoincrement())
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(100)
+  Description String?  @db.VarChar(255)
+  IsActive    Boolean  @default(true)
+  SortOrder   Int      @default(0)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
   // Relations
-  salePayments      SalePayment[]
-  purchasePayments   PurchasePayment[]
+  SalePayments      SalePayment[]
+  PurchasePayments   PurchasePayment[]
+  Sales             Sale[]
+  Purchases          Purchase[]
 
-  @@map("payment_methods")
+  @@map("PaymentMethods")
 }
 
 // ─── PaymentStatus (Status Pembayaran) ────────────────────────────
 model PaymentStatus {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(100)
-  description String?  @db.VarChar(255)
-  color       String?  @db.VarChar(50)  // CSS color for UI
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          Int      @id @default(autoincrement())
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(100)
+  Description String?  @db.VarChar(255)
+  Color       String?  @db.VarChar(50)
+  IsActive    Boolean  @default(true)
+  SortOrder   Int      @default(0)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
   // Relations
-  sales      Sale[]
-  purchases   Purchase[]
+  Sales      Sale[]
+  Purchases   Purchase[]
+  PurchaseOrders PurchaseOrder[]
 
-  @@map("payment_statuses")
+  @@map("PaymentStatuses")
 }
 
 // ─── TransactionStatus (Status Transaksi) ──────────────────────
 model TransactionStatus {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(100)
-  description String?  @db.VarChar(255)
-  color       String?  @db.VarChar(50)
-  isTerminal  Boolean  @default(false)  // True if this is a final status
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          Int      @id @default(autoincrement())
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(100)
+  Description String?  @db.VarChar(255)
+  Color       String?  @db.VarChar(50)
+  IsTerminal  Boolean  @default(false)
+  IsActive    Boolean  @default(true)
+  SortOrder   Int      @default(0)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
   // Relations
-  saleReturns      SaleReturn[]
-  purchaseOrders   PurchaseOrder[]
-  purchases        Purchase[]
-  stockIns         StockIn[]
-  stockOuts        StockOut[]
-  stockTransfers   StockTransfer[]
-  leaves           Leave[]
-  loans            Loan[]
-  transfers        Transfer[]
+  SaleReturns      SaleReturn[]
+  PurchaseOrders   PurchaseOrder[]
+  Purchases        Purchase[]
+  StockIns         StockIn[]
+  StockOuts        StockOut[]
+  StockTransfers   StockTransfer[]
+  PurchaseReturns  PurchaseReturn[]
+  Transfers        Transfer[]
 
-  @@map("transaction_statuses")
+  @@map("TransactionStatuses")
 }
 
 // ─── StockOpnameStatus ─────────────────────────────────────────
 model StockOpnameStatus {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(100)
-  description String?  @db.VarChar(255)
-  color       String?  @db.VarChar(50)
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          Int      @id @default(autoincrement())
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(100)
+  Description String?  @db.VarChar(255)
+  Color       String?  @db.VarChar(50)
+  IsActive    Boolean  @default(true)
+  SortOrder   Int      @default(0)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
   // Relations
-  stockOpnames StockOpname[]
+  StockOpnames StockOpname[]
 
-  @@map("stock_opname_statuses")
+  @@map("StockOpnameStatuses")
 }
 
 // ─── AccountType (Tipe Akun) ──────────────────────────────────
 model AccountType {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(100)
-  description String?  @db.VarChar(255)
-  isDebitNormal Boolean @default(true)  // Asset & Expense = debit normal
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          Int      @id @default(autoincrement())
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(100)
+  Description String?  @db.VarChar(255)
+  IsDebitNormal Boolean @default(true)
+  IsActive    Boolean  @default(true)
+  SortOrder   Int      @default(0)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
   // Relations
-  accounts    Account[]
+  Accounts    Account[]
 
-  @@map("account_types")
+  @@map("AccountTypes")
 }
 
 // ─── ReferenceType (Tipe Referensi) ────────────────────────────
 model ReferenceType {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(100)
-  description String?  @db.VarChar(255)
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          Int      @id @default(autoincrement())
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(100)
+  Description String?  @db.VarChar(255)
+  IsActive    Boolean  @default(true)
+  SortOrder   Int      @default(0)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
   // Relations
-  stockIns    StockIn[]
-  stockOuts   StockOut[]
+  StockIns    StockIn[]
+  StockOuts   StockOut[]
 
-  @@map("reference_types")
+  @@map("ReferenceTypes")
 }
 
 // ─── CustomerGroup (Grup Pelanggan) ────────────────────────────
 model CustomerGroup {
-  id              Int       @id @default(autoincrement())
-  code            String    @unique @db.VarChar(50)
-  name            String    @db.VarChar(100)
-  description     String?   @db.VarChar(255)
-  discountPercent Decimal    @default(0) @db.Decimal(5,2)
-  pointMultiplier Decimal    @default(1) @db.Decimal(3,2)
-  isActive        Boolean   @default(true)
-  sortOrder       Int       @default(0)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  ID              Int       @id @default(autoincrement())
+  Code            String    @unique @db.VarChar(50)
+  Name            String    @db.VarChar(100)
+  Description     String?   @db.VarChar(255)
+  DiscountPercent Decimal    @default(0) @db.Decimal(5,2)
+  PointMultiplier Decimal    @default(1) @db.Decimal(3,2)
+  IsActive        Boolean   @default(true)
+  SortOrder       Int       @default(0)
+  CreatedAt       DateTime  @default(now())
+  UpdatedAt       DateTime  @updatedAt
 
   // Relations
-  customers Customer[]
+  Customers Customer[]
 
-  @@map("customer_groups")
+  @@map("CustomerGroups")
 }
 
 // ─── EmployeeStatus ────────────────────────────────────────────
 model EmployeeStatus {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(100)
-  description String?  @db.VarChar(255)
-  color       String?  @db.VarChar(50)
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          Int      @id @default(autoincrement())
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(100)
+  Description String?  @db.VarChar(255)
+  Color       String?  @db.VarChar(50)
+  IsActive    Boolean  @default(true)
+  SortOrder   Int      @default(0)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
   // Relations
-  employees Employee[]
+  Employees Employee[]
 
-  @@map("employee_statuses")
+  @@map("EmployeeStatuses")
 }
 
 // ─── AttendanceStatus ──────────────────────────────────────────
 model AttendanceStatus {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(100)
-  description String?  @db.VarChar(255)
-  color       String?  @db.VarChar(50)
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          Int      @id @default(autoincrement())
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(100)
+  Description String?  @db.VarChar(255)
+  Color       String?  @db.VarChar(50)
+  IsActive    Boolean  @default(true)
+  SortOrder   Int      @default(0)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
   // Relations
-  attendances Attendance[]
+  Attendances Attendance[]
 
-  @@map("attendance_statuses")
+  @@map("AttendanceStatuses")
 }
 
 // ─── LeaveType ────────────────────────────────────────────────
 model LeaveType {
-  id              Int       @id @default(autoincrement())
-  code            String    @unique @db.VarChar(50)
-  name            String    @db.VarChar(100)
-  description     String?   @db.VarChar(255)
-  isPaidLeave     Boolean   @default(true)
-  defaultDays     Int       @default(0)  // Default annual entitlement
-  color           String?   @db.VarChar(50)
-  isActive        Boolean   @default(true)
-  sortOrder       Int       @default(0)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  ID              Int       @id @default(autoincrement())
+  Code            String    @unique @db.VarChar(50)
+  Name            String    @db.VarChar(100)
+  Description     String?   @db.VarChar(255)
+  IsPaidLeave     Boolean   @default(true)
+  DefaultDays     Int       @default(0)
+  Color           String?   @db.VarChar(50)
+  IsActive        Boolean   @default(true)
+  SortOrder       Int       @default(0)
+  CreatedAt       DateTime  @default(now())
+  UpdatedAt       DateTime  @updatedAt
 
   // Relations
-  leaves         Leave[]
-  leaveBalances  LeaveBalance[]
+  Leaves         Leave[]
+  LeaveBalances  LeaveBalance[]
 
-  @@map("leave_types")
+  @@map("LeaveTypes")
 }
 
 // ─── LeaveStatus ────────────────────────────────────────────────
 model LeaveStatus {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(100)
-  description String?  @db.VarChar(255)
-  color       String?  @db.VarChar(50)
-  requiresApproval Boolean @default(true)
-  isTerminal  Boolean  @default(false)
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          Int      @id @default(autoincrement())
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(100)
+  Description String?  @db.VarChar(255)
+  Color       String?  @db.VarChar(50)
+  RequiresApproval Boolean @default(true)
+  IsTerminal  Boolean  @default(false)
+  IsActive    Boolean  @default(true)
+  SortOrder   Int      @default(0)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
   // Relations
-  leaves Leave[]
+  Leaves Leave[]
 
-  @@map("leave_statuses")
+  @@map("LeaveStatuses")
 }
 
 // ─── LoanStatus ────────────────────────────────────────────────
 model LoanStatus {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(100)
-  description String?  @db.VarChar(255)
-  color       String?  @db.VarChar(50)
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          Int      @id @default(autoincrement())
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(100)
+  Description String?  @db.VarChar(255)
+  Color       String?  @db.VarChar(50)
+  IsActive    Boolean  @default(true)
+  SortOrder   Int      @default(0)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
   // Relations
-  loans Loan[]
+  Loans Loan[]
 
-  @@map("loan_statuses")
+  @@map("LoanStatuses")
 }
 
 // ─── LoanType ─────────────────────────────────────────────────
 model LoanType {
-  id              Int       @id @default(autoincrement())
-  code            String    @unique @db.VarChar(50)
-  name            String    @db.VarChar(100)
-  description     String?   @db.VarChar(255)
-  maxTenorMonths  Int       @default(12)
-  maxAmount       Decimal   @default(0) @db.Decimal(15,2)
-  interestRate    Decimal   @default(0) @db.Decimal(5,2)
-  isActive        Boolean   @default(true)
-  sortOrder       Int       @default(0)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  ID              Int       @id @default(autoincrement())
+  Code            String    @unique @db.VarChar(50)
+  Name            String    @db.VarChar(100)
+  Description     String?   @db.VarChar(255)
+  MaxTenorMonths  Int       @default(12)
+  MaxAmount       Decimal   @default(0) @db.Decimal(15,2)
+  InterestRate    Decimal   @default(0) @db.Decimal(5,2)
+  IsActive        Boolean   @default(true)
+  SortOrder       Int       @default(0)
+  CreatedAt       DateTime  @default(now())
+  UpdatedAt       DateTime  @updatedAt
 
   // Relations
-  loans Loan[]
+  Loans Loan[]
 
-  @@map("loan_types")
+  @@map("LoanTypes")
 }
 
 // ─── AssetStatus ──────────────────────────────────────────────
 model AssetStatus {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(100)
-  description String?  @db.VarChar(255)
-  color       String?  @db.VarChar(50)
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          Int      @id @default(autoincrement())
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(100)
+  Description String?  @db.VarChar(255)
+  Color       String?  @db.VarChar(50)
+  IsActive    Boolean  @default(true)
+  SortOrder   Int      @default(0)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
   // Relations
-  assets Asset[]
+  Assets Asset[]
 
-  @@map("asset_statuses")
+  @@map("AssetStatuses")
 }
 
 // ─── DepreciationMethod ──────────────────────────────────────
 model DepreciationMethod {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(100)
-  description String?  @db.VarChar(255)
-  formula     String?  @db.VarChar(255)  // Formula description
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          Int      @id @default(autoincrement())
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(100)
+  Description String?  @db.VarChar(255)
+  Formula     String?  @db.VarChar(255)
+  IsActive    Boolean  @default(true)
+  SortOrder   Int      @default(0)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
   // Relations
-  assets Asset[]
+  Assets Asset[]
 
-  @@map("depreciation_methods")
+  @@map("DepreciationMethods")
 }
 
 // ─── RepairStatus ─────────────────────────────────────────────
 model RepairStatus {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(100)
-  description String?  @db.VarChar(255)
-  color       String?  @db.VarChar(50)
-  isTerminal  Boolean  @default(false)
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          Int      @id @default(autoincrement())
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(100)
+  Description String?  @db.VarChar(255)
+  Color       String?  @db.VarChar(50)
+  IsTerminal  Boolean  @default(false)
+  IsActive    Boolean  @default(true)
+  SortOrder   Int      @default(0)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
   // Relations
-  services Service[]
+  Services Service[]
 
-  @@map("repair_statuses")
+  @@map("RepairStatuses")
 }
 
 // ─── ProductionStatus ─────────────────────────────────────────
 model ProductionStatus {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(100)
-  description String?  @db.VarChar(255)
-  color       String?  @db.VarChar(50)
-  isTerminal  Boolean  @default(false)
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          Int      @id @default(autoincrement())
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(100)
+  Description String?  @db.VarChar(255)
+  Color       String?  @db.VarChar(50)
+  IsTerminal  Boolean  @default(false)
+  IsActive    Boolean  @default(true)
+  SortOrder   Int      @default(0)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
   // Relations
-  productions Production[]
+  Productions Production[]
 
-  @@map("production_statuses")
+  @@map("ProductionStatuses")
 }
 
 // ─── VoucherType ──────────────────────────────────────────────
 model VoucherType {
-  id              Int       @id @default(autoincrement())
-  code            String    @unique @db.VarChar(50)
-  name            String    @db.VarChar(100)
-  description     String?   @db.VarChar(255)
-  hasMaxDiscount  Boolean   @default(false)  // Has max discount cap
-  isActive        Boolean   @default(true)
-  sortOrder       Int       @default(0)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  ID              Int       @id @default(autoincrement())
+  Code            String    @unique @db.VarChar(50)
+  Name            String    @db.VarChar(100)
+  Description     String?   @db.VarChar(255)
+  HasMaxDiscount  Boolean   @default(false)
+  IsActive        Boolean   @default(true)
+  SortOrder       Int       @default(0)
+  CreatedAt       DateTime  @default(now())
+  UpdatedAt       DateTime  @updatedAt
 
   // Relations
-  vouchers Voucher[]
+  Vouchers Voucher[]
 
-  @@map("voucher_types")
+  @@map("VoucherTypes")
 }
 
 // ─── NotificationType ─────────────────────────────────────────
 model NotificationType {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(100)
-  description String?  @db.VarChar(255)
-  icon        String?  @db.VarChar(50)
-  color       String?  @db.VarChar(50)
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          Int      @id @default(autoincrement())
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(100)
+  Description String?  @db.VarChar(255)
+  Icon        String?  @db.VarChar(50)
+  Color       String?  @db.VarChar(50)
+  IsActive    Boolean  @default(true)
+  SortOrder   Int      @default(0)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
   // Relations
-  notifications        Notification[]
-  notificationSettings NotificationSetting[]
+  Notifications        Notification[]
+  NotificationSettings NotificationSetting[]
 
-  @@map("notification_types")
+  @@map("NotificationTypes")
 }
 
 // ─── AlertType (Stock Alert Types) ────────────────────────────
 model AlertType {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(100)
-  description String?  @db.VarChar(255)
-  color       String?  @db.VarChar(50)
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          Int      @id @default(autoincrement())
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(100)
+  Description String?  @db.VarChar(255)
+  Color       String?  @db.VarChar(50)
+  IsActive    Boolean  @default(true)
+  SortOrder   Int      @default(0)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
   // Relations
-  stockAlerts StockAlert[]
+  StockAlerts StockAlert[]
 
-  @@map("alert_types")
+  @@map("AlertTypes")
 }
 
 // ─── NotificationChannel (Email, Push, In-App) ────────────────
 model NotificationChannel {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(100)
-  description String?  @db.VarChar(255)
-  icon        String?  @db.VarChar(50)
-  isActive    Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          Int      @id @default(autoincrement())
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(100)
+  Description String?  @db.VarChar(255)
+  Icon        String?  @db.VarChar(50)
+  IsActive    Boolean  @default(true)
+  SortOrder   Int      @default(0)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
-  // Relations
-  notificationSettings NotificationSetting[]
-
-  @@map("notification_channels")
+  @@map("NotificationChannels")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -422,152 +422,156 @@ model NotificationChannel {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 model User {
-  id          String   @id @default(uuid())
-  companyId   Int
-  username    String   @db.VarChar(100)
-  email       String?  @unique @db.VarChar(255)
-  password    String   @db.VarChar(255)
-  name        String   @db.VarChar(255)
-  role        String   @default("cashier") @db.VarChar(100)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          String   @id @default(uuid())
+  CompanyID   Int
+  Username    String   @db.VarChar(100)
+  Email       String?  @unique @db.VarChar(255)
+  Password    String   @db.VarChar(255)
+  Name        String   @db.VarChar(255)
+  Role        String   @default("cashier") @db.VarChar(100)
+  IsActive    Boolean  @default(true)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  @@unique([companyId, username])
-  @@index([companyId])
+  Company     Company  @relation(fields: [CompanyID], references: [ID], onDelete: Cascade)
+  @@unique([CompanyID, Username])
+  @@index([CompanyID])
+
+  // Relations
+  UserRoles UserRole[]
+  UserMenus UserMenu[]
 
   // Relations - Purchase transactions
-  purchaseOrders   PurchaseOrder[]
-  purchases        Purchase[]
-  purchasePayments PurchasePayment[]
-  purchaseReturns  PurchaseReturn[]
+  PurchaseOrders   PurchaseOrder[]
+  Purchases        Purchase[]
+  PurchasePayments PurchasePayment[]
+  PurchaseReturns  PurchaseReturn[]
 
   // Relations - Stock transactions
-  stockIns       StockIn[]
-  stockOuts      StockOut[]
-  stockTransfers StockTransfer[]
-  stockOpnames   StockOpname[]
+  StockIns       StockIn[]
+  StockOuts      StockOut[]
+  StockTransfers StockTransfer[]
+  StockOpnames   StockOpname[]
 
   // Relations - Sales transactions
-  sales        Sale[]
-  salePayments SalePayment[]
-  saleReturns  SaleReturn[]
+  Sales        Sale[]
+  SalePayments SalePayment[]
+  SaleReturns  SaleReturn[]
 
   // Relations - Accounting
-  cashIns          CashIn[]
-  cashOuts         CashOut[]
-  cashTransfers    CashTransfer[]
-  customerDeposits CustomerDeposit[]
-  supplierDeposits SupplierDeposit[]
-  journalEntries   JournalEntry[]
-  journals             Journal[]
-  pointRedemptions     PointRedemption[]
-  approvedExpenses     Expense[]
-  notifications        Notification[]
-  notificationSettings NotificationSetting[]
-  approvedLeaves       Leave[]
+  CashIns          CashIn[]
+  CashOuts         CashOut[]
+  CashTransfers    CashTransfer[]
+  CustomerDeposits CustomerDeposit[]
+  SupplierDeposits SupplierDeposit[]
+  JournalEntries   JournalEntry[]
+  Journals             Journal[]
+  PointRedemptions     PointRedemption[]
+  ApprovedExpenses     Expense[]
+  Notifications        Notification[]
+  NotificationSettings NotificationSetting[]
+  ApprovedLeaves       Leave[]
 
-  @@map("users")
+  @@map("Users")
 }
 
 model Role {
-  id              Int      @id @default(autoincrement())
-  roleName        String   @unique @db.VarChar(100)
-  roleDescription String?  @db.VarChar(500)
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  ID              Int      @id @default(autoincrement())
+  RoleName        String   @unique @db.VarChar(100)
+  RoleDescription String?  @db.VarChar(500)
+  IsActive        Boolean  @default(true)
+  CreatedAt       DateTime @default(now())
+  UpdatedAt       DateTime @updatedAt
 
-  userRoles UserRole[]
-  roleMenus RoleMenu[]
+  UserRoles UserRole[]
+  RoleMenus RoleMenu[]
 
-  @@map("roles")
+  @@map("Roles")
 }
 
 model Menu {
-  id           Int      @id @default(autoincrement())
-  menuName     String   @db.VarChar(255)
-  menuType     String?  @db.VarChar(50)
-  icon         String?  @db.VarChar(100)
-  route        String?  @db.VarChar(500)
-  parentMenuId Int?
-  isActive     Boolean  @default(true)
-  sortOrder    Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  ID           Int      @id @default(autoincrement())
+  MenuName     String   @db.VarChar(255)
+  MenuType     String?  @db.VarChar(50)
+  Icon         String?  @db.VarChar(100)
+  Route        String?  @db.VarChar(500)
+  ParentMenuID Int?
+  IsActive     Boolean  @default(true)
+  SortOrder    Int      @default(0)
+  CreatedAt    DateTime @default(now())
+  UpdatedAt    DateTime @updatedAt
 
-  parentMenu Menu?      @relation("MenuParent", fields: [parentMenuId], references: [id])
-  childMenus Menu[]     @relation("MenuParent")
-  userMenus  UserMenu[]
-  roleMenus  RoleMenu[]
+  ParentMenu Menu?      @relation("MenuParent", fields: [ParentMenuID], references: [ID])
+  ChildMenus Menu[]     @relation("MenuParent")
+  UserMenus  UserMenu[]
+  RoleMenus  RoleMenu[]
 
-  @@map("menus")
+  @@map("Menus")
 }
 
 model UserRole {
-  id        Int      @id @default(autoincrement())
-  userId    String
-  roleId    Int
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  ID        Int      @id @default(autoincrement())
+  UserID    String
+  RoleID    Int
+  IsActive  Boolean  @default(true)
+  CreatedAt DateTime @default(now())
+  UpdatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  User User @relation(fields: [UserID], references: [ID], onDelete: Cascade)
+  Role Role @relation(fields: [RoleID], references: [ID], onDelete: Cascade)
 
-  @@unique([userId, roleId])
-  @@map("user_roles")
+  @@unique([UserID, RoleID])
+  @@map("UserRoles")
 }
 
 model RoleMenu {
-  id        Int      @id @default(autoincrement())
-  roleId    Int
-  menuId    Int
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  ID        Int      @id @default(autoincrement())
+  RoleID    Int
+  MenuID    Int
+  IsActive  Boolean  @default(true)
+  CreatedAt DateTime @default(now())
+  UpdatedAt DateTime @updatedAt
 
-  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  menu Menu @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  Role Role @relation(fields: [RoleID], references: [ID], onDelete: Cascade)
+  Menu Menu @relation(fields: [MenuID], references: [ID], onDelete: Cascade)
 
-  @@unique([roleId, menuId])
-  @@map("role_menus")
+  @@unique([RoleID, MenuID])
+  @@map("RoleMenus")
 }
 
 model UserMenu {
-  id        Int      @id @default(autoincrement())
-  userId    String
-  menuId    Int
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  ID        Int      @id @default(autoincrement())
+  UserID    String
+  MenuID    Int
+  IsActive  Boolean  @default(true)
+  CreatedAt DateTime @default(now())
+  UpdatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  menu Menu @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  User User @relation(fields: [UserID], references: [ID], onDelete: Cascade)
+  Menu Menu @relation(fields: [MenuID], references: [ID], onDelete: Cascade)
 
-  @@unique([userId, menuId])
-  @@map("user_menus")
+  @@unique([UserID, MenuID])
+  @@map("UserMenus")
 }
 
 // ─── Log ─────────────────────────────────────────────────────
 model Log {
-  id                Int      @id @default(autoincrement())
-  method            String?  @db.VarChar(20)
-  endpoint          String?  @db.VarChar(500)
-  headers           Json?
-  payload           Json?
-  responseStatus    Int?
-  message           String?  @db.VarChar(1000)
-  requesterLoginId  Int?
-  requesterFullName String?  @db.VarChar(255)
-  ipAddress         String?  @db.VarChar(100)
-  userAgent         String?  @db.VarChar(500)
-  durationMs        Int?
-  logDatetime       DateTime @default(now())
-  createdAt         DateTime @default(now())
+  ID                Int      @id @default(autoincrement())
+  Method            String?  @db.VarChar(20)
+  Endpoint          String?  @db.VarChar(500)
+  Headers           Json?
+  Payload           Json?
+  ResponseStatus    Int?
+  Message           String?  @db.VarChar(1000)
+  RequesterLoginID  Int?
+  RequesterFullName String?  @db.VarChar(255)
+  IpAddress         String?  @db.VarChar(100)
+  UserAgent         String?  @db.VarChar(500)
+  DurationMs        Int?
+  LogDatetime       DateTime @default(now())
+  CreatedAt         DateTime @default(now())
 
-  @@map("logs")
+  @@map("Logs")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -576,296 +580,296 @@ model Log {
 
 // ─── Category ──────────────────────────────────────────────
 model Category {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(255)
-  icon        String?  @db.VarChar(100)
-  image       String?  @db.VarChar(500)
-  description String?  @db.VarChar(1000)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          Int      @id @default(autoincrement())
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(255)
+  Icon        String?  @db.VarChar(100)
+  Image       String?  @db.VarChar(500)
+  Description String?  @db.VarChar(1000)
+  IsActive    Boolean  @default(true)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
-  products Product[]
+  Products Product[]
 
-  @@map("categories")
+  @@map("Categories")
 }
 
 // ─── Brand ─────────────────────────────────────────────────
 model Brand {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(255)
-  description String?  @db.VarChar(1000)
-  logoUrl     String?  @db.VarChar(500)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          Int      @id @default(autoincrement())
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(255)
+  Description String?  @db.VarChar(1000)
+  LogoUrl     String?  @db.VarChar(500)
+  IsActive    Boolean  @default(true)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
-  products Product[]
-  brandLogos BrandLogo[]
+  Products Product[]
+  BrandLogos BrandLogo[]
 
-  @@map("brands")
+  @@map("Brands")
 }
 
 // ─── Unit ──────────────────────────────────────────────────
 model Unit {
-  id           Int      @id @default(autoincrement())
-  code         String   @unique @db.VarChar(50)
-  name         String   @db.VarChar(100)
-  abbreviation String?  @db.VarChar(20)
-  description  String?  @db.VarChar(500)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  ID           Int      @id @default(autoincrement())
+  Code         String   @unique @db.VarChar(50)
+  Name         String   @db.VarChar(100)
+  Abbreviation String?  @db.VarChar(20)
+  Description  String?  @db.VarChar(500)
+  IsActive     Boolean  @default(true)
+  CreatedAt    DateTime @default(now())
+  UpdatedAt    DateTime @updatedAt
 
   // Relations
-  products            Product[]
-  purchaseOrderItems  PurchaseOrderItem[]
-  purchaseItems       PurchaseItem[]
-  stockInItems        StockInItem[]
-  stockOutItems       StockOutItem[]
-  stockTransferItems  StockTransferItem[]
-  stockOpnameItems    StockOpnameItem[]
-  saleItems           SaleItem[]
-  saleReturnItems     SaleReturnItem[]
-  purchaseReturnItems PurchaseReturnItem[]
-  productionItems     ProductionItem[]
+  Products            Product[]
+  PurchaseOrderItems  PurchaseOrderItem[]
+  PurchaseItems       PurchaseItem[]
+  StockInItems        StockInItem[]
+  StockOutItems       StockOutItem[]
+  StockTransferItems  StockTransferItem[]
+  StockOpnameItems    StockOpnameItem[]
+  SaleItems           SaleItem[]
+  SaleReturnItems     SaleReturnItem[]
+  PurchaseReturnItems PurchaseReturnItem[]
+  ProductionItems     ProductionItem[]
 
-  @@map("units")
+  @@map("Units")
 }
 
 // ─── Warehouse ─────────────────────────────────────────────
 model Warehouse {
-  id        Int      @id @default(autoincrement())
-  code      String   @unique @db.VarChar(50)
-  name      String   @db.VarChar(255)
-  address   String?  @db.VarChar(500)
-  phone     String?  @db.VarChar(50)
-  isDefault Boolean  @default(false)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  ID        Int      @id @default(autoincrement())
+  Code      String   @unique @db.VarChar(50)
+  Name      String   @db.VarChar(255)
+  Address   String?  @db.VarChar(500)
+  Phone     String?  @db.VarChar(50)
+  IsDefault Boolean  @default(false)
+  IsActive  Boolean  @default(true)
+  CreatedAt DateTime @default(now())
+  UpdatedAt DateTime @updatedAt
 
   // Relations
-  products           Product[]
-  productStocks      ProductStock[]
-  stockIns           StockIn[]
-  stockOuts          StockOut[]
-  stockTransfersFrom StockTransfer[]  @relation("TransferFrom")
-  stockTransfersTo   StockTransfer[]  @relation("TransferTo")
-  stockOpnames       StockOpname[]
-  sales              Sale[]
-  purchases          Purchase[]
-  purchaseOrders     PurchaseOrder[]
-  saleReturns        SaleReturn[]
-  purchaseReturns    PurchaseReturn[]
-  salePoints         SalePoint[]
-  transfersFrom     Transfer[]       @relation("TransferFromWarehouse")
-  transfersTo       Transfer[]        @relation("TransferToWarehouse")
-  productions        Production[]
-  shelves           Shelf[]
+  Products           Product[]
+  ProductStocks      ProductStock[]
+  StockIns           StockIn[]
+  StockOuts          StockOut[]
+  StockTransfersFrom StockTransfer[]  @relation("TransferFrom")
+  StockTransfersTo   StockTransfer[]  @relation("TransferTo")
+  StockOpnames       StockOpname[]
+  Sales              Sale[]
+  Purchases          Purchase[]
+  PurchaseOrders     PurchaseOrder[]
+  SaleReturns        SaleReturn[]
+  PurchaseReturns    PurchaseReturn[]
+  SalePoints         SalePoint[]
+  TransfersFrom     Transfer[]       @relation("TransferFromWarehouse")
+  TransfersTo       Transfer[]        @relation("TransferToWarehouse")
+  Productions        Production[]
+  Shelves           Shelf[]
 
-  @@map("warehouses")
+  @@map("Warehouses")
 }
 
 // ─── Shelf (Rak) ─────────────────────────────────────────────
 model Shelf {
-  id          Int      @id @default(autoincrement())
-  warehouseId Int
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(255)
-  description String?  @db.VarChar(500)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          Int      @id @default(autoincrement())
+  WarehouseID Int
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(255)
+  Description String?  @db.VarChar(500)
+  IsActive    Boolean  @default(true)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
-  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
-  shelfProducts ShelfProduct[]
+  Warehouse Warehouse @relation(fields: [WarehouseID], references: [ID])
+  ShelfProducts ShelfProduct[]
 
-  @@map("shelves")
+  @@map("Shelves")
 }
 
-// ─── Shelf Product (Produk di Rak) ───────────────────────────
+// ─── ShelfProduct (Produk di Rak) ───────────────────────────
 model ShelfProduct {
-  id        Int      @id @default(autoincrement())
-  shelfId   Int
-  productId Int
-  quantity  Decimal  @default(0) @db.Decimal(15, 3)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  ID        Int      @id @default(autoincrement())
+  ShelfID   Int
+  ProductID Int
+  Quantity  Decimal  @default(0) @db.Decimal(15, 3)
+  CreatedAt DateTime @default(now())
+  UpdatedAt DateTime @updatedAt
 
-  shelf   Shelf   @relation(fields: [shelfId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  Shelf   Shelf   @relation(fields: [ShelfID], references: [ID], onDelete: Cascade)
+  Product Product @relation(fields: [ProductID], references: [ID], onDelete: Cascade)
 
-  @@unique([shelfId, productId])
-  @@map("shelf_products")
+  @@unique([ShelfID, ProductID])
+  @@map("ShelfProducts")
 }
 
-// ─── Product Group (Golongan Produk) ─────────────────────────
+// ─── ProductGroup (Golongan Produk) ─────────────────────────
 model ProductGroup {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(255)
-  description String?  @db.VarChar(500)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          Int      @id @default(autoincrement())
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(255)
+  Description String?  @db.VarChar(500)
+  IsActive    Boolean  @default(true)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
-  products Product[]
+  Products Product[]
 
-  @@map("product_groups")
+  @@map("ProductGroups")
 }
 
 // ─── Supplier ───────────────────────────────────────────────
 model Supplier {
-  id            Int      @id @default(autoincrement())
-  code          String   @unique @db.VarChar(50)
-  name          String   @db.VarChar(255)
-  contactPerson String?  @db.VarChar(255)
-  phone         String?  @db.VarChar(50)
-  email         String?  @db.VarChar(255)
-  address       String?  @db.VarChar(500)
-  totalDebt     Decimal  @default(0) @db.Decimal(15, 2)
-  notes         String?  @db.VarChar(1000)
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  ID            Int      @id @default(autoincrement())
+  Code          String   @unique @db.VarChar(50)
+  Name          String   @db.VarChar(255)
+  ContactPerson String?  @db.VarChar(255)
+  Phone         String?  @db.VarChar(50)
+  Email         String?  @db.VarChar(255)
+  Address       String?  @db.VarChar(500)
+  TotalDebt     Decimal  @default(0) @db.Decimal(15, 2)
+  Notes         String?  @db.VarChar(1000)
+  IsActive      Boolean  @default(true)
+  CreatedAt     DateTime @default(now())
+  UpdatedAt     DateTime @updatedAt
 
-  purchaseOrders   PurchaseOrder[]
-  purchases        Purchase[]
-  stockIns         StockIn[]
-  supplierDeposits SupplierDeposit[]
-  purchaseReturns  PurchaseReturn[]
+  PurchaseOrders   PurchaseOrder[]
+  Purchases        Purchase[]
+  StockIns         StockIn[]
+  SupplierDeposits SupplierDeposit[]
+  PurchaseReturns  PurchaseReturn[]
 
-  @@map("suppliers")
+  @@map("Suppliers")
 }
 
 // ─── Customer ───────────────────────────────────────────────
 model Customer {
-  id              Int           @id @default(autoincrement())
-  code            String        @unique @db.VarChar(50)
-  name            String        @db.VarChar(255)
-  phone           String?       @db.VarChar(50)
-  email           String?       @db.VarChar(255)
-  address         String?       @db.VarChar(500)
-  totalReceivable Decimal       @default(0) @db.Decimal(15, 2)
-  customerGroupId  Int
-  pointBalance    Int           @default(0)
-  notes           String?       @db.VarChar(1000)
-  isActive        Boolean       @default(true)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  ID              Int           @id @default(autoincrement())
+  Code            String        @unique @db.VarChar(50)
+  Name            String        @db.VarChar(255)
+  Phone           String?       @db.VarChar(50)
+  Email           String?       @db.VarChar(255)
+  Address         String?       @db.VarChar(500)
+  TotalReceivable Decimal       @default(0) @db.Decimal(15, 2)
+  CustomerGroupID Int
+  PointBalance    Int           @default(0)
+  Notes           String?       @db.VarChar(1000)
+  IsActive        Boolean       @default(true)
+  CreatedAt       DateTime      @default(now())
+  UpdatedAt       DateTime      @updatedAt
 
-  customerGroup   CustomerGroup @relation(fields: [customerGroupId], references: [id])
-  sales            Sale[]
-  customerDeposits CustomerDeposit[]
-  pointRedemptions PointRedemption[]
-  saleReturns      SaleReturn[]
-  services        Service[]
+  CustomerGroup   CustomerGroup @relation(fields: [CustomerGroupID], references: [ID])
+  Sales            Sale[]
+  CustomerDeposits CustomerDeposit[]
+  PointRedemptions PointRedemption[]
+  SaleReturns      SaleReturn[]
+  Services        Service[]
 
-  @@map("customers")
+  @@map("Customers")
 }
 
-// ─── Sales Person ──────────────────────────────────────────
+// ─── SalesPerson ──────────────────────────────────────────
 model SalesPerson {
-  id        Int      @id @default(autoincrement())
-  code      String   @unique @db.VarChar(50)
-  name      String   @db.VarChar(255)
-  phone     String?  @db.VarChar(50)
-  email     String?  @db.VarChar(255)
-  address   String?  @db.VarChar(500)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  ID        Int      @id @default(autoincrement())
+  Code      String   @unique @db.VarChar(50)
+  Name      String   @db.VarChar(255)
+  Phone     String?  @db.VarChar(50)
+  Email     String?  @db.VarChar(255)
+  Address   String?  @db.VarChar(500)
+  IsActive  Boolean  @default(true)
+  CreatedAt DateTime @default(now())
+  UpdatedAt DateTime @updatedAt
 
-  sales Sale[]
+  Sales Sale[]
 
-  @@map("sales_people")
+  @@map("SalesPersons")
 }
 
-// ─── Sale Point ─────────────────────────────────────────────
+// ─── SalePoint ─────────────────────────────────────────────
 model SalePoint {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(255)
-  warehouseId Int?
-  description String?  @db.VarChar(500)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          Int      @id @default(autoincrement())
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(255)
+  WarehouseID Int?
+  Description String?  @db.VarChar(500)
+  IsActive    Boolean  @default(true)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
-  warehouse Warehouse? @relation(fields: [warehouseId], references: [id])
-  sales     Sale[]
+  Warehouse Warehouse? @relation(fields: [WarehouseID], references: [ID])
+  Sales     Sale[]
 
-  @@map("sale_points")
+  @@map("SalePoints")
 }
 
 // ─── Product ────────────────────────────────────────────────
 model Product {
-  id              Int      @id @default(autoincrement())
-  code            String   @unique @db.VarChar(50)
-  barcode         String?  @db.VarChar(100)
-  name            String   @db.VarChar(255)
-  categoryId      Int?
-  brandId         Int?
-  unitId          Int
-  warehouseId     Int?
-  purchasePrice   Decimal  @default(0) @db.Decimal(15, 2)
-  sellingPrice    Decimal  @default(0) @db.Decimal(15, 2)
-  discountPercent Decimal  @default(0) @db.Decimal(5, 2)
-  stock           Decimal  @default(0) @db.Decimal(15, 3)
-  minimumStock    Decimal  @default(0) @db.Decimal(15, 3)
-  image           String?  @db.VarChar(500)
-  description     String?  @db.VarChar(1000)
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  ID              Int      @id @default(autoincrement())
+  Code            String   @unique @db.VarChar(50)
+  Barcode         String?  @db.VarChar(100)
+  Name            String   @db.VarChar(255)
+  CategoryID      Int?
+  BrandID         Int?
+  UnitID          Int
+  WarehouseID     Int?
+  PurchasePrice   Decimal  @default(0) @db.Decimal(15, 2)
+  SellingPrice    Decimal  @default(0) @db.Decimal(15, 2)
+  DiscountPercent Decimal  @default(0) @db.Decimal(5, 2)
+  Stock           Decimal  @default(0) @db.Decimal(15, 3)
+  MinimumStock    Decimal  @default(0) @db.Decimal(15, 3)
+  Image           String?  @db.VarChar(500)
+  Description     String?  @db.VarChar(1000)
+  IsActive        Boolean  @default(true)
+  CreatedAt       DateTime @default(now())
+  UpdatedAt       DateTime @updatedAt
 
-  category  Category?  @relation(fields: [categoryId], references: [id])
-  brand     Brand?     @relation(fields: [brandId], references: [id])
-  unit      Unit       @relation(fields: [unitId], references: [id])
-  warehouse Warehouse? @relation(fields: [warehouseId], references: [id])
+  Category  Category?  @relation(fields: [CategoryID], references: [ID])
+  Brand     Brand?     @relation(fields: [BrandID], references: [ID])
+  Unit      Unit       @relation(fields: [UnitID], references: [ID])
+  Warehouse Warehouse? @relation(fields: [WarehouseID], references: [ID])
 
   // Relations
-  purchaseOrderItems  PurchaseOrderItem[]
-  purchaseItems       PurchaseItem[]
-  purchaseReturnItems PurchaseReturnItem[]
-  stockInItems        StockInItem[]
-  stockOutItems       StockOutItem[]
-  stockTransferItems  StockTransferItem[]
-  stockOpnameItems    StockOpnameItem[]
-  saleItems           SaleItem[]
-  saleReturnItems     SaleReturnItem[]
-  productStocks       ProductStock[]
-  priceHistories      PriceHistory[]
-  serviceItems        ServiceItem[]
-  productionItems     ProductionItem[]
-  productions         Production[]
-  productImages       ProductImage[]
-  productBarcodes     ProductBarcode[]
-  stockAlerts         StockAlert[]
-  productGroupId      Int?
-  productGroup        ProductGroup? @relation(fields: [productGroupId], references: [id])
-  shelfProducts       ShelfProduct[]
+  PurchaseOrderItems  PurchaseOrderItem[]
+  PurchaseItems       PurchaseItem[]
+  PurchaseReturnItems PurchaseReturnItem[]
+  StockInItems        StockInItem[]
+  StockOutItems       StockOutItem[]
+  StockTransferItems  StockTransferItem[]
+  StockOpnameItems    StockOpnameItem[]
+  SaleItems           SaleItem[]
+  SaleReturnItems     SaleReturnItem[]
+  ProductStocks       ProductStock[]
+  PriceHistories      PriceHistory[]
+  ServiceItems        ServiceItem[]
+  ProductionItems     ProductionItem[]
+  Productions         Production[]
+  ProductImages       ProductImage[]
+  ProductBarcodes     ProductBarcode[]
+  StockAlerts         StockAlert[]
+  ProductGroupID      Int?
+  ProductGroup        ProductGroup? @relation(fields: [ProductGroupID], references: [ID])
+  ShelfProducts       ShelfProduct[]
 
-  @@map("products")
+  @@map("Products")
 }
 
-// ─── Product Stock (per warehouse) ────────────────────────────
+// ─── ProductStock (per warehouse) ────────────────────────────
 model ProductStock {
-  id           Int      @id @default(autoincrement())
-  productId    Int
-  warehouseId  Int
-  quantity     Decimal  @default(0) @db.Decimal(15, 3)
-  minimumStock Decimal  @default(0) @db.Decimal(15, 3)
-  updatedAt    DateTime @updatedAt
+  ID           Int      @id @default(autoincrement())
+  ProductID    Int
+  WarehouseID  Int
+  Quantity     Decimal  @default(0) @db.Decimal(15, 3)
+  MinimumStock Decimal  @default(0) @db.Decimal(15, 3)
+  UpdatedAt    DateTime @updatedAt
 
-  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
-  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  Product   Product   @relation(fields: [ProductID], references: [ID], onDelete: Cascade)
+  Warehouse Warehouse @relation(fields: [WarehouseID], references: [ID], onDelete: Cascade)
 
-  @@unique([productId, warehouseId])
-  @@map("product_stocks")
+  @@unique([ProductID, WarehouseID])
+  @@map("ProductStocks")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -874,483 +878,483 @@ model ProductStock {
 
 // ─── Sale ───────────────────────────────────────────────────
 model Sale {
-  id              Int            @id @default(autoincrement())
-  code            String         @unique @db.VarChar(50)
-  date            DateTime       @default(now())
-  customerId      Int
-  salesPersonId   Int?
-  salePointId     Int?
-  warehouseId     Int?
-  subtotal        Decimal        @default(0) @db.Decimal(15, 2)
-  discountPercent Decimal        @default(0) @db.Decimal(5, 2)
-  discountAmount  Decimal        @default(0) @db.Decimal(15, 2)
-  taxPercent      Decimal        @default(0) @db.Decimal(5, 2)
-  taxAmount       Decimal        @default(0) @db.Decimal(15, 2)
-  total           Decimal        @default(0) @db.Decimal(15, 2)
-  cashAmount      Decimal        @default(0) @db.Decimal(15, 2)
-  changeAmount    Decimal        @default(0) @db.Decimal(15, 2)
-  paymentStatusId Int
-  isReturn        Boolean        @default(false)
-  returnedAt      DateTime?
-  paymentMethodId Int?
-  notes           String?        @db.VarChar(1000)
-  createdById     String
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  ID              Int            @id @default(autoincrement())
+  Code            String         @unique @db.VarChar(50)
+  Date            DateTime       @default(now())
+  CustomerID      Int
+  SalesPersonID   Int?
+  SalePointID     Int?
+  WarehouseID     Int?
+  Subtotal        Decimal        @default(0) @db.Decimal(15, 2)
+  DiscountPercent Decimal        @default(0) @db.Decimal(5, 2)
+  DiscountAmount  Decimal        @default(0) @db.Decimal(15, 2)
+  TaxPercent      Decimal        @default(0) @db.Decimal(5, 2)
+  TaxAmount       Decimal        @default(0) @db.Decimal(15, 2)
+  Total           Decimal        @default(0) @db.Decimal(15, 2)
+  CashAmount      Decimal        @default(0) @db.Decimal(15, 2)
+  ChangeAmount    Decimal        @default(0) @db.Decimal(15, 2)
+  PaymentStatusID Int
+  IsReturn        Boolean        @default(false)
+  ReturnedAt      DateTime?
+  PaymentMethodID Int?
+  Notes           String?        @db.VarChar(1000)
+  CreatedByID     String
+  CreatedAt       DateTime       @default(now())
+  UpdatedAt       DateTime       @updatedAt
 
-  customer      Customer        @relation(fields: [customerId], references: [id])
-  salesPerson   SalesPerson?    @relation(fields: [salesPersonId], references: [id])
-  salePoint    SalePoint?       @relation(fields: [salePointId], references: [id])
-  warehouse    Warehouse?       @relation(fields: [warehouseId], references: [id])
-  creator      User            @relation(fields: [createdById], references: [id])
-  paymentStatus PaymentStatus   @relation(fields: [paymentStatusId], references: [id])
-  paymentMethod PaymentMethod?  @relation(fields: [paymentMethodId], references: [id])
+  Customer      Customer        @relation(fields: [CustomerID], references: [ID])
+  SalesPerson   SalesPerson?    @relation(fields: [SalesPersonID], references: [ID])
+  SalePoint     SalePoint?       @relation(fields: [SalePointID], references: [ID])
+  Warehouse     Warehouse?       @relation(fields: [WarehouseID], references: [ID])
+  Creator       User            @relation(fields: [CreatedByID], references: [ID])
+  PaymentStatus PaymentStatus   @relation(fields: [PaymentStatusID], references: [ID])
+  PaymentMethod PaymentMethod?  @relation(fields: [PaymentMethodID], references: [ID])
 
-  saleItems    SaleItem[]
-  salePayments SalePayment[]
-  saleReturns  SaleReturn[]
+  SaleItems    SaleItem[]
+  SalePayments SalePayment[]
+  SaleReturns  SaleReturn[]
 
-  @@map("sales")
+  @@map("Sales")
 }
 
-// ─── Sale Item ──────────────────────────────────────────────
+// ─── SaleItem ──────────────────────────────────────────────
 model SaleItem {
-  id              Int      @id @default(autoincrement())
-  saleId          Int
-  productId       Int
-  quantity        Decimal  @db.Decimal(15, 3)
-  unitPrice       Decimal  @db.Decimal(15, 2)
-  discountPercent Decimal  @default(0) @db.Decimal(5, 2)
-  discountAmount  Decimal  @default(0) @db.Decimal(15, 2)
-  subtotal        Decimal  @db.Decimal(15, 2)
-  createdAt       DateTime @default(now())
+  ID              Int      @id @default(autoincrement())
+  SaleID          Int
+  ProductID       Int
+  Quantity        Decimal  @db.Decimal(15, 3)
+  UnitPrice       Decimal  @db.Decimal(15, 2)
+  DiscountPercent Decimal  @default(0) @db.Decimal(5, 2)
+  DiscountAmount  Decimal  @default(0) @db.Decimal(15, 2)
+  Subtotal        Decimal  @db.Decimal(15, 2)
+  CreatedAt       DateTime @default(now())
 
-  sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
-  unit    Unit?   @relation(fields: [unitId], references: [id])
-  unitId  Int?
+  Sale    Sale    @relation(fields: [SaleID], references: [ID], onDelete: Cascade)
+  Product Product @relation(fields: [ProductID], references: [ID])
+  Unit    Unit?   @relation(fields: [UnitID], references: [ID])
+  UnitID  Int?
 
-  @@map("sale_items")
+  @@map("SaleItems")
 }
 
-// ─── Sale Payment ────────────────────────────────────────────
+// ─── SalePayment ────────────────────────────────────────────
 model SalePayment {
-  id              Int            @id @default(autoincrement())
-  saleId          Int
-  methodId        Int
-  amount          Decimal       @db.Decimal(15, 2)
-  referenceNumber String?       @db.VarChar(100)
-  date            DateTime      @default(now())
-  notes           String?       @db.VarChar(500)
-  createdById     String
-  createdAt       DateTime      @default(now())
+  ID              Int            @id @default(autoincrement())
+  SaleID          Int
+  MethodID        Int
+  Amount          Decimal       @db.Decimal(15, 2)
+  ReferenceNumber String?       @db.VarChar(100)
+  Date            DateTime      @default(now())
+  Notes           String?       @db.VarChar(500)
+  CreatedByID     String
+  CreatedAt       DateTime      @default(now())
 
-  sale    Sale           @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  method  PaymentMethod @relation(fields: [methodId], references: [id])
-  creator User           @relation(fields: [createdById], references: [id])
+  Sale    Sale           @relation(fields: [SaleID], references: [ID], onDelete: Cascade)
+  Method  PaymentMethod @relation(fields: [MethodID], references: [ID])
+  Creator User           @relation(fields: [CreatedByID], references: [ID])
 
-  @@map("sale_payments")
+  @@map("SalePayments")
 }
 
-// ─── Sale Return ────────────────────────────────────────────
+// ─── SaleReturn ────────────────────────────────────────────
 model SaleReturn {
-  id          Int               @id @default(autoincrement())
-  code        String            @unique @db.VarChar(50)
-  date        DateTime          @default(now())
-  saleId      Int
-  customerId  Int
-  warehouseId Int?
-  totalReturn Decimal           @db.Decimal(15, 2)
-  reason      String?           @db.VarChar(1000)
-  statusId    Int               @default(1)
-  createdById String
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  ID          Int               @id @default(autoincrement())
+  Code        String            @unique @db.VarChar(50)
+  Date        DateTime          @default(now())
+  SaleID      Int
+  CustomerID  Int
+  WarehouseID Int?
+  TotalReturn Decimal           @db.Decimal(15, 2)
+  Reason      String?           @db.VarChar(1000)
+  StatusID    Int               @default(1)
+  CreatedByID String
+  CreatedAt   DateTime          @default(now())
+  UpdatedAt   DateTime          @updatedAt
 
-  sale      Sale               @relation(fields: [saleId], references: [id])
-  customer  Customer           @relation(fields: [customerId], references: [id])
-  warehouse Warehouse?          @relation(fields: [warehouseId], references: [id])
-  creator   User              @relation(fields: [createdById], references: [id])
-  status    TransactionStatus   @relation(fields: [statusId], references: [id])
+  Sale      Sale               @relation(fields: [SaleID], references: [ID])
+  Customer  Customer           @relation(fields: [CustomerID], references: [ID])
+  Warehouse Warehouse?          @relation(fields: [WarehouseID], references: [ID])
+  Creator   User              @relation(fields: [CreatedByID], references: [ID])
+  Status    TransactionStatus   @relation(fields: [StatusID], references: [ID])
 
-  returnItems SaleReturnItem[]
+  ReturnItems SaleReturnItem[]
 
-  @@map("sale_returns")
+  @@map("SaleReturns")
 }
 
-// ─── Sale Return Item ───────────────────────────────────────
+// ─── SaleReturnItem ───────────────────────────────────────
 model SaleReturnItem {
-  id           Int      @id @default(autoincrement())
-  saleReturnId Int
-  productId    Int
-  quantity     Decimal  @db.Decimal(15, 3)
-  unitPrice    Decimal  @db.Decimal(15, 2)
-  subtotal     Decimal  @db.Decimal(15, 2)
-  createdAt    DateTime @default(now())
+  ID           Int      @id @default(autoincrement())
+  SaleReturnID Int
+  ProductID    Int
+  Quantity     Decimal  @db.Decimal(15, 3)
+  UnitPrice    Decimal  @db.Decimal(15, 2)
+  Subtotal     Decimal  @db.Decimal(15, 2)
+  CreatedAt    DateTime @default(now())
 
-  saleReturn SaleReturn @relation(fields: [saleReturnId], references: [id], onDelete: Cascade)
-  product    Product    @relation(fields: [productId], references: [id])
-  unit       Unit?      @relation(fields: [unitId], references: [id])
-  unitId     Int?
+  SaleReturn SaleReturn @relation(fields: [SaleReturnID], references: [ID], onDelete: Cascade)
+  Product    Product    @relation(fields: [ProductID], references: [ID])
+  Unit       Unit?      @relation(fields: [UnitID], references: [ID])
+  UnitID     Int?
 
-  @@map("sale_return_items")
+  @@map("SaleReturnItems")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PURCHASE TRANSACTIONS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// ─── Purchase Order ─────────────────────────────────────────
+// ─── PurchaseOrder ─────────────────────────────────────────
 model PurchaseOrder {
-  id              Int               @id @default(autoincrement())
-  code            String            @unique @db.VarChar(50)
-  date            DateTime          @default(now())
-  supplierId      Int
-  warehouseId     Int?
-  subtotal        Decimal           @default(0) @db.Decimal(15, 2)
-  discountPercent Decimal           @default(0) @db.Decimal(5, 2)
-  discountAmount  Decimal           @default(0) @db.Decimal(15, 2)
-  taxPercent      Decimal           @default(0) @db.Decimal(5, 2)
-  taxAmount       Decimal           @default(0) @db.Decimal(15, 2)
-  total           Decimal           @default(0) @db.Decimal(15, 2)
-  downPayment     Decimal           @default(0) @db.Decimal(15, 2)
-  paymentStatusId Int
-  dueDate         DateTime?
-  isInvoice       Boolean           @default(false)
-  purchaseId      Int?
-  statusId        Int               @default(1)
-  notes           String?           @db.VarChar(1000)
-  createdById     String
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  ID              Int               @id @default(autoincrement())
+  Code            String            @unique @db.VarChar(50)
+  Date            DateTime          @default(now())
+  SupplierID      Int
+  WarehouseID     Int?
+  Subtotal        Decimal           @default(0) @db.Decimal(15, 2)
+  DiscountPercent Decimal           @default(0) @db.Decimal(5, 2)
+  DiscountAmount  Decimal           @default(0) @db.Decimal(15, 2)
+  TaxPercent      Decimal           @default(0) @db.Decimal(5, 2)
+  TaxAmount       Decimal           @default(0) @db.Decimal(15, 2)
+  Total           Decimal           @default(0) @db.Decimal(15, 2)
+  DownPayment     Decimal           @default(0) @db.Decimal(15, 2)
+  PaymentStatusID Int
+  DueDate         DateTime?
+  IsInvoice       Boolean           @default(false)
+  PurchaseID      Int?
+  StatusID        Int               @default(1)
+  Notes           String?           @db.VarChar(1000)
+  CreatedByID     String
+  CreatedAt       DateTime          @default(now())
+  UpdatedAt       DateTime          @updatedAt
 
-  supplier       Supplier         @relation(fields: [supplierId], references: [id])
-  warehouse       Warehouse?       @relation(fields: [warehouseId], references: [id])
-  creator         User            @relation(fields: [createdById], references: [id])
-  paymentStatus   PaymentStatus   @relation(fields: [paymentStatusId], references: [id])
-  status         TransactionStatus @relation(fields: [statusId], references: [id])
+  Supplier       Supplier         @relation(fields: [SupplierID], references: [ID])
+  Warehouse       Warehouse?       @relation(fields: [WarehouseID], references: [ID])
+  Creator         User            @relation(fields: [CreatedByID], references: [ID])
+  PaymentStatus   PaymentStatus   @relation(fields: [PaymentStatusID], references: [ID])
+  Status         TransactionStatus @relation(fields: [StatusID], references: [ID])
 
-  purchaseOrderItems PurchaseOrderItem[]
+  PurchaseOrderItems PurchaseOrderItem[]
 
-  @@map("purchase_orders")
+  @@map("PurchaseOrders")
 }
 
-// ─── Purchase Order Item ────────────────────────────────────
+// ─── PurchaseOrderItem ────────────────────────────────────
 model PurchaseOrderItem {
-  id              Int      @id @default(autoincrement())
-  purchaseOrderId Int
-  productId       Int
-  quantity        Decimal  @db.Decimal(15, 3)
-  unitId          Int
-  unitPrice       Decimal  @db.Decimal(15, 2)
-  discountPercent Decimal  @default(0) @db.Decimal(5, 2)
-  discountAmount  Decimal  @default(0) @db.Decimal(15, 2)
-  subtotal        Decimal  @db.Decimal(15, 2)
-  createdAt       DateTime @default(now())
+  ID              Int      @id @default(autoincrement())
+  PurchaseOrderID Int
+  ProductID       Int
+  Quantity        Decimal  @db.Decimal(15, 3)
+  UnitID          Int
+  UnitPrice       Decimal  @db.Decimal(15, 2)
+  DiscountPercent Decimal  @default(0) @db.Decimal(5, 2)
+  DiscountAmount  Decimal  @default(0) @db.Decimal(15, 2)
+  Subtotal        Decimal  @db.Decimal(15, 2)
+  CreatedAt       DateTime @default(now())
 
-  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
-  product       Product       @relation(fields: [productId], references: [id])
-  unit          Unit          @relation(fields: [unitId], references: [id])
+  PurchaseOrder PurchaseOrder @relation(fields: [PurchaseOrderID], references: [ID], onDelete: Cascade)
+  Product       Product       @relation(fields: [ProductID], references: [ID])
+  Unit          Unit          @relation(fields: [UnitID], references: [ID])
 
-  @@map("purchase_order_items")
+  @@map("PurchaseOrderItems")
 }
 
 // ─── Purchase ───────────────────────────────────────────────
 model Purchase {
-  id              Int               @id @default(autoincrement())
-  code            String            @unique @db.VarChar(50)
-  date            DateTime          @default(now())
-  supplierId      Int
-  warehouseId     Int?
-  subtotal        Decimal           @default(0) @db.Decimal(15, 2)
-  discountPercent Decimal           @default(0) @db.Decimal(5, 2)
-  discountAmount  Decimal           @default(0) @db.Decimal(15, 2)
-  taxPercent      Decimal           @default(0) @db.Decimal(5, 2)
-  taxAmount       Decimal           @default(0) @db.Decimal(15, 2)
-  total           Decimal           @default(0) @db.Decimal(15, 2)
-  paid            Decimal           @default(0) @db.Decimal(15, 2)
-  remaining       Decimal           @default(0) @db.Decimal(15, 2)
-  paymentStatusId Int
-  paymentMethodId Int?
-  dueDate         DateTime?
-  isReturn        Boolean           @default(false)
-  statusId        Int               @default(1)
-  notes           String?           @db.VarChar(1000)
-  createdById     String
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  ID              Int               @id @default(autoincrement())
+  Code            String            @unique @db.VarChar(50)
+  Date            DateTime          @default(now())
+  SupplierID      Int
+  WarehouseID     Int?
+  Subtotal        Decimal           @default(0) @db.Decimal(15, 2)
+  DiscountPercent Decimal           @default(0) @db.Decimal(5, 2)
+  DiscountAmount  Decimal           @default(0) @db.Decimal(15, 2)
+  TaxPercent      Decimal           @default(0) @db.Decimal(5, 2)
+  TaxAmount       Decimal           @default(0) @db.Decimal(15, 2)
+  Total           Decimal           @default(0) @db.Decimal(15, 2)
+  Paid            Decimal           @default(0) @db.Decimal(15, 2)
+  Remaining       Decimal           @default(0) @db.Decimal(15, 2)
+  PaymentStatusID Int
+  PaymentMethodID Int?
+  DueDate         DateTime?
+  IsReturn        Boolean           @default(false)
+  StatusID        Int               @default(1)
+  Notes           String?           @db.VarChar(1000)
+  CreatedByID     String
+  CreatedAt       DateTime          @default(now())
+  UpdatedAt       DateTime          @updatedAt
 
-  supplier       Supplier         @relation(fields: [supplierId], references: [id])
-  warehouse       Warehouse?       @relation(fields: [warehouseId], references: [id])
-  creator         User            @relation(fields: [createdById], references: [id])
-  paymentStatus   PaymentStatus   @relation(fields: [paymentStatusId], references: [id])
-  paymentMethod   PaymentMethod?  @relation(fields: [paymentMethodId], references: [id])
-  status         TransactionStatus @relation(fields: [statusId], references: [id])
+  Supplier       Supplier         @relation(fields: [SupplierID], references: [ID])
+  Warehouse       Warehouse?       @relation(fields: [WarehouseID], references: [ID])
+  Creator         User            @relation(fields: [CreatedByID], references: [ID])
+  PaymentStatus   PaymentStatus   @relation(fields: [PaymentStatusID], references: [ID])
+  PaymentMethod   PaymentMethod?  @relation(fields: [PaymentMethodID], references: [ID])
+  Status         TransactionStatus @relation(fields: [StatusID], references: [ID])
 
-  purchaseItems    PurchaseItem[]
-  purchasePayments PurchasePayment[]
-  purchaseReturns  PurchaseReturn[]
+  PurchaseItems    PurchaseItem[]
+  PurchasePayments PurchasePayment[]
+  PurchaseReturns  PurchaseReturn[]
 
-  @@map("purchases")
+  @@map("Purchases")
 }
 
-// ─── Purchase Item ──────────────────────────────────────────
+// ─── PurchaseItem ──────────────────────────────────────────
 model PurchaseItem {
-  id              Int      @id @default(autoincrement())
-  purchaseId      Int
-  productId       Int
-  quantity        Decimal  @db.Decimal(15, 3)
-  unitId          Int
-  unitPrice       Decimal  @db.Decimal(15, 2)
-  discountPercent Decimal  @default(0) @db.Decimal(5, 2)
-  discountAmount  Decimal  @default(0) @db.Decimal(15, 2)
-  subtotal        Decimal  @db.Decimal(15, 2)
-  createdAt       DateTime @default(now())
+  ID              Int      @id @default(autoincrement())
+  PurchaseID      Int
+  ProductID       Int
+  Quantity        Decimal  @db.Decimal(15, 3)
+  UnitID          Int
+  UnitPrice       Decimal  @db.Decimal(15, 2)
+  DiscountPercent Decimal  @default(0) @db.Decimal(5, 2)
+  DiscountAmount  Decimal  @default(0) @db.Decimal(15, 2)
+  Subtotal        Decimal  @db.Decimal(15, 2)
+  CreatedAt       DateTime @default(now())
 
-  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  product  Product  @relation(fields: [productId], references: [id])
-  unit     Unit     @relation(fields: [unitId], references: [id])
+  Purchase Purchase @relation(fields: [PurchaseID], references: [ID], onDelete: Cascade)
+  Product  Product  @relation(fields: [ProductID], references: [ID])
+  Unit     Unit     @relation(fields: [UnitID], references: [ID])
 
-  @@map("purchase_items")
+  @@map("PurchaseItems")
 }
 
-// ─── Purchase Payment ───────────────────────────────────────
+// ─── PurchasePayment ───────────────────────────────────────
 model PurchasePayment {
-  id              Int            @id @default(autoincrement())
-  purchaseId      Int
-  methodId        Int
-  amount          Decimal       @db.Decimal(15, 2)
-  referenceNumber String?       @db.VarChar(100)
-  date            DateTime      @default(now())
-  notes           String?       @db.VarChar(500)
-  createdById     String
-  createdAt       DateTime      @default(now())
+  ID              Int            @id @default(autoincrement())
+  PurchaseID      Int
+  MethodID        Int
+  Amount          Decimal       @db.Decimal(15, 2)
+  ReferenceNumber String?       @db.VarChar(100)
+  Date            DateTime      @default(now())
+  Notes           String?       @db.VarChar(500)
+  CreatedByID     String
+  CreatedAt       DateTime      @default(now())
 
-  purchase Purchase       @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  method   PaymentMethod  @relation(fields: [methodId], references: [id])
-  creator  User           @relation(fields: [createdById], references: [id])
+  Purchase Purchase       @relation(fields: [PurchaseID], references: [ID], onDelete: Cascade)
+  Method   PaymentMethod  @relation(fields: [MethodID], references: [ID])
+  Creator  User           @relation(fields: [CreatedByID], references: [ID])
 
-  @@map("purchase_payments")
+  @@map("PurchasePayments")
 }
 
-// ─── Purchase Return ────────────────────────────────────────
+// ─── PurchaseReturn ────────────────────────────────────────
 model PurchaseReturn {
-  id          Int               @id @default(autoincrement())
-  code        String            @unique @db.VarChar(50)
-  date        DateTime          @default(now())
-  purchaseId  Int
-  supplierId  Int
-  warehouseId Int?
-  totalReturn Decimal           @db.Decimal(15, 2)
-  reason      String?           @db.VarChar(1000)
-  statusId    Int               @default(1)
-  createdById String
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  ID          Int               @id @default(autoincrement())
+  Code        String            @unique @db.VarChar(50)
+  Date        DateTime          @default(now())
+  PurchaseID  Int
+  SupplierID  Int
+  WarehouseID Int?
+  TotalReturn Decimal           @db.Decimal(15, 2)
+  Reason      String?           @db.VarChar(1000)
+  StatusID    Int               @default(1)
+  CreatedByID String
+  CreatedAt   DateTime          @default(now())
+  UpdatedAt   DateTime          @updatedAt
 
-  purchase  Purchase         @relation(fields: [purchaseId], references: [id])
-  supplier  Supplier         @relation(fields: [supplierId], references: [id])
-  warehouse Warehouse?        @relation(fields: [warehouseId], references: [id])
-  creator   User            @relation(fields: [createdById], references: [id])
-  status    TransactionStatus @relation(fields: [statusId], references: [id])
+  Purchase  Purchase         @relation(fields: [PurchaseID], references: [ID])
+  Supplier  Supplier         @relation(fields: [SupplierID], references: [ID])
+  Warehouse Warehouse?        @relation(fields: [WarehouseID], references: [ID])
+  Creator   User            @relation(fields: [CreatedByID], references: [ID])
+  Status    TransactionStatus @relation(fields: [StatusID], references: [ID])
 
-  returnItems PurchaseReturnItem[]
+  ReturnItems PurchaseReturnItem[]
 
-  @@map("purchase_returns")
+  @@map("PurchaseReturns")
 }
 
-// ─── Purchase Return Item ───────────────────────────────────
+// ─── PurchaseReturnItem ───────────────────────────────────
 model PurchaseReturnItem {
-  id               Int      @id @default(autoincrement())
-  purchaseReturnId Int
-  productId        Int
-  quantity         Decimal  @db.Decimal(15, 3)
-  unitId           Int
-  unitPrice        Decimal  @db.Decimal(15, 2)
-  subtotal         Decimal  @db.Decimal(15, 2)
-  createdAt        DateTime @default(now())
+  ID               Int      @id @default(autoincrement())
+  PurchaseReturnID Int
+  ProductID        Int
+  Quantity         Decimal  @db.Decimal(15, 3)
+  UnitID           Int
+  UnitPrice        Decimal  @db.Decimal(15, 2)
+  Subtotal         Decimal  @db.Decimal(15, 2)
+  CreatedAt        DateTime @default(now())
 
-  purchaseReturn PurchaseReturn @relation(fields: [purchaseReturnId], references: [id], onDelete: Cascade)
-  product        Product        @relation(fields: [productId], references: [id])
-  unit           Unit           @relation(fields: [unitId], references: [id])
+  PurchaseReturn PurchaseReturn @relation(fields: [PurchaseReturnID], references: [ID], onDelete: Cascade)
+  Product        Product        @relation(fields: [ProductID], references: [ID])
+  Unit           Unit           @relation(fields: [UnitID], references: [ID])
 
-  @@map("purchase_return_items")
+  @@map("PurchaseReturnItems")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // INVENTORY
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// ─── Stock In ───────────────────────────────────────────────
+// ─── StockIn ───────────────────────────────────────────────
 model StockIn {
-  id            Int              @id @default(autoincrement())
-  code          String            @unique @db.VarChar(50)
-  date          DateTime          @default(now())
-  warehouseId   Int
-  supplierId    Int?
-  referenceTypeId Int?
-  referenceId   Int?
-  totalItems    Decimal           @default(0) @db.Decimal(15, 2)
-  description   String?           @db.VarChar(1000)
-  statusId      Int               @default(1)
-  createdById   String
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  ID            Int              @id @default(autoincrement())
+  Code          String            @unique @db.VarChar(50)
+  Date          DateTime          @default(now())
+  WarehouseID   Int
+  SupplierID    Int?
+  ReferenceTypeID Int?
+  ReferenceID   Int?
+  TotalItems    Decimal           @default(0) @db.Decimal(15, 2)
+  Description   String?           @db.VarChar(1000)
+  StatusID      Int               @default(1)
+  CreatedByID   String
+  CreatedAt     DateTime          @default(now())
+  UpdatedAt     DateTime          @updatedAt
 
-  warehouse     Warehouse       @relation(fields: [warehouseId], references: [id])
-  supplier      Supplier?       @relation(fields: [supplierId], references: [id])
-  referenceType ReferenceType?  @relation(fields: [referenceTypeId], references: [id])
-  creator       User            @relation(fields: [createdById], references: [id])
-  status        TransactionStatus @relation(fields: [statusId], references: [id])
+  Warehouse     Warehouse       @relation(fields: [WarehouseID], references: [ID])
+  Supplier      Supplier?       @relation(fields: [SupplierID], references: [ID])
+  ReferenceType ReferenceType?  @relation(fields: [ReferenceTypeID], references: [ID])
+  Creator       User            @relation(fields: [CreatedByID], references: [ID])
+  Status        TransactionStatus @relation(fields: [StatusID], references: [ID])
 
-  stockInItems StockInItem[]
+  StockInItems StockInItem[]
 
-  @@map("stock_ins")
+  @@map("StockIns")
 }
 
-// ─── Stock In Item ───────────────────────────────────────────
+// ─── StockInItem ───────────────────────────────────────────
 model StockInItem {
-  id        Int      @id @default(autoincrement())
-  stockInId Int
-  productId Int
-  quantity  Decimal  @db.Decimal(15, 3)
-  unitId    Int
-  unitPrice Decimal  @default(0) @db.Decimal(15, 2)
-  subtotal  Decimal  @default(0) @db.Decimal(15, 2)
-  createdAt DateTime @default(now())
+  ID        Int      @id @default(autoincrement())
+  StockInID Int
+  ProductID Int
+  Quantity  Decimal  @db.Decimal(15, 3)
+  UnitID    Int
+  UnitPrice Decimal  @default(0) @db.Decimal(15, 2)
+  Subtotal  Decimal  @default(0) @db.Decimal(15, 2)
+  CreatedAt DateTime @default(now())
 
-  stockIn StockIn @relation(fields: [stockInId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
-  unit    Unit    @relation(fields: [unitId], references: [id])
+  StockIn StockIn @relation(fields: [StockInID], references: [ID], onDelete: Cascade)
+  Product Product @relation(fields: [ProductID], references: [ID])
+  Unit    Unit    @relation(fields: [UnitID], references: [ID])
 
-  @@map("stock_in_items")
+  @@map("StockInItems")
 }
 
-// ─── Stock Out ───────────────────────────────────────────────
+// ─── StockOut ───────────────────────────────────────────────
 model StockOut {
-  id            Int              @id @default(autoincrement())
-  code          String            @unique @db.VarChar(50)
-  date          DateTime          @default(now())
-  warehouseId   Int
-  referenceTypeId Int?
-  referenceId   Int?
-  totalItems    Decimal           @default(0) @db.Decimal(15, 2)
-  description   String?           @db.VarChar(1000)
-  statusId      Int               @default(1)
-  createdById   String
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  ID            Int              @id @default(autoincrement())
+  Code          String            @unique @db.VarChar(50)
+  Date          DateTime          @default(now())
+  WarehouseID   Int
+  ReferenceTypeID Int?
+  ReferenceID   Int?
+  TotalItems    Decimal           @default(0) @db.Decimal(15, 2)
+  Description   String?           @db.VarChar(1000)
+  StatusID      Int               @default(1)
+  CreatedByID   String
+  CreatedAt     DateTime          @default(now())
+  UpdatedAt     DateTime          @updatedAt
 
-  warehouse     Warehouse        @relation(fields: [warehouseId], references: [id])
-  referenceType ReferenceType?   @relation(fields: [referenceTypeId], references: [id])
-  creator       User             @relation(fields: [createdById], references: [id])
-  status        TransactionStatus @relation(fields: [statusId], references: [id])
+  Warehouse     Warehouse        @relation(fields: [WarehouseID], references: [ID])
+  ReferenceType ReferenceType?   @relation(fields: [ReferenceTypeID], references: [ID])
+  Creator       User             @relation(fields: [CreatedByID], references: [ID])
+  Status        TransactionStatus @relation(fields: [StatusID], references: [ID])
 
-  stockOutItems StockOutItem[]
+  StockOutItems StockOutItem[]
 
-  @@map("stock_outs")
+  @@map("StockOuts")
 }
 
-// ─── Stock Out Item ──────────────────────────────────────────
+// ─── StockOutItem ──────────────────────────────────────────
 model StockOutItem {
-  id         Int      @id @default(autoincrement())
-  stockOutId Int
-  productId  Int
-  quantity   Decimal  @db.Decimal(15, 3)
-  unitId     Int
-  unitPrice  Decimal  @default(0) @db.Decimal(15, 2)
-  subtotal   Decimal  @default(0) @db.Decimal(15, 2)
-  createdAt  DateTime @default(now())
+  ID         Int      @id @default(autoincrement())
+  StockOutID Int
+  ProductID  Int
+  Quantity   Decimal  @db.Decimal(15, 3)
+  UnitID     Int
+  UnitPrice  Decimal  @default(0) @db.Decimal(15, 2)
+  Subtotal   Decimal  @default(0) @db.Decimal(15, 2)
+  CreatedAt  DateTime @default(now())
 
-  stockOut StockOut @relation(fields: [stockOutId], references: [id], onDelete: Cascade)
-  product  Product  @relation(fields: [productId], references: [id])
-  unit     Unit     @relation(fields: [unitId], references: [id])
+  StockOut StockOut @relation(fields: [StockOutID], references: [ID], onDelete: Cascade)
+  Product  Product  @relation(fields: [ProductID], references: [ID])
+  Unit     Unit     @relation(fields: [UnitID], references: [ID])
 
-  @@map("stock_out_items")
+  @@map("StockOutItems")
 }
 
-// ─── Stock Transfer ──────────────────────────────────────────
+// ─── StockTransfer ──────────────────────────────────────────
 model StockTransfer {
-  id              Int               @id @default(autoincrement())
-  code            String            @unique @db.VarChar(50)
-  date            DateTime          @default(now())
-  fromWarehouseId Int
-  toWarehouseId   Int
-  totalItems      Decimal           @default(0) @db.Decimal(15, 2)
-  statusId        Int               @default(1)
-  notes           String?           @db.VarChar(1000)
-  createdById     String
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  ID              Int               @id @default(autoincrement())
+  Code            String            @unique @db.VarChar(50)
+  Date            DateTime          @default(now())
+  FromWarehouseID Int
+  ToWarehouseID   Int
+  TotalItems      Decimal           @default(0) @db.Decimal(15, 2)
+  StatusID        Int               @default(1)
+  Notes           String?           @db.VarChar(1000)
+  CreatedByID     String
+  CreatedAt       DateTime          @default(now())
+  UpdatedAt       DateTime          @updatedAt
 
-  fromWarehouse Warehouse        @relation("TransferFrom", fields: [fromWarehouseId], references: [id])
-  toWarehouse   Warehouse        @relation("TransferTo", fields: [toWarehouseId], references: [id])
-  creator       User             @relation(fields: [createdById], references: [id])
-  status        TransactionStatus @relation(fields: [statusId], references: [id])
+  FromWarehouse Warehouse        @relation("TransferFrom", fields: [FromWarehouseID], references: [ID])
+  ToWarehouse   Warehouse        @relation("TransferTo", fields: [ToWarehouseID], references: [ID])
+  Creator       User             @relation(fields: [CreatedByID], references: [ID])
+  Status        TransactionStatus @relation(fields: [StatusID], references: [ID])
 
-  transferItems StockTransferItem[]
+  TransferItems StockTransferItem[]
 
-  @@map("stock_transfers")
+  @@map("StockTransfers")
 }
 
-// ─── Stock Transfer Item ─────────────────────────────────────
+// ─── StockTransferItem ─────────────────────────────────────
 model StockTransferItem {
-  id              Int      @id @default(autoincrement())
-  stockTransferId Int
-  productId       Int
-  quantity        Decimal  @db.Decimal(15, 3)
-  unitId          Int
-  unitPrice       Decimal  @default(0) @db.Decimal(15, 2)
-  subtotal        Decimal  @default(0) @db.Decimal(15, 2)
-  createdAt       DateTime @default(now())
+  ID              Int      @id @default(autoincrement())
+  StockTransferID Int
+  ProductID       Int
+  Quantity        Decimal  @db.Decimal(15, 3)
+  UnitID          Int
+  UnitPrice       Decimal  @default(0) @db.Decimal(15, 2)
+  Subtotal        Decimal  @default(0) @db.Decimal(15, 2)
+  CreatedAt       DateTime @default(now())
 
-  stockTransfer StockTransfer @relation(fields: [stockTransferId], references: [id], onDelete: Cascade)
-  product       Product       @relation(fields: [productId], references: [id])
-  unit          Unit          @relation(fields: [unitId], references: [id])
+  StockTransfer StockTransfer @relation(fields: [StockTransferID], references: [ID], onDelete: Cascade)
+  Product       Product       @relation(fields: [ProductID], references: [ID])
+  Unit          Unit          @relation(fields: [UnitID], references: [ID])
 
-  @@map("stock_transfer_items")
+  @@map("StockTransferItems")
 }
 
-// ─── Stock Opname ────────────────────────────────────────────
+// ─── StockOpname ────────────────────────────────────────────
 model StockOpname {
-  id          Int               @id @default(autoincrement())
-  code        String            @unique @db.VarChar(50)
-  date        DateTime          @default(now())
-  warehouseId Int
-  totalItems  Decimal           @default(0) @db.Decimal(15, 2)
-  statusId    Int               @default(1)
-  notes       String?           @db.VarChar(1000)
-  createdById String
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  ID          Int               @id @default(autoincrement())
+  Code        String            @unique @db.VarChar(50)
+  Date        DateTime          @default(now())
+  WarehouseID Int
+  TotalItems  Decimal           @default(0) @db.Decimal(15, 2)
+  StatusID    Int               @default(1)
+  Notes       String?           @db.VarChar(1000)
+  CreatedByID String
+  CreatedAt   DateTime          @default(now())
+  UpdatedAt   DateTime          @updatedAt
 
-  warehouse Warehouse         @relation(fields: [warehouseId], references: [id])
-  creator   User              @relation(fields: [createdById], references: [id])
-  status   StockOpnameStatus @relation(fields: [statusId], references: [id])
+  Warehouse Warehouse         @relation(fields: [WarehouseID], references: [ID])
+  Creator   User              @relation(fields: [CreatedByID], references: [ID])
+  Status   StockOpnameStatus @relation(fields: [StatusID], references: [ID])
 
-  opnameItems StockOpnameItem[]
+  OpnameItems StockOpnameItem[]
 
-  @@map("stock_opnames")
+  @@map("StockOpnames")
 }
 
-// ─── Stock Opname Item ───────────────────────────────────────
+// ─── StockOpnameItem ───────────────────────────────────────
 model StockOpnameItem {
-  id            Int      @id @default(autoincrement())
-  stockOpnameId Int
-  productId     Int
-  systemStock   Decimal  @db.Decimal(15, 3)
-  countedStock  Decimal  @db.Decimal(15, 3)
-  difference    Decimal  @db.Decimal(15, 3)
-  unitId        Int
-  unitPrice     Decimal  @default(0) @db.Decimal(15, 2)
-  note          String?  @db.VarChar(500)
-  createdAt     DateTime @default(now())
+  ID            Int      @id @default(autoincrement())
+  StockOpnameID Int
+  ProductID     Int
+  SystemStock   Decimal  @db.Decimal(15, 3)
+  CountedStock  Decimal  @db.Decimal(15, 3)
+  Difference    Decimal  @db.Decimal(15, 3)
+  UnitID        Int
+  UnitPrice     Decimal  @default(0) @db.Decimal(15, 2)
+  Note          String?  @db.VarChar(500)
+  CreatedAt     DateTime @default(now())
 
-  stockOpname StockOpname @relation(fields: [stockOpnameId], references: [id], onDelete: Cascade)
-  product     Product     @relation(fields: [productId], references: [id])
-  unit        Unit        @relation(fields: [unitId], references: [id])
+  StockOpname StockOpname @relation(fields: [StockOpnameID], references: [ID], onDelete: Cascade)
+  Product     Product     @relation(fields: [ProductID], references: [ID])
+  Unit        Unit        @relation(fields: [UnitID], references: [ID])
 
-  @@map("stock_opname_items")
+  @@map("StockOpnameItems")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1359,166 +1363,166 @@ model StockOpnameItem {
 
 // ─── Account ────────────────────────────────────────────────
 model Account {
-  id        Int         @id @default(autoincrement())
-  code      String      @unique @db.VarChar(50)
-  name      String      @db.VarChar(255)
-  typeId    Int
-  parentId  Int?
-  isActive  Boolean     @default(true)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  ID        Int         @id @default(autoincrement())
+  Code      String      @unique @db.VarChar(50)
+  Name      String      @db.VarChar(255)
+  TypeID    Int
+  ParentID  Int?
+  IsActive  Boolean     @default(true)
+  CreatedAt DateTime    @default(now())
+  UpdatedAt DateTime    @updatedAt
 
-  parent   Account?  @relation("AccountParent", fields: [parentId], references: [id])
-  children Account[] @relation("AccountParent")
-  type     AccountType @relation(fields: [typeId], references: [id])
+  Parent   Account?  @relation("AccountParent", fields: [ParentID], references: [ID])
+  Children Account[] @relation("AccountParent")
+  Type     AccountType @relation(fields: [TypeID], references: [ID])
 
   // Accounting relations
-  cashIns           CashIn[]
-  cashOuts          CashOut[]
-  cashTransfersFrom CashTransfer[] @relation("CashTransferFrom")
-  cashTransfersTo   CashTransfer[] @relation("CashTransferTo")
-  journalEntries    JournalEntry[]
-  transfersFrom    Transfer[]      @relation("TransferFromAccount")
-  transfersTo      Transfer[]      @relation("TransferToAccount")
+  CashIns           CashIn[]
+  CashOuts          CashOut[]
+  CashTransfersFrom CashTransfer[] @relation("CashTransferFrom")
+  CashTransfersTo   CashTransfer[] @relation("CashTransferTo")
+  JournalEntries    JournalEntry[]
+  TransfersFrom    Transfer[]      @relation("TransferFromAccount")
+  TransfersTo      Transfer[]      @relation("TransferToAccount")
 
-  @@map("accounts")
+  @@map("Accounts")
 }
 
 // ─── Journal ─────────────────────────────────────────────────
 model Journal {
-  id            Int       @id @default(autoincrement())
-  code          String    @unique @db.VarChar(50)
-  date          DateTime  @default(now())
-  description   String?   @db.VarChar(1000)
-  referenceType String?   @db.VarChar(100)
-  referenceId   Int?
-  isPosted      Boolean   @default(false)
-  postedAt      DateTime?
-  createdById   String
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  ID            Int       @id @default(autoincrement())
+  Code          String    @unique @db.VarChar(50)
+  Date          DateTime  @default(now())
+  Description   String?   @db.VarChar(1000)
+  ReferenceType String?   @db.VarChar(100)
+  ReferenceID   Int?
+  IsPosted      Boolean   @default(false)
+  PostedAt      DateTime?
+  CreatedByID   String
+  CreatedAt     DateTime  @default(now())
+  UpdatedAt     DateTime  @updatedAt
 
-  creator User @relation(fields: [createdById], references: [id])
+  Creator User @relation(fields: [CreatedByID], references: [ID])
 
-  journalEntries JournalEntry[]
+  JournalEntries JournalEntry[]
 
-  @@map("journals")
+  @@map("Journals")
 }
 
-// ─── Journal Entry ───────────────────────────────────────────
+// ─── JournalEntry ───────────────────────────────────────────
 model JournalEntry {
-  id        Int      @id @default(autoincrement())
-  journalId Int
-  accountId Int
-  debit     Decimal  @default(0) @db.Decimal(15, 2)
-  credit    Decimal  @default(0) @db.Decimal(15, 2)
-  memo      String?  @db.VarChar(500)
-  createdAt DateTime @default(now())
+  ID        Int      @id @default(autoincrement())
+  JournalID Int
+  AccountID Int
+  Debit     Decimal  @default(0) @db.Decimal(15, 2)
+  Credit    Decimal  @default(0) @db.Decimal(15, 2)
+  Memo      String?  @db.VarChar(500)
+  CreatedAt DateTime @default(now())
 
-  journal Journal @relation(fields: [journalId], references: [id], onDelete: Cascade)
-  account Account @relation(fields: [accountId], references: [id])
-  user    User?   @relation(fields: [userId], references: [id])
-  userId  String?
+  Journal Journal @relation(fields: [JournalID], references: [ID], onDelete: Cascade)
+  Account Account @relation(fields: [AccountID], references: [ID])
+  User    User?   @relation(fields: [UserID], references: [ID])
+  UserID  String?
 
-  @@map("journal_entries")
+  @@map("JournalEntries")
 }
 
-// ─── Cash In ─────────────────────────────────────────────────
+// ─── CashIn ─────────────────────────────────────────────────
 model CashIn {
-  id            Int      @id @default(autoincrement())
-  code          String   @unique @db.VarChar(50)
-  date          DateTime @default(now())
-  accountId     Int
-  amount        Decimal  @db.Decimal(15, 2)
-  description   String?  @db.VarChar(1000)
-  referenceType String?  @db.VarChar(100)
-  referenceId   Int?
-  createdById   String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  ID            Int      @id @default(autoincrement())
+  Code          String   @unique @db.VarChar(50)
+  Date          DateTime @default(now())
+  AccountID     Int
+  Amount        Decimal  @db.Decimal(15, 2)
+  Description   String?  @db.VarChar(1000)
+  ReferenceType String?  @db.VarChar(100)
+  ReferenceID   Int?
+  CreatedByID   String
+  CreatedAt     DateTime @default(now())
+  UpdatedAt     DateTime @updatedAt
 
-  account Account @relation(fields: [accountId], references: [id])
-  creator User    @relation(fields: [createdById], references: [id])
+  Account Account @relation(fields: [AccountID], references: [ID])
+  Creator User    @relation(fields: [CreatedByID], references: [ID])
 
-  @@map("cash_ins")
+  @@map("CashIns")
 }
 
-// ─── Cash Out ────────────────────────────────────────────────
+// ─── CashOut ────────────────────────────────────────────────
 model CashOut {
-  id            Int      @id @default(autoincrement())
-  code          String   @unique @db.VarChar(50)
-  date          DateTime @default(now())
-  accountId     Int
-  amount        Decimal  @db.Decimal(15, 2)
-  description   String?  @db.VarChar(1000)
-  referenceType String?  @db.VarChar(100)
-  referenceId   Int?
-  createdById   String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  ID            Int      @id @default(autoincrement())
+  Code          String   @unique @db.VarChar(50)
+  Date          DateTime @default(now())
+  AccountID     Int
+  Amount        Decimal  @db.Decimal(15, 2)
+  Description   String?  @db.VarChar(1000)
+  ReferenceType String?  @db.VarChar(100)
+  ReferenceID   Int?
+  CreatedByID   String
+  CreatedAt     DateTime @default(now())
+  UpdatedAt     DateTime @updatedAt
 
-  account Account @relation(fields: [accountId], references: [id])
-  creator User    @relation(fields: [createdById], references: [id])
+  Account Account @relation(fields: [AccountID], references: [ID])
+  Creator User    @relation(fields: [CreatedByID], references: [ID])
 
-  @@map("cash_outs")
+  @@map("CashOuts")
 }
 
-// ─── Cash Transfer ───────────────────────────────────────────
+// ─── CashTransfer ───────────────────────────────────────────
 model CashTransfer {
-  id            Int      @id @default(autoincrement())
-  code          String   @unique @db.VarChar(50)
-  date          DateTime @default(now())
-  fromAccountId Int
-  toAccountId   Int
-  amount        Decimal  @db.Decimal(15, 2)
-  description   String?  @db.VarChar(1000)
-  createdById   String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  ID            Int      @id @default(autoincrement())
+  Code          String   @unique @db.VarChar(50)
+  Date          DateTime @default(now())
+  FromAccountID Int
+  ToAccountID   Int
+  Amount        Decimal  @db.Decimal(15, 2)
+  Description   String?  @db.VarChar(1000)
+  CreatedByID   String
+  CreatedAt     DateTime @default(now())
+  UpdatedAt     DateTime @updatedAt
 
-  fromAccount Account @relation("CashTransferFrom", fields: [fromAccountId], references: [id])
-  toAccount   Account @relation("CashTransferTo", fields: [toAccountId], references: [id])
-  creator     User    @relation(fields: [createdById], references: [id])
+  FromAccount Account @relation("CashTransferFrom", fields: [FromAccountID], references: [ID])
+  ToAccount   Account @relation("CashTransferTo", fields: [ToAccountID], references: [ID])
+  Creator     User    @relation(fields: [CreatedByID], references: [ID])
 
-  @@map("cash_transfers")
+  @@map("CashTransfers")
 }
 
-// ─── Customer Deposit ────────────────────────────────────────
+// ─── CustomerDeposit ────────────────────────────────────────
 model CustomerDeposit {
-  id              Int      @id @default(autoincrement())
-  code            String   @unique @db.VarChar(50)
-  date            DateTime @default(now())
-  customerId      Int
-  amount          Decimal  @db.Decimal(15, 2)
-  remainingAmount Decimal  @db.Decimal(15, 2)
-  description     String?  @db.VarChar(1000)
-  createdById     String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  ID              Int      @id @default(autoincrement())
+  Code            String   @unique @db.VarChar(50)
+  Date            DateTime @default(now())
+  CustomerID      Int
+  Amount          Decimal  @db.Decimal(15, 2)
+  RemainingAmount Decimal  @db.Decimal(15, 2)
+  Description     String?  @db.VarChar(1000)
+  CreatedByID     String
+  CreatedAt       DateTime @default(now())
+  UpdatedAt       DateTime @updatedAt
 
-  customer Customer @relation(fields: [customerId], references: [id])
-  creator  User     @relation(fields: [createdById], references: [id])
+  Customer Customer @relation(fields: [CustomerID], references: [ID])
+  Creator  User     @relation(fields: [CreatedByID], references: [ID])
 
-  @@map("customer_deposits")
+  @@map("CustomerDeposits")
 }
 
-// ─── Supplier Deposit ────────────────────────────────────────
+// ─── SupplierDeposit ────────────────────────────────────────
 model SupplierDeposit {
-  id              Int      @id @default(autoincrement())
-  code            String   @unique @db.VarChar(50)
-  date            DateTime @default(now())
-  supplierId      Int
-  amount          Decimal  @db.Decimal(15, 2)
-  remainingAmount Decimal  @db.Decimal(15, 2)
-  description     String?  @db.VarChar(1000)
-  createdById     String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  ID              Int      @id @default(autoincrement())
+  Code            String   @unique @db.VarChar(50)
+  Date            DateTime @default(now())
+  SupplierID      Int
+  Amount          Decimal  @db.Decimal(15, 2)
+  RemainingAmount Decimal  @db.Decimal(15, 2)
+  Description     String?  @db.VarChar(1000)
+  CreatedByID     String
+  CreatedAt       DateTime @default(now())
+  UpdatedAt       DateTime @updatedAt
 
-  supplier Supplier @relation(fields: [supplierId], references: [id])
-  creator  User     @relation(fields: [createdById], references: [id])
+  Supplier Supplier @relation(fields: [SupplierID], references: [ID])
+  Creator  User     @relation(fields: [CreatedByID], references: [ID])
 
-  @@map("supplier_deposits")
+  @@map("SupplierDeposits")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1526,193 +1530,193 @@ model SupplierDeposit {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 model PointSetting {
-  id                 Int      @id @default(autoincrement())
-  name               String   @db.VarChar(255)
-  pointsPerRupiah    Decimal  @db.Decimal(10, 4)
-  minimumTransaction Decimal  @db.Decimal(15, 2)
-  isActive           Boolean  @default(true)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  ID                 Int      @id @default(autoincrement())
+  Name               String   @db.VarChar(255)
+  PointsPerRupiah    Decimal  @db.Decimal(10, 4)
+  MinimumTransaction Decimal  @db.Decimal(15, 2)
+  IsActive           Boolean  @default(true)
+  CreatedAt          DateTime @default(now())
+  UpdatedAt          DateTime @updatedAt
 
-  @@map("point_settings")
+  @@map("PointSettings")
 }
 
 model PointRedemption {
-  id             Int      @id @default(autoincrement())
-  customerId     Int
-  code           String   @unique @db.VarChar(50)
-  pointsRedeemed Int
-  rewardName     String   @db.VarChar(255)
-  rewardValue    Decimal  @db.Decimal(15, 2)
-  date           DateTime @default(now())
-  createdById    String
-  createdAt      DateTime @default(now())
+  ID             Int      @id @default(autoincrement())
+  CustomerID     Int
+  Code           String   @unique @db.VarChar(50)
+  PointsRedeemed Int
+  RewardName     String   @db.VarChar(255)
+  RewardValue    Decimal  @db.Decimal(15, 2)
+  Date           DateTime @default(now())
+  CreatedByID    String
+  CreatedAt      DateTime @default(now())
 
-  customer Customer @relation(fields: [customerId], references: [id])
-  creator  User     @relation(fields: [createdById], references: [id])
+  Customer Customer @relation(fields: [CustomerID], references: [ID])
+  Creator  User     @relation(fields: [CreatedByID], references: [ID])
 
-  @@map("point_redemptions")
+  @@map("PointRedemptions")
 }
 
 // ─── Company Settings ────────────────────────────────────────
 model Company {
-  id          Int      @id @default(autoincrement())
-  companyCode String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(255)
-  address     String?  @db.VarChar(500)
-  phone       String?  @db.VarChar(50)
-  email       String?  @db.VarChar(255)
-  city        String?  @db.VarChar(100)
-  province    String?  @db.VarChar(100)
-  postalCode  String?  @db.VarChar(20)
-  taxId       String?  @db.VarChar(50)
-  logoUrl     String?  @db.VarChar(500)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          Int      @id @default(autoincrement())
+  CompanyCode String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(255)
+  Address     String?  @db.VarChar(500)
+  Phone       String?  @db.VarChar(50)
+  Email       String?  @db.VarChar(255)
+  City        String?  @db.VarChar(100)
+  Province    String?  @db.VarChar(100)
+  PostalCode  String?  @db.VarChar(20)
+  TaxID       String?  @db.VarChar(50)
+  LogoUrl     String?  @db.VarChar(500)
+  IsActive    Boolean  @default(true)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
-  users       User[]
+  Users       User[]
 
-  @@map("companies")
+  @@map("Companies")
 }
 
-// ─── Numbering Format ───────────────────────────────────────
+// ─── NumberingFormat ───────────────────────────────────────
 model Numbering {
-  id         Int      @id @default(autoincrement())
-  type       String   @unique @db.VarChar(100)
-  prefix     String   @default("") @db.VarChar(20)
-  lastNumber Int      @default(0)
-  suffix     String   @default("") @db.VarChar(20)
-  digitCount Int      @default(4)
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  ID         Int      @id @default(autoincrement())
+  Type       String   @unique @db.VarChar(100)
+  Prefix     String   @default("") @db.VarChar(20)
+  LastNumber Int      @default(0)
+  Suffix     String   @default("") @db.VarChar(20)
+  DigitCount Int      @default(4)
+  IsActive   Boolean  @default(true)
+  CreatedAt  DateTime @default(now())
+  UpdatedAt  DateTime @updatedAt
 
-  @@map("numberings")
+  @@map("Numberings")
 }
 
 model Testing {
-  id        Int      @id @default(autoincrement())
-  type      String   @unique @db.VarChar(100)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  ID        Int      @id @default(autoincrement())
+  Type      String   @unique @db.VarChar(100)
+  IsActive  Boolean  @default(true)
+  CreatedAt DateTime @default(now())
+  UpdatedAt DateTime @updatedAt
 
-  @@map("testings")
+  @@map("Testings")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // EXPENSE MANAGEMENT
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// ─── Expense Category ─────────────────────────────────────────
+// ─── ExpenseCategory ─────────────────────────────────────────
 model ExpenseCategory {
-  id          Int       @id @default(autoincrement())
-  code        String    @unique @db.VarChar(50)
-  name        String    @db.VarChar(255)
-  description String?   @db.VarChar(1000)
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  ID          Int       @id @default(autoincrement())
+  Code        String    @unique @db.VarChar(50)
+  Name        String    @db.VarChar(255)
+  Description String?   @db.VarChar(1000)
+  IsActive    Boolean   @default(true)
+  CreatedAt   DateTime  @default(now())
+  UpdatedAt   DateTime  @updatedAt
 
-  expenses Expense[]
+  Expenses Expense[]
 
-  @@map("expense_categories")
+  @@map("ExpenseCategories")
 }
 
 // ─── Expense ───────────────────────────────────────────────────
 model Expense {
-  id              Int       @id @default(autoincrement())
-  code            String    @unique @db.VarChar(50)
-  date            DateTime  @default(now())
-  expenseCategoryId Int
-  amount          Decimal   @db.Decimal(15, 2)
-  description     String?   @db.VarChar(1000)
-  referenceNumber String?   @db.VarChar(100)
-  isApproved      Boolean   @default(false)
-  approvedById    String?
-  approvedAt      DateTime?
-  notes           String?   @db.VarChar(1000)
-  isActive        Boolean   @default(true)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  ID              Int       @id @default(autoincrement())
+  Code            String    @unique @db.VarChar(50)
+  Date            DateTime  @default(now())
+  ExpenseCategoryID Int
+  Amount          Decimal   @db.Decimal(15, 2)
+  Description     String?   @db.VarChar(1000)
+  ReferenceNumber String?   @db.VarChar(100)
+  IsApproved      Boolean   @default(false)
+  ApprovedByID    String?
+  ApprovedAt      DateTime?
+  Notes           String?   @db.VarChar(1000)
+  IsActive        Boolean   @default(true)
+  CreatedAt       DateTime  @default(now())
+  UpdatedAt       DateTime  @updatedAt
 
-  expenseCategory ExpenseCategory @relation(fields: [expenseCategoryId], references: [id])
-  approver       User?          @relation(fields: [approvedById], references: [id])
+  ExpenseCategory ExpenseCategory @relation(fields: [ExpenseCategoryID], references: [ID])
+  Approver       User?          @relation(fields: [ApprovedByID], references: [ID])
 
-  @@map("expenses")
+  @@map("Expenses")
 }
 
 // ─── Transfer ──────────────────────────────────────────────────
 model Transfer {
-  id            Int               @id @default(autoincrement())
-  code          String            @unique @db.VarChar(50)
-  date          DateTime          @default(now())
-  fromAccountId Int?
-  toAccountId   Int?
-  fromWarehouseId Int?
-  toWarehouseId Int?
-  amount        Decimal           @db.Decimal(15, 2)
-  description   String?           @db.VarChar(1000)
-  statusId      Int               @default(1)
-  notes         String?           @db.VarChar(1000)
-  isActive      Boolean           @default(true)
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  ID            Int               @id @default(autoincrement())
+  Code          String            @unique @db.VarChar(50)
+  Date          DateTime          @default(now())
+  FromAccountID Int?
+  ToAccountID   Int?
+  FromWarehouseID Int?
+  ToWarehouseID Int?
+  Amount        Decimal           @db.Decimal(15, 2)
+  Description   String?           @db.VarChar(1000)
+  StatusID      Int               @default(1)
+  Notes         String?           @db.VarChar(1000)
+  IsActive      Boolean           @default(true)
+  CreatedAt     DateTime          @default(now())
+  UpdatedAt     DateTime          @updatedAt
 
-  fromAccount   Account?   @relation("TransferFromAccount", fields: [fromAccountId], references: [id])
-  toAccount     Account?   @relation("TransferToAccount", fields: [toAccountId], references: [id])
-  fromWarehouse Warehouse? @relation("TransferFromWarehouse", fields: [fromWarehouseId], references: [id])
-  toWarehouse   Warehouse? @relation("TransferToWarehouse", fields: [toWarehouseId], references: [id])
-  status        TransactionStatus @relation(fields: [statusId], references: [id])
+  FromAccount   Account?   @relation("TransferFromAccount", fields: [FromAccountID], references: [ID])
+  ToAccount     Account?   @relation("TransferToAccount", fields: [ToAccountID], references: [ID])
+  FromWarehouse Warehouse? @relation("TransferFromWarehouse", fields: [FromWarehouseID], references: [ID])
+  ToWarehouse   Warehouse? @relation("TransferToWarehouse", fields: [ToWarehouseID], references: [ID])
+  Status        TransactionStatus @relation(fields: [StatusID], references: [ID])
 
-  @@map("transfers")
+  @@map("Transfers")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ASSET MANAGEMENT
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// ─── Asset Category ────────────────────────────────────────────
+// ─── AssetCategory ────────────────────────────────────────────
 model AssetCategory {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(255)
-  description String?  @db.VarChar(1000)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          Int      @id @default(autoincrement())
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(255)
+  Description String?  @db.VarChar(1000)
+  IsActive    Boolean  @default(true)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
-  assets Asset[]
+  Assets Asset[]
 
-  @@map("asset_categories")
+  @@map("AssetCategories")
 }
 
 // ─── Asset ─────────────────────────────────────────────────────
 model Asset {
-  id                 Int                @id @default(autoincrement())
-  code               String             @unique @db.VarChar(50)
-  name               String             @db.VarChar(255)
-  assetCategoryId    Int?
-  purchaseDate       DateTime?
-  purchasePrice      Decimal            @default(0) @db.Decimal(15, 2)
-  currentValue       Decimal            @default(0) @db.Decimal(15, 2)
-  depreciationMethodId Int?
-  usefulLifeYears    Int                @default(0)
-  location           String?            @db.VarChar(255)
-  assignedTo         String?            @db.VarChar(255)
-  serialNumber       String?            @db.VarChar(100)
-  description        String?            @db.VarChar(1000)
-  statusId           Int                @default(1)
-  isActive           Boolean            @default(true)
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  ID                 Int                @id @default(autoincrement())
+  Code               String             @unique @db.VarChar(50)
+  Name               String             @db.VarChar(255)
+  AssetCategoryID    Int?
+  PurchaseDate       DateTime?
+  PurchasePrice      Decimal            @default(0) @db.Decimal(15, 2)
+  CurrentValue       Decimal            @default(0) @db.Decimal(15, 2)
+  DepreciationMethodID Int?
+  UsefulLifeYears    Int                @default(0)
+  Location           String?            @db.VarChar(255)
+  AssignedTo         String?            @db.VarChar(255)
+  SerialNumber       String?            @db.VarChar(100)
+  Description        String?            @db.VarChar(1000)
+  StatusID           Int                @default(1)
+  IsActive           Boolean            @default(true)
+  CreatedAt          DateTime           @default(now())
+  UpdatedAt          DateTime           @updatedAt
 
-  category          AssetCategory?       @relation(fields: [assetCategoryId], references: [id])
-  depreciationMethod DepreciationMethod? @relation(fields: [depreciationMethodId], references: [id])
-  status            AssetStatus         @relation(fields: [statusId], references: [id])
+  Category          AssetCategory?       @relation(fields: [AssetCategoryID], references: [ID])
+  DepreciationMethod DepreciationMethod? @relation(fields: [DepreciationMethodID], references: [ID])
+  Status            AssetStatus         @relation(fields: [StatusID], references: [ID])
 
-  @@map("assets")
+  @@map("Assets")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1721,50 +1725,50 @@ model Asset {
 
 // ─── Service ───────────────────────────────────────────────────
 model Service {
-  id               Int          @id @default(autoincrement())
-  code             String       @unique @db.VarChar(50)
-  date             DateTime     @default(now())
-  customerId       Int?
-  customerName     String?      @db.VarChar(255)
-  customerPhone    String?      @db.VarChar(50)
-  customerAddress  String?      @db.VarChar(500)
-  productName      String?      @db.VarChar(255)
-  serialNumber     String?      @db.VarChar(100)
-  problem          String?      @db.VarChar(1000)
-  diagnosis        String?      @db.VarChar(1000)
-  repairStatusId  Int          @default(1)
-  technician      String?      @db.VarChar(255)
-  warrantyUntil    DateTime?
-  subtotal        Decimal      @default(0) @db.Decimal(15, 2)
-  laborCost       Decimal      @default(0) @db.Decimal(15, 2)
-  totalAmount     Decimal      @default(0) @db.Decimal(15, 2)
-  notes           String?      @db.VarChar(1000)
-  isActive        Boolean      @default(true)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  ID               Int          @id @default(autoincrement())
+  Code             String       @unique @db.VarChar(50)
+  Date             DateTime     @default(now())
+  CustomerID       Int?
+  CustomerName     String?      @db.VarChar(255)
+  CustomerPhone    String?      @db.VarChar(50)
+  CustomerAddress  String?      @db.VarChar(500)
+  ProductName      String?      @db.VarChar(255)
+  SerialNumber     String?      @db.VarChar(100)
+  Problem          String?      @db.VarChar(1000)
+  Diagnosis        String?      @db.VarChar(1000)
+  RepairStatusID  Int          @default(1)
+  Technician      String?      @db.VarChar(255)
+  WarrantyUntil    DateTime?
+  Subtotal        Decimal      @default(0) @db.Decimal(15, 2)
+  LaborCost       Decimal      @default(0) @db.Decimal(15, 2)
+  TotalAmount     Decimal      @default(0) @db.Decimal(15, 2)
+  Notes           String?      @db.VarChar(1000)
+  IsActive        Boolean      @default(true)
+  CreatedAt       DateTime    @default(now())
+  UpdatedAt       DateTime    @updatedAt
 
-  customer   Customer?     @relation(fields: [customerId], references: [id])
-  status    RepairStatus @relation(fields: [repairStatusId], references: [id])
-  items    ServiceItem[]
+  Customer   Customer?     @relation(fields: [CustomerID], references: [ID])
+  Status    RepairStatus @relation(fields: [RepairStatusID], references: [ID])
+  Items    ServiceItem[]
 
-  @@map("services")
+  @@map("Services")
 }
 
-// ─── Service Item ──────────────────────────────────────────────
+// ─── ServiceItem ──────────────────────────────────────────────
 model ServiceItem {
-  id          Int      @id @default(autoincrement())
-  serviceId   Int
-  productId   Int?
-  productName String   @db.VarChar(255)
-  quantity    Decimal  @db.Decimal(15, 3)
-  unitPrice   Decimal  @default(0) @db.Decimal(15, 2)
-  subtotal    Decimal  @default(0) @db.Decimal(15, 2)
-  createdAt   DateTime @default(now())
+  ID          Int      @id @default(autoincrement())
+  ServiceID   Int
+  ProductID   Int?
+  ProductName String   @db.VarChar(255)
+  Quantity    Decimal  @db.Decimal(15, 3)
+  UnitPrice   Decimal  @default(0) @db.Decimal(15, 2)
+  Subtotal    Decimal  @default(0) @db.Decimal(15, 2)
+  CreatedAt   DateTime @default(now())
 
-  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  product Product? @relation(fields: [productId], references: [id])
+  Service Service @relation(fields: [ServiceID], references: [ID], onDelete: Cascade)
+  Product Product? @relation(fields: [ProductID], references: [ID])
 
-  @@map("service_items")
+  @@map("ServiceItems")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1772,18 +1776,18 @@ model ServiceItem {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 model PriceHistory {
-  id         Int      @id @default(autoincrement())
-  productId  Int
-  type       String   @db.VarChar(20) // PURCHASE, SELLING
-  oldPrice   Decimal  @db.Decimal(15, 2)
-  newPrice   Decimal  @db.Decimal(15, 2)
-  changedBy  String?  @db.VarChar(255)
-  changedAt  DateTime @default(now())
-  createdAt  DateTime @default(now())
+  ID         Int      @id @default(autoincrement())
+  ProductID  Int
+  Type       String   @db.VarChar(20)
+  OldPrice   Decimal  @db.Decimal(15, 2)
+  NewPrice   Decimal  @db.Decimal(15, 2)
+  ChangedBy  String?  @db.VarChar(255)
+  ChangedAt  DateTime @default(now())
+  CreatedAt  DateTime @default(now())
 
-  product Product @relation(fields: [productId], references: [id])
+  Product Product @relation(fields: [ProductID], references: [ID])
 
-  @@map("price_histories")
+  @@map("PriceHistories")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1792,38 +1796,38 @@ model PriceHistory {
 
 // ─── Voucher ─────────────────────────────────────────────────
 model Voucher {
-  id                Int         @id @default(autoincrement())
-  code              String      @unique @db.VarChar(50)
-  name              String      @db.VarChar(255)
-  typeId            Int
-  value             Decimal     @db.Decimal(15, 2)
-  minPurchaseAmount Decimal     @default(0) @db.Decimal(15, 2)
-  maxDiscountAmount Decimal?    @db.Decimal(15, 2)
-  startDate         DateTime
-  endDate           DateTime
-  usageLimit        Int?        // null = unlimited
-  usedCount         Int         @default(0)
-  isActive          Boolean     @default(true)
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  ID                Int         @id @default(autoincrement())
+  Code              String      @unique @db.VarChar(50)
+  Name              String      @db.VarChar(255)
+  TypeID            Int
+  Value             Decimal     @db.Decimal(15, 2)
+  MinPurchaseAmount Decimal     @default(0) @db.Decimal(15, 2)
+  MaxDiscountAmount Decimal?    @db.Decimal(15, 2)
+  StartDate         DateTime
+  EndDate           DateTime
+  UsageLimit        Int?
+  UsedCount         Int         @default(0)
+  IsActive          Boolean     @default(true)
+  CreatedAt         DateTime    @default(now())
+  UpdatedAt         DateTime    @updatedAt
 
-  type VoucherType @relation(fields: [typeId], references: [id])
+  Type VoucherType @relation(fields: [TypeID], references: [ID])
 
-  @@map("vouchers")
+  @@map("Vouchers")
 }
 
 // ─── Tax ──────────────────────────────────────────────────────
 model Tax {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(255)
-  rate        Decimal  @db.Decimal(5, 2)
-  description String?  @db.VarChar(1000)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          Int      @id @default(autoincrement())
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(255)
+  Rate        Decimal  @db.Decimal(5, 2)
+  Description String?  @db.VarChar(1000)
+  IsActive    Boolean  @default(true)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
-  @@map("taxes")
+  @@map("Taxes")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1832,194 +1836,194 @@ model Tax {
 
 // ─── Production ───────────────────────────────────────────────
 model Production {
-  id              Int               @id @default(autoincrement())
-  code            String            @unique @db.VarChar(50)
-  date            DateTime          @default(now())
-  productId       Int?
-  productName     String?           @db.VarChar(255)
-  quantity        Decimal           @default(0) @db.Decimal(15, 3)
-  warehouseId     Int?
-  rawMaterialCost Decimal           @default(0) @db.Decimal(15, 2)
-  laborCost       Decimal           @default(0) @db.Decimal(15, 2)
-  overheadCost    Decimal           @default(0) @db.Decimal(15, 2)
-  totalCost       Decimal           @default(0) @db.Decimal(15, 2)
-  statusId        Int               @default(1)
-  notes           String?           @db.VarChar(1000)
-  isActive        Boolean           @default(true)
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  ID              Int               @id @default(autoincrement())
+  Code            String            @unique @db.VarChar(50)
+  Date            DateTime          @default(now())
+  ProductID       Int?
+  ProductName     String?           @db.VarChar(255)
+  Quantity        Decimal           @default(0) @db.Decimal(15, 3)
+  WarehouseID     Int?
+  RawMaterialCost Decimal           @default(0) @db.Decimal(15, 2)
+  LaborCost       Decimal           @default(0) @db.Decimal(15, 2)
+  OverheadCost    Decimal           @default(0) @db.Decimal(15, 2)
+  TotalCost       Decimal           @default(0) @db.Decimal(15, 2)
+  StatusID        Int               @default(1)
+  Notes           String?           @db.VarChar(1000)
+  IsActive        Boolean           @default(true)
+  CreatedAt       DateTime          @default(now())
+  UpdatedAt       DateTime          @updatedAt
 
-  warehouse Warehouse         @relation(fields: [warehouseId], references: [id])
-  product   Product?          @relation(fields: [productId], references: [id])
-  status    ProductionStatus  @relation(fields: [statusId], references: [id])
-  items     ProductionItem[]
+  Warehouse Warehouse?         @relation(fields: [WarehouseID], references: [ID])
+  Product   Product?          @relation(fields: [ProductID], references: [ID])
+  Status    ProductionStatus  @relation(fields: [StatusID], references: [ID])
+  Items     ProductionItem[]
 
-  @@map("productions")
+  @@map("Productions")
 }
 
-// ─── Production Item (BOM - Bill of Materials) ─────────────────
+// ─── ProductionItem (BOM - Bill of Materials) ─────────────────
 model ProductionItem {
-  id            Int      @id @default(autoincrement())
-  productionId  Int
-  productId     Int
-  productName   String   @db.VarChar(255)
-  quantity      Decimal  @db.Decimal(15, 3)
-  unitId        Int?
-  unitPrice     Decimal  @default(0) @db.Decimal(15, 2)
-  subtotal      Decimal  @default(0) @db.Decimal(15, 2)
-  createdAt     DateTime @default(now())
+  ID            Int      @id @default(autoincrement())
+  ProductionID  Int
+  ProductID     Int
+  ProductName   String   @db.VarChar(255)
+  Quantity      Decimal  @db.Decimal(15, 3)
+  UnitID        Int?
+  UnitPrice     Decimal  @default(0) @db.Decimal(15, 2)
+  Subtotal      Decimal  @default(0) @db.Decimal(15, 2)
+  CreatedAt     DateTime @default(now())
 
-  production Production @relation(fields: [productionId], references: [id], onDelete: Cascade)
-  product    Product?   @relation(fields: [productId], references: [id])
-  unit       Unit?      @relation(fields: [unitId], references: [id])
+  Production Production @relation(fields: [ProductionID], references: [ID], onDelete: Cascade)
+  Product    Product?   @relation(fields: [ProductID], references: [ID])
+  Unit       Unit?      @relation(fields: [UnitID], references: [ID])
 
-  @@map("production_items")
+  @@map("ProductionItems")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // DASHBOARD & ANALYTICS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// ─── Daily Sales Summary ────────────────────────────────────────
+// ─── DailySalesSummary ────────────────────────────────────────
 model DailySalesSummary {
-  id                Int      @id @default(autoincrement())
-  date              DateTime @db.Date
-  totalTransactions Int      @default(0)
-  totalCost         Decimal  @default(0) @db.Decimal(15, 2)
-  totalSales        Decimal  @default(0) @db.Decimal(15, 2)
-  totalProfit       Decimal  @default(0) @db.Decimal(15, 2)
-  totalReturns      Decimal  @default(0) @db.Decimal(15, 2)
-  totalExpenses     Decimal  @default(0) @db.Decimal(15, 2)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  ID                Int      @id @default(autoincrement())
+  Date              DateTime @db.Date
+  TotalTransactions Int      @default(0)
+  TotalCost         Decimal  @default(0) @db.Decimal(15, 2)
+  TotalSales        Decimal  @default(0) @db.Decimal(15, 2)
+  TotalProfit       Decimal  @default(0) @db.Decimal(15, 2)
+  TotalReturns      Decimal  @default(0) @db.Decimal(15, 2)
+  TotalExpenses     Decimal  @default(0) @db.Decimal(15, 2)
+  CreatedAt         DateTime @default(now())
+  UpdatedAt         DateTime @updatedAt
 
-  @@unique([date])
-  @@map("daily_sales_summaries")
+  @@unique([Date])
+  @@map("DailySalesSummaries")
 }
 
-// ─── Monthly Sales Summary ──────────────────────────────────────
+// ─── MonthlySalesSummary ──────────────────────────────────────
 model MonthlySalesSummary {
-  id                Int      @id @default(autoincrement())
-  year              Int
-  month             Int
-  totalTransactions Int      @default(0)
-  totalCost         Decimal  @default(0) @db.Decimal(15, 2)
-  totalSales        Decimal  @default(0) @db.Decimal(15, 2)
-  totalProfit       Decimal  @default(0) @db.Decimal(15, 2)
-  totalReturns      Decimal  @default(0) @db.Decimal(15, 2)
-  totalExpenses     Decimal  @default(0) @db.Decimal(15, 2)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  ID                Int      @id @default(autoincrement())
+  Year              Int
+  Month             Int
+  TotalTransactions Int      @default(0)
+  TotalCost         Decimal  @default(0) @db.Decimal(15, 2)
+  TotalSales        Decimal  @default(0) @db.Decimal(15, 2)
+  TotalProfit       Decimal  @default(0) @db.Decimal(15, 2)
+  TotalReturns      Decimal  @default(0) @db.Decimal(15, 2)
+  TotalExpenses     Decimal  @default(0) @db.Decimal(15, 2)
+  CreatedAt         DateTime @default(now())
+  UpdatedAt         DateTime @updatedAt
 
-  @@unique([year, month])
-  @@map("monthly_sales_summaries")
+  @@unique([Year, Month])
+  @@map("MonthlySalesSummaries")
 }
 
-// ─── Activity Log ──────────────────────────────────────────────
+// ─── ActivityLog ──────────────────────────────────────────────
 model ActivityLog {
-  id           Int      @id @default(autoincrement())
-  type         String   @db.VarChar(50) // SALE, PURCHASE, STOCK_IN, STOCK_OUT, PAYMENT, etc.
-  title        String   @db.VarChar(255)
-  description  String?  @db.VarChar(1000)
-  referenceType String? @db.VarChar(100)
-  referenceId   Int?
-  amount       Decimal? @db.Decimal(15, 2)
-  createdById  String?
-  createdAt    DateTime @default(now())
+  ID           Int      @id @default(autoincrement())
+  Type         String   @db.VarChar(50)
+  Title        String   @db.VarChar(255)
+  Description  String?  @db.VarChar(1000)
+  ReferenceType String? @db.VarChar(100)
+  ReferenceID   Int?
+  Amount       Decimal? @db.Decimal(15, 2)
+  CreatedByID  String?
+  CreatedAt    DateTime @default(now())
 
-  @@index([createdAt(sort: Desc)])
-  @@map("activity_logs")
+  @@index([CreatedAt(sort: Desc)])
+  @@map("ActivityLogs")
 }
 
-// ─── Stock Alert ────────────────────────────────────────────────
+// ─── StockAlert ────────────────────────────────────────────────
 model StockAlert {
-  id          Int       @id @default(autoincrement())
-  productId   Int
-  alertTypeId Int
-  threshold   Decimal   @default(0) @db.Decimal(15, 3)
-  currentStock Decimal  @default(0) @db.Decimal(15, 3)
-  isRead      Boolean   @default(false)
-  isResolved  Boolean   @default(false)
-  resolvedAt  DateTime?
-  notes       String?   @db.VarChar(1000)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  ID          Int       @id @default(autoincrement())
+  ProductID   Int
+  AlertTypeID Int
+  Threshold   Decimal   @default(0) @db.Decimal(15, 3)
+  CurrentStock Decimal  @default(0) @db.Decimal(15, 3)
+  IsRead      Boolean   @default(false)
+  IsResolved  Boolean   @default(false)
+  ResolvedAt  DateTime?
+  Notes       String?   @db.VarChar(1000)
+  CreatedAt   DateTime  @default(now())
+  UpdatedAt   DateTime  @updatedAt
 
-  product   Product   @relation(fields: [productId], references: [id])
-  alertType AlertType @relation(fields: [alertTypeId], references: [id])
+  Product   Product   @relation(fields: [ProductID], references: [ID])
+  AlertType AlertType @relation(fields: [AlertTypeID], references: [ID])
 
-  @@index([isRead, isResolved])
-  @@map("stock_alerts")
+  @@index([IsRead, IsResolved])
+  @@map("StockAlerts")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PRODUCT ENHANCEMENTS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// ─── Product Image ─────────────────────────────────────────────
+// ─── ProductImage ─────────────────────────────────────────────
 model ProductImage {
-  id        Int      @id @default(autoincrement())
-  productId Int
-  url       String   @db.VarChar(500)
-  caption   String?  @db.VarChar(255)
-  sortOrder Int      @default(0)
-  isPrimary Boolean  @default(false)
-  createdAt DateTime @default(now())
+  ID        Int      @id @default(autoincrement())
+  ProductID Int
+  Url       String   @db.VarChar(500)
+  Caption   String?  @db.VarChar(255)
+  SortOrder Int      @default(0)
+  IsPrimary Boolean  @default(false)
+  CreatedAt DateTime @default(now())
 
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  Product Product @relation(fields: [ProductID], references: [ID], onDelete: Cascade)
 
-  @@map("product_images")
+  @@map("ProductImages")
 }
 
-// ─── Product Barcode ────────────────────────────────────────────
+// ─── ProductBarcode ────────────────────────────────────────────
 model ProductBarcode {
-  id          Int      @id @default(autoincrement())
-  productId   Int
-  barcode     String   @db.VarChar(100)
-  isDefault   Boolean  @default(false)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  ID          Int      @id @default(autoincrement())
+  ProductID   Int
+  Barcode     String   @db.VarChar(100)
+  IsDefault   Boolean  @default(false)
+  IsActive    Boolean  @default(true)
+  CreatedAt   DateTime @default(now())
 
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  Product Product @relation(fields: [ProductID], references: [ID], onDelete: Cascade)
 
-  @@unique([barcode])
-  @@map("product_barcodes")
+  @@unique([Barcode])
+  @@map("ProductBarcodes")
 }
 
-// ─── Brand Logo ────────────────────────────────────────────────
+// ─── BrandLogo ────────────────────────────────────────────────
 model BrandLogo {
-  id        Int      @id @default(autoincrement())
-  brandId   Int?
-  name      String   @db.VarChar(255)
-  logoUrl   String   @db.VarChar(500)
-  website   String?  @db.VarChar(255)
-  sortOrder Int      @default(0)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  ID        Int      @id @default(autoincrement())
+  BrandID   Int?
+  Name      String   @db.VarChar(255)
+  LogoUrl   String   @db.VarChar(500)
+  Website   String?  @db.VarChar(255)
+  SortOrder Int      @default(0)
+  IsActive  Boolean  @default(true)
+  CreatedAt DateTime @default(now())
+  UpdatedAt DateTime @updatedAt
 
-  brand Brand? @relation(fields: [brandId], references: [id])
+  Brand Brand? @relation(fields: [BrandID], references: [ID])
 
-  @@map("brand_logos")
+  @@map("BrandLogos")
 }
 
-// ─── Notification Setting ──────────────────────────────────────
+// ─── NotificationSetting ──────────────────────────────────────
 model NotificationSetting {
-  id              Int      @id @default(autoincrement())
-  userId          String
-  typeId          Int
-  emailEnabled    Boolean  @default(false)
-  pushEnabled     Boolean  @default(true)
-  inAppEnabled    Boolean  @default(true)
-  threshold       Decimal? @db.Decimal(15, 2)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  ID              Int      @id @default(autoincrement())
+  UserID          String
+  TypeID          Int
+  EmailEnabled    Boolean  @default(false)
+  PushEnabled     Boolean  @default(true)
+  InAppEnabled    Boolean  @default(true)
+  Threshold       Decimal? @db.Decimal(15, 2)
+  CreatedAt       DateTime @default(now())
+  UpdatedAt       DateTime @updatedAt
 
-  user User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type  NotificationType @relation(fields: [typeId], references: [id])
+  User User              @relation(fields: [UserID], references: [ID], onDelete: Cascade)
+  Type  NotificationType @relation(fields: [TypeID], references: [ID])
 
-  @@unique([userId, typeId])
-  @@map("notification_settings")
+  @@unique([UserID, TypeID])
+  @@map("NotificationSettings")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2028,156 +2032,156 @@ model NotificationSetting {
 
 // ─── Department ────────────────────────────────────────────────
 model Department {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(255)
-  description String?  @db.VarChar(1000)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          Int      @id @default(autoincrement())
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(255)
+  Description String?  @db.VarChar(1000)
+  IsActive    Boolean  @default(true)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
-  employees Employee[]
+  Employees Employee[]
 
-  @@map("departments")
+  @@map("Departments")
 }
 
 // ─── Position ─────────────────────────────────────────────────
 model Position {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.VarChar(255)
-  description String?  @db.VarChar(1000)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ID          Int      @id @default(autoincrement())
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(255)
+  Description String?  @db.VarChar(1000)
+  IsActive    Boolean  @default(true)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
 
-  employees Employee[]
+  Employees Employee[]
 
-  @@map("positions")
+  @@map("Positions")
 }
 
 // ─── Employee ─────────────────────────────────────────────────
 model Employee {
-  id            Int            @id @default(autoincrement())
-  code          String         @unique @db.VarChar(50)
-  name          String         @db.VarChar(255)
-  departmentId  Int?
-  positionId    Int?
-  joinDate      DateTime?
-  endDate       DateTime?
-  birthDate     DateTime?
-  gender        String?        @db.VarChar(20)
-  phone         String?        @db.VarChar(50)
-  email         String?        @db.VarChar(255)
-  address       String?        @db.VarChar(500)
-  emergencyContact String?     @db.VarChar(255)
-  emergencyPhone   String?     @db.VarChar(50)
-  basicSalary   Decimal        @default(0) @db.Decimal(15, 2)
-  statusId      Int            @default(1)
-  isActive      Boolean        @default(true)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  ID            Int            @id @default(autoincrement())
+  Code          String         @unique @db.VarChar(50)
+  Name          String         @db.VarChar(255)
+  DepartmentID  Int?
+  PositionID    Int?
+  JoinDate      DateTime?
+  EndDate       DateTime?
+  BirthDate     DateTime?
+  Gender        String?        @db.VarChar(20)
+  Phone         String?        @db.VarChar(50)
+  Email         String?        @db.VarChar(255)
+  Address       String?        @db.VarChar(500)
+  EmergencyContact String?     @db.VarChar(255)
+  EmergencyPhone   String?     @db.VarChar(50)
+  BasicSalary   Decimal        @default(0) @db.Decimal(15, 2)
+  StatusID      Int            @default(1)
+  IsActive      Boolean        @default(true)
+  CreatedAt     DateTime       @default(now())
+  UpdatedAt     DateTime       @updatedAt
 
-  department Department   @relation(fields: [departmentId], references: [id])
-  position   Position      @relation(fields: [positionId], references: [id])
-  status     EmployeeStatus @relation(fields: [statusId], references: [id])
-  attendances Attendance[]
-  payrolls   Payroll[]
-  loans      Loan[]
-  leaves     Leave[]
-  leaveBalances LeaveBalance[]
+  Department Department?   @relation(fields: [DepartmentID], references: [ID])
+  Position   Position?      @relation(fields: [PositionID], references: [ID])
+  Status     EmployeeStatus @relation(fields: [StatusID], references: [ID])
+  Attendances Attendance[]
+  Payrolls   Payroll[]
+  Loans      Loan[]
+  Leaves     Leave[]
+  LeaveBalances LeaveBalance[]
 
-  @@map("employees")
+  @@map("Employees")
 }
 
 // ─── Attendance ───────────────────────────────────────────────
 model Attendance {
-  id         Int              @id @default(autoincrement())
-  employeeId Int
-  date       DateTime
-  checkIn    DateTime?
-  checkOut   DateTime?
-  statusId    Int              @default(1)
-  notes      String?          @db.VarChar(1000)
-  isActive   Boolean          @default(true)
-  createdAt  DateTime         @default(now())
-  updatedAt  DateTime         @updatedAt
+  ID         Int              @id @default(autoincrement())
+  EmployeeID Int
+  Date       DateTime
+  CheckIn    DateTime?
+  CheckOut   DateTime?
+  StatusID    Int              @default(1)
+  Notes      String?          @db.VarChar(1000)
+  IsActive   Boolean          @default(true)
+  CreatedAt  DateTime         @default(now())
+  UpdatedAt  DateTime         @updatedAt
 
-  employee Employee          @relation(fields: [employeeId], references: [id])
-  status   AttendanceStatus @relation(fields: [statusId], references: [id])
+  Employee Employee          @relation(fields: [EmployeeID], references: [ID])
+  Status   AttendanceStatus @relation(fields: [StatusID], references: [ID])
 
-  @@unique([employeeId, date])
-  @@map("attendances")
+  @@unique([EmployeeID, Date])
+  @@map("Attendances")
 }
 
 // ─── Payroll ───────────────────────────────────────────────────
 model Payroll {
-  id           Int      @id @default(autoincrement())
-  code         String   @unique @db.VarChar(50)
-  employeeId   Int
-  period       String   @db.VarChar(20) // e.g., "2024-01"
-  basicSalary  Decimal  @db.Decimal(15, 2)
-  allowances   Decimal  @default(0) @db.Decimal(15, 2)
-  deductions   Decimal  @default(0) @db.Decimal(15, 2)
-  overtimePay  Decimal  @default(0) @db.Decimal(15, 2)
-  totalSalary  Decimal  @default(0) @db.Decimal(15, 2)
-  paymentDate  DateTime?
-  notes        String?  @db.VarChar(1000)
-  isPaid       Boolean  @default(false)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  ID           Int      @id @default(autoincrement())
+  Code         String   @unique @db.VarChar(50)
+  EmployeeID   Int
+  Period       String   @db.VarChar(20)
+  BasicSalary  Decimal  @db.Decimal(15, 2)
+  Allowances   Decimal  @default(0) @db.Decimal(15, 2)
+  Deductions   Decimal  @default(0) @db.Decimal(15, 2)
+  OvertimePay  Decimal  @default(0) @db.Decimal(15, 2)
+  TotalSalary  Decimal  @default(0) @db.Decimal(15, 2)
+  PaymentDate  DateTime?
+  Notes        String?  @db.VarChar(1000)
+  IsPaid       Boolean  @default(false)
+  IsActive     Boolean  @default(true)
+  CreatedAt    DateTime @default(now())
+  UpdatedAt    DateTime @updatedAt
 
-  employee Employee @relation(fields: [employeeId], references: [id])
+  Employee Employee @relation(fields: [EmployeeID], references: [ID])
 
-  @@map("payrolls")
+  @@map("Payrolls")
 }
 
 // ─── Loan / Pinjaman ──────────────────────────────────────────
 model Loan {
-  id               Int        @id @default(autoincrement())
-  code             String     @unique @db.VarChar(50)
-  employeeId       Int
-  loanTypeId       Int
-  principalAmount  Decimal    @db.Decimal(15, 2)
-  interestRate     Decimal    @default(0) @db.Decimal(5, 2)
-  tenorMonths      Int        @default(1)
-  installmentAmount Decimal   @db.Decimal(15, 2)
-  totalAmount      Decimal    @db.Decimal(15, 2)
-  remainingAmount  Decimal    @db.Decimal(15, 2)
-  startDate        DateTime?
-  statusId         Int        @default(1)
-  notes            String?    @db.VarChar(1000)
-  isActive         Boolean    @default(true)
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
+  ID               Int        @id @default(autoincrement())
+  Code             String     @unique @db.VarChar(50)
+  EmployeeID       Int
+  LoanTypeID       Int
+  PrincipalAmount  Decimal    @db.Decimal(15, 2)
+  InterestRate     Decimal    @default(0) @db.Decimal(5, 2)
+  TenorMonths      Int        @default(1)
+  InstallmentAmount Decimal   @db.Decimal(15, 2)
+  TotalAmount      Decimal    @db.Decimal(15, 2)
+  RemainingAmount  Decimal    @db.Decimal(15, 2)
+  StartDate        DateTime?
+  StatusID         Int        @default(1)
+  Notes            String?    @db.VarChar(1000)
+  IsActive         Boolean    @default(true)
+  CreatedAt        DateTime   @default(now())
+  UpdatedAt        DateTime   @updatedAt
 
-  employee Employee     @relation(fields: [employeeId], references: [id])
-  loanType LoanType      @relation(fields: [loanTypeId], references: [id])
-  status   LoanStatus    @relation(fields: [statusId], references: [id])
-  installments LoanInstallment[]
+  Employee Employee     @relation(fields: [EmployeeID], references: [ID])
+  LoanType LoanType      @relation(fields: [LoanTypeID], references: [ID])
+  Status   LoanStatus    @relation(fields: [StatusID], references: [ID])
+  Installments LoanInstallment[]
 
-  @@map("loans")
+  @@map("Loans")
 }
 
-// ─── Loan Installment ─────────────────────────────────────────
+// ─── LoanInstallment ─────────────────────────────────────────
 model LoanInstallment {
-  id            Int      @id @default(autoincrement())
-  loanId        Int
-  period        String   @db.VarChar(20) // e.g., "2024-01"
-  amount        Decimal  @db.Decimal(15, 2)
-  principal     Decimal  @db.Decimal(15, 2)
-  interest      Decimal  @db.Decimal(15, 2)
-  remainingBefore Decimal @db.Decimal(15, 2)
-  remainingAfter  Decimal @db.Decimal(15, 2)
-  paymentDate   DateTime?
-  status        String   @default("UNPAID") @db.VarChar(20) // PAID, UNPAID
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
+  ID            Int      @id @default(autoincrement())
+  LoanID        Int
+  Period        String   @db.VarChar(20)
+  Amount        Decimal  @db.Decimal(15, 2)
+  Principal     Decimal  @db.Decimal(15, 2)
+  Interest      Decimal  @db.Decimal(15, 2)
+  RemainingBefore Decimal @db.Decimal(15, 2)
+  RemainingAfter  Decimal @db.Decimal(15, 2)
+  PaymentDate   DateTime?
+  Status        String   @default("UNPAID") @db.VarChar(20)
+  IsActive      Boolean  @default(true)
+  CreatedAt     DateTime @default(now())
 
-  loan Loan @relation(fields: [loanId], references: [id])
+  Loan Loan @relation(fields: [LoanID], references: [ID])
 
-  @@map("loan_installments")
+  @@map("LoanInstallments")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2185,49 +2189,49 @@ model LoanInstallment {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 model Leave {
-  id            Int         @id @default(autoincrement())
-  code          String      @unique @db.VarChar(50)
-  employeeId    Int
-  typeId        Int
-  startDate     DateTime
-  endDate       DateTime
-  totalDays     Int         @default(1)
-  reason        String?     @db.VarChar(1000)
-  statusId      Int         @default(1)
-  approvedById  String?
-  approvedAt    DateTime?
-  rejectedReason String?    @db.VarChar(500)
-  notes         String?     @db.VarChar(1000)
-  isActive      Boolean     @default(true)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  ID            Int         @id @default(autoincrement())
+  Code          String      @unique @db.VarChar(50)
+  EmployeeID    Int
+  TypeID        Int
+  StartDate     DateTime
+  EndDate       DateTime
+  TotalDays     Int         @default(1)
+  Reason        String?     @db.VarChar(1000)
+  StatusID      Int         @default(1)
+  ApprovedByID  String?
+  ApprovedAt    DateTime?
+  RejectedReason String?    @db.VarChar(500)
+  Notes         String?     @db.VarChar(1000)
+  IsActive      Boolean     @default(true)
+  CreatedAt     DateTime    @default(now())
+  UpdatedAt     DateTime    @updatedAt
 
-  employee Employee      @relation(fields: [employeeId], references: [id])
-  type     LeaveType     @relation(fields: [typeId], references: [id])
-  approver User?        @relation(fields: [approvedById], references: [id])
-  status   LeaveStatus   @relation(fields: [statusId], references: [id])
+  Employee Employee      @relation(fields: [EmployeeID], references: [ID])
+  Type     LeaveType     @relation(fields: [TypeID], references: [ID])
+  Approver User?        @relation(fields: [ApprovedByID], references: [ID])
+  Status   LeaveStatus   @relation(fields: [StatusID], references: [ID])
 
-  @@map("leaves")
+  @@map("Leaves")
 }
 
-// ─── Leave Balance (Sisa Cuti Karyawan) ─────────────────────
+// ─── LeaveBalance (Sisa Cuti Karyawan) ─────────────────────
 model LeaveBalance {
-  id          Int       @id @default(autoincrement())
-  employeeId  Int
-  year        Int
-  typeId      Int
-  totalDays   Int       @default(0)
-  usedDays    Int       @default(0)
-  remainingDays Int      @default(0)
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  ID          Int       @id @default(autoincrement())
+  EmployeeID  Int
+  Year        Int
+  TypeID      Int
+  TotalDays   Int       @default(0)
+  UsedDays    Int       @default(0)
+  RemainingDays Int      @default(0)
+  IsActive    Boolean   @default(true)
+  CreatedAt   DateTime  @default(now())
+  UpdatedAt   DateTime  @updatedAt
 
-  employee Employee  @relation(fields: [employeeId], references: [id])
-  type     LeaveType @relation(fields: [typeId], references: [id])
+  Employee Employee  @relation(fields: [EmployeeID], references: [ID])
+  Type     LeaveType @relation(fields: [TypeID], references: [ID])
 
-  @@unique([employeeId, year, typeId])
-  @@map("leave_balances")
+  @@unique([EmployeeID, Year, TypeID])
+  @@map("LeaveBalances")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2235,19 +2239,19 @@ model LeaveBalance {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 model Notification {
-  id        Int                @id @default(autoincrement())
-  userId    String?
-  title     String            @db.VarChar(255)
-  message   String            @db.VarChar(1000)
-  typeId    Int                @default(1)
-  isRead    Boolean           @default(false)
-  referenceType String?       @db.VarChar(100)
-  referenceId   Int?
-  isActive  Boolean           @default(true)
-  createdAt DateTime          @default(now())
+  ID        Int                @id @default(autoincrement())
+  UserID    String?
+  Title     String            @db.VarChar(255)
+  Message   String            @db.VarChar(1000)
+  TypeID    Int                @default(1)
+  IsRead    Boolean           @default(false)
+  ReferenceType String?       @db.VarChar(100)
+  ReferenceID   Int?
+  IsActive  Boolean           @default(true)
+  CreatedAt DateTime          @default(now())
 
-  user User              @relation(fields: [userId], references: [id])
-  type  NotificationType @relation(fields: [typeId], references: [id])
+  User User?              @relation(fields: [UserID], references: [ID])
+  Type  NotificationType @relation(fields: [TypeID], references: [ID])
 
-  @@map("notifications")
+  @@map("Notifications")
 }

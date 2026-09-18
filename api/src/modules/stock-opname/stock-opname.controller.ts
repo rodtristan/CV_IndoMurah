@@ -9,7 +9,7 @@ import { CurrentUser } from '../../common/decorators/current-user-decorator';
 @ApiTags('StockOpname')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('stock-opname')
+@Controller('StockOpname')
 export class StockOpnameController extends BaseController<
   any,
   CreateStockOpnameDto,

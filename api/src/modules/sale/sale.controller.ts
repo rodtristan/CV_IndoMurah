@@ -21,7 +21,7 @@ import { ApiResponse } from '../../common/dto/api-response-dto';
 @ApiTags('Sales')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('sales')
+@Controller('Sales')
 export class SaleController {
   constructor(private saleService: SaleService) {}
 
@@ -54,7 +54,7 @@ export class SaleController {
   @Post()
   @ApiOperation({ summary: 'Create sale (POS transaction)' })
   async create(@Body() dto: CreateSaleDto, @CurrentUser() user: any) {
-    const data = await this.saleService.create(dto, user.id);
+    const data = await this.saleService.create(dto, user.ID);
     return ApiResponse.ok(data, 'Sale created successfully');
   }
 
@@ -72,7 +72,7 @@ export class SaleController {
     @Body() dto: PaymentDto,
     @CurrentUser() user: any,
   ) {
-    const data = await this.saleService.payment(id, dto, user.id);
+    const data = await this.saleService.payment(id, dto, user.ID);
     return ApiResponse.ok(data, 'Payment recorded successfully');
   }
 

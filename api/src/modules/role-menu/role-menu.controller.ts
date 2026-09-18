@@ -8,7 +8,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 @ApiTags('RoleMenus')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('role-menu')
+@Controller('RoleMenu')
 export class RoleMenuController extends BaseController<
   any,
   CreateRoleMenuDto,

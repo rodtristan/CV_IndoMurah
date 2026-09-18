@@ -53,35 +53,40 @@ export class DashboardService {
     const today = new Date();
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
+    // Get status IDs for PAID and PARTIAL
+    const paidStatus = await this.prisma.paymentStatus.findUnique({ where: { Code: 'PAID' } });
+    const partialStatus = await this.prisma.paymentStatus.findUnique({ where: { Code: 'PARTIAL' } });
+    const statusIds = [paidStatus?.ID, partialStatus?.ID].filter(Boolean) as number[];
+
     // Get monthly sales
     const sales = await this.prisma.sale.aggregate({
       where: {
-        date: { gte: startOfMonth },
-        paymentStatus: { in: ['PAID', 'PARTIAL'] },
+        Date: { gte: startOfMonth },
+        PaymentStatusID: { in: statusIds },
       },
-      _sum: { total: true },
+      _sum: { Total: true },
       _count: true,
     });
 
     // Get monthly purchases
     const purchases = await this.prisma.purchase.aggregate({
       where: {
-        date: { gte: startOfMonth },
-        paymentStatus: { in: ['PAID', 'PARTIAL'] },
+        Date: { gte: startOfMonth },
+        PaymentStatusID: { in: statusIds },
       },
-      _sum: { total: true },
+      _sum: { Total: true },
       _count: true,
     });
 
     // Get monthly expenses
     const expenses = await this.prisma.cashOut.aggregate({
-      where: { date: { gte: startOfMonth } },
-      _sum: { amount: true },
+      where: { Date: { gte: startOfMonth } },
+      _sum: { Amount: true },
     });
 
-    const totalSales = Number(sales._sum.total) || 0;
-    const totalPurchases = Number(purchases._sum.total) || 0;
-    const totalExpenses = Number(expenses._sum.amount) || 0;
+    const totalSales = Number(sales._sum.Total) || 0;
+    const totalPurchases = Number(purchases._sum.Total) || 0;
+    const totalExpenses = Number(expenses._sum.Amount) || 0;
     const grossProfit = totalSales - totalPurchases;
     const netProfit = grossProfit - totalExpenses;
 
@@ -99,35 +104,40 @@ export class DashboardService {
     const today = new Date();
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
+    // Get status IDs for PAID and PARTIAL
+    const paidStatus = await this.prisma.paymentStatus.findUnique({ where: { Code: 'PAID' } });
+    const partialStatus = await this.prisma.paymentStatus.findUnique({ where: { Code: 'PARTIAL' } });
+    const statusIds = [paidStatus?.ID, partialStatus?.ID].filter(Boolean) as number[];
+
     const salesItems = await this.prisma.saleItem.groupBy({
-      by: ['productId'],
+      by: ['ProductID'],
       where: {
-        sale: {
-          date: { gte: startOfMonth },
-          paymentStatus: { in: ['PAID', 'PARTIAL'] },
+        Sale: {
+          Date: { gte: startOfMonth },
+          PaymentStatusID: { in: statusIds },
         },
       },
-      _sum: { quantity: true, subtotal: true },
-      orderBy: { _sum: { subtotal: 'desc' } },
+      _sum: { Quantity: true, Subtotal: true },
+      orderBy: { _sum: { Subtotal: 'desc' } },
       take: limit,
     });
 
-    const productIds = salesItems.map((item) => item.productId);
+    const productIds = salesItems.map((item) => item.ProductID);
     const products = await this.prisma.product.findMany({
-      where: { id: { in: productIds } },
-      select: { id: true, code: true, name: true },
+      where: { ID: { in: productIds } },
+      select: { ID: true, Code: true, Name: true },
     });
 
-    const productMap = new Map(products.map((p) => [p.id, p]));
+    const productMap = new Map(products.map((p) => [p.ID, p]));
 
     return salesItems.map((item) => {
-      const product = productMap.get(item.productId)!;
+      const product = productMap.get(item.ProductID)!;
       return {
-        productId: item.productId,
-        productCode: product.code,
-        productName: product.name,
-        totalQuantity: Number(item._sum.quantity) || 0,
-        totalRevenue: Number(item._sum.subtotal) || 0,
+        productId: item.ProductID,
+        productCode: product.Code,
+        productName: product.Name,
+        totalQuantity: Number(item._sum.Quantity) || 0,
+        totalRevenue: Number(item._sum.Subtotal) || 0,
       };
     });
   }
@@ -136,33 +146,38 @@ export class DashboardService {
     const today = new Date();
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
+    // Get status IDs for PAID and PARTIAL
+    const paidStatus = await this.prisma.paymentStatus.findUnique({ where: { Code: 'PAID' } });
+    const partialStatus = await this.prisma.paymentStatus.findUnique({ where: { Code: 'PARTIAL' } });
+    const statusIds = [paidStatus?.ID, partialStatus?.ID].filter(Boolean) as number[];
+
     const customerSales = await this.prisma.sale.groupBy({
-      by: ['customerId'],
+      by: ['CustomerID'],
       where: {
-        date: { gte: startOfMonth },
-        paymentStatus: { in: ['PAID', 'PARTIAL'] },
+        Date: { gte: startOfMonth },
+        PaymentStatusID: { in: statusIds },
       },
-      _sum: { total: true },
+      _sum: { Total: true },
       _count: true,
-      orderBy: { _sum: { total: 'desc' } },
+      orderBy: { _sum: { Total: 'desc' } },
       take: limit,
     });
 
-    const customerIds = customerSales.map((item) => item.customerId);
+    const customerIds = customerSales.map((item) => item.CustomerID);
     const customers = await this.prisma.customer.findMany({
-      where: { id: { in: customerIds } },
-      select: { id: true, name: true },
+      where: { ID: { in: customerIds } },
+      select: { ID: true, Name: true },
     });
 
-    const customerMap = new Map(customers.map((c) => [c.id, c]));
+    const customerMap = new Map(customers.map((c) => [c.ID, c]));
 
     return customerSales.map((item) => {
-      const customer = customerMap.get(item.customerId)!;
+      const customer = customerMap.get(item.CustomerID)!;
       return {
-        customerId: item.customerId,
-        customerName: customer.name,
+        customerId: item.CustomerID,
+        customerName: customer.Name,
         totalTransactions: item._count || 0,
-        totalAmount: Number(item._sum.total) || 0,
+        totalAmount: Number(item._sum.Total) || 0,
       };
     });
   }
@@ -171,33 +186,38 @@ export class DashboardService {
     const today = new Date();
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
+    // Get status IDs for PAID and PARTIAL
+    const paidStatus = await this.prisma.paymentStatus.findUnique({ where: { Code: 'PAID' } });
+    const partialStatus = await this.prisma.paymentStatus.findUnique({ where: { Code: 'PARTIAL' } });
+    const statusIds = [paidStatus?.ID, partialStatus?.ID].filter(Boolean) as number[];
+
     const supplierPurchases = await this.prisma.purchase.groupBy({
-      by: ['supplierId'],
+      by: ['SupplierID'],
       where: {
-        date: { gte: startOfMonth },
-        paymentStatus: { in: ['PAID', 'PARTIAL'] },
+        Date: { gte: startOfMonth },
+        PaymentStatusID: { in: statusIds },
       },
-      _sum: { total: true },
+      _sum: { Total: true },
       _count: true,
-      orderBy: { _sum: { total: 'desc' } },
+      orderBy: { _sum: { Total: 'desc' } },
       take: limit,
     });
 
-    const supplierIds = supplierPurchases.map((item) => item.supplierId);
+    const supplierIds = supplierPurchases.map((item) => item.SupplierID);
     const suppliers = await this.prisma.supplier.findMany({
-      where: { id: { in: supplierIds } },
-      select: { id: true, name: true },
+      where: { ID: { in: supplierIds } },
+      select: { ID: true, Name: true },
     });
 
-    const supplierMap = new Map(suppliers.map((s) => [s.id, s]));
+    const supplierMap = new Map(suppliers.map((s) => [s.ID, s]));
 
     return supplierPurchases.map((item) => {
-      const supplier = supplierMap.get(item.supplierId)!;
+      const supplier = supplierMap.get(item.SupplierID)!;
       return {
-        supplierId: item.supplierId,
-        supplierName: supplier.name,
+        supplierId: item.SupplierID,
+        supplierName: supplier.Name,
         totalTransactions: item._count || 0,
-        totalAmount: Number(item._sum.total) || 0,
+        totalAmount: Number(item._sum.Total) || 0,
       };
     });
   }
@@ -205,95 +225,110 @@ export class DashboardService {
   private async getLowStockItems(limit: number = 10): Promise<LowStockItemDto[]> {
     const products = await this.prisma.product.findMany({
       where: {
-        isActive: true,
-        stock: { gt: 0 },
+        IsActive: true,
+        Stock: { gt: 0 },
       },
       include: {
-        warehouse: { select: { name: true } },
+        Warehouse: { select: { Name: true } },
       },
-      orderBy: { stock: 'asc' },
+      orderBy: { Stock: 'asc' },
       take: limit * 2, // Get more to filter properly
     });
 
     return products
-      .filter((p) => Number(p.stock) <= Number(p.minimumStock) && Number(p.stock) > 0)
+      .filter((p) => Number(p.Stock) <= Number(p.MinimumStock) && Number(p.Stock) > 0)
       .slice(0, limit)
       .map((product) => ({
-        productId: product.id,
-        productCode: product.code,
-        productName: product.name,
-        currentStock: Number(product.stock),
-        minStock: Number(product.minimumStock),
-        warehouseName: product.warehouse?.name,
+        productId: product.ID,
+        productCode: product.Code,
+        productName: product.Name,
+        currentStock: Number(product.Stock),
+        minStock: Number(product.MinimumStock),
+        warehouseName: product.Warehouse?.Name,
       }));
   }
 
   private async getOutOfStockItems(limit: number = 10): Promise<LowStockItemDto[]> {
     const products = await this.prisma.product.findMany({
       where: {
-        isActive: true,
-        stock: { lte: 0 },
+        IsActive: true,
+        Stock: { lte: 0 },
       },
       include: {
-        warehouse: { select: { name: true } },
+        Warehouse: { select: { Name: true } },
       },
       take: limit,
     });
 
     return products.map((product) => ({
-      productId: product.id,
-      productCode: product.code,
-      productName: product.name,
-      currentStock: Number(product.stock),
-      minStock: Number(product.minimumStock),
-      warehouseName: product.warehouse?.name,
+      productId: product.ID,
+      productCode: product.Code,
+      productName: product.Name,
+      currentStock: Number(product.Stock),
+      minStock: Number(product.MinimumStock),
+      warehouseName: product.Warehouse?.Name,
     }));
   }
 
   private async getRecentTransactions(limit: number = 10): Promise<RecentTransactionDto[]> {
+    // Get status IDs for PAID and PARTIAL
+    const paidStatus = await this.prisma.paymentStatus.findUnique({ where: { Code: 'PAID' } });
+    const partialStatus = await this.prisma.paymentStatus.findUnique({ where: { Code: 'PARTIAL' } });
+    const statusIds = [paidStatus?.ID, partialStatus?.ID].filter(Boolean) as number[];
+
     const [recentSales, recentPurchases] = await Promise.all([
       this.prisma.sale.findMany({
-        where: { paymentStatus: { in: ['PAID', 'PARTIAL'] } },
-        orderBy: { date: 'desc' },
+        where: { PaymentStatusID: { in: statusIds } },
+        orderBy: { Date: 'desc' },
         take: limit,
         select: {
-          id: true,
-          code: true,
-          date: true,
-          total: true,
-          customer: { select: { name: true } },
+          ID: true,
+          Code: true,
+          Date: true,
+          Total: true,
+          CustomerID: true,
         },
       }),
       this.prisma.purchase.findMany({
-        where: { paymentStatus: { in: ['PAID', 'PARTIAL'] } },
-        orderBy: { date: 'desc' },
+        where: { PaymentStatusID: { in: statusIds } },
+        orderBy: { Date: 'desc' },
         take: limit,
         select: {
-          id: true,
-          code: true,
-          date: true,
-          total: true,
-          supplier: { select: { name: true } },
+          ID: true,
+          Code: true,
+          Date: true,
+          Total: true,
+          SupplierID: true,
         },
       }),
     ]);
 
+    // Get customer and supplier names
+    const customerIds = recentSales.map((s) => s.CustomerID);
+    const supplierIds = recentPurchases.map((p) => p.SupplierID);
+    const [customers, suppliers] = await Promise.all([
+      this.prisma.customer.findMany({ where: { ID: { in: customerIds } }, select: { ID: true, Name: true } }),
+      this.prisma.supplier.findMany({ where: { ID: { in: supplierIds } }, select: { ID: true, Name: true } }),
+    ]);
+    const customerMap = new Map(customers.map((c) => [c.ID, c.Name]));
+    const supplierMap = new Map(suppliers.map((s) => [s.ID, s.Name]));
+
     const transactions: RecentTransactionDto[] = [
       ...recentSales.map((s) => ({
-        id: s.id,
-        code: s.code,
+        id: s.ID,
+        code: s.Code,
         type: 'sale' as const,
-        date: s.date.toISOString().split('T')[0],
-        amount: Number(s.total),
-        counterpartyName: s.customer.name,
+        date: s.Date.toISOString().split('T')[0],
+        amount: Number(s.Total),
+        counterpartyName: customerMap.get(s.CustomerID) || 'Unknown',
       })),
       ...recentPurchases.map((p) => ({
-        id: p.id,
-        code: p.code,
+        id: p.ID,
+        code: p.Code,
         type: 'purchase' as const,
-        date: p.date.toISOString().split('T')[0],
-        amount: Number(p.total),
-        counterpartyName: p.supplier.name,
+        date: p.Date.toISOString().split('T')[0],
+        amount: Number(p.Total),
+        counterpartyName: supplierMap.get(p.SupplierID) || 'Unknown',
       })),
     ];
 

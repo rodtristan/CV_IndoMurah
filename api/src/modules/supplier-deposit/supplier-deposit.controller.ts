@@ -9,7 +9,7 @@ import { CurrentUser } from '../../common/decorators/current-user-decorator';
 @ApiTags('SupplierDeposit')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('supplier-deposit')
+@Controller('SupplierDeposit')
 export class SupplierDepositController extends BaseController<
   any,
   CreateSupplierDepositDto,

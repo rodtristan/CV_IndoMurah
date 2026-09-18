@@ -9,7 +9,7 @@ import { CurrentUser } from '../../common/decorators/current-user-decorator';
 @ApiTags('PointRedemption')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('point-redemption')
+@Controller('PointRedemption')
 export class PointRedemptionController extends BaseController<
   any,
   CreatePointRedemptionDto,

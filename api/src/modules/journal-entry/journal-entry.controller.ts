@@ -8,7 +8,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 @ApiTags('JournalEntry')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('journal-entry')
+@Controller('JournalEntry')
 export class JournalEntryController extends BaseController<
   any,
   CreateJournalEntryDto,

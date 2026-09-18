@@ -8,7 +8,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 @ApiTags('ProductImages')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('product-image')
+@Controller('ProductImage')
 export class ProductImageController extends BaseController<
   any,
   CreateProductImageDto,

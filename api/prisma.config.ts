@@ -61,4 +61,9 @@ export default defineConfig({
   datasource: {
     url: buildDatabaseUrl(),
   },
+
+  // Seed command untuk populating data awal
+  migrations: {
+    seed: 'npx ts-node prisma/seed.ts',
+  },
 });

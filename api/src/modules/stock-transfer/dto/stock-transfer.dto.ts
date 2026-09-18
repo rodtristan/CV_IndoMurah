@@ -1,54 +1,85 @@
-import { IsString, IsOptional, IsInt, IsEnum } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsInt, IsArray, ValidateNested, IsDateString } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { TransactionStatus } from '@prisma/client';
+
+export class CreateStockTransferItemDto {
+  @ApiProperty({ description: 'Product ID' })
+  @IsInt()
+  ProductID: number;
+
+  @ApiProperty({ description: 'Quantity' })
+  @IsNumber()
+  Quantity: number;
+
+  @ApiProperty({ description: 'Unit ID' })
+  @IsInt()
+  UnitID: number;
+
+  @ApiProperty({ description: 'Unit price' })
+  @IsNumber()
+  UnitPrice: number;
+
+  @ApiPropertyOptional({ description: 'Subtotal' })
+  @IsOptional()
+  @IsNumber()
+  Subtotal?: number;
+}
 
 export class CreateStockTransferDto {
-  @ApiProperty({ description: 'Kode transfer' })
-  @IsString()
-  code: string;
-
-  @ApiProperty({ description: 'Gudang asal' })
+  @ApiProperty({ description: 'From warehouse ID' })
   @IsInt()
-  fromWarehouseId: number;
+  FromWarehouseID: number;
 
-  @ApiProperty({ description: 'Gudang tujuan' })
+  @ApiProperty({ description: 'To warehouse ID' })
   @IsInt()
-  toWarehouseId: number;
+  ToWarehouseID: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Transfer date', type: String })
+  @IsOptional()
+  @IsDateString()
+  Date?: string;
+
+  @ApiPropertyOptional({ description: 'Notes' })
   @IsOptional()
   @IsString()
-  notes?: string;
+  Notes?: string;
 
-  @ApiPropertyOptional({ enum: TransactionStatus })
-  @IsOptional()
-  @IsEnum(TransactionStatus)
-  status?: TransactionStatus;
+  @ApiProperty({ description: 'Transfer items', type: [CreateStockTransferItemDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateStockTransferItemDto)
+  Items: CreateStockTransferItemDto[];
 }
 
 export class UpdateStockTransferDto {
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  code?: string;
-
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'From warehouse ID' })
   @IsOptional()
   @IsInt()
-  fromWarehouseId?: number;
+  FromWarehouseID?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'To warehouse ID' })
   @IsOptional()
   @IsInt()
-  toWarehouseId?: number;
+  ToWarehouseID?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Transfer date', type: String })
+  @IsOptional()
+  @IsDateString()
+  Date?: string;
+
+  @ApiPropertyOptional({ description: 'Notes' })
   @IsOptional()
   @IsString()
-  notes?: string;
+  Notes?: string;
 
-  @ApiPropertyOptional({ enum: TransactionStatus })
+  @ApiPropertyOptional({ description: 'Status ID' })
   @IsOptional()
-  @IsEnum(TransactionStatus)
-  status?: TransactionStatus;
+  @IsInt()
+  StatusID?: number;
+}
+
+export class UpdateStockTransferStatusDto {
+  @ApiProperty({ description: 'New status code (e.g., DRAFT, CONFIRMED, COMPLETED, CANCELLED)' })
+  @IsString()
+  StatusCode: string;
 }

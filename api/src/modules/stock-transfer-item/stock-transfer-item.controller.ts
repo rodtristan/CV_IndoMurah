@@ -8,7 +8,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 @ApiTags('StockTransferItems')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('stock-transfer-item')
+@Controller('StockTransferItem')
 export class StockTransferItemController extends BaseController<
   any,
   CreateStockTransferItemDto,

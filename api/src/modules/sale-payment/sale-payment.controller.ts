@@ -21,7 +21,7 @@ import { ApiResponse } from '../../common/dto/api-response-dto';
 @ApiTags('Sale Payments')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('sale-payments')
+@Controller('SalePayments')
 export class SalePaymentController {
   constructor(private salePaymentService: SalePaymentService) {}
 
@@ -57,7 +57,7 @@ export class SalePaymentController {
   @Post()
   @ApiOperation({ summary: 'Create sale payment' })
   async create(@Body() dto: CreateSalePaymentDto, @CurrentUser() user: any) {
-    const data = await this.salePaymentService.create(dto, user.id);
+    const data = await this.salePaymentService.create(dto, user.ID);
     return ApiResponse.ok(data, 'Sale payment created successfully');
   }
 

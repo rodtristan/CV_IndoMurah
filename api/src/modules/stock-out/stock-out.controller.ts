@@ -9,7 +9,7 @@ import { CurrentUser } from '../../common/decorators/current-user-decorator';
 @ApiTags('StockOut')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('stock-out')
+@Controller('StockOut')
 export class StockOutController extends BaseController<
   any,
   CreateStockOutDto,

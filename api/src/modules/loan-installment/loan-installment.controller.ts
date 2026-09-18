@@ -8,7 +8,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 @ApiTags('Loan Installments')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('loan-installments')
+@Controller('LoanInstallments')
 export class LoanInstallmentController extends BaseController<
   any,
   CreateLoanInstallmentDto,

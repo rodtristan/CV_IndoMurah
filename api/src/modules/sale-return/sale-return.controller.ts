@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { SaleReturnService } from './sale-return.service';
-import { CreateSaleReturnDto, UpdateSaleReturnDto, UpdateStatusDto } from './dto/sale-return.dto';
+import { CreateSaleReturnDto, UpdateSaleReturnDto, UpdateSaleReturnStatusDto } from './dto/sale-return.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 import { CurrentUser } from '../../common/decorators/current-user-decorator';
 import { ApiResponse } from '../../common/dto/api-response-dto';
@@ -21,7 +21,7 @@ import { ApiResponse } from '../../common/dto/api-response-dto';
 @ApiTags('Sale Returns')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('sale-returns')
+@Controller('SaleReturns')
 export class SaleReturnController {
   constructor(private saleReturnService: SaleReturnService) {}
 
@@ -51,7 +51,7 @@ export class SaleReturnController {
   @Post()
   @ApiOperation({ summary: 'Create sale return' })
   async create(@Body() dto: CreateSaleReturnDto, @CurrentUser() user: any) {
-    const data = await this.saleReturnService.create(dto, user.id);
+    const data = await this.saleReturnService.create(dto, user.ID);
     return ApiResponse.ok(data, 'Sale return created successfully');
   }
 
@@ -65,27 +65,27 @@ export class SaleReturnController {
   @Put(':id/confirm')
   @ApiOperation({ summary: 'Confirm sale return' })
   async confirm(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.saleReturnService.updateStatus(id, { status: 'CONFIRMED' });
+    const data = await this.saleReturnService.updateStatus(id, { StatusCode: 'CONFIRMED' });
     return ApiResponse.ok(data, 'Sale return confirmed');
   }
 
   @Put(':id/complete')
   @ApiOperation({ summary: 'Complete sale return' })
   async complete(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.saleReturnService.updateStatus(id, { status: 'COMPLETED' });
+    const data = await this.saleReturnService.updateStatus(id, { StatusCode: 'COMPLETED' });
     return ApiResponse.ok(data, 'Sale return completed');
   }
 
   @Put(':id/cancel')
   @ApiOperation({ summary: 'Cancel sale return' })
   async cancel(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.saleReturnService.updateStatus(id, { status: 'CANCELLED' });
+    const data = await this.saleReturnService.updateStatus(id, { StatusCode: 'CANCELLED' });
     return ApiResponse.ok(data, 'Sale return cancelled');
   }
 
   @Put(':id/status')
   @ApiOperation({ summary: 'Update sale return status' })
-  async updateStatus(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateStatusDto) {
+  async updateStatus(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateSaleReturnStatusDto) {
     const data = await this.saleReturnService.updateStatus(id, dto);
     return ApiResponse.ok(data, 'Status updated successfully');
   }

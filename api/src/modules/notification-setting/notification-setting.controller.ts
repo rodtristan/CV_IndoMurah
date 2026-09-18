@@ -8,7 +8,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 @ApiTags('NotificationSettings')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('notification-setting')
+@Controller('NotificationSetting')
 export class NotificationSettingController extends BaseController<
   any,
   CreateNotificationSettingDto,

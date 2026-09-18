@@ -8,7 +8,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 @ApiTags('LeaveBalances')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('leave-balance')
+@Controller('LeaveBalance')
 export class LeaveBalanceController extends BaseController<
   any,
   CreateLeaveBalanceDto,

@@ -1,54 +1,53 @@
-import { IsString, IsOptional, IsBoolean, IsInt, IsEnum } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsBoolean } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { AccountType } from '@prisma/client';
 
 export class CreateAccountDto {
-  @ApiProperty({ description: 'Kode akun' })
+  @ApiProperty({ description: 'Account code' })
   @IsString()
-  code: string;
+  Code: string;
 
-  @ApiProperty({ description: 'Nama akun' })
+  @ApiProperty({ description: 'Account name' })
   @IsString()
-  name: string;
+  Name: string;
 
-  @ApiProperty({ enum: AccountType })
-  @IsEnum(AccountType)
-  type: AccountType;
+  @ApiProperty({ description: 'Account type ID' })
+  @IsInt()
+  TypeID: number;
 
-  @ApiPropertyOptional({ description: 'Akun induk (parent)' })
+  @ApiPropertyOptional({ description: 'Parent account ID' })
   @IsOptional()
   @IsInt()
-  parentId?: number;
+  ParentID?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ default: true, description: 'Is active' })
   @IsOptional()
   @IsBoolean()
-  isActive?: boolean;
+  IsActive?: boolean;
 }
 
 export class UpdateAccountDto {
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Account code' })
   @IsOptional()
   @IsString()
-  code?: string;
+  Code?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Account name' })
   @IsOptional()
   @IsString()
-  name?: string;
+  Name?: string;
 
-  @ApiPropertyOptional({ enum: AccountType })
-  @IsOptional()
-  @IsEnum(AccountType)
-  type?: AccountType;
-
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Account type ID' })
   @IsOptional()
   @IsInt()
-  parentId?: number;
+  TypeID?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Parent account ID' })
+  @IsOptional()
+  @IsInt()
+  ParentID?: number;
+
+  @ApiPropertyOptional({ description: 'Is active' })
   @IsOptional()
   @IsBoolean()
-  isActive?: boolean;
+  IsActive?: boolean;
 }

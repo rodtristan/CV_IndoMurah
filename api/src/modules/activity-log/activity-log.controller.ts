@@ -8,7 +8,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 @ApiTags('ActivityLogs')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('activity-log')
+@Controller('ActivityLog')
 export class ActivityLogController extends BaseController<
   any,
   CreateActivityLogDto,

@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { PurchaseReturnService } from './purchase-return.service';
-import { CreatePurchaseReturnDto, UpdatePurchaseReturnDto, UpdateStatusDto } from './dto/purchase-return.dto';
+import { CreatePurchaseReturnDto, UpdatePurchaseReturnDto, UpdatePurchaseReturnStatusDto } from './dto/purchase-return.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 import { CurrentUser } from '../../common/decorators/current-user-decorator';
 import { ApiResponse } from '../../common/dto/api-response-dto';
@@ -21,7 +21,7 @@ import { ApiResponse } from '../../common/dto/api-response-dto';
 @ApiTags('Purchase Returns')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('purchase-returns')
+@Controller('PurchaseReturns')
 export class PurchaseReturnController {
   constructor(private purchaseReturnService: PurchaseReturnService) {}
 
@@ -51,7 +51,7 @@ export class PurchaseReturnController {
   @Post()
   @ApiOperation({ summary: 'Create purchase return' })
   async create(@Body() dto: CreatePurchaseReturnDto, @CurrentUser() user: any) {
-    const data = await this.purchaseReturnService.create(dto, user.id);
+    const data = await this.purchaseReturnService.create(dto, user.ID);
     return ApiResponse.ok(data, 'Purchase return created successfully');
   }
 
@@ -65,27 +65,27 @@ export class PurchaseReturnController {
   @Put(':id/confirm')
   @ApiOperation({ summary: 'Confirm purchase return' })
   async confirm(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.purchaseReturnService.updateStatus(id, { status: 'CONFIRMED' });
+    const data = await this.purchaseReturnService.updateStatus(id, { StatusCode: 'CONFIRMED' });
     return ApiResponse.ok(data, 'Purchase return confirmed');
   }
 
   @Put(':id/complete')
   @ApiOperation({ summary: 'Complete purchase return' })
   async complete(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.purchaseReturnService.updateStatus(id, { status: 'COMPLETED' });
+    const data = await this.purchaseReturnService.updateStatus(id, { StatusCode: 'COMPLETED' });
     return ApiResponse.ok(data, 'Purchase return completed');
   }
 
   @Put(':id/cancel')
   @ApiOperation({ summary: 'Cancel purchase return' })
   async cancel(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.purchaseReturnService.updateStatus(id, { status: 'CANCELLED' });
+    const data = await this.purchaseReturnService.updateStatus(id, { StatusCode: 'CANCELLED' });
     return ApiResponse.ok(data, 'Purchase return cancelled');
   }
 
   @Put(':id/status')
   @ApiOperation({ summary: 'Update purchase return status' })
-  async updateStatus(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateStatusDto) {
+  async updateStatus(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdatePurchaseReturnStatusDto) {
     const data = await this.purchaseReturnService.updateStatus(id, dto);
     return ApiResponse.ok(data, 'Status updated successfully');
   }

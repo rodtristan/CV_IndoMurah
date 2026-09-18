@@ -1,45 +1,85 @@
-import { IsString, IsOptional, IsInt, IsEnum } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsInt, IsArray, ValidateNested, IsDateString } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { StockOpnameStatus } from '@prisma/client';
+
+export class CreateStockOpnameItemDto {
+  @ApiProperty({ description: 'Product ID' })
+  @IsInt()
+  ProductID: number;
+
+  @ApiProperty({ description: 'System stock' })
+  @IsNumber()
+  SystemStock: number;
+
+  @ApiProperty({ description: 'Counted stock' })
+  @IsNumber()
+  CountedStock: number;
+
+  @ApiProperty({ description: 'Difference' })
+  @IsNumber()
+  Difference: number;
+
+  @ApiProperty({ description: 'Unit ID' })
+  @IsInt()
+  UnitID: number;
+
+  @ApiPropertyOptional({ description: 'Unit price' })
+  @IsOptional()
+  @IsNumber()
+  UnitPrice?: number;
+
+  @ApiPropertyOptional({ description: 'Note' })
+  @IsOptional()
+  @IsString()
+  Note?: string;
+}
 
 export class CreateStockOpnameDto {
-  @ApiProperty({ description: 'Kode stock opname' })
-  @IsString()
-  code: string;
-
-  @ApiProperty({ description: 'Gudang yang di-opname' })
+  @ApiProperty({ description: 'Warehouse ID' })
   @IsInt()
-  warehouseId: number;
+  WarehouseID: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Stock opname date', type: String })
+  @IsOptional()
+  @IsDateString()
+  Date?: string;
+
+  @ApiPropertyOptional({ description: 'Notes' })
   @IsOptional()
   @IsString()
-  notes?: string;
+  Notes?: string;
 
-  @ApiPropertyOptional({ enum: StockOpnameStatus })
-  @IsOptional()
-  @IsEnum(StockOpnameStatus)
-  status?: StockOpnameStatus;
+  @ApiProperty({ description: 'Stock opname items', type: [CreateStockOpnameItemDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateStockOpnameItemDto)
+  Items: CreateStockOpnameItemDto[];
 }
 
 export class UpdateStockOpnameDto {
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  code?: string;
-
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Warehouse ID' })
   @IsOptional()
   @IsInt()
-  warehouseId?: number;
+  WarehouseID?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Stock opname date', type: String })
+  @IsOptional()
+  @IsDateString()
+  Date?: string;
+
+  @ApiPropertyOptional({ description: 'Notes' })
   @IsOptional()
   @IsString()
-  notes?: string;
+  Notes?: string;
 
-  @ApiPropertyOptional({ enum: StockOpnameStatus })
+  @ApiPropertyOptional({ description: 'Status ID' })
   @IsOptional()
-  @IsEnum(StockOpnameStatus)
-  status?: StockOpnameStatus;
+  @IsInt()
+  StatusID?: number;
+}
+
+export class UpdateStockOpnameStatusDto {
+  @ApiProperty({ description: 'New status code (e.g., DRAFT, IN_PROGRESS, COMPLETED, CANCELLED)' })
+  @IsString()
+  StatusCode: string;
 }

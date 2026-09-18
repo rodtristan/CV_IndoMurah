@@ -8,7 +8,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 @ApiTags('SaleItems')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('sale-item')
+@Controller('SaleItem')
 export class SaleItemController extends BaseController<
   any,
   CreateSaleItemDto,

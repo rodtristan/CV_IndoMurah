@@ -9,7 +9,7 @@ import { CurrentUser } from '../../common/decorators/current-user-decorator';
 @ApiTags('CashIn')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('cash-in')
+@Controller('CashIn')
 export class CashInController extends BaseController<
   any,
   CreateCashInDto,

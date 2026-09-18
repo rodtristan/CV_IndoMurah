@@ -5,120 +5,120 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CreatePurchaseOrderItemDto {
   @ApiProperty({ description: 'Product ID' })
   @IsInt()
-  productId: number;
+  ProductID: number;
 
   @ApiProperty({ description: 'Quantity' })
   @IsNumber()
-  quantity: number;
+  Quantity: number;
 
   @ApiProperty({ description: 'Unit ID' })
   @IsInt()
-  unitId: number;
+  UnitID: number;
 
   @ApiProperty({ description: 'Price per unit' })
   @IsNumber()
-  unitPrice: number;
+  UnitPrice: number;
 
   @ApiPropertyOptional({ description: 'Discount amount' })
   @IsOptional()
   @IsNumber()
-  discountAmount?: number;
+  DiscountAmount?: number;
 
   @ApiPropertyOptional({ description: 'Discount percent' })
   @IsOptional()
   @IsNumber()
-  discountPercent?: number;
+  DiscountPercent?: number;
 }
 
 export class CreatePurchaseOrderDto {
   @ApiProperty({ description: 'Supplier ID' })
   @IsInt()
-  supplierId: number;
+  SupplierID: number;
 
   @ApiPropertyOptional({ description: 'Warehouse ID' })
   @IsOptional()
   @IsInt()
-  warehouseId?: number;
+  WarehouseID?: number;
 
   @ApiPropertyOptional({ description: 'Purchase order date' })
   @IsOptional()
   @IsDateString()
-  date?: string;
+  Date?: string;
 
   @ApiPropertyOptional({ description: 'Due date' })
   @IsOptional()
   @IsDateString()
-  dueDate?: string;
+  DueDate?: string;
 
   @ApiPropertyOptional({ description: 'Notes' })
   @IsOptional()
   @IsString()
-  notes?: string;
+  Notes?: string;
 
   @ApiProperty({ description: 'Items', type: [CreatePurchaseOrderItemDto] })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreatePurchaseOrderItemDto)
-  items: CreatePurchaseOrderItemDto[];
+  Items: CreatePurchaseOrderItemDto[];
 }
 
 export class UpdatePurchaseOrderDto {
   @ApiPropertyOptional({ description: 'Supplier ID' })
   @IsOptional()
   @IsInt()
-  supplierId?: number;
+  SupplierID?: number;
 
   @ApiPropertyOptional({ description: 'Warehouse ID' })
   @IsOptional()
   @IsInt()
-  warehouseId?: number;
+  WarehouseID?: number;
 
   @ApiPropertyOptional({ description: 'Purchase order date' })
   @IsOptional()
   @IsDateString()
-  date?: string;
+  Date?: string;
 
   @ApiPropertyOptional({ description: 'Due date' })
   @IsOptional()
   @IsDateString()
-  dueDate?: string;
+  DueDate?: string;
 
   @ApiPropertyOptional({ description: 'Notes' })
   @IsOptional()
   @IsString()
-  notes?: string;
+  Notes?: string;
 }
 
-export class UpdateStatusDto {
-  @ApiProperty({ description: 'New status: DRAFT, CONFIRMED, COMPLETED, CANCELLED' })
+export class UpdatePurchaseOrderStatusDto {
+  @ApiProperty({ description: 'New status code: DRAFT, CONFIRMED, COMPLETED, CANCELLED' })
   @IsString()
-  status: string;
+  StatusCode: string;
 }
 
 export class AddPurchaseOrderItemDto {
   @ApiProperty({ description: 'Product ID' })
   @IsInt()
-  productId: number;
+  ProductID: number;
 
   @ApiProperty({ description: 'Quantity' })
   @IsNumber()
-  quantity: number;
+  Quantity: number;
 
   @ApiProperty({ description: 'Unit ID' })
   @IsInt()
-  unitId: number;
+  UnitID: number;
 
   @ApiProperty({ description: 'Price per unit' })
   @IsNumber()
-  unitPrice: number;
+  UnitPrice: number;
 
   @ApiPropertyOptional({ description: 'Discount amount' })
   @IsOptional()
   @IsNumber()
-  discountAmount?: number;
+  DiscountAmount?: number;
 
   @ApiPropertyOptional({ description: 'Discount percent' })
   @IsOptional()
   @IsNumber()
-  discountPercent?: number;
+  DiscountPercent?: number;
 }

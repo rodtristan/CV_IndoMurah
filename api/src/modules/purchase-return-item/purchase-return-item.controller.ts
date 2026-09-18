@@ -8,7 +8,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 @ApiTags('PurchaseReturnItems')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('purchase-return-item')
+@Controller('PurchaseReturnItem')
 export class PurchaseReturnItemController extends BaseController<
   any,
   CreatePurchaseReturnItemDto,

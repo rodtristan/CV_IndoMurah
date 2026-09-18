@@ -26,6 +26,20 @@ export class ReportService {
     private redis: RedisService,
   ) {}
 
+  // Helper method to get payment status IDs
+  private async getPaidStatusIds(): Promise<number[]> {
+    const paidStatus = await this.prisma.paymentStatus.findUnique({ where: { Code: 'PAID' } });
+    const partialStatus = await this.prisma.paymentStatus.findUnique({ where: { Code: 'PARTIAL' } });
+    return [paidStatus?.ID, partialStatus?.ID].filter(Boolean) as number[];
+  }
+
+  // Helper method to get pending status IDs
+  private async getPendingStatusIds(): Promise<number[]> {
+    const pendingStatus = await this.prisma.paymentStatus.findUnique({ where: { Code: 'PENDING' } });
+    const partialStatus = await this.prisma.paymentStatus.findUnique({ where: { Code: 'PARTIAL' } });
+    return [pendingStatus?.ID, partialStatus?.ID].filter(Boolean) as number[];
+  }
+
   // ─── Sales Report ──────────────────────────────────────────────────────────
 
   async salesReport(filter: SalesReportFilterDto): Promise<SalesReportResponseDto> {
@@ -33,42 +47,44 @@ export class ReportService {
     const cached = await this.redis.get(cacheKey);
     if (cached) return JSON.parse(cached);
 
+    const paidStatusIds = await this.getPaidStatusIds();
+
     const whereClause: any = {
-      paymentStatus: { in: ['PAID', 'PARTIAL'] },
+      PaymentStatusID: { in: paidStatusIds },
     };
 
     if (filter.startDate) {
-      whereClause.date = { ...whereClause.date, gte: new Date(filter.startDate) };
+      whereClause.Date = { ...whereClause.Date, gte: new Date(filter.startDate) };
     }
     if (filter.endDate) {
-      whereClause.date = { ...whereClause.date, lte: new Date(filter.endDate + 'T23:59:59') };
+      whereClause.Date = { ...whereClause.Date, lte: new Date(filter.endDate + 'T23:59:59') };
     }
     if (filter.customerId) {
-      whereClause.customerId = filter.customerId;
+      whereClause.CustomerID = filter.customerId;
     }
 
     // Get sales data with items
     const sales = await this.prisma.sale.findMany({
       where: whereClause,
       include: {
-        saleItems: true,
-        customer: { select: { id: true, name: true } },
+        SaleItems: true,
+        Customer: { select: { ID: true, Name: true } },
       },
-      orderBy: { date: 'asc' },
+      orderBy: { Date: 'asc' },
     });
 
     // Calculate summary
-    const totalSales = sales.reduce((sum, s) => sum + Number(s.total), 0);
-    const totalItems = sales.reduce((sum, s) => sum + s.saleItems.reduce((is, i) => is + Number(i.quantity), 0), 0);
+    const totalSales = sales.reduce((sum, s) => sum + Number(s.Total), 0);
+    const totalItems = sales.reduce((sum, s) => sum + s.SaleItems.reduce((is, i) => is + Number(i.Quantity), 0), 0);
 
     // Group by date
     const byDateMap = new Map<string, { totalSales: number; transactions: number; items: number }>();
     for (const sale of sales) {
-      const dateKey = sale.date.toISOString().split('T')[0];
+      const dateKey = sale.Date.toISOString().split('T')[0];
       const existing = byDateMap.get(dateKey) || { totalSales: 0, transactions: 0, items: 0 };
-      existing.totalSales += Number(sale.total);
+      existing.totalSales += Number(sale.Total);
       existing.transactions += 1;
-      existing.items += sale.saleItems.reduce((sum, i) => sum + Number(i.quantity), 0);
+      existing.items += sale.SaleItems.reduce((sum, i) => sum + Number(i.Quantity), 0);
       byDateMap.set(dateKey, existing);
     }
 
@@ -83,14 +99,14 @@ export class ReportService {
     // Group by customer
     const byCustomerMap = new Map<number, { name: string; totalSales: number; transactions: number }>();
     for (const sale of sales) {
-      const existing = byCustomerMap.get(sale.customerId) || {
-        name: sale.customer.name,
+      const existing = byCustomerMap.get(sale.CustomerID) || {
+        name: sale.Customer.Name,
         totalSales: 0,
         transactions: 0,
       };
-      existing.totalSales += Number(sale.total);
+      existing.totalSales += Number(sale.Total);
       existing.transactions += 1;
-      byCustomerMap.set(sale.customerId, existing);
+      byCustomerMap.set(sale.CustomerID, existing);
     }
 
     const byCustomer = filter.customerId ? undefined : Array.from(byCustomerMap.entries()).map(([id, data]) => ({
@@ -103,16 +119,16 @@ export class ReportService {
     // Group by product
     const byProductMap = new Map<number, { name: string; quantity: number; totalSales: number }>();
     for (const sale of sales) {
-      for (const item of sale.saleItems) {
-        const existing = byProductMap.get(item.productId) || {
+      for (const item of sale.SaleItems) {
+        const existing = byProductMap.get(item.ProductID) || {
           name: '',
           quantity: 0,
           totalSales: 0,
         };
-        existing.name = item.productId.toString();
-        existing.quantity += Number(item.quantity);
-        existing.totalSales += Number(item.subtotal);
-        byProductMap.set(item.productId, existing);
+        existing.name = item.ProductID.toString();
+        existing.quantity += Number(item.Quantity);
+        existing.totalSales += Number(item.Subtotal);
+        byProductMap.set(item.ProductID, existing);
       }
     }
 
@@ -146,40 +162,42 @@ export class ReportService {
     const cached = await this.redis.get(cacheKey);
     if (cached) return JSON.parse(cached);
 
+    const paidStatusIds = await this.getPaidStatusIds();
+
     const whereClause: any = {
-      paymentStatus: { in: ['PAID', 'PARTIAL'] },
+      PaymentStatusID: { in: paidStatusIds },
     };
 
     if (filter.startDate) {
-      whereClause.date = { ...whereClause.date, gte: new Date(filter.startDate) };
+      whereClause.Date = { ...whereClause.Date, gte: new Date(filter.startDate) };
     }
     if (filter.endDate) {
-      whereClause.date = { ...whereClause.date, lte: new Date(filter.endDate + 'T23:59:59') };
+      whereClause.Date = { ...whereClause.Date, lte: new Date(filter.endDate + 'T23:59:59') };
     }
     if (filter.supplierId) {
-      whereClause.supplierId = filter.supplierId;
+      whereClause.SupplierID = filter.supplierId;
     }
 
     const purchases = await this.prisma.purchase.findMany({
       where: whereClause,
       include: {
-        purchaseItems: true,
-        supplier: { select: { id: true, name: true } },
+        PurchaseItems: true,
+        Supplier: { select: { ID: true, Name: true } },
       },
-      orderBy: { date: 'asc' },
+      orderBy: { Date: 'asc' },
     });
 
-    const totalPurchases = purchases.reduce((sum, p) => sum + Number(p.total), 0);
-    const totalItems = purchases.reduce((sum, p) => sum + p.purchaseItems.reduce((is, i) => is + Number(i.quantity), 0), 0);
+    const totalPurchases = purchases.reduce((sum, p) => sum + Number(p.Total), 0);
+    const totalItems = purchases.reduce((sum, p) => sum + p.PurchaseItems.reduce((is, i) => is + Number(i.Quantity), 0), 0);
 
     // Group by date
     const byDateMap = new Map<string, { totalPurchases: number; transactions: number; items: number }>();
     for (const purchase of purchases) {
-      const dateKey = purchase.date.toISOString().split('T')[0];
+      const dateKey = purchase.Date.toISOString().split('T')[0];
       const existing = byDateMap.get(dateKey) || { totalPurchases: 0, transactions: 0, items: 0 };
-      existing.totalPurchases += Number(purchase.total);
+      existing.totalPurchases += Number(purchase.Total);
       existing.transactions += 1;
-      existing.items += purchase.purchaseItems.reduce((sum, i) => sum + Number(i.quantity), 0);
+      existing.items += purchase.PurchaseItems.reduce((sum, i) => sum + Number(i.Quantity), 0);
       byDateMap.set(dateKey, existing);
     }
 
@@ -194,14 +212,14 @@ export class ReportService {
     // Group by supplier
     const bySupplierMap = new Map<number, { name: string; totalPurchases: number; transactions: number }>();
     for (const purchase of purchases) {
-      const existing = bySupplierMap.get(purchase.supplierId) || {
-        name: purchase.supplier.name,
+      const existing = bySupplierMap.get(purchase.SupplierID) || {
+        name: purchase.Supplier.Name,
         totalPurchases: 0,
         transactions: 0,
       };
-      existing.totalPurchases += Number(purchase.total);
+      existing.totalPurchases += Number(purchase.Total);
       existing.transactions += 1;
-      bySupplierMap.set(purchase.supplierId, existing);
+      bySupplierMap.set(purchase.SupplierID, existing);
     }
 
     const bySupplier = filter.supplierId ? undefined : Array.from(bySupplierMap.entries()).map(([id, data]) => ({
@@ -214,15 +232,15 @@ export class ReportService {
     // Group by product
     const byProductMap = new Map<number, { name: string; quantity: number; totalPurchases: number }>();
     for (const purchase of purchases) {
-      for (const item of purchase.purchaseItems) {
-        const existing = byProductMap.get(item.productId) || {
+      for (const item of purchase.PurchaseItems) {
+        const existing = byProductMap.get(item.ProductID) || {
           name: '',
           quantity: 0,
           totalPurchases: 0,
         };
-        existing.quantity += Number(item.quantity);
-        existing.totalPurchases += Number(item.subtotal);
-        byProductMap.set(item.productId, existing);
+        existing.quantity += Number(item.Quantity);
+        existing.totalPurchases += Number(item.Subtotal);
+        byProductMap.set(item.ProductID, existing);
       }
     }
 
@@ -256,20 +274,20 @@ export class ReportService {
     const cached = await this.redis.get(cacheKey);
     if (cached) return JSON.parse(cached);
 
-    const whereClause: any = { isActive: true };
+    const whereClause: any = { IsActive: true };
     if (filter.categoryId) {
-      whereClause.categoryId = filter.categoryId;
+      whereClause.CategoryID = filter.categoryId;
     }
     if (filter.warehouseId) {
-      whereClause.warehouseId = filter.warehouseId;
+      whereClause.WarehouseID = filter.warehouseId;
     }
 
     const products = await this.prisma.product.findMany({
       where: whereClause,
       include: {
-        category: { select: { name: true } },
-        warehouse: { select: { name: true } },
-        productStocks: filter.warehouseId ? undefined : true,
+        Category: { select: { Name: true } },
+        Warehouse: { select: { Name: true } },
+        ProductStocks: filter.warehouseId ? undefined : true,
       },
     });
 
@@ -279,10 +297,10 @@ export class ReportService {
 
     const items = products.map((product) => {
       const quantity = filter.warehouseId
-        ? Number(product.stock)
-        : product.productStocks?.reduce((sum, ps) => sum + Number(ps.quantity), 0) || 0;
-      const stockValue = quantity * Number(product.purchasePrice);
-      const isLowStock = quantity > 0 && quantity <= Number(product.minimumStock);
+        ? Number(product.Stock)
+        : product.ProductStocks?.reduce((sum, ps) => sum + Number(ps.Quantity), 0) || 0;
+      const stockValue = quantity * Number(product.PurchasePrice);
+      const isLowStock = quantity > 0 && quantity <= Number(product.MinimumStock);
       const isOutOfStock = quantity <= 0;
 
       if (isLowStock) lowStockCount++;
@@ -290,15 +308,15 @@ export class ReportService {
       totalValue += stockValue;
 
       return {
-        productId: product.id,
-        productCode: product.code,
-        productName: product.name,
-        categoryName: product.category?.name,
-        warehouseName: product.warehouse?.name,
+        productId: product.ID,
+        productCode: product.Code,
+        productName: product.Name,
+        categoryName: product.Category?.Name,
+        warehouseName: product.Warehouse?.Name,
         quantity,
-        minStock: Number(product.minimumStock),
-        purchasePrice: Number(product.purchasePrice),
-        sellPrice: Number(product.sellingPrice),
+        minStock: Number(product.MinimumStock),
+        purchasePrice: Number(product.PurchasePrice),
+        sellPrice: Number(product.SellingPrice),
         stockValue,
         isLowStock,
         isOutOfStock,
@@ -319,7 +337,7 @@ export class ReportService {
     return result;
   }
 
-  // ─── Cash Report ────────────────────────────────────────────────────────────
+  // ─── Cash Report ───────────────────────────────────────────────────────────
 
   async cashReport(filter: DateRangeFilterDto): Promise<CashReportResponseDto> {
     const cacheKey = `${this.CACHE_PREFIX}:cash:${JSON.stringify(filter)}`;
@@ -338,42 +356,45 @@ export class ReportService {
 
     // Get cash in
     const cashIns = await this.prisma.cashIn.findMany({
-      where: dateFilter ? { date: dateFilter } : undefined,
-      orderBy: { date: 'asc' },
-      select: { date: true, description: true, amount: true, referenceId: true },
+      where: dateFilter ? { Date: dateFilter } : undefined,
+      orderBy: { Date: 'asc' },
+      select: { Date: true, Description: true, Amount: true, ReferenceID: true },
     });
 
     // Get cash out
     const cashOuts = await this.prisma.cashOut.findMany({
-      where: dateFilter ? { date: dateFilter } : undefined,
-      orderBy: { date: 'asc' },
-      select: { date: true, description: true, amount: true, referenceId: true },
+      where: dateFilter ? { Date: dateFilter } : undefined,
+      orderBy: { Date: 'asc' },
+      select: { Date: true, Description: true, Amount: true, ReferenceID: true },
     });
+
+    // Get cash method ID
+    const cashMethod = await this.prisma.paymentMethod.findUnique({ where: { Code: 'CASH' } });
 
     // Get sale payments (cash payments from sales)
     const salePayments = await this.prisma.salePayment.findMany({
       where: {
-        date: dateFilter,
-        method: 'CASH',
+        Date: dateFilter,
+        MethodID: cashMethod?.ID,
       },
-      orderBy: { date: 'asc' },
-      select: { date: true, amount: true, method: true },
+      orderBy: { Date: 'asc' },
+      select: { Date: true, Amount: true, MethodID: true },
     });
 
     // Get purchase payments (cash payments for purchases)
     const purchasePayments = await this.prisma.purchasePayment.findMany({
       where: {
-        date: dateFilter,
-        method: 'CASH',
+        Date: dateFilter,
+        MethodID: cashMethod?.ID,
       },
-      orderBy: { date: 'asc' },
-      select: { date: true, amount: true, method: true },
+      orderBy: { Date: 'asc' },
+      select: { Date: true, Amount: true, MethodID: true },
     });
 
-    const totalCashIn = cashIns.reduce((sum, c) => sum + Number(c.amount), 0);
-    const totalCashOut = cashOuts.reduce((sum, c) => sum + Number(c.amount), 0);
-    const totalSalePayments = salePayments.reduce((sum, p) => sum + Number(p.amount), 0);
-    const totalPurchasePayments = purchasePayments.reduce((sum, p) => sum + Number(p.amount), 0);
+    const totalCashIn = cashIns.reduce((sum, c) => sum + Number(c.Amount), 0);
+    const totalCashOut = cashOuts.reduce((sum, c) => sum + Number(c.Amount), 0);
+    const totalSalePayments = salePayments.reduce((sum, p) => sum + Number(p.Amount), 0);
+    const totalPurchasePayments = purchasePayments.reduce((sum, p) => sum + Number(p.Amount), 0);
 
     const result: CashReportResponseDto = {
       summary: {
@@ -383,26 +404,26 @@ export class ReportService {
         endingBalance: (totalCashIn + totalSalePayments) - (totalCashOut + totalPurchasePayments),
       },
       cashIns: cashIns.map((c) => ({
-        date: c.date.toISOString().split('T')[0],
-        description: c.description || '',
-        amount: Number(c.amount),
-        reference: c.referenceId?.toString() || undefined,
+        date: c.Date.toISOString().split('T')[0],
+        description: c.Description || '',
+        amount: Number(c.Amount),
+        reference: c.ReferenceID?.toString() || undefined,
       })),
       cashOuts: cashOuts.map((c) => ({
-        date: c.date.toISOString().split('T')[0],
-        description: c.description || '',
-        amount: Number(c.amount),
-        reference: c.referenceId?.toString() || undefined,
+        date: c.Date.toISOString().split('T')[0],
+        description: c.Description || '',
+        amount: Number(c.Amount),
+        reference: c.ReferenceID?.toString() || undefined,
       })),
       salePayments: salePayments.map((p) => ({
-        date: p.date.toISOString().split('T')[0],
-        amount: Number(p.amount),
-        paymentMethod: p.method || undefined,
+        date: p.Date.toISOString().split('T')[0],
+        amount: Number(p.Amount),
+        paymentMethod: cashMethod?.Name || 'CASH',
       })),
       purchasePayments: purchasePayments.map((p) => ({
-        date: p.date.toISOString().split('T')[0],
-        amount: Number(p.amount),
-        paymentMethod: p.method || undefined,
+        date: p.Date.toISOString().split('T')[0],
+        amount: Number(p.Amount),
+        paymentMethod: cashMethod?.Name || 'CASH',
       })),
     };
 
@@ -417,55 +438,57 @@ export class ReportService {
     const cached = await this.redis.get(cacheKey);
     if (cached) return JSON.parse(cached);
 
+    const paidStatusIds = await this.getPaidStatusIds();
+
     const whereClause: any = {};
     if (filter.startDate) {
-      whereClause.date = { ...whereClause.date, gte: new Date(filter.startDate) };
+      whereClause.Date = { ...whereClause.Date, gte: new Date(filter.startDate) };
     }
     if (filter.endDate) {
-      whereClause.date = { ...whereClause.date, lte: new Date(filter.endDate + 'T23:59:59') };
+      whereClause.Date = { ...whereClause.Date, lte: new Date(filter.endDate + 'T23:59:59') };
     }
 
     // Get sales (revenue)
     const sales = await this.prisma.sale.findMany({
-      where: { ...whereClause, paymentStatus: { in: ['PAID', 'PARTIAL'] } },
-      select: { date: true, total: true },
+      where: { ...whereClause, PaymentStatusID: { in: paidStatusIds } },
+      select: { Date: true, Total: true },
     });
 
     // Get purchases (cost of goods sold)
     const purchases = await this.prisma.purchase.findMany({
-      where: { ...whereClause, paymentStatus: { in: ['PAID', 'PARTIAL'] } },
-      select: { date: true, total: true },
+      where: { ...whereClause, PaymentStatusID: { in: paidStatusIds } },
+      select: { Date: true, Total: true },
     });
 
     // Get expenses (cash outs)
     const expenses = await this.prisma.cashOut.findMany({
-      where: whereClause.date ? { date: whereClause.date } : undefined,
-      include: { account: { select: { name: true } } },
+      where: whereClause.Date ? { Date: whereClause.Date } : undefined,
+      include: { Account: { select: { Name: true } } },
     });
 
-    const totalRevenue = sales.reduce((sum, s) => sum + Number(s.total), 0);
-    const totalCOGS = purchases.reduce((sum, p) => sum + Number(p.total), 0);
-    const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+    const totalRevenue = sales.reduce((sum, s) => sum + Number(s.Total), 0);
+    const totalCOGS = purchases.reduce((sum, p) => sum + Number(p.Total), 0);
+    const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.Amount), 0);
 
     // Group revenue by date
     const revenueByDate = new Map<string, number>();
     for (const sale of sales) {
-      const dateKey = sale.date.toISOString().split('T')[0];
-      revenueByDate.set(dateKey, (revenueByDate.get(dateKey) || 0) + Number(sale.total));
+      const dateKey = sale.Date.toISOString().split('T')[0];
+      revenueByDate.set(dateKey, (revenueByDate.get(dateKey) || 0) + Number(sale.Total));
     }
 
     // Group COGS by date
     const cogsByDate = new Map<string, number>();
     for (const purchase of purchases) {
-      const dateKey = purchase.date.toISOString().split('T')[0];
-      cogsByDate.set(dateKey, (cogsByDate.get(dateKey) || 0) + Number(purchase.total));
+      const dateKey = purchase.Date.toISOString().split('T')[0];
+      cogsByDate.set(dateKey, (cogsByDate.get(dateKey) || 0) + Number(purchase.Total));
     }
 
     // Group expenses by account
     const expensesByAccount = new Map<string, number>();
     for (const expense of expenses) {
-      const accountName = expense.account.name;
-      expensesByAccount.set(accountName, (expensesByAccount.get(accountName) || 0) + Number(expense.amount));
+      const accountName = expense.Account.Name;
+      expensesByAccount.set(accountName, (expensesByAccount.get(accountName) || 0) + Number(expense.Amount));
     }
 
     const result: FinancialReportResponseDto = {
@@ -492,50 +515,52 @@ export class ReportService {
     const cached = await this.redis.get(cacheKey);
     if (cached) return JSON.parse(cached);
 
+    const paidStatusIds = await this.getPaidStatusIds();
+
     const whereClause: any = {};
     if (filter.startDate) {
-      whereClause.date = { ...whereClause.date, gte: new Date(filter.startDate) };
+      whereClause.Date = { ...whereClause.Date, gte: new Date(filter.startDate) };
     }
     if (filter.endDate) {
-      whereClause.date = { ...whereClause.date, lte: new Date(filter.endDate + 'T23:59:59') };
+      whereClause.Date = { ...whereClause.Date, lte: new Date(filter.endDate + 'T23:59:59') };
     }
 
     // Sales revenue
     const sales = await this.prisma.sale.findMany({
-      where: { ...whereClause, paymentStatus: { in: ['PAID', 'PARTIAL'] } },
-      select: { subtotal: true, taxAmount: true, discountAmount: true },
+      where: { ...whereClause, PaymentStatusID: { in: paidStatusIds } },
+      select: { Subtotal: true, TaxAmount: true, DiscountAmount: true },
     });
 
     // Purchase costs
     const purchases = await this.prisma.purchase.findMany({
-      where: { ...whereClause, paymentStatus: { in: ['PAID', 'PARTIAL'] } },
-      select: { subtotal: true },
+      where: { ...whereClause, PaymentStatusID: { in: paidStatusIds } },
+      select: { Subtotal: true },
     });
 
     // Returns reduce revenue
     const saleReturns = await this.prisma.saleReturn.findMany({
-      where: whereClause.date ? { date: whereClause.date } : undefined,
-      select: { totalReturn: true },
+      where: whereClause.Date ? { Date: whereClause.Date } : undefined,
+      select: { TotalReturn: true },
     });
 
     const purchaseReturns = await this.prisma.purchaseReturn.findMany({
-      where: whereClause.date ? { date: whereClause.date } : undefined,
-      select: { totalReturn: true },
+      where: whereClause.Date ? { Date: whereClause.Date } : undefined,
+      select: { TotalReturn: true },
     });
 
     // Expenses
     const expenses = await this.prisma.cashOut.findMany({
-      where: whereClause.date ? { date: whereClause.date } : undefined,
-      include: { account: { select: { name: true } } },
+      where: whereClause.Date ? { Date: whereClause.Date } : undefined,
+      include: { Account: { select: { Name: true } } },
     });
 
-    const totalSales = sales.reduce((sum, s) => sum + Number(s.subtotal), 0);
-    const totalSalesTax = sales.reduce((sum, s) => sum + Number(s.taxAmount), 0);
-    const totalSalesDiscount = sales.reduce((sum, s) => sum + Number(s.discountAmount), 0);
-    const totalSaleReturns = saleReturns.reduce((sum, r) => sum + Number(r.totalReturn), 0);
-    const totalPurchases = purchases.reduce((sum, p) => sum + Number(p.subtotal), 0);
-    const totalPurchaseReturns = purchaseReturns.reduce((sum, r) => sum + Number(r.totalReturn), 0);
-    const totalExpensesAmount = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+    const totalSales = sales.reduce((sum, s) => sum + Number(s.Subtotal), 0);
+    const totalSalesTax = sales.reduce((sum, s) => sum + Number(s.TaxAmount), 0);
+    const totalSalesDiscount = sales.reduce((sum, s) => sum + Number(s.DiscountAmount), 0);
+    const totalSaleReturns = saleReturns.reduce((sum, r) => sum + Number(r.TotalReturn), 0);
+    const totalPurchases = purchases.reduce((sum, p) => sum + Number(p.Subtotal), 0);
+    const totalPurchaseReturns = purchaseReturns.reduce((sum, r) => sum + Number(r.TotalReturn), 0);
+    const totalExpensesAmount = expenses.reduce((sum, e) => sum + Number(e.Amount), 0);
 
     const grossProfit = (totalSales - totalSaleReturns) - (totalPurchases - totalPurchaseReturns);
     const netProfit = grossProfit - totalExpensesAmount;
@@ -544,8 +569,8 @@ export class ReportService {
     // Group expenses by account
     const expensesByAccount = new Map<string, number>();
     for (const expense of expenses) {
-      const accountName = expense.account.name;
-      expensesByAccount.set(accountName, (expensesByAccount.get(accountName) || 0) + Number(expense.amount));
+      const accountName = expense.Account.Name;
+      expensesByAccount.set(accountName, (expensesByAccount.get(accountName) || 0) + Number(expense.Amount));
     }
 
     const result: ProfitLossReportResponseDto = {
@@ -582,27 +607,29 @@ export class ReportService {
     const cached = await this.redis.get(cacheKey);
     if (cached) return JSON.parse(cached);
 
+    const pendingStatusIds = await this.getPendingStatusIds();
+
     const purchases = await this.prisma.purchase.findMany({
       where: {
-        paymentStatus: { in: ['PENDING', 'PARTIAL'] },
+        PaymentStatusID: { in: pendingStatusIds },
       },
       include: {
-        supplier: { select: { name: true } },
-        purchasePayments: true,
+        Supplier: { select: { ID: true, Name: true } },
+        PurchasePayments: true,
       },
-      orderBy: { date: 'asc' },
+      orderBy: { Date: 'asc' },
     });
 
     const debts = purchases.map((purchase) => {
-      const totalPaid = purchase.purchasePayments.reduce((sum, p) => sum + Number(p.amount), 0);
-      const remaining = Number(purchase.total) - totalPaid;
+      const totalPaid = purchase.PurchasePayments.reduce((sum, p) => sum + Number(p.Amount), 0);
+      const remaining = Number(purchase.Total) - totalPaid;
 
       return {
-        purchaseId: purchase.id,
-        code: purchase.code,
-        supplierName: purchase.supplier.name,
-        date: purchase.date.toISOString().split('T')[0],
-        total: Number(purchase.total),
+        purchaseId: purchase.ID,
+        code: purchase.Code,
+        supplierName: purchase.Supplier.Name,
+        date: purchase.Date.toISOString().split('T')[0],
+        total: Number(purchase.Total),
         paid: totalPaid,
         remaining,
       };
@@ -633,27 +660,29 @@ export class ReportService {
     const cached = await this.redis.get(cacheKey);
     if (cached) return JSON.parse(cached);
 
+    const pendingStatusIds = await this.getPendingStatusIds();
+
     const sales = await this.prisma.sale.findMany({
       where: {
-        paymentStatus: { in: ['PENDING', 'PARTIAL'] },
+        PaymentStatusID: { in: pendingStatusIds },
       },
       include: {
-        customer: { select: { name: true } },
-        salePayments: true,
+        Customer: { select: { ID: true, Name: true } },
+        SalePayments: true,
       },
-      orderBy: { date: 'asc' },
+      orderBy: { Date: 'asc' },
     });
 
     const receivables = sales.map((sale) => {
-      const totalPaid = sale.salePayments.reduce((sum, p) => sum + Number(p.amount), 0);
-      const remaining = Number(sale.total) - totalPaid;
+      const totalPaid = sale.SalePayments.reduce((sum, p) => sum + Number(p.Amount), 0);
+      const remaining = Number(sale.Total) - totalPaid;
 
       return {
-        saleId: sale.id,
-        code: sale.code,
-        customerName: sale.customer.name,
-        date: sale.date.toISOString().split('T')[0],
-        total: Number(sale.total),
+        saleId: sale.ID,
+        code: sale.Code,
+        customerName: sale.Customer.Name,
+        date: sale.Date.toISOString().split('T')[0],
+        total: Number(sale.Total),
         paid: totalPaid,
         remaining,
       };

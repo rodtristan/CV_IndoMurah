@@ -5,72 +5,77 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CreatePurchaseReturnItemDto {
   @ApiProperty({ description: 'Product ID' })
   @IsInt()
-  productId: number;
+  ProductID: number;
 
   @ApiProperty({ description: 'Quantity to return' })
   @IsNumber()
-  quantity: number;
+  Quantity: number;
 
   @ApiProperty({ description: 'Unit ID' })
   @IsInt()
-  unitId: number;
+  UnitID: number;
 
   @ApiProperty({ description: 'Unit price' })
   @IsNumber()
-  unitPrice: number;
+  UnitPrice: number;
 }
 
 export class CreatePurchaseReturnDto {
   @ApiProperty({ description: 'Purchase ID' })
   @IsInt()
-  purchaseId: number;
+  PurchaseID: number;
 
   @ApiPropertyOptional({ description: 'Supplier ID (auto-filled from purchase)' })
   @IsOptional()
   @IsInt()
-  supplierId?: number;
+  SupplierID?: number;
 
   @ApiPropertyOptional({ description: 'Warehouse ID' })
   @IsOptional()
   @IsInt()
-  warehouseId?: number;
+  WarehouseID?: number;
 
   @ApiPropertyOptional({ description: 'Return date' })
   @IsOptional()
   @IsDateString()
-  date?: string;
+  Date?: string;
 
   @ApiPropertyOptional({ description: 'Return reason' })
   @IsOptional()
   @IsString()
-  reason?: string;
+  Reason?: string;
 
   @ApiProperty({ description: 'Return items', type: [CreatePurchaseReturnItemDto] })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreatePurchaseReturnItemDto)
-  items: CreatePurchaseReturnItemDto[];
+  Items: CreatePurchaseReturnItemDto[];
 }
 
 export class UpdatePurchaseReturnDto {
   @ApiPropertyOptional({ description: 'Warehouse ID' })
   @IsOptional()
   @IsInt()
-  warehouseId?: number;
+  WarehouseID?: number;
 
   @ApiPropertyOptional({ description: 'Return date' })
   @IsOptional()
   @IsDateString()
-  date?: string;
+  Date?: string;
 
   @ApiPropertyOptional({ description: 'Return reason' })
   @IsOptional()
   @IsString()
-  reason?: string;
+  Reason?: string;
+
+  @ApiPropertyOptional({ description: 'Status ID' })
+  @IsOptional()
+  @IsInt()
+  StatusID?: number;
 }
 
-export class UpdateStatusDto {
-  @ApiProperty({ description: 'New status: DRAFT, CONFIRMED, COMPLETED, CANCELLED' })
+export class UpdatePurchaseReturnStatusDto {
+  @ApiProperty({ description: 'New status code: DRAFT, CONFIRMED, COMPLETED, CANCELLED' })
   @IsString()
-  status: string;
+  StatusCode: string;
 }

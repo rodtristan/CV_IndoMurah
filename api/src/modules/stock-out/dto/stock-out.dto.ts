@@ -1,55 +1,86 @@
-import { IsString, IsOptional, IsInt, IsEnum } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsInt, IsArray, ValidateNested, IsDateString } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ReferenceType, TransactionStatus } from '@prisma/client';
+
+export class CreateStockOutItemDto {
+  @ApiProperty({ description: 'Product ID' })
+  @IsInt()
+  ProductID: number;
+
+  @ApiProperty({ description: 'Quantity' })
+  @IsNumber()
+  Quantity: number;
+
+  @ApiProperty({ description: 'Unit ID' })
+  @IsInt()
+  UnitID: number;
+
+  @ApiProperty({ description: 'Unit price' })
+  @IsNumber()
+  UnitPrice: number;
+
+  @ApiPropertyOptional({ description: 'Subtotal' })
+  @IsOptional()
+  @IsNumber()
+  Subtotal?: number;
+}
 
 export class CreateStockOutDto {
-  @ApiProperty({ description: 'Kode barang keluar' })
-  @IsString()
-  code: string;
-
-  @ApiProperty({ description: 'Gudang asal' })
+  @ApiProperty({ description: 'Warehouse ID' })
   @IsInt()
-  warehouseId: number;
+  WarehouseID: number;
 
-  @ApiPropertyOptional({ enum: ReferenceType })
+  @ApiPropertyOptional({ description: 'Reference type ID' })
   @IsOptional()
-  @IsEnum(ReferenceType)
-  referenceType?: ReferenceType;
+  @IsInt()
+  ReferenceTypeID?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Reference ID' })
+  @IsOptional()
+  @IsInt()
+  ReferenceID?: number;
+
+  @ApiPropertyOptional({ description: 'Stock out date', type: String })
+  @IsOptional()
+  @IsDateString()
+  Date?: string;
+
+  @ApiPropertyOptional({ description: 'Description' })
   @IsOptional()
   @IsString()
-  description?: string;
+  Description?: string;
 
-  @ApiPropertyOptional({ enum: TransactionStatus })
-  @IsOptional()
-  @IsEnum(TransactionStatus)
-  status?: TransactionStatus;
+  @ApiProperty({ description: 'Stock out items', type: [CreateStockOutItemDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateStockOutItemDto)
+  Items: CreateStockOutItemDto[];
 }
 
 export class UpdateStockOutDto {
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  code?: string;
-
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Warehouse ID' })
   @IsOptional()
   @IsInt()
-  warehouseId?: number;
+  WarehouseID?: number;
 
-  @ApiPropertyOptional({ enum: ReferenceType })
+  @ApiPropertyOptional({ description: 'Stock out date', type: String })
   @IsOptional()
-  @IsEnum(ReferenceType)
-  referenceType?: ReferenceType;
+  @IsDateString()
+  Date?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Description' })
   @IsOptional()
   @IsString()
-  description?: string;
+  Description?: string;
 
-  @ApiPropertyOptional({ enum: TransactionStatus })
+  @ApiPropertyOptional({ description: 'Status ID' })
   @IsOptional()
-  @IsEnum(TransactionStatus)
-  status?: TransactionStatus;
+  @IsInt()
+  StatusID?: number;
+}
+
+export class UpdateStockOutStatusDto {
+  @ApiProperty({ description: 'New status code (e.g., DRAFT, CONFIRMED, COMPLETED, CANCELLED)' })
+  @IsString()
+  StatusCode: string;
 }

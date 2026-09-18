@@ -8,7 +8,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 @ApiTags('Production Items')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('production-items')
+@Controller('ProductionItems')
 export class ProductionItemController extends BaseController<
   any,
   CreateProductionItemDto,
