@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Building2, UserRound, ShieldCheck, KeyRound, Settings2, Hash, Menu as MenuIcon, ScrollText } from "lucide-react";
+import { Building2, UserRound, ShieldCheck, KeyRound, Settings2, Hash, Menu as MenuIcon, ScrollText, Upload } from "lucide-react";
 import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { useAuth } from "@/lib/auth-context";
 
@@ -12,6 +12,7 @@ const SETTINGS_LINKS = [
   { href: "/settings/roles", label: "Hak Akses", description: "Kelola role & izin per menu", icon: ShieldCheck },
   { href: "/settings/menus", label: "Menu Aplikasi", description: "Katalog menu untuk hak akses", icon: MenuIcon },
   { href: "/settings/activity-log", label: "Log Aktivitas", description: "Riwayat aktivitas pengguna di sistem", icon: ScrollText },
+  { href: "/settings/import", label: "Import Data", description: "Import massal supplier, pelanggan, item dari CSV", icon: Upload },
   { href: "/settings/general", label: "Pengaturan Umum", description: "Umum, transaksi, dan desimal digit", icon: Settings2 },
   { href: "/settings/numbering", label: "Setting Nomor", description: "Format penomoran otomatis transaksi", icon: Hash },
 ];

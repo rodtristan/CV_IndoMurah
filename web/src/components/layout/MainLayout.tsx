@@ -64,6 +64,7 @@ const TITLE_OVERRIDES: Record<string, string> = {
   "/settings/roles": "Hak Akses",
   "/settings/menus": "Menu Aplikasi",
   "/settings/activity-log": "Log Aktivitas",
+  "/settings/import": "Import Data",
   "/settings/users": "Pengguna",
 };
 
