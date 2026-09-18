@@ -5,6 +5,37 @@
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
+// ─── Global in-flight request tracker ──────────────────────────
+// Every get/post/put/patch/delete/login call funnels through
+// processRequest() below, so incrementing/decrementing here in one
+// place gives every page a global "is the backend loading right now"
+// signal without each page having to track its own fetch state.
+let pendingRequestCount = 0;
+const loadingListeners = new Set<() => void>();
+
+function notifyLoadingListeners(): void {
+  for (const listener of loadingListeners) listener();
+}
+
+function beginRequest(): void {
+  pendingRequestCount += 1;
+  notifyLoadingListeners();
+}
+
+function endRequest(): void {
+  pendingRequestCount = Math.max(0, pendingRequestCount - 1);
+  notifyLoadingListeners();
+}
+
+export function subscribeApiLoading(listener: () => void): () => void {
+  loadingListeners.add(listener);
+  return () => loadingListeners.delete(listener);
+}
+
+export function getApiLoadingSnapshot(): boolean {
+  return pendingRequestCount > 0;
+}
+
 // ─── Types ──────────────────────────────────────────────────
 
 export interface ApiResponse<T = unknown> {
@@ -297,14 +328,19 @@ class ApiClient {
     if (cache) fetchOptions.cache = cache;
     if (tags) fetchOptions.next = { tags };
 
-    const response = await fetch(url, fetchOptions);
+    beginRequest();
+    try {
+      const response = await fetch(url, fetchOptions);
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } finally {
+      endRequest();
     }
-
-    return response.json();
   }
 
   async request<T>(

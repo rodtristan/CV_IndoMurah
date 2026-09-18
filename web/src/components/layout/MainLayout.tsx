@@ -8,6 +8,7 @@ import { cn, formatTimeAgo } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api-client";
 import { POSSidebar } from "./Sidebar";
+import { GlobalApiLoader } from "@/components/ui/Loader";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -312,6 +313,7 @@ export function MainLayout({ children }: MainLayoutProps) {
               </button>
             )}
             <h1 className="text-lg font-semibold text-highlighted">{title}</h1>
+            <GlobalApiLoader className="text-primary" />
           </div>
           <div className="flex items-center gap-4">
             <span className="hidden text-sm font-medium text-toned md:inline">

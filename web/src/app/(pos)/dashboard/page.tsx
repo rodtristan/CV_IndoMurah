@@ -196,7 +196,8 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Penjualan"
-          value={loading ? "-" : formatCurrency(stats?.totalSales || 0)}
+          value={formatCurrency(stats?.totalSales || 0)}
+          loading={loading}
           change="+12.5%"
           changeType="up"
           icon={TrendingUp}
@@ -205,7 +206,8 @@ export default function DashboardPage() {
         />
         <StatCard
           title="Total Pembelian"
-          value={loading ? "-" : formatCurrency(stats?.totalPurchases || 0)}
+          value={formatCurrency(stats?.totalPurchases || 0)}
+          loading={loading}
           change="+8.3%"
           changeType="up"
           icon={ShoppingCart}
@@ -214,7 +216,8 @@ export default function DashboardPage() {
         />
         <StatCard
           title="Laba Kotor"
-          value={loading ? "-" : formatCurrency(stats?.grossProfit || 0)}
+          value={formatCurrency(stats?.grossProfit || 0)}
+          loading={loading}
           change="+15.2%"
           changeType="up"
           icon={DollarSign}
@@ -223,7 +226,8 @@ export default function DashboardPage() {
         />
         <StatCard
           title="Stock Minim"
-          value={loading ? "-" : formatNumber(stats?.lowStockCount || 0)}
+          value={formatNumber(stats?.lowStockCount || 0)}
+          loading={loading}
           subtitle={`${stats?.outOfStockCount || 0} out of stock`}
           icon={AlertTriangle}
           iconClassName="bg-warning/10 text-warning"

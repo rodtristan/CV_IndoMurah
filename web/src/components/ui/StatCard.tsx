@@ -4,6 +4,7 @@ import { cn, formatCurrency, formatNumber } from "@/lib/utils";
 import { TrendingUp, TrendingDown, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { EllipsisLoader } from "./Loader";
 
 interface StatCardProps {
   title: string;
@@ -15,6 +16,8 @@ interface StatCardProps {
   iconClassName?: string;
   href?: string;
   className?: string;
+  /** Show an ellipsis loader instead of `value` while the data backing this card is still being fetched. */
+  loading?: boolean;
 }
 
 export function StatCard({
@@ -27,6 +30,7 @@ export function StatCard({
   iconClassName = "bg-primary/10 text-primary",
   href,
   className,
+  loading,
 }: StatCardProps) {
   const content = (
     <div className={cn("rounded-xl border border-default bg-elevated p-5 shadow-sm transition-shadow hover:shadow-md", className)}>
@@ -34,7 +38,9 @@ export function StatCard({
         <div className="space-y-1">
           <p className="text-sm font-medium text-muted">{title}</p>
           <p className="text-2xl font-bold text-highlighted">
-            {typeof value === "number" ? (
+            {loading ? (
+              <EllipsisLoader className="text-muted" />
+            ) : typeof value === "number" ? (
               value > 1000000
                 ? formatCurrency(value)
                 : formatNumber(value)
