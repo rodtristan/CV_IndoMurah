@@ -674,6 +674,21 @@ export interface TopProduct {
   totalSales: number;
 }
 
+export interface DashboardTopProduct {
+  productId: number;
+  productCode: string;
+  productName: string;
+  totalQuantity: number;
+  totalRevenue: number;
+}
+
+export interface SalesByBranch {
+  salePointId: number;
+  salePointName: string;
+  totalSales: number;
+  transactionCount: number;
+}
+
 export interface SalesReport {
   summary: {
     totalSales: number;

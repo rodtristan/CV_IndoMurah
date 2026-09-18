@@ -60,6 +60,13 @@ export class RecentTransactionDto {
   counterpartyName: string;
 }
 
+export class SalesByBranchDto {
+  salePointId: number;
+  salePointName: string;
+  totalSales: number;
+  transactionCount: number;
+}
+
 export class DashboardResponseDto {
   summary: DashboardSummaryDto;
   topProducts: TopProductDto[];
@@ -68,4 +75,5 @@ export class DashboardResponseDto {
   lowStockItems: LowStockItemDto[];
   outOfStockItems: LowStockItemDto[];
   recentTransactions: RecentTransactionDto[];
+  salesByBranch: SalesByBranchDto[];
 }
