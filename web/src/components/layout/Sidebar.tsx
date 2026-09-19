@@ -145,6 +145,7 @@ const MENU_GROUPS: MenuGroup[] = [
     icon: BarChart3,
     iconColor: "#3F51B5",
     items: [
+      { label: "Menu Laporan", href: "/reports" },
       { label: "Penjualan", href: "/reports/sales" },
       { label: "Pembelian", href: "/reports/purchase" },
       { label: "Inventory", href: "/reports/inventory" },
@@ -180,6 +181,19 @@ const MENU_GROUPS: MenuGroup[] = [
     iconColor: "#F4511E",
   },
 ];
+
+/** Longest-href match across every menu item, so "/reports" doesn't light up for "/reports/sales". */
+function findActiveHref(pathname: string): string | null {
+  let best: string | null = null;
+  for (const g of MENU_GROUPS) {
+    for (const i of g.items ?? []) {
+      if (pathname === i.href || pathname.startsWith(i.href + "/")) {
+        if (!best || i.href.length > best.length) best = i.href;
+      }
+    }
+  }
+  return best;
+}
 
 // ─── Components ───────────────────────────────────────────────
 // Clicking a group with children accordions its sub-items open directly
@@ -258,6 +272,7 @@ function AccordionPanel({
 }) {
   const pathname = usePathname();
   if (!group.items?.length) return null;
+  const activeHref = findActiveHref(pathname);
 
   return (
     <div
@@ -268,7 +283,7 @@ function AccordionPanel({
     >
       <div className="min-h-0">
         {group.items.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(item.href + "/");
+          const active = item.href === activeHref;
 
           if (item.disabled) {
             return (
@@ -308,10 +323,9 @@ function AccordionPanel({
 
 export function POSSidebar({ collapsed = false }: { collapsed?: boolean }) {
   const pathname = usePathname();
+  const activeHref = findActiveHref(pathname);
   const [openKey, setOpenKey] = useState<string | null>(() => {
-    const active = MENU_GROUPS.find((g) =>
-      g.items?.some((i) => pathname === i.href || pathname.startsWith(i.href + "/"))
-    );
+    const active = MENU_GROUPS.find((g) => g.items?.some((i) => i.href === activeHref));
     return active?.key ?? null;
   });
 
@@ -320,7 +334,7 @@ export function POSSidebar({ collapsed = false }: { collapsed?: boolean }) {
       {MENU_GROUPS.map((group) => {
         const isGroupActive =
           (group.href && (pathname === group.href || pathname.startsWith(group.href + "/"))) ||
-          !!group.items?.some((i) => pathname === i.href || pathname.startsWith(i.href + "/"));
+          !!group.items?.some((i) => i.href === activeHref);
         const isOpen = openKey === group.key;
 
         return (

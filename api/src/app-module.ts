@@ -156,6 +156,7 @@ import { UserMenuModule } from './modules/user-menu/user-menu.module';
 import { LeaveModule } from './modules/leave/leave.module';
 import { LeaveBalanceModule } from './modules/leave-balance/leave-balance.module';
 import { AppSettingModule } from './modules/app-setting/app-setting.module';
+import { ReportEngineModule } from './modules/report-engine/report-engine.module';
 
 // ── Provider Global ────────────────────────────────────────────────────
 import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
@@ -291,6 +292,7 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     LeaveModule,
     LeaveBalanceModule,
     AppSettingModule,
+    ReportEngineModule,
   ],
   providers: [
     // ── [5] Guard & Interceptor Global ───────────────────────────────

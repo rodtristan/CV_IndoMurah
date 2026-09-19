@@ -33,6 +33,7 @@ const TITLE_OVERRIDES: Record<string, string> = {
   "/master/units": "Satuan",
   "/sale/pos": "Kasir (POS)",
   "/accounting/accounts": "Daftar Perkiraan",
+  "/reports": "Menu Laporan",
   "/reports/sales": "Laporan Penjualan",
   "/reports/purchase": "Laporan Pembelian",
   "/reports/inventory": "Laporan Persediaan",
@@ -79,6 +80,7 @@ const TITLE_OVERRIDES: Record<string, string> = {
 
 function pageTitle(pathname: string): string {
   if (TITLE_OVERRIDES[pathname]) return TITLE_OVERRIDES[pathname];
+  if (pathname.startsWith("/reports/run/")) return "Laporan";
 
   const segments = pathname.split("/").filter(Boolean);
   if (segments.length === 0 || (segments.length === 1 && segments[0] === "dashboard")) {

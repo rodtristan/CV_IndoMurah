@@ -2288,3 +2288,20 @@ model Notification {
 
   @@map("Notifications")
 }
+
+// ─── ReportTemplate ────────────────────────────────────────
+// User-editable print templates for the dynamic report engine.
+model ReportTemplate {
+  ID          Int      @id @default(autoincrement())
+  ReportKey   String   @db.VarChar(100)
+  Name        String   @db.VarChar(255)
+  Definition  Json
+  IsDefault   Boolean  @default(false)
+  CompanyID   Int?
+  CreatedByID String?
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
+
+  @@index([ReportKey])
+  @@map("ReportTemplates")
+}
