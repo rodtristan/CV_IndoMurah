@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useCallback, useEffect, type ReactNode } from "react";
-import { Plus, Edit, Trash2, Eye, Package, X } from "lucide-react";
-import { PageWrapper, PageHeader, Card } from "@/components/layout/PageWrapper";
+import { Package, X } from "lucide-react";
+import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { DataTable } from "@/components/ui/DataTable";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/StatCard";
@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { ConfirmModal } from "@/components/ui/Modal";
+import { GridActions, RowEditIcon } from "@/components/ui/GridActions";
 import { api, odata } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { StockIn, Warehouse, Supplier, Product } from "@/lib/types";
@@ -156,6 +157,12 @@ export default function StockInPage() {
   };
 
   const columns = [
+    {
+      key: "edit",
+      label: "",
+      width: 36,
+      render: (_: unknown, row: StockIn) => <RowEditIcon onClick={() => { setSelected(row); setShowDetail(true); }} />,
+    },
     { key: "Code", label: "Kode", sortable: true, render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
     { key: "Date", label: "Tanggal", sortable: true, render: (v: unknown) => formatDate(v as string) },
     { key: "Warehouse.Name", label: "Gudang", render: (_: unknown, row: StockIn) => row.Warehouse?.Name || "-" },
@@ -163,27 +170,30 @@ export default function StockInPage() {
     { key: "TotalItems", label: "Total Item", align: "right" as const, render: (v: unknown): ReactNode => formatCurrency(Number(v)) },
     { key: "Status", label: "Status", render: (_: unknown, row: StockIn) => { const code = row.Status?.Code || ""; return <Badge variant={(statusVariants[code] || "default") as any}>{statusLabels[code] || code || "-"}</Badge>; } },
     { key: "Creator", label: "Dibuat", render: (_: unknown, row: any) => row.Creator?.Name || "-" },
-    { key: "actions", label: "", width: 100, render: (_: unknown, row: StockIn) => (
-      <div className="flex items-center gap-1">
-        <Button variant="ghost" size="icon" icon={Eye} onClick={() => { setSelected(row); setShowDetail(true); }} />
-        <Button variant="ghost" size="icon" icon={Trash2} onClick={() => { setSelected(row); setShowDelete(true); }} />
-      </div>
-    )},
   ];
 
   return (
     <PageWrapper>
-      <PageHeader title="Barang Masuk" subtitle="Kelola transaksi barang masuk"
-        actions={<Button variant="primary" icon={Plus} onClick={() => { setSelected(null); resetForm(); fetchLookups(); setShowForm(true); }}>Tambah Barang Masuk</Button>} />
-
-      <Card>
+      <Card className="p-4">
         <FilterBar fields={[
           { key: "warehouseId", label: "Gudang", type: "select", options: [{ value: "", label: "Semua" }, ...warehouses.map(w => ({ value: w.ID, label: w.Name }))] },
           { key: "dateFrom", label: "Dari", type: "date" },
           { key: "dateTo", label: "Sampai", type: "date" },
-        ]} onFilter={setFilters} loading={loading} />
+        ]} onFilter={setFilters} loading={loading}
+          actions={
+            <GridActions
+              onAdd={() => { setSelected(null); resetForm(); fetchLookups(); setShowForm(true); }}
+              onEdit={() => selected && setShowDetail(true)}
+              onDelete={() => selected && setShowDelete(true)}
+              disableEdit={!selected}
+              disableDelete={!selected}
+            />
+          }
+        />
         <div className="mt-4">
           <DataTable data={data} columns={columns} loading={loading} emptyMessage="Tidak ada data"
+            selectedId={selected?.ID ?? null}
+            onRowClick={(row) => setSelected(row)}
             pagination={{ page: pagination.page, pageSize: pagination.pageSize, total: pagination.total, totalPages: pagination.totalPages, onPageChange: p => setPagination(prev => ({ ...prev, page: p })) }} />
         </div>
       </Card>

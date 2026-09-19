@@ -1,22 +1,27 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { Plus, Eye, ArrowLeftRight, Printer, MoreVertical } from "lucide-react";
-import { PageWrapper, PageHeader, Card } from "@/components/layout/PageWrapper";
+import { ArrowLeftRight, Printer } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { DataTable } from "@/components/ui/DataTable";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/StatCard";
-import { Modal } from "@/components/ui/Modal";
+import { Modal, ConfirmModal } from "@/components/ui/Modal";
 import { FilterBar } from "@/components/ui/FilterBar";
+import { GridActions, RowEditIcon } from "@/components/ui/GridActions";
 import { api, odata } from "@/lib/api-client";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 import type { Sale, SaleItem } from "@/lib/types";
 
 export default function SaleListPage() {
+  const router = useRouter();
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [showDetail, setShowDetail] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [filters, setFilters] = useState<Record<string, unknown>>({});
   const [pagination, setPagination] = useState({ page: 1, pageSize: 20, total: 0, totalPages: 0 });
 
@@ -73,7 +78,28 @@ export default function SaleListPage() {
     fetchSales(filters);
   }, [filters, fetchSales]);
 
+  const handleDelete = async () => {
+    if (!selectedSale) return;
+    setDeleting(true);
+    try {
+      await api.delete("sales", selectedSale.ID);
+      setShowDelete(false);
+      setSelectedSale(null);
+      fetchSales(filters);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const columns = [
+    {
+      key: "edit",
+      label: "",
+      width: 36,
+      render: (_: unknown, row: Sale) => <RowEditIcon onClick={() => { setSelectedSale(row); setShowDetail(true); }} />,
+    },
     {
       key: "Code",
       label: "Kode",
@@ -128,38 +154,13 @@ export default function SaleListPage() {
       label: "Kasir",
       render: (_: unknown, row: Sale) => row.Creator?.Name || "-",
     },
-    {
-      key: "actions",
-      label: "",
-      width: 50,
-      render: (_: unknown, row: Sale) => (
-        <Button
-          variant="ghost"
-          size="icon"
-          icon={Eye}
-          onClick={(e) => {
-            e.stopPropagation();
-            setSelectedSale(row);
-            setShowDetail(true);
-          }}
-        />
-      ),
-    },
   ];
+
+  const canDelete = selectedSale && selectedSale.PaymentStatus?.Code === "PENDING";
 
   return (
     <PageWrapper>
-      <PageHeader
-        title="Daftar Penjualan"
-        subtitle="Kelola transaksi penjualan"
-        actions={
-          <Button variant="primary" icon={Plus} href="/sale/pos">
-            Penjualan Baru
-          </Button>
-        }
-      />
-
-      <Card>
+      <Card className="p-4">
         <FilterBar
           fields={[
             { key: "paymentStatus", label: "Status", type: "select", options: [
@@ -174,6 +175,15 @@ export default function SaleListPage() {
           ]}
           onFilter={setFilters}
           loading={loading}
+          actions={
+            <GridActions
+              onAdd={() => router.push("/sale/pos")}
+              onEdit={() => selectedSale && setShowDetail(true)}
+              onDelete={() => selectedSale && setShowDelete(true)}
+              disableEdit={!selectedSale}
+              disableDelete={!canDelete}
+            />
+          }
         />
 
         <div className="mt-4">
@@ -182,10 +192,8 @@ export default function SaleListPage() {
             columns={columns}
             loading={loading}
             emptyMessage="Tidak ada penjualan"
-            onRowClick={(row) => {
-              setSelectedSale(row);
-              setShowDetail(true);
-            }}
+            selectedId={selectedSale?.ID ?? null}
+            onRowClick={(row) => setSelectedSale(row)}
             pagination={{
               page: pagination.page,
               pageSize: pagination.pageSize,
@@ -205,10 +213,14 @@ export default function SaleListPage() {
         size="lg"
         footer={
           <>
-            <Button variant="outline" icon={Printer} onClick={() => {}}>
+            <Button variant="outline" icon={Printer} onClick={() => window.print()}>
               Cetak Struk
             </Button>
-            <Button variant="outline" icon={ArrowLeftRight}>
+            <Button
+              variant="outline"
+              icon={ArrowLeftRight}
+              onClick={() => selectedSale && router.push(`/sale/returns?saleId=${selectedSale.ID}`)}
+            >
               Retur
             </Button>
             <Button variant="primary" onClick={() => setShowDetail(false)}>
@@ -291,6 +303,17 @@ export default function SaleListPage() {
           </div>
         )}
       </Modal>
+
+      <ConfirmModal
+        open={showDelete}
+        onClose={() => setShowDelete(false)}
+        onConfirm={handleDelete}
+        title="Hapus Penjualan"
+        message={`Yakin ingin menghapus penjualan "${selectedSale?.Code}"? Tindakan ini tidak dapat dibatalkan.`}
+        confirmText="Hapus"
+        variant="danger"
+        loading={deleting}
+      />
     </PageWrapper>
   );
 }

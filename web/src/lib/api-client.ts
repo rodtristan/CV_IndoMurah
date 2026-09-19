@@ -315,13 +315,19 @@ class ApiClient {
     const { method, endpoint, body, params, headers, cache, tags } = config;
     const url = this.buildUrl(endpoint, params);
     const reqHeaders = { ...this.getHeaders(), ...headers };
+    const hasBody = body !== undefined && body !== null && method !== 'GET';
+
+    // Fastify's body parser rejects any request sent with
+    // Content-Type: application/json but no actual body (e.g. DELETE) —
+    // only attach the header when there's a body to parse.
+    if (!hasBody) delete reqHeaders['Content-Type'];
 
     const fetchOptions: RequestInit = {
       method,
       headers: reqHeaders,
     };
 
-    if (body && method !== 'GET') {
+    if (hasBody) {
       fetchOptions.body = JSON.stringify(body);
     }
 

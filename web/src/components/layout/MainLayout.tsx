@@ -8,7 +8,7 @@ import { cn, formatTimeAgo } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api-client";
 import { POSSidebar } from "./Sidebar";
-import { GlobalApiLoader } from "@/components/ui/Loader";
+import { GlobalPageLoader, TopProgressBar } from "@/components/ui/Loader";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -52,10 +52,15 @@ const TITLE_OVERRIDES: Record<string, string> = {
   "/accounting/journals": "Jurnal Umum",
   "/accounting/supplier-deposits": "Setoran Supplier",
   "/inventory/minimum-stock": "Stock Minim",
+  "/inventory/stock-in": "Barang Masuk",
   "/inventory/opening-stock": "Saldo Awal Item",
   "/inventory/stock-out": "Barang Keluar",
   "/inventory/transfers": "Transfer Stock",
   "/purchase/list": "Daftar Pembelian",
+  "/purchase/returns": "Retur Pembelian",
+  "/sale/list": "Daftar Penjualan",
+  "/inventory/stock-opname": "Stock Opname",
+  "/reports/stock-opname": "Laporan Stock Opname",
   "/purchase/order": "Pesanan Pembelian",
   "/reports/debt": "Hutang",
   "/reports/receivable": "Piutang",
@@ -273,6 +278,7 @@ export function MainLayout({ children }: MainLayoutProps) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg">
+      <TopProgressBar />
       {/* Sidebar */}
       <aside
         className={cn(
@@ -313,7 +319,7 @@ export function MainLayout({ children }: MainLayoutProps) {
               </button>
             )}
             <h1 className="text-lg font-semibold text-highlighted">{title}</h1>
-            <GlobalApiLoader className="text-primary" />
+            <GlobalPageLoader className="text-primary" />
           </div>
           <div className="flex items-center gap-4">
             <span className="hidden text-sm font-medium text-toned md:inline">

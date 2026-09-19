@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
-import { Plus, Edit, Trash2, ChevronRight } from "lucide-react";
-import { PageWrapper, PageHeader, Card } from "@/components/layout/PageWrapper";
-import { Button } from "@/components/ui/Button";
+import { useState, useCallback, useEffect, useMemo } from "react";
+import { ChevronRight } from "lucide-react";
+import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { Badge } from "@/components/ui/StatCard";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { FilterBar } from "@/components/ui/FilterBar";
 import { ConfirmModal } from "@/components/ui/Modal";
+import { GridActions } from "@/components/ui/GridActions";
+import { Button } from "@/components/ui/Button";
 import { api, odata } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import type { Account, AccountType } from "@/lib/types";
@@ -32,6 +34,7 @@ export default function AccountsPage() {
   const [parentAccounts, setParentAccounts] = useState<Account[]>([]);
   const [saving, setSaving] = useState(false);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [search, setSearch] = useState("");
   const [form, setForm] = useState({
     code: "", name: "", type: "ASSET" as AccountType, parentId: "", isActive: true,
   });
@@ -93,6 +96,12 @@ export default function AccountsPage() {
   // Build tree
   const rootAccounts = accounts.filter(a => !a.ParentID);
 
+  const filteredFlat = useMemo(() => {
+    if (!search.trim()) return null;
+    const q = search.trim().toLowerCase();
+    return accounts.filter(a => a.Code.toLowerCase().includes(q) || a.Name.toLowerCase().includes(q));
+  }, [accounts, search]);
+
   const toggleExpand = (id: number) => {
     setExpanded(prev => {
       const next = new Set(prev);
@@ -102,36 +111,58 @@ export default function AccountsPage() {
     });
   };
 
+  const openEdit = (account: Account) => {
+    const typeCode = (account.Type?.Code || "ASSET") as AccountType;
+    setSelected(account);
+    setForm({ code: account.Code, name: account.Name, type: typeCode, parentId: String(account.ParentID || ""), isActive: account.IsActive });
+    fetchParents();
+    setShowForm(true);
+  };
+
+  const renderRow = (account: Account, level: number, hasChildren: boolean, isExpanded: boolean) => {
+    const typeCode = (account.Type?.Code || "ASSET") as AccountType;
+    const isSelected = selected?.ID === account.ID;
+
+    return (
+      <div
+        key={account.ID}
+        onClick={() => setSelected(account)}
+        onDoubleClick={() => openEdit(account)}
+        className={cn(
+          "flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 transition-colors",
+          isSelected ? "border-primary bg-primary/5" : "border-transparent hover:bg-elevated",
+          level > 0 && "ml-6 border-l border-default"
+        )}
+      >
+        {hasChildren ? (
+          <button onClick={(e) => { e.stopPropagation(); toggleExpand(account.ID); }} className="flex size-5 items-center justify-center rounded text-muted transition-colors hover:text-highlighted">
+            <ChevronRight className={cn("size-3.5 transition-transform", isExpanded && "rotate-90")} />
+          </button>
+        ) : (
+          <div className="size-5" />
+        )}
+        <div className="flex size-7 items-center justify-center rounded bg-elevated">
+          <span className={cn("text-xs font-bold", typeColors[typeCode])}>{account.Code}</span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium">{account.Name}</p>
+        </div>
+        <Badge variant={account.IsActive ? "success" : "danger"} size="sm">
+          {account.IsActive ? "Aktif" : "Nonaktif"}
+        </Badge>
+        <span className={cn("text-xs font-semibold", typeColors[typeCode])}>{typeLabels[typeCode]}</span>
+      </div>
+    );
+  };
+
   const renderAccount = (account: Account, level = 0): React.ReactNode => {
     const children = accounts.filter(a => a.ParentID === account.ID);
     const hasChildren = children.length > 0;
     const isExpanded = expanded.has(account.ID);
-    const typeCode = (account.Type?.Code || "ASSET") as AccountType;
 
     return (
       <div key={account.ID}>
-        <div className={cn("flex items-center gap-2 rounded-lg border border-transparent px-3 py-2.5 transition-colors hover:bg-elevated", level > 0 && "ml-6 border-l border-default")}>
-          {hasChildren && (
-            <button onClick={() => toggleExpand(account.ID)} className="flex size-5 items-center justify-center rounded text-muted transition-colors hover:text-highlighted">
-              <ChevronRight className={cn("size-3.5 transition-transform", isExpanded && "rotate-90")} />
-            </button>
-          )}
-          {!hasChildren && <div className="size-5" />}
-          <div className="flex size-7 items-center justify-center rounded bg-elevated">
-            <span className={cn("text-xs font-bold", typeColors[typeCode])}>{account.Code}</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{account.Name}</p>
-          </div>
-          <Badge variant={account.IsActive ? "success" : "danger"} size="sm">
-            {account.IsActive ? "Aktif" : "Nonaktif"}
-          </Badge>
-          <span className={cn("text-xs font-semibold", typeColors[typeCode])}>{typeLabels[typeCode]}</span>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" icon={Edit} onClick={() => { setSelected(account); setForm({ code: account.Code, name: account.Name, type: typeCode, parentId: String(account.ParentID || ""), isActive: account.IsActive }); fetchParents(); setShowForm(true); }} />
-            <Button variant="ghost" size="icon" icon={Trash2} onClick={() => { setSelected(account); setShowDelete(true); }} />
-          </div>
-        </div>
+        {renderRow(account, level, hasChildren, isExpanded)}
         {isExpanded && hasChildren && children.map(child => renderAccount(child, level + 1))}
       </div>
     );
@@ -139,22 +170,45 @@ export default function AccountsPage() {
 
   return (
     <PageWrapper>
-      <PageHeader title="Chart of Accounts" subtitle="Kelola daftar akun akuntansi"
-        actions={<Button variant="primary" icon={Plus} onClick={() => { setSelected(null); setForm({ code: "", name: "", type: "ASSET", parentId: "", isActive: true }); fetchParents(); setShowForm(true); }}>Tambah Akun</Button>} />
+      <Card className="p-4">
+        <FilterBar
+          fields={[
+            { key: "search", label: "Kata Kunci", type: "text", placeholder: "Cari kode / nama akun" },
+          ]}
+          onFilter={(v) => setSearch((v.search as string) || "")}
+          loading={loading}
+          actions={
+            <GridActions
+              onAdd={() => { setSelected(null); setForm({ code: "", name: "", type: "ASSET", parentId: "", isActive: true }); fetchParents(); setShowForm(true); }}
+              onEdit={() => selected && openEdit(selected)}
+              onDelete={() => selected && setShowDelete(true)}
+              disableEdit={!selected}
+              disableDelete={!selected}
+            />
+          }
+        />
 
-      <Card>
-        {loading ? (
-          <div className="flex items-center justify-center py-12"><div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>
-        ) : (
-          <div className="space-y-1">
-            {rootAccounts.map(account => renderAccount(account))}
-            {rootAccounts.length === 0 && (
-              <div className="py-12 text-center text-muted">
-                <p>Tidak ada akun. Tambahkan akun pertama.</p>
-              </div>
-            )}
-          </div>
-        )}
+        <div className="mt-4">
+          {loading ? (
+            <div className="flex items-center justify-center py-12"><div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>
+          ) : filteredFlat !== null ? (
+            <div className="space-y-1">
+              {filteredFlat.map(account => renderRow(account, 0, false, false))}
+              {filteredFlat.length === 0 && (
+                <div className="py-12 text-center text-muted"><p>Tidak ada akun yang cocok.</p></div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {rootAccounts.map(account => renderAccount(account))}
+              {rootAccounts.length === 0 && (
+                <div className="py-12 text-center text-muted">
+                  <p>Tidak ada akun. Tambahkan akun pertama.</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </Card>
 
       <Modal open={showForm} onClose={() => setShowForm(false)} title={selected ? "Edit Akun" : "Tambah Akun"} size="md"
