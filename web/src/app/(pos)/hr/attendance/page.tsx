@@ -10,7 +10,7 @@ import { Modal, ConfirmModal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/StatCard";
 import { DataTable } from "@/components/ui/DataTable";
 import { FilterBar } from "@/components/ui/FilterBar";
-import { GridActions, RowEditIcon, RowDeleteIcon } from "@/components/ui/GridActions";
+import { GridActions, RowEditIcon } from "@/components/ui/GridActions";
 import { api } from "@/lib/api-client";
 import { formatDate } from "@/lib/utils";
 
@@ -58,7 +58,9 @@ export default function AttendancePage() {
   const [dateTo, setDateTo] = useState(() => new Date().toISOString().split("T")[0]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [selected, setSelected] = useState<any>(null);
+  const [showDelete, setShowDelete] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const fetchEmployees = useCallback(async () => {
     const res = await api.get("employees", { $select: "ID,Code,Name", $take: 200 } as any).catch(() => ({ success: false, data: [] } as any));
@@ -95,24 +97,43 @@ export default function AttendancePage() {
       statusCode: form.statusCode,
       notes: form.notes || undefined,
     };
+    setSaving(true);
     if (form.id) {
       await api.patch("attendances", form.id, payload).catch(() => ({}));
     } else {
       await api.post("attendances", payload).catch(() => ({}));
     }
+    setSaving(false);
     setShowForm(false);
     fetchData();
   };
 
   const handleDelete = async () => {
-    if (!deleteId) return;
-    await api.delete("attendances", deleteId).catch(() => ({}));
-    setDeleteId(null);
-    fetchData();
+    if (!selected) return;
+    setSaving(true);
+    try {
+      await api.delete("attendances", selected.ID).catch(() => ({}));
+      setShowDelete(false);
+      setSelected(null);
+      fetchData();
+    } finally { setSaving(false); }
   };
 
   const openCreate = () => { setForm(EMPTY_FORM); setShowForm(true); };
+  const openCopy = (row: any) => {
+    setForm({
+      id: undefined,
+      employeeId: String(row.EmployeeID),
+      date: new Date().toISOString().split("T")[0],
+      checkIn: row.CheckIn ? row.CheckIn.split("T")[1]?.slice(0, 5) : "",
+      checkOut: row.CheckOut ? row.CheckOut.split("T")[1]?.slice(0, 5) : "",
+      statusCode: row.Status?.Code || "PRESENT",
+      notes: row.Notes || "",
+    });
+    setShowForm(true);
+  };
   const openEdit = (row: any) => {
+    setSelected(row);
     setForm({
       id: row.ID,
       employeeId: String(row.EmployeeID),
@@ -129,6 +150,7 @@ export default function AttendancePage() {
     lat != null && lng != null ? `https://maps.google.com/?q=${lat},${lng}` : null;
 
   const columns = [
+    { key: "edit", label: "", width: 36, render: (_: unknown, row: any) => <RowEditIcon onClick={() => openEdit(row)} /> },
     { key: "Date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
     { key: "Employee", label: "Karyawan", render: (_: unknown, row: any) => row.Employee?.Name || "-" },
     { key: "CheckIn", label: "Jam Masuk", render: (_: unknown, row: any) => (
@@ -153,15 +175,6 @@ export default function AttendancePage() {
       ) },
     { key: "Status", label: "Status", render: (_: unknown, row: any) => <Badge variant={STATUS_VARIANT[row.Status?.Code] || "default"}>{row.Status?.Name || "-"}</Badge> },
     { key: "Notes", label: "Catatan", render: (v: unknown) => (v as string) || <span className="text-muted">-</span> },
-    {
-      key: "actions", label: "", width: "70px",
-      render: (_: unknown, row: any) => (
-        <div className="flex gap-1">
-          <RowEditIcon onClick={() => openEdit(row)} />
-          <RowDeleteIcon onClick={() => setDeleteId(row.ID)} />
-        </div>
-      )
-    },
   ];
 
   return (
@@ -173,25 +186,39 @@ export default function AttendancePage() {
           validasi lokasi (GPS) dan jam server, dan data lokasinya akan tampil
           di sini lewat ikon peta pada baris yang tercatat dari mobile.
         </p>
-        <div className="flex flex-wrap items-end gap-4">
-          <Select
-            label="Karyawan"
-            value={employeeFilter}
-            onChange={(e) => setEmployeeFilter(e.target.value)}
-            options={[{ value: "", label: "Semua Karyawan" }, ...employees.map((e) => ({ value: String(e.ID), label: `${e.Code} - ${e.Name}` }))]}
-          />
-          <Input type="date" label="Dari Tanggal" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-          <Input type="date" label="Sampai Tanggal" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-        </div>
+        <FilterBar
+          fields={[
+            { key: "employeeId", label: "Karyawan", type: "select", options: [{ value: "", label: "Semua Karyawan" }, ...employees.map((e) => ({ value: String(e.ID), label: `${e.Code} - ${e.Name}` }))] },
+            { key: "dateFrom", label: "Dari Tanggal", type: "date" },
+            { key: "dateTo", label: "Sampai Tanggal", type: "date" },
+          ]}
+          onFilter={(v) => {
+            setEmployeeFilter((v.employeeId as string) || "");
+            setDateFrom((v.dateFrom as string) || "");
+            setDateTo((v.dateTo as string) || "");
+          }}
+          onReset={() => { setEmployeeFilter(""); setDateFrom(""); setDateTo(""); }}
+          loading={loading}
+          actions={
+            <GridActions
+              onAdd={openCreate}
+              onEdit={() => selected && openEdit(selected)}
+              onCopy={() => selected && openCopy(selected)}
+              onDelete={() => selected && setShowDelete(true)}
+              disableEdit={!selected}
+              disableCopy={!selected}
+              disableDelete={!selected}
+            />
+          }
+        />
         <div className="mt-4">
-          <FilterBar fields={[]} onFilter={() => fetchData()} loading={loading} actions={<GridActions onAdd={openCreate} />} />
-        </div>
-        <div className="mt-4">
-          <DataTable data={rows} columns={columns} loading={loading} emptyMessage="Tidak ada data absensi" />
+          <DataTable data={rows} columns={columns} loading={loading} selectedId={selected?.ID ?? null} onRowClick={setSelected} emptyMessage="Tidak ada data absensi" />
         </div>
       </Card>
 
-      <Modal open={showForm} onClose={() => setShowForm(false)} title={form.id ? "Edit Absensi" : "Tambah Absensi"} size="md">
+      <Modal open={showForm} onClose={() => setShowForm(false)} title={form.id ? "Edit Absensi" : "Tambah Absensi"} size="md"
+        footer={<><Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button><Button variant="primary" onClick={handleSave} loading={saving}>Simpan</Button></>}
+      >
         <div className="space-y-4">
           <Select
             label="Karyawan *"
@@ -211,14 +238,19 @@ export default function AttendancePage() {
             options={STATUS_OPTIONS}
           />
           <Input label="Catatan" value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button>
-            <Button variant="primary" onClick={handleSave}>Simpan</Button>
-          </div>
         </div>
       </Modal>
 
-      <ConfirmModal open={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={handleDelete} title="Hapus Absensi" message="Yakin ingin menghapus data absensi ini?" confirmText="Hapus" variant="danger" />
+      <ConfirmModal
+        open={showDelete}
+        onClose={() => setShowDelete(false)}
+        onConfirm={handleDelete}
+        title="Hapus Absensi"
+        message={`Yakin ingin menghapus data absensi ${selected?.Employee?.Name ?? ""}?`}
+        confirmText="Hapus"
+        variant="danger"
+        loading={saving}
+      />
     </PageWrapper>
   );
 }

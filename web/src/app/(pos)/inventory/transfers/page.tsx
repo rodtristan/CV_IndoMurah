@@ -6,11 +6,11 @@ import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { Modal } from "@/components/ui/Modal";
+import { Modal, ConfirmModal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/StatCard";
 import { DataTable } from "@/components/ui/DataTable";
 import { FilterBar } from "@/components/ui/FilterBar";
-import { GridActions } from "@/components/ui/GridActions";
+import { GridActions, RowEditIcon } from "@/components/ui/GridActions";
 import { api, odata } from "@/lib/api-client";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import type { Product } from "@/lib/types";
@@ -28,6 +28,10 @@ export default function TransfersPage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [selected, setSelected] = useState<any>(null);
+  const [showDetail, setShowDetail] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [detailItems, setDetailItems] = useState<any[]>([]);
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [saving, setSaving] = useState(false);
@@ -86,6 +90,14 @@ export default function TransfersPage() {
 
   const itemsTotal = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
 
+  const openDetail = async (row: any) => {
+    setSelected(row);
+    setDetailItems([]);
+    setShowDetail(true);
+    const res = await api.getOne<any>("stock-transfer", row.ID, { $include: "TransferItems,TransferItems.Product" } as any).catch(() => null as any);
+    if (res?.success && res.data) setDetailItems(res.data.TransferItems || []);
+  };
+
   const openCreate = () => { resetForm(); fetchLookups(); setShowForm(true); };
 
   const handleSave = async () => {
@@ -112,6 +124,7 @@ export default function TransfersPage() {
   };
 
   const columns = [
+    { key: "edit", label: "", width: 36, render: (_: unknown, row: any) => <RowEditIcon onClick={() => openDetail(row)} /> },
     { key: "Date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
     { key: "Code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
     { key: "FromWarehouse", label: "Dari", render: (v: unknown) => (v as any)?.Name || "-" },
@@ -130,10 +143,18 @@ export default function TransfersPage() {
           fields={[{ key: "search", label: "Kata Kunci", type: "text", placeholder: "Cari..." }]}
           onFilter={(v) => setSearch((v.search as string) || "")}
           loading={loading}
-          actions={<GridActions onAdd={openCreate} />}
+          actions={
+            <GridActions
+              onAdd={openCreate}
+              onEdit={() => selected && openDetail(selected)}
+              onDelete={() => {}}
+              disableEdit={!selected}
+              disableDelete
+            />
+          }
         />
         <div className="mt-4">
-          <DataTable data={data} columns={columns} loading={loading} emptyMessage="Tidak ada transfer" />
+          <DataTable data={data} columns={columns} loading={loading} emptyMessage="Tidak ada transfer" selectedId={selected?.ID ?? null} onRowClick={(row) => setSelected(row)} />
         </div>
       </Card>
 
@@ -211,6 +232,27 @@ export default function TransfersPage() {
             </div>
           </div>
         </div>
+      </Modal>
+
+      <Modal open={showDetail} onClose={() => setShowDetail(false)} title={`Transfer ${selected?.Code || ""}`} size="lg">
+        {selected && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div><span className="text-muted">Tanggal:</span> {formatDate(selected.Date)}</div><div><span className="text-muted">Dari:</span> {selected.FromWarehouse?.Name || "-"}</div><div><span className="text-muted">Ke:</span> {selected.ToWarehouse?.Name || "-"}</div><div><span className="text-muted">Catatan:</span> {selected.Notes || "-"}</div>
+            </div>
+            <div className="border-t border-default pt-4">
+              <h4 className="mb-2 font-semibold">Item</h4>
+              <table className="w-full text-sm">
+                <thead><tr className="border-b border-default"><th className="py-1 text-left">Produk</th><th className="py-1 text-right">Qty</th><th className="py-1 text-right">Harga</th></tr></thead>
+                <tbody>
+                  {detailItems.map((d: any, i: number) => (
+                    <tr key={i} className="border-b border-default"><td className="py-1 ">{d.Product?.Name || "-"}</td><td className="py-1 text-right">{d.Quantity}</td><td className="py-1 text-right">{formatCurrency(d.UnitPrice)}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </Modal>
     </PageWrapper>
   );

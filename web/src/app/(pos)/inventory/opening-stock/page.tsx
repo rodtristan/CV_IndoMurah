@@ -5,10 +5,10 @@ import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { Modal } from "@/components/ui/Modal";
+import { Modal, ConfirmModal } from "@/components/ui/Modal";
 import { DataTable } from "@/components/ui/DataTable";
 import { FilterBar } from "@/components/ui/FilterBar";
-import { GridActions, RowEditIcon, RowDeleteIcon } from "@/components/ui/GridActions";
+import { GridActions, RowEditIcon } from "@/components/ui/GridActions";
 import { api } from "@/lib/api-client";
 import { formatNumber } from "@/lib/utils";
 
@@ -18,6 +18,9 @@ export default function OpeningStockPage() {
   const [search, setSearch] = useState("");
   const [warehouseFilter, setWarehouseFilter] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [selected, setSelected] = useState<any>(null);
+  const [showDelete, setShowDelete] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [form, setForm] = useState({ productId: "", warehouseId: "", quantity: 0, minimumStock: 0 });
@@ -59,6 +62,11 @@ export default function OpeningStockPage() {
     setShowForm(true);
   };
 
+  const openEdit = (row: any) => {
+    setForm({ id: row.ID, productId: row.ProductID, warehouseId: row.WarehouseID, quantity: row.Quantity, minimumStock: row.MinimumStock } as any);
+    setShowForm(true);
+  };
+
   const handleSave = async () => {
     if (!form.productId || !form.warehouseId) return;
     const payload = {
@@ -68,35 +76,37 @@ export default function OpeningStockPage() {
       minimumStock: Number(form.minimumStock) || undefined,
     };
     const isEdit = Boolean((form as any).id);
-    if (isEdit) {
-      await api.patch("product-stock", (form as any).id, payload).catch(() => ({}));
-    } else {
-      await api.post("product-stock", payload).catch(() => ({}));
-    }
-    setShowForm(false);
-    fetchData();
+    setSaving(true);
+    try {
+      if (isEdit) {
+        await api.patch("product-stock", (form as any).id, payload).catch(() => ({}));
+      } else {
+        await api.post("product-stock", payload).catch(() => ({}));
+      }
+      setShowForm(false);
+      fetchData();
+    } finally { setSaving(false); }
   };
 
-  const handleDelete = async (id: number) => {
-    await api.delete("product-stock", String(id)).catch(() => ({}));
-    fetchData();
+  const handleDelete = async () => {
+    if (!selected) return;
+    setSaving(true);
+    try {
+      await api.delete("product-stock", selected.ID);
+      setShowDelete(false);
+      setSelected(null);
+      fetchData();
+    } catch (e) { console.error(e); }
+    finally { setSaving(false); }
   };
 
   const columns = [
+    { key: "edit", label: "", width: 36, render: (_: unknown, row: any) => <RowEditIcon onClick={() => openEdit(row)} /> },
     { key: "productCode", label: "Kode Item", render: (_: unknown, row: any) => <span className="font-mono text-xs">{row.Product?.Code || "-"}</span> },
     { key: "Product", label: "Nama Item", render: (v: unknown) => (v as any)?.Name || "-" },
     { key: "Warehouse", label: "Gudang", render: (v: unknown) => (v as any)?.Name || "-" },
     { key: "Quantity", label: "Saldo Awal", align: "right" as const, render: (v: unknown) => <span className="font-semibold">{formatNumber(v as number)}</span> },
     { key: "MinimumStock", label: "Stok Minimum", align: "right" as const, render: (v: unknown) => formatNumber(v as number) },
-    {
-      key: "actions", label: "", width: "70px",
-      render: (_: unknown, row: any) => (
-        <div className="flex gap-1">
-          <RowEditIcon onClick={() => { setForm({ id: row.ID, productId: row.ProductID, warehouseId: row.WarehouseID, quantity: row.Quantity, minimumStock: row.MinimumStock } as any); setShowForm(true); }} />
-          <RowDeleteIcon onClick={() => handleDelete(row.ID)} />
-        </div>
-      )
-    },
   ];
 
   return (
@@ -113,14 +123,23 @@ export default function OpeningStockPage() {
           ]}
           onFilter={(v) => { setSearch((v.search as string) || ""); setWarehouseFilter((v.warehouse as string) || ""); }}
           loading={loading}
-          actions={<GridActions onAdd={openCreate} />}
+          actions={
+            <GridActions
+              onAdd={openCreate}
+              onEdit={() => selected && openEdit(selected)}
+              onDelete={() => selected && setShowDelete(true)}
+              disableEdit={!selected}
+              disableDelete={!selected}
+            />
+          }
         />
         <div className="mt-4">
-          <DataTable data={data} columns={columns} loading={loading} emptyMessage="Belum ada saldo awal item" />
+          <DataTable data={data} columns={columns} loading={loading} emptyMessage="Belum ada saldo awal item" selectedId={selected?.ID ?? null} onRowClick={(row) => setSelected(row)} />
         </div>
       </Card>
 
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="Saldo Awal Item" size="md">
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="Saldo Awal Item" size="md"
+        footer={<><Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button><Button variant="primary" onClick={handleSave} loading={saving}>Simpan</Button></>}>
         <div className="space-y-4">
           <Select
             label="Item"
@@ -138,12 +157,11 @@ export default function OpeningStockPage() {
           />
           <Input label="Jumlah Saldo Awal" type="number" value={form.quantity} onChange={(e) => setForm((f) => ({ ...f, quantity: Number(e.target.value) }))} />
           <Input label="Stok Minimum" type="number" value={form.minimumStock} onChange={(e) => setForm((f) => ({ ...f, minimumStock: Number(e.target.value) }))} />
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button>
-            <Button variant="primary" onClick={handleSave}>Simpan</Button>
-          </div>
         </div>
       </Modal>
+
+      <ConfirmModal open={showDelete} onClose={() => setShowDelete(false)} onConfirm={handleDelete}
+        title="Hapus Saldo Awal" message={`Yakin menghapus saldo awal "${selected?.Product?.Name || ""}"?`} confirmText="Hapus" variant="danger" loading={saving} />
     </PageWrapper>
   );
 }

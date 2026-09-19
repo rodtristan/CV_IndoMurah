@@ -5,12 +5,11 @@ import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { Modal } from "@/components/ui/Modal";
-import { ConfirmModal } from "@/components/ui/Modal";
+import { Modal, ConfirmModal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/StatCard";
 import { DataTable } from "@/components/ui/DataTable";
 import { FilterBar } from "@/components/ui/FilterBar";
-import { GridActions, RowEditIcon, RowDeleteIcon } from "@/components/ui/GridActions";
+import { GridActions, RowEditIcon } from "@/components/ui/GridActions";
 import { api } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -19,6 +18,9 @@ export default function CashInPage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [selected, setSelected] = useState<any>(null);
+  const [showDelete, setShowDelete] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [form, setForm] = useState({ date: "", code: "", accountId: "", amount: 0, description: "" });
 
@@ -40,6 +42,7 @@ export default function CashInPage() {
 
   const handleSave = async () => {
     const isEdit = Boolean((form as any).id);
+    setSaving(true);
     const payload = {
       code: form.code || `CI-${Date.now()}`,
       accountId: Number(form.accountId),
@@ -51,31 +54,34 @@ export default function CashInPage() {
     } else {
       await api.post("cash-in", payload).catch(() => ({}));
     }
+    setSaving(false);
     setShowForm(false);
     fetchData();
   };
 
-  const handleDelete = async (id: string) => {
-    await api.delete(`cash-in`, id).catch(() => ({}));
-    fetchData();
-  };
-
   const columns = [
+    { key: "edit", label: "", width: 36, render: (_: unknown, row: any) => <RowEditIcon onClick={() => openEdit(row)} /> },
     { key: "Date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
     { key: "Code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
     { key: "Account", label: "Akun", render: (v: unknown) => (v as any)?.Name || "-" },
     { key: "Description", label: "Keterangan" },
     { key: "Amount", label: "Jumlah", align: "right" as const, render: (v: unknown) => <span className="font-bold text-success">{formatCurrency(v as number)}</span> },
-    {
-      key: "actions", label: "", width: "70px",
-      render: (_: unknown, row: any) => (
-        <div className="flex gap-1">
-          <RowEditIcon onClick={() => { setForm({ id: row.ID, date: row.Date ? String(row.Date).split("T")[0] : "", code: row.Code, accountId: row.AccountID != null ? String(row.AccountID) : "", amount: row.Amount, description: row.Description || "" } as any); setShowForm(true); }} />
-          <RowDeleteIcon onClick={() => handleDelete(row.ID)} />
-        </div>
-      )
-    },
   ];
+
+  const rowToForm = (row: any) => ({ date: row.Date ? String(row.Date).split("T")[0] : "", code: row.Code, accountId: row.AccountID != null ? String(row.AccountID) : "", amount: Number(row.Amount), description: row.Description || "" });
+  const openEdit = (row: any) => { setSelected(row); setForm({ id: row.ID, ...rowToForm(row) } as any); setShowForm(true); };
+  const openCopy = (row: any) => { setForm({ ...rowToForm(row), date: new Date().toISOString().split("T")[0], code: "" } as any); setShowForm(true); };
+
+  const handleDelete = async () => {
+    if (!selected) return;
+    setSaving(true);
+    try {
+      await api.delete("cash-in", selected.ID).catch(() => ({}));
+      setShowDelete(false);
+      setSelected(null);
+      fetchData();
+    } finally { setSaving(false); }
+  };
 
   const openCreate = () => { setForm({ date: new Date().toISOString().split("T")[0], code: "", accountId: "", amount: 0, description: "" }); setShowForm(true); };
 
@@ -86,25 +92,44 @@ export default function CashInPage() {
           fields={[{ key: "search", label: "Kata Kunci", type: "text", placeholder: "Cari..." }]}
           onFilter={(v) => setSearch((v.search as string) || "")}
           loading={loading}
-          actions={<GridActions onAdd={openCreate} />}
+          actions={
+            <GridActions
+              onAdd={openCreate}
+              onEdit={() => selected && openEdit(selected)}
+              onCopy={() => selected && openCopy(selected)}
+              onDelete={() => selected && setShowDelete(true)}
+              disableEdit={!selected}
+              disableCopy={!selected}
+              disableDelete={!selected}
+            />
+          }
         />
         <div className="mt-4">
-          <DataTable data={cashIns} columns={columns} loading={loading} emptyMessage="Tidak ada data kas masuk" />
+          <DataTable data={cashIns} columns={columns} loading={loading} selectedId={selected?.ID ?? null} onRowClick={setSelected} emptyMessage="Tidak ada data kas masuk" />
         </div>
       </Card>
 
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="Kas Masuk Baru" size="md">
+      <Modal open={showForm} onClose={() => setShowForm(false)} title={(form as any).id ? "Ubah Kas Masuk" : "Kas Masuk Baru"} size="md"
+        footer={<><Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button><Button variant="primary" onClick={handleSave} loading={saving}>Simpan</Button></>}
+      >
         <div className="space-y-4">
           <Input label="Tanggal" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
           <Select label="Akun" value={form.accountId} onChange={e => setForm(f => ({ ...f, accountId: e.target.value }))} options={accounts.map(a => ({ value: a.ID, label: `${a.Code} - ${a.Name}` }))} />
           <Input label="Jumlah" type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: Number(e.target.value) }))} />
           <Input label="Keterangan" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button>
-            <Button variant="primary" onClick={handleSave}>Simpan</Button>
-          </div>
         </div>
       </Modal>
+
+      <ConfirmModal
+        open={showDelete}
+        onClose={() => setShowDelete(false)}
+        onConfirm={handleDelete}
+        title="Hapus Kas Masuk"
+        message={`Yakin ingin menghapus ${selected?.Code ?? "data ini"}? Tindakan ini tidak dapat dibatalkan.`}
+        confirmText="Hapus"
+        variant="danger"
+        loading={saving}
+      />
     </PageWrapper>
   );
 }

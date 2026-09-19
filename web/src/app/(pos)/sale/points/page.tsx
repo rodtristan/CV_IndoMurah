@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Modal, ConfirmModal } from "@/components/ui/Modal";
 import { DataTable } from "@/components/ui/DataTable";
-import { RowDeleteIcon } from "@/components/ui/GridActions";
-import { Plus } from "lucide-react";
+import { GridActions, RowEditIcon } from "@/components/ui/GridActions";
+import { FilterBar } from "@/components/ui/FilterBar";
 import { api } from "@/lib/api-client";
 import { formatDate } from "@/lib/utils";
 
@@ -21,7 +21,10 @@ export default function SalePointsPage() {
   const [endDate, setEndDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<any[]>([]);
-  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [selected, setSelected] = useState<any>(null);
+  const [showDetail, setShowDetail] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const [showTakeForm, setShowTakeForm] = useState(false);
   const [takeForm, setTakeForm] = useState({ customerId: "", pointsRedeemed: 0, rewardName: "", rewardValue: 0 });
@@ -75,23 +78,25 @@ export default function SalePointsPage() {
   };
 
   const handleDelete = async () => {
-    if (!deleteTarget) return;
-    await api.delete("point-redemption", String(deleteTarget.id)).catch(() => ({}));
-    setDeleteTarget(null);
-    fetchCustomers();
-    runReport();
+    if (!selected) return;
+    setSaving(true);
+    try {
+      await api.delete("point-redemption", String(selected.id));
+      setShowDelete(false);
+      setSelected(null);
+      fetchCustomers();
+      runReport();
+    } catch (e) { console.error(e); }
+    finally { setSaving(false); }
   };
 
   const columns = [
+    { key: "edit", label: "", width: 36, render: (_: unknown, row: any) => <RowEditIcon onClick={() => { setSelected(row); setShowDetail(true); }} /> },
     { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
     { key: "date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
     { key: "customerName", label: "Pelanggan", render: (_: unknown, row: any) => row.Customer?.Name || "-" },
     { key: "rewardName", label: "Keterangan" },
     { key: "pointsRedeemed", label: "Point Diambil", align: "right" as const, render: (v: unknown) => <span className="font-semibold text-danger">-{v as number}</span> },
-    {
-      key: "actions", label: "", width: "60px",
-      render: (_: unknown, row: any) => <RowDeleteIcon onClick={() => setDeleteTarget(row)} />,
-    },
   ];
 
   const selectedCustomer = customers.find((c) => String(c.ID) === customerId);
@@ -103,30 +108,40 @@ export default function SalePointsPage() {
           Point Penjualan mencatat pengambilan (redeem) point dari saldo point pelanggan.
           Saldo point terkumpul otomatis dari transaksi penjualan sesuai Setting Point.
         </p>
-        <div className="flex flex-wrap items-end gap-4">
-          <Select
-            label="Pelanggan"
-            value={customerId}
-            onChange={(e) => setCustomerId(e.target.value)}
-            options={[{ value: "", label: "Semua Pelanggan" }, ...customers.map((c) => ({ value: String(c.ID), label: `${c.Name} (${c.PointBalance} pt)` }))]}
-          />
-          <Input type="date" label="Dari Tanggal" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-          <Input type="date" label="Sampai Tanggal" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-          <Button variant="primary" onClick={runReport} loading={loading}>Proses</Button>
-          <div className="flex-1" />
-          <Button variant="primary" icon={Plus} onClick={openTakePoint}>Ambil Point</Button>
-        </div>
+        <FilterBar
+          fields={[
+            { key: "customerId", label: "Pelanggan", type: "select", options: [{ value: "", label: "Semua Pelanggan" }, ...customers.map((c) => ({ value: String(c.ID), label: `${c.Name} (${c.PointBalance} pt)` }))] },
+            { key: "startDate", label: "Dari Tanggal", type: "date" },
+            { key: "endDate", label: "Sampai Tanggal", type: "date" },
+          ]}
+          onFilter={(v) => {
+            setCustomerId((v.customerId as string) || "");
+            setStartDate((v.startDate as string) || "");
+            setEndDate((v.endDate as string) || "");
+          }}
+          loading={loading}
+          actions={
+            <GridActions
+              onAdd={openTakePoint}
+              onEdit={() => selected && setShowDetail(true)}
+              onDelete={() => selected && setShowDelete(true)}
+              disableEdit={!selected}
+              disableDelete={!selected}
+            />
+          }
+        />
         {selectedCustomer && (
           <div className="mt-3 rounded-lg bg-elevated p-3 text-sm">
             Saldo point saat ini untuk <span className="font-semibold">{selectedCustomer.Name}</span>: <span className="font-semibold text-primary">{selectedCustomer.PointBalance} pt</span>
           </div>
         )}
         <div className="mt-4">
-          <DataTable data={rows} columns={columns} loading={loading} emptyMessage="Tidak ada data pengambilan point" />
+          <DataTable data={rows} columns={columns} loading={loading} emptyMessage="Tidak ada data pengambilan point" selectedId={selected?.id ?? null} onRowClick={(row) => setSelected(row)} />
         </div>
       </Card>
 
-      <Modal open={showTakeForm} onClose={() => setShowTakeForm(false)} title="Ambil Point" size="md">
+      <Modal open={showTakeForm} onClose={() => setShowTakeForm(false)} title="Ambil Point" size="md"
+        footer={<><Button variant="outline" onClick={() => setShowTakeForm(false)}>Batal</Button><Button variant="primary" onClick={handleTakePoint}>Simpan</Button></>}>
         <div className="space-y-4">
           <Select
             label="Pelanggan"
@@ -136,21 +151,29 @@ export default function SalePointsPage() {
           />
           <Input label="Jumlah Point Diambil" type="number" value={takeForm.pointsRedeemed} onChange={(e) => setTakeForm((f) => ({ ...f, pointsRedeemed: Number(e.target.value) }))} />
           <Input label="Keterangan" value={takeForm.rewardName} onChange={(e) => setTakeForm((f) => ({ ...f, rewardName: e.target.value }))} placeholder="Contoh: Tukar voucher belanja" />
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setShowTakeForm(false)}>Batal</Button>
-            <Button variant="primary" onClick={handleTakePoint}>Simpan</Button>
-          </div>
         </div>
       </Modal>
 
+      <Modal open={showDetail} onClose={() => setShowDetail(false)} title={`Pengambilan Point ${selected?.code || ""}`} size="md">
+        {selected && (
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div><span className="text-muted">Tanggal:</span> {formatDate(selected.date)}</div>
+            <div><span className="text-muted">Pelanggan:</span> {selected.Customer?.Name || "-"}</div>
+            <div><span className="text-muted">Point Diambil:</span> <span className="font-semibold text-danger">-{selected.pointsRedeemed}</span></div>
+            <div><span className="text-muted">Keterangan:</span> {selected.rewardName || "-"}</div>
+          </div>
+        )}
+      </Modal>
+
       <ConfirmModal
-        open={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
+        open={showDelete}
+        onClose={() => setShowDelete(false)}
         onConfirm={handleDelete}
         title="Hapus Point"
         message="Yakin ingin menghapus pengambilan point ini? Point akan dikembalikan ke saldo pelanggan."
         confirmText="Hapus"
         variant="danger"
+        loading={saving}
       />
     </PageWrapper>
   );

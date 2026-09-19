@@ -5,11 +5,11 @@ import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { Modal } from "@/components/ui/Modal";
+import { Modal, ConfirmModal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/StatCard";
 import { DataTable } from "@/components/ui/DataTable";
 import { FilterBar } from "@/components/ui/FilterBar";
-import { GridActions, RowEditIcon, RowDeleteIcon } from "@/components/ui/GridActions";
+import { GridActions, RowEditIcon } from "@/components/ui/GridActions";
 import { api } from "@/lib/api-client";
 
 export default function UsersPage() {
@@ -17,6 +17,9 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [selected, setSelected] = useState<any>(null);
+  const [showDelete, setShowDelete] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [companyId, setCompanyId] = useState<number | null>(null);
   const roleOptions = [
     { value: "admin", label: "Admin" },
@@ -45,6 +48,7 @@ export default function UsersPage() {
 
   const handleSave = async () => {
     const isEdit = Boolean((form as any).id);
+    setSaving(true);
     if (isEdit) {
       const payload = { name: form.name, email: form.email || undefined, isActive: form.isActive };
       await api.put("users", (form as any).id, payload).catch(() => ({}));
@@ -52,30 +56,31 @@ export default function UsersPage() {
       const payload = { companyId, username: form.username, name: form.name, email: form.email || undefined, password: form.password };
       await api.post("users", payload).catch(() => ({}));
     }
+    setSaving(false);
     setShowForm(false);
     fetchData();
   };
 
-  const handleDelete = async (id: string) => {
-    await api.delete(`users`, id).catch(() => ({}));
-    fetchData();
+  const handleDelete = async () => {
+    if (!selected) return;
+    setSaving(true);
+    try {
+      await api.delete("users", selected.ID).catch(() => ({}));
+      setShowDelete(false);
+      setSelected(null);
+      fetchData();
+    } finally { setSaving(false); }
   };
 
+  const openEdit = (row: any) => { setSelected(row); setForm({ id: row.ID, name: row.Name, username: row.Username, email: row.Email || "", password: "", role: row.Role, isActive: row.IsActive } as any); setShowForm(true); };
+
   const columns = [
+    { key: "edit", label: "", width: 36, render: (_: unknown, row: any) => <RowEditIcon onClick={() => openEdit(row)} /> },
     { key: "Name", label: "Nama" },
     { key: "Username", label: "Username" },
     { key: "Email", label: "Email" },
     { key: "Role", label: "Role", render: (v: unknown) => <span className="capitalize">{v as string}</span> },
     { key: "IsActive", label: "Status", render: (v: unknown) => v ? <Badge variant="success">Aktif</Badge> : <Badge variant="default">Nonaktif</Badge> },
-    {
-      key: "actions", label: "", width: "70px",
-      render: (_: unknown, row: any) => (
-        <div className="flex gap-1">
-          <RowEditIcon onClick={() => { setForm({ id: row.ID, name: row.Name, username: row.Username, email: row.Email || "", password: "", role: row.Role, isActive: row.IsActive } as any); setShowForm(true); }} />
-          <RowDeleteIcon onClick={() => handleDelete(row.ID)} />
-        </div>
-      )
-    },
   ];
 
   const openCreate = () => { setForm({ name: "", username: "", email: "", password: "", role: "cashier", isActive: true }); setShowForm(true); };
@@ -87,14 +92,24 @@ export default function UsersPage() {
           fields={[{ key: "search", label: "Kata Kunci", type: "text", placeholder: "Cari pengguna..." }]}
           onFilter={(v) => setSearch((v.search as string) || "")}
           loading={loading}
-          actions={<GridActions onAdd={openCreate} />}
+          actions={
+            <GridActions
+              onAdd={openCreate}
+              onEdit={() => selected && openEdit(selected)}
+              onDelete={() => selected && setShowDelete(true)}
+              disableEdit={!selected}
+              disableDelete={!selected}
+            />
+          }
         />
         <div className="mt-4">
-          <DataTable data={data} columns={columns} loading={loading} emptyMessage="Tidak ada pengguna" />
+          <DataTable data={data} columns={columns} loading={loading} selectedId={selected?.ID ?? null} onRowClick={setSelected} emptyMessage="Tidak ada pengguna" />
         </div>
       </Card>
 
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="Pengguna" size="md">
+      <Modal open={showForm} onClose={() => setShowForm(false)} title={(form as any).id ? "Ubah Pengguna" : "Tambah Pengguna"} size="md"
+        footer={<><Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button><Button variant="primary" onClick={handleSave} loading={saving}>Simpan</Button></>}
+      >
         <div className="space-y-4">
           <Input label="Nama" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
           {!(form as any).id && (
@@ -105,12 +120,19 @@ export default function UsersPage() {
             <Input label="Password" type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
           )}
           <Select label="Role" value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} options={roleOptions} />
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button>
-            <Button variant="primary" onClick={handleSave}>Simpan</Button>
-          </div>
         </div>
       </Modal>
+
+      <ConfirmModal
+        open={showDelete}
+        onClose={() => setShowDelete(false)}
+        onConfirm={handleDelete}
+        title="Hapus Pengguna"
+        message={`Yakin ingin menghapus pengguna ${selected?.Name ?? ""}?`}
+        confirmText="Hapus"
+        variant="danger"
+        loading={saving}
+      />
     </PageWrapper>
   );
 }

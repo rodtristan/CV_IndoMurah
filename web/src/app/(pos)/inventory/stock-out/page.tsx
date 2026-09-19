@@ -6,11 +6,11 @@ import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { Modal } from "@/components/ui/Modal";
+import { Modal, ConfirmModal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/StatCard";
 import { DataTable } from "@/components/ui/DataTable";
 import { FilterBar } from "@/components/ui/FilterBar";
-import { GridActions, RowDeleteIcon } from "@/components/ui/GridActions";
+import { GridActions, RowEditIcon } from "@/components/ui/GridActions";
 import { api, odata } from "@/lib/api-client";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import type { Product } from "@/lib/types";
@@ -28,6 +28,10 @@ export default function StockOutPage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [selected, setSelected] = useState<any>(null);
+  const [showDetail, setShowDetail] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [detailItems, setDetailItems] = useState<any[]>([]);
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [saving, setSaving] = useState(false);
@@ -86,6 +90,14 @@ export default function StockOutPage() {
 
   const itemsTotal = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
 
+  const openDetail = async (row: any) => {
+    setSelected(row);
+    setDetailItems([]);
+    setShowDetail(true);
+    const res = await api.getOne<any>("stock-out", row.ID, { $include: "StockOutItems,StockOutItems.Product" } as any).catch(() => null as any);
+    if (res?.success && res.data) setDetailItems(res.data.StockOutItems || []);
+  };
+
   const openCreate = () => { resetForm(); fetchLookups(); setShowForm(true); };
 
   const handleSave = async () => {
@@ -109,12 +121,20 @@ export default function StockOutPage() {
     } finally { setSaving(false); }
   };
 
-  const handleDelete = async (id: string) => {
-    await api.delete(`stock-out`, id).catch(() => ({}));
-    fetchData();
+  const handleDelete = async () => {
+    if (!selected) return;
+    setSaving(true);
+    try {
+      await api.delete("stock-out", selected.ID);
+      setShowDelete(false);
+      setSelected(null);
+      fetchData();
+    } catch (e) { console.error(e); }
+    finally { setSaving(false); }
   };
 
   const columns = [
+    { key: "edit", label: "", width: 36, render: (_: unknown, row: any) => <RowEditIcon onClick={() => openDetail(row)} /> },
     { key: "Date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
     { key: "Code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
     { key: "Warehouse", label: "Gudang", render: (v: unknown) => (v as any)?.Name || "-" },
@@ -124,14 +144,6 @@ export default function StockOutPage() {
       return s === "COMPLETED" ? <Badge variant="success">Selesai</Badge> : s === "PENDING" ? <Badge variant="warning">Pending</Badge> : <Badge variant="default">{s || "-"}</Badge>;
     }},
     { key: "TotalItems", label: "Total Item", align: "right" as const },
-    {
-      key: "actions", label: "", width: "70px",
-      render: (_: unknown, row: any) => (
-        <div className="flex gap-1">
-          <RowDeleteIcon onClick={() => handleDelete(row.ID)} />
-        </div>
-      )
-    },
   ];
 
   return (
@@ -141,10 +153,18 @@ export default function StockOutPage() {
           fields={[{ key: "search", label: "Kata Kunci", type: "text", placeholder: "Cari..." }]}
           onFilter={(v) => setSearch((v.search as string) || "")}
           loading={loading}
-          actions={<GridActions onAdd={openCreate} />}
+          actions={
+            <GridActions
+              onAdd={openCreate}
+              onEdit={() => selected && openDetail(selected)}
+              onDelete={() => selected && setShowDelete(true)}
+              disableEdit={!selected}
+              disableDelete={!selected}
+            />
+          }
         />
         <div className="mt-4">
-          <DataTable data={data} columns={columns} loading={loading} emptyMessage="Tidak ada stock keluar" />
+          <DataTable data={data} columns={columns} loading={loading} emptyMessage="Tidak ada stock keluar" selectedId={selected?.ID ?? null} onRowClick={(row) => setSelected(row)} />
         </div>
       </Card>
 
@@ -221,6 +241,30 @@ export default function StockOutPage() {
           </div>
         </div>
       </Modal>
+
+      <Modal open={showDetail} onClose={() => setShowDetail(false)} title={`Stock Keluar ${selected?.Code || ""}`} size="lg">
+        {selected && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div><span className="text-muted">Tanggal:</span> {formatDate(selected.Date)}</div><div><span className="text-muted">Gudang:</span> {selected.Warehouse?.Name || "-"}</div><div><span className="text-muted">Keterangan:</span> {selected.Description || "-"}</div><div><span className="text-muted">Total Item:</span> {selected.TotalItems}</div>
+            </div>
+            <div className="border-t border-default pt-4">
+              <h4 className="mb-2 font-semibold">Item</h4>
+              <table className="w-full text-sm">
+                <thead><tr className="border-b border-default"><th className="py-1 text-left">Produk</th><th className="py-1 text-right">Qty</th><th className="py-1 text-right">Harga</th></tr></thead>
+                <tbody>
+                  {detailItems.map((d: any, i: number) => (
+                    <tr key={i} className="border-b border-default"><td className="py-1 ">{d.Product?.Name || "-"}</td><td className="py-1 text-right">{d.Quantity}</td><td className="py-1 text-right">{formatCurrency(d.UnitPrice)}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <ConfirmModal open={showDelete} onClose={() => setShowDelete(false)} onConfirm={handleDelete}
+        title="Hapus Stock Keluar" message={`Yakin menghapus stock keluar "${selected?.Code}"?`} confirmText="Hapus" variant="danger" loading={saving} />
     </PageWrapper>
   );
 }

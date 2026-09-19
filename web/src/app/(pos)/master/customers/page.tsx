@@ -5,10 +5,10 @@ import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { Modal } from "@/components/ui/Modal";
+import { Modal, ConfirmModal } from "@/components/ui/Modal";
 import { DataTable } from "@/components/ui/DataTable";
 import { FilterBar } from "@/components/ui/FilterBar";
-import { GridActions, RowEditIcon, RowDeleteIcon } from "@/components/ui/GridActions";
+import { GridActions, RowEditIcon } from "@/components/ui/GridActions";
 import { api } from "@/lib/api-client";
 
 const groupOptions = [
@@ -32,6 +32,9 @@ export default function CustomersPage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [selected, setSelected] = useState<any | null>(null);
   const [form, setForm] = useState({ name: "", code: "", email: "", phone: "", address: "", notes: "", customerGroup: "GENERAL" });
 
   const fetchData = useCallback(async () => {
@@ -45,6 +48,8 @@ export default function CustomersPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleSave = async () => {
+    setSaving(true);
+    try {
     const isEdit = Boolean((form as any).ID);
     const payload = {
       Code: form.code,
@@ -60,30 +65,29 @@ export default function CustomersPage() {
     } else {
       await api.post("customer", payload).catch(() => ({}));
     }
+    } finally { setSaving(false); }
     setShowForm(false);
     fetchData();
   };
 
-  const handleDelete = async (id: string) => {
-    await api.delete(`customer`, id).catch(() => ({}));
-    fetchData();
+  const handleDelete = async () => {
+    if (!selected) return;
+    setSaving(true);
+    try {
+      await api.delete("customer", selected.ID).catch(() => ({}));
+      setShowDelete(false);
+      setSelected(null);
+      fetchData();
+    } finally { setSaving(false); }
   };
 
   const columns = [
+    { key: "edit", label: "", width: 36, render: (_: unknown, row: any) => <RowEditIcon onClick={() => openEdit(row)} /> },
     { key: "Code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
     { key: "Name", label: "Nama Pelanggan" },
     { key: "Phone", label: "Telepon", render: (v: unknown) => v ? <span>{v as string}</span> : <span className="text-muted">-</span> },
     { key: "Address", label: "Alamat", render: (v: unknown) => v ? <span className="text-muted">{v as string}</span> : <span className="text-muted">-</span> },
     { key: "CustomerGroup.Name", label: "Grup", render: (v: unknown) => <span className="text-xs uppercase">{(v as string) || "-"}</span> },
-    {
-      key: "actions", label: "", width: "70px",
-      render: (_: unknown, row: any) => (
-        <div className="flex gap-1">
-          <RowEditIcon onClick={() => setEditRow(row)} />
-          <RowDeleteIcon onClick={() => handleDelete(row.ID)} />
-        </div>
-      )
-    },
   ];
 
   const setEditRow = (row: any) => {
@@ -101,6 +105,12 @@ export default function CustomersPage() {
   };
 
   const openCreate = () => { setForm({ name: "", code: "", email: "", phone: "", address: "", notes: "", customerGroup: "GENERAL" }); setShowForm(true); };
+  const openEdit = (row: any) => { setSelected(row); setEditRow(row); };
+  const openCopy = () => {
+    if (!selected) return;
+    openEdit(selected);
+    setForm((f: any) => ({ ...f, id: undefined, ID: undefined, code: "" }));
+  };
 
   return (
     <PageWrapper>
@@ -109,14 +119,24 @@ export default function CustomersPage() {
           fields={[{ key: "search", label: "Kata Kunci", type: "text", placeholder: "Cari pelanggan..." }]}
           onFilter={(v) => setSearch((v.search as string) || "")}
           loading={loading}
-          actions={<GridActions onAdd={openCreate} />}
+          actions={
+            <GridActions
+              onAdd={openCreate}
+              onEdit={() => selected && openEdit(selected)}
+              onCopy={openCopy}
+              onDelete={() => selected && setShowDelete(true)}
+              disableEdit={!selected}
+              disableCopy={!selected}
+              disableDelete={!selected}
+            />
+          }
         />
         <div className="mt-4">
-          <DataTable data={data} columns={columns} loading={loading} emptyMessage="Tidak ada pelanggan" />
+          <DataTable data={data} columns={columns} loading={loading} selectedId={selected?.ID ?? null} onRowClick={(row) => setSelected(row)} emptyMessage="Tidak ada pelanggan" />
         </div>
       </Card>
 
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="Pelanggan" size="lg">
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="Pelanggan" size="lg" footer={<><Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button><Button variant="primary" onClick={handleSave} loading={saving}>Simpan</Button></>}>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <Input label="Kode" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} />
@@ -131,12 +151,18 @@ export default function CustomersPage() {
             <Select label="Grup Pelanggan" value={form.customerGroup} onChange={e => setForm(f => ({ ...f, customerGroup: e.target.value }))} options={groupOptions} />
             <Input label="Catatan" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
           </div>
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button>
-            <Button variant="primary" onClick={handleSave}>Simpan</Button>
-          </div>
         </div>
       </Modal>
+      <ConfirmModal
+        open={showDelete}
+        onClose={() => setShowDelete(false)}
+        onConfirm={handleDelete}
+        title="Hapus Data"
+        message={`Yakin ingin menghapus "${selected?.Name}"? Tindakan ini tidak dapat dibatalkan.`}
+        confirmText="Hapus"
+        variant="danger"
+        loading={saving}
+      />
     </PageWrapper>
   );
 }

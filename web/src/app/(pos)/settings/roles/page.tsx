@@ -5,11 +5,11 @@ import { KeyRound } from "lucide-react";
 import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Modal } from "@/components/ui/Modal";
+import { Modal, ConfirmModal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/StatCard";
 import { DataTable } from "@/components/ui/DataTable";
 import { FilterBar } from "@/components/ui/FilterBar";
-import { GridActions, RowEditIcon, RowDeleteIcon } from "@/components/ui/GridActions";
+import { GridActions, RowEditIcon, UtilityButton } from "@/components/ui/GridActions";
 import { api } from "@/lib/api-client";
 
 function RoleAccessModal({ role, onClose }: { role: any; onClose: () => void }) {
@@ -83,6 +83,9 @@ export default function RolesPage() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [selected, setSelected] = useState<any>(null);
+  const [showDelete, setShowDelete] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [accessRole, setAccessRole] = useState<any>(null);
   const [form, setForm] = useState<{ id?: number; roleName: string; roleDescription: string }>({ roleName: "", roleDescription: "" });
 
@@ -98,41 +101,35 @@ export default function RolesPage() {
 
   const handleSave = async () => {
     const isEdit = Boolean((form as any).id);
+    setSaving(true);
     if (isEdit) {
       await api.put("roles", (form as any).id, form).catch(() => ({}));
     } else {
       await api.post("roles", form).catch(() => ({}));
     }
+    setSaving(false);
     setShowForm(false);
     fetchData();
   };
 
-  const handleDelete = async (id: string) => {
-    await api.delete(`roles`, id).catch(() => ({}));
-    fetchData();
+  const handleDelete = async () => {
+    if (!selected) return;
+    setSaving(true);
+    try {
+      await api.delete("roles", selected.ID).catch(() => ({}));
+      setShowDelete(false);
+      setSelected(null);
+      fetchData();
+    } finally { setSaving(false); }
   };
 
+  const openEdit = (row: any) => { setSelected(row); setForm({ id: row.ID, roleName: row.RoleName, roleDescription: row.RoleDescription || "" }); setShowForm(true); };
+
   const columns = [
+    { key: "edit", label: "", width: 36, render: (_: unknown, row: any) => <RowEditIcon onClick={() => openEdit(row)} /> },
     { key: "RoleName", label: "Nama Role" },
     { key: "RoleDescription", label: "Deskripsi", render: (v: unknown) => v || "-" },
     { key: "IsActive", label: "Status", render: (v: unknown) => v ? <Badge variant="success">Aktif</Badge> : <Badge variant="default">Nonaktif</Badge> },
-    {
-      key: "actions", label: "", width: "100px",
-      render: (_: unknown, row: any) => (
-        <div className="flex gap-1">
-          <button
-            type="button"
-            title="Hak Akses Menu"
-            onClick={() => setAccessRole(row)}
-            className="rounded p-1.5 text-muted hover:bg-elevated hover:text-primary"
-          >
-            <KeyRound className="size-4" />
-          </button>
-          <RowEditIcon onClick={() => { setForm({ id: row.ID, roleName: row.RoleName, roleDescription: row.RoleDescription || "" }); setShowForm(true); }} />
-          <RowDeleteIcon onClick={() => handleDelete(row.ID)} />
-        </div>
-      )
-    },
   ];
 
   const openCreate = () => { setForm({ roleName: "", roleDescription: "" }); setShowForm(true); };
@@ -144,23 +141,43 @@ export default function RolesPage() {
           fields={[]}
           onFilter={() => fetchData()}
           loading={loading}
-          actions={<GridActions onAdd={openCreate} />}
+          actions={
+            <>
+              <GridActions
+                onAdd={openCreate}
+                onEdit={() => selected && openEdit(selected)}
+                onDelete={() => selected && setShowDelete(true)}
+                disableEdit={!selected}
+                disableDelete={!selected}
+              />
+              <UtilityButton icon={KeyRound} onClick={() => selected && setAccessRole(selected)}>Hak Akses Menu</UtilityButton>
+            </>
+          }
         />
         <div className="mt-4">
-          <DataTable data={data} columns={columns} loading={loading} emptyMessage="Tidak ada role" />
+          <DataTable data={data} columns={columns} loading={loading} selectedId={selected?.ID ?? null} onRowClick={setSelected} emptyMessage="Tidak ada role" />
         </div>
       </Card>
 
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="Role" size="sm">
+      <Modal open={showForm} onClose={() => setShowForm(false)} title={(form as any).id ? "Ubah Role" : "Tambah Role"} size="sm"
+        footer={<><Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button><Button variant="primary" onClick={handleSave} loading={saving}>Simpan</Button></>}
+      >
         <div className="space-y-4">
           <Input label="Nama Role" value={form.roleName} onChange={e => setForm(f => ({ ...f, roleName: e.target.value }))} />
           <Input label="Deskripsi" value={form.roleDescription} onChange={e => setForm(f => ({ ...f, roleDescription: e.target.value }))} />
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button>
-            <Button variant="primary" onClick={handleSave}>Simpan</Button>
-          </div>
         </div>
       </Modal>
+
+      <ConfirmModal
+        open={showDelete}
+        onClose={() => setShowDelete(false)}
+        onConfirm={handleDelete}
+        title="Hapus Role"
+        message={`Yakin ingin menghapus role ${selected?.RoleName ?? ""}?`}
+        confirmText="Hapus"
+        variant="danger"
+        loading={saving}
+      />
 
       {accessRole && <RoleAccessModal role={accessRole} onClose={() => setAccessRole(null)} />}
     </PageWrapper>

@@ -10,7 +10,7 @@ import { Modal } from "@/components/ui/Modal";
 import { ConfirmModal } from "@/components/ui/Modal";
 import { DataTable } from "@/components/ui/DataTable";
 import { FilterBar } from "@/components/ui/FilterBar";
-import { GridActions, RowEditIcon, RowDeleteIcon } from "@/components/ui/GridActions";
+import { GridActions, RowEditIcon } from "@/components/ui/GridActions";
 import { api } from "@/lib/api-client";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 
@@ -25,7 +25,8 @@ export default function JournalsPage() {
   const [saveError, setSaveError] = useState("");
   const [saving, setSaving] = useState(false);
   const [detail, setDetail] = useState<any>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<any>(null);
+  const [showDelete, setShowDelete] = useState(false);
   const [form, setForm] = useState({ date: "", description: "", reference: "" });
   const [lines, setLines] = useState<EntryLine[]>([{ ...EMPTY_LINE }, { ...EMPTY_LINE }]);
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -86,10 +87,14 @@ export default function JournalsPage() {
   };
 
   const handleDelete = async () => {
-    if (!deleteId) return;
-    await api.delete(`journal`, deleteId).catch(() => ({}));
-    setDeleteId(null);
-    fetchJournals();
+    if (!selected) return;
+    setSaving(true);
+    try {
+      await api.delete("journal", selected.ID).catch(() => ({}));
+      setShowDelete(false);
+      setSelected(null);
+      fetchJournals();
+    } finally { setSaving(false); }
   };
 
   const rowTotals = (row: any) => {
@@ -101,21 +106,13 @@ export default function JournalsPage() {
   };
 
   const columns = [
+    { key: "edit", label: "", width: 36, render: (_: unknown, row: any) => <RowEditIcon onClick={() => setDetail(row)} /> },
     { key: "Date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
     { key: "Code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
     { key: "Description", label: "Keterangan", render: (v: unknown) => (v as string) || "-" },
     { key: "ReferenceType", label: "Referensi", render: (v: unknown) => v ? <span className="text-muted">{v as string}</span> : <span className="text-muted">-</span> },
     { key: "debit", label: "Debit", align: "right" as const, render: (_: unknown, row: any) => <span className="font-semibold">{formatCurrency(rowTotals(row).debit)}</span> },
     { key: "credit", label: "Kredit", align: "right" as const, render: (_: unknown, row: any) => <span className="font-semibold">{formatCurrency(rowTotals(row).credit)}</span> },
-    {
-      key: "actions", label: "", width: "80px",
-      render: (_: unknown, row: any) => (
-        <div className="flex gap-1">
-          <Button variant="outline" size="sm" onClick={() => setDetail(row)}>Detail</Button>
-          <RowDeleteIcon onClick={() => setDeleteId(row.ID)} />
-        </div>
-      )
-    },
   ];
 
   const openCreate = () => {
@@ -132,14 +129,24 @@ export default function JournalsPage() {
           fields={[{ key: "search", label: "Kata Kunci", type: "text", placeholder: "Cari jurnal..." }]}
           onFilter={(v) => setSearch((v.search as string) || "")}
           loading={loading}
-          actions={<GridActions onAdd={openCreate} />}
+          actions={
+            <GridActions
+              onAdd={openCreate}
+              onEdit={() => selected && setDetail(selected)}
+              onDelete={() => selected && setShowDelete(true)}
+              disableEdit={!selected}
+              disableDelete={!selected}
+            />
+          }
         />
         <div className="mt-4">
-          <DataTable data={journals} columns={columns} loading={loading} emptyMessage="Tidak ada jurnal" />
+          <DataTable data={journals} columns={columns} loading={loading} selectedId={selected?.ID ?? null} onRowClick={setSelected} emptyMessage="Tidak ada jurnal" />
         </div>
       </Card>
 
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="Jurnal Baru" size="lg">
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="Jurnal Baru" size="lg"
+        footer={<><Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button><Button variant="primary" onClick={handleSave} loading={saving}>Simpan</Button></>}
+      >
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <Input label="Tanggal" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
@@ -178,10 +185,6 @@ export default function JournalsPage() {
 
           {saveError && <p className="text-sm text-danger">{saveError}</p>}
 
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button>
-            <Button variant="primary" onClick={handleSave} loading={saving}>Simpan</Button>
-          </div>
         </div>
       </Modal>
 
@@ -211,7 +214,16 @@ export default function JournalsPage() {
         )}
       </Modal>
 
-      <ConfirmModal open={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={handleDelete} title="Hapus Jurnal" message="Yakin ingin menghapus jurnal ini?" confirmText="Hapus" variant="danger" />
+      <ConfirmModal
+        open={showDelete}
+        onClose={() => setShowDelete(false)}
+        onConfirm={handleDelete}
+        title="Hapus Jurnal"
+        message={`Yakin ingin menghapus jurnal ${selected?.Code ?? ""}? Tindakan ini tidak dapat dibatalkan.`}
+        confirmText="Hapus"
+        variant="danger"
+        loading={saving}
+      />
     </PageWrapper>
   );
 }

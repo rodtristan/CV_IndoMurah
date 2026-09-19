@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Badge } from "@/components/ui/StatCard";
-import { Modal } from "@/components/ui/Modal";
+import { Modal, ConfirmModal } from "@/components/ui/Modal";
 import { DataTable } from "@/components/ui/DataTable";
 import { FilterBar } from "@/components/ui/FilterBar";
-import { GridActions } from "@/components/ui/GridActions";
+import { GridActions, RowEditIcon } from "@/components/ui/GridActions";
 import { api } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -18,7 +18,9 @@ export default function PurchaseReturnsPage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
-  const [detailData, setDetailData] = useState<any>(null);
+  const [selected, setSelected] = useState<any>(null);
+  const [showDelete, setShowDelete] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
 
   const [showForm, setShowForm] = useState(false);
@@ -92,11 +94,24 @@ export default function PurchaseReturnsPage() {
     fetchData();
   };
 
+  const handleDelete = async () => {
+    if (!selected) return;
+    setSaving(true);
+    try {
+      await api.delete("PurchaseReturns", selected.ID);
+      setShowDelete(false);
+      setSelected(null);
+      fetchData();
+    } catch (e) { console.error(e); }
+    finally { setSaving(false); }
+  };
+
   const statusColors: Record<string, string> = {
     DRAFT: "warning", CONFIRMED: "info", COMPLETED: "success", CANCELLED: "danger",
   };
 
   const columns = [
+    { key: "edit", label: "", width: 36, render: (_: unknown, row: any) => <RowEditIcon onClick={() => { setSelected(row); setShowDetail(true); }} /> },
     { key: "Code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
     { key: "Date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
     { key: "Purchase", label: "Ref. Pembelian", render: (v: unknown) => <span className="font-mono text-xs">{(v as any)?.Code || "-"}</span> },
@@ -116,7 +131,15 @@ export default function PurchaseReturnsPage() {
           ]}
           onFilter={(v) => { setSearch((v.search as string) || ""); setFilterStatus((v.status as string) || ""); }}
           loading={loading}
-          actions={<GridActions onAdd={openCreate} />}
+          actions={
+            <GridActions
+              onAdd={openCreate}
+              onEdit={() => selected && setShowDetail(true)}
+              onDelete={() => selected && setShowDelete(true)}
+              disableEdit={!selected}
+              disableDelete={!selected || selected.Status?.Code !== "DRAFT"}
+            />
+          }
         />
         <div className="mt-4">
           <DataTable
@@ -124,19 +147,20 @@ export default function PurchaseReturnsPage() {
             columns={columns}
             loading={loading}
             emptyMessage="Tidak ada retur pembelian"
-            onRowClick={(row) => { setDetailData(row); setShowDetail(true); }}
+            selectedId={selected?.ID ?? null}
+            onRowClick={(row) => setSelected(row)}
           />
         </div>
       </Card>
 
       <Modal open={showDetail} onClose={() => setShowDetail(false)} title="Detail Retur Pembelian" size="lg">
-        {detailData && (
+        {selected && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><span className="text-muted">Tanggal:</span> {formatDate(detailData.Date)}</div>
-              <div><span className="text-muted">Supplier:</span> {detailData.Supplier?.Name || "-"}</div>
-              <div><span className="text-muted">Status:</span> <Badge variant={(statusColors[detailData.Status?.Code] || "default") as any}>{detailData.Status?.Code}</Badge></div>
-              <div><span className="text-muted">Total:</span> <span className="font-bold text-danger">{formatCurrency(detailData.TotalReturn)}</span></div>
+              <div><span className="text-muted">Tanggal:</span> {formatDate(selected.Date)}</div>
+              <div><span className="text-muted">Supplier:</span> {selected.Supplier?.Name || "-"}</div>
+              <div><span className="text-muted">Status:</span> <Badge variant={(statusColors[selected.Status?.Code] || "default") as any}>{selected.Status?.Code}</Badge></div>
+              <div><span className="text-muted">Total:</span> <span className="font-bold text-danger">{formatCurrency(selected.TotalReturn)}</span></div>
             </div>
             <div className="border-t border-default pt-4">
               <h4 className="font-semibold mb-2">Item Retur</h4>
@@ -150,7 +174,7 @@ export default function PurchaseReturnsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(detailData.ReturnItems || []).map((d: any, i: number) => (
+                  {(selected.ReturnItems || []).map((d: any, i: number) => (
                     <tr key={i} className="border-b border-default">
                       <td className="py-1">{d.Product?.Name || "-"}</td>
                       <td className="text-right">{d.Quantity}</td>
@@ -165,7 +189,8 @@ export default function PurchaseReturnsPage() {
         )}
       </Modal>
 
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="Retur Pembelian Baru" size="lg">
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="Retur Pembelian Baru" size="lg"
+        footer={<><Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button><Button variant="primary" onClick={handleSave}>Simpan</Button></>}>
         <div className="space-y-4">
           <Select
             label="Pembelian"
@@ -208,12 +233,11 @@ export default function PurchaseReturnsPage() {
               </table>
             </div>
           )}
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button>
-            <Button variant="primary" onClick={handleSave}>Simpan</Button>
-          </div>
         </div>
       </Modal>
+
+      <ConfirmModal open={showDelete} onClose={() => setShowDelete(false)} onConfirm={handleDelete}
+        title="Hapus Retur Pembelian" message={`Yakin menghapus retur "${selected?.Code}"?`} confirmText="Hapus" variant="danger" loading={saving} />
     </PageWrapper>
   );
 }

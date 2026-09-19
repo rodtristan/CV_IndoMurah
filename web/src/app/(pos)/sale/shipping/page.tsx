@@ -5,10 +5,11 @@ import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { FilterBar } from "@/components/ui/FilterBar";
 import { Badge } from "@/components/ui/StatCard";
 import { Modal } from "@/components/ui/Modal";
 import { DataTable } from "@/components/ui/DataTable";
-import { RowEditIcon } from "@/components/ui/GridActions";
+import { GridActions, RowEditIcon } from "@/components/ui/GridActions";
 import { api } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -16,7 +17,9 @@ export default function SaleShippingPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<any[]>([]);
+  const [selected, setSelected] = useState<any>(null);
   const [editRow, setEditRow] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ shippingStatus: "PENDING", shippingDate: "", trackingNumber: "" });
 
   const fetchData = useCallback(async () => {
@@ -47,14 +50,18 @@ export default function SaleShippingPage() {
       ShippingDate: form.shippingDate || undefined,
       TrackingNumber: form.trackingNumber || undefined,
     };
-    const res = await api.put("sales", `${editRow.ID}/shipping`, payload).catch(() => ({ success: false } as any));
-    if (res.success) {
-      setEditRow(null);
-      fetchData();
-    }
+    setSaving(true);
+    try {
+      const res = await api.put("sales", `${editRow.ID}/shipping`, payload).catch(() => ({ success: false } as any));
+      if (res.success) {
+        setEditRow(null);
+        fetchData();
+      }
+    } finally { setSaving(false); }
   };
 
   const columns = [
+    { key: "edit", label: "", width: 36, render: (_: unknown, row: any) => <RowEditIcon onClick={() => openEdit(row)} /> },
     { key: "Code", label: "No. Transaksi", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
     { key: "Date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
     { key: "Customer.Name", label: "Pelanggan", render: (_: unknown, row: any) => row.Customer?.Name || "-" },
@@ -65,10 +72,6 @@ export default function SaleShippingPage() {
       key: "ShippingStatus", label: "Status Kirim",
       render: (v: unknown) => <Badge variant={v === "SHIPPED" ? "success" : "warning"}>{v === "SHIPPED" ? "Terkirim" : "Pending"}</Badge>,
     },
-    {
-      key: "actions", label: "", width: "60px",
-      render: (_: unknown, row: any) => <RowEditIcon onClick={() => openEdit(row)} />,
-    },
   ];
 
   return (
@@ -77,20 +80,19 @@ export default function SaleShippingPage() {
         <p className="mb-4 text-sm text-muted">
           Data Pengiriman digunakan untuk mengubah status pengiriman/ekspedisi setiap transaksi penjualan.
         </p>
-        <div className="flex items-end gap-4">
-          <Select
-            label="Status Kirim"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            options={[{ value: "", label: "Semua" }, { value: "PENDING", label: "Pending" }, { value: "SHIPPED", label: "Terkirim" }]}
-          />
-        </div>
+        <FilterBar
+          fields={[{ key: "status", label: "Status Kirim", type: "select", options: [{ value: "", label: "Semua" }, { value: "PENDING", label: "Pending" }, { value: "SHIPPED", label: "Terkirim" }] }]}
+          onFilter={(v) => setStatusFilter((v.status as string) || "")}
+          loading={loading}
+          actions={<GridActions onEdit={() => selected && openEdit(selected)} disableEdit={!selected} />}
+        />
         <div className="mt-4">
-          <DataTable data={rows} columns={columns} loading={loading} emptyMessage="Tidak ada data transaksi" />
+          <DataTable data={rows} columns={columns} loading={loading} emptyMessage="Tidak ada data transaksi" selectedId={selected?.ID ?? null} onRowClick={(row) => setSelected(row)} />
         </div>
       </Card>
 
-      <Modal open={!!editRow} onClose={() => setEditRow(null)} title="Edit Data Pengiriman" size="md">
+      <Modal open={!!editRow} onClose={() => setEditRow(null)} title="Edit Data Pengiriman" size="md"
+        footer={<><Button variant="outline" onClick={() => setEditRow(null)}>Batal</Button><Button variant="primary" onClick={handleSave} loading={saving}>Simpan</Button></>}>
         <div className="space-y-4">
           <Select
             label="Status Kirim"
@@ -100,10 +102,6 @@ export default function SaleShippingPage() {
           />
           <Input label="Tanggal Kirim" type="date" value={form.shippingDate} onChange={(e) => setForm((f) => ({ ...f, shippingDate: e.target.value }))} />
           <Input label="No. Resi" value={form.trackingNumber} onChange={(e) => setForm((f) => ({ ...f, trackingNumber: e.target.value }))} />
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setEditRow(null)}>Batal</Button>
-            <Button variant="primary" onClick={handleSave}>Simpan</Button>
-          </div>
         </div>
       </Modal>
     </PageWrapper>

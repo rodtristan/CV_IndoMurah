@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Modal, ConfirmModal } from "@/components/ui/Modal";
 import { DataTable } from "@/components/ui/DataTable";
-import { GridActions, RowEditIcon, RowDeleteIcon } from "@/components/ui/GridActions";
+import { FilterBar } from "@/components/ui/FilterBar";
+import { GridActions, RowEditIcon, UtilityButton } from "@/components/ui/GridActions";
 import { api } from "@/lib/api-client";
 
 const MODULE_OPTIONS = [
@@ -37,6 +38,9 @@ export default function NumberingSettingsPage() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [selected, setSelected] = useState<any>(null);
+  const [showDelete, setShowDelete] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [resetTarget, setResetTarget] = useState<any>(null);
   const [form, setForm] = useState({ type: "", prefix: "", suffix: "", digitCount: 4, lastNumber: 0 });
 
@@ -65,18 +69,26 @@ export default function NumberingSettingsPage() {
       lastNumber: Number(form.lastNumber) || 0,
     };
     const isEdit = Boolean((form as any).id);
+    setSaving(true);
     if (isEdit) {
       await api.patch("numbering", (form as any).id, payload).catch(() => ({}));
     } else {
       await api.post("numbering", payload).catch(() => ({}));
     }
+    setSaving(false);
     setShowForm(false);
     fetchData();
   };
 
-  const handleDelete = async (id: number) => {
-    await api.delete("numbering", String(id)).catch(() => ({}));
-    fetchData();
+  const handleDelete = async () => {
+    if (!selected) return;
+    setSaving(true);
+    try {
+      await api.delete("numbering", String(selected.ID)).catch(() => ({}));
+      setShowDelete(false);
+      setSelected(null);
+      fetchData();
+    } finally { setSaving(false); }
   };
 
   const handleResetLastNumber = async () => {
@@ -86,7 +98,10 @@ export default function NumberingSettingsPage() {
     fetchData();
   };
 
+  const openEdit = (row: any) => { setSelected(row); setForm({ id: row.ID, type: row.Type, prefix: row.Prefix || "", suffix: row.Suffix || "", digitCount: row.DigitCount, lastNumber: row.LastNumber } as any); setShowForm(true); };
+
   const columns = [
+    { key: "edit", label: "", width: 36, render: (_: unknown, row: any) => <RowEditIcon onClick={() => openEdit(row)} /> },
     { key: "Type", label: "Modul", render: (v: unknown) => MODULE_OPTIONS.find((m) => m.value === v)?.label || (v as string) },
     { key: "Prefix", label: "Prefix", render: (v: unknown) => <span className="font-mono text-xs">{(v as string) || "-"}</span> },
     { key: "Suffix", label: "Suffix", render: (v: unknown) => <span className="font-mono text-xs">{(v as string) || "-"}</span> },
@@ -95,22 +110,6 @@ export default function NumberingSettingsPage() {
     {
       key: "preview", label: "Contoh Nomor Berikutnya",
       render: (_: unknown, row: any) => <span className="font-mono text-xs text-primary">{preview(row.Prefix, row.DigitCount, row.LastNumber, row.Suffix)}</span>,
-    },
-    {
-      key: "actions", label: "", width: "110px",
-      render: (_: unknown, row: any) => (
-        <div className="flex gap-1">
-          <button
-            title="Reset No Terakhir"
-            onClick={() => setResetTarget(row)}
-            className="rounded p-1 text-muted hover:bg-elevated hover:text-warning"
-          >
-            <RotateCcw className="size-4" />
-          </button>
-          <RowEditIcon onClick={() => { setForm({ id: row.ID, type: row.Type, prefix: row.Prefix || "", suffix: row.Suffix || "", digitCount: row.DigitCount, lastNumber: row.LastNumber } as any); setShowForm(true); }} />
-          <RowDeleteIcon onClick={() => handleDelete(row.ID)} />
-        </div>
-      )
     },
   ];
 
@@ -121,15 +120,31 @@ export default function NumberingSettingsPage() {
           Setting Nomor mengatur format penomoran otomatis untuk setiap jenis transaksi.
           Nomor berikutnya = Prefix + Counter (dipadatkan sesuai Digit) + Suffix.
         </p>
-        <div className="flex justify-end">
-          <GridActions onAdd={openCreate} />
-        </div>
+        <FilterBar
+          fields={[]}
+          onFilter={() => fetchData()}
+          loading={loading}
+          actions={
+            <>
+              <GridActions
+                onAdd={openCreate}
+                onEdit={() => selected && openEdit(selected)}
+                onDelete={() => selected && setShowDelete(true)}
+                disableEdit={!selected}
+                disableDelete={!selected}
+              />
+              <UtilityButton icon={RotateCcw} onClick={() => selected && setResetTarget(selected)}>Reset No Terakhir</UtilityButton>
+            </>
+          }
+        />
         <div className="mt-4">
-          <DataTable data={data} columns={columns} loading={loading} emptyMessage="Belum ada setting nomor" />
+          <DataTable data={data} columns={columns} loading={loading} selectedId={selected?.ID ?? null} onRowClick={setSelected} emptyMessage="Belum ada setting nomor" />
         </div>
       </Card>
 
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="Setting Nomor" size="md">
+      <Modal open={showForm} onClose={() => setShowForm(false)} title={(form as any).id ? "Ubah Setting Nomor" : "Tambah Setting Nomor"} size="md"
+        footer={<><Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button><Button variant="primary" onClick={handleSave} loading={saving}>Simpan</Button></>}
+      >
         <div className="space-y-4">
           <Select
             label="Modul"
@@ -149,12 +164,19 @@ export default function NumberingSettingsPage() {
           <div className="rounded-lg bg-elevated p-3 text-sm">
             Contoh nomor berikutnya: <span className="font-mono font-semibold text-primary">{preview(form.prefix, form.digitCount, form.lastNumber, form.suffix)}</span>
           </div>
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button>
-            <Button variant="primary" onClick={handleSave}>Simpan</Button>
-          </div>
         </div>
       </Modal>
+
+      <ConfirmModal
+        open={showDelete}
+        onClose={() => setShowDelete(false)}
+        onConfirm={handleDelete}
+        title="Hapus Setting Nomor"
+        message="Yakin ingin menghapus setting nomor ini? Tindakan ini tidak dapat dibatalkan."
+        confirmText="Hapus"
+        variant="danger"
+        loading={saving}
+      />
 
       <ConfirmModal
         open={!!resetTarget}

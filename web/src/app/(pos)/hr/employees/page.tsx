@@ -8,7 +8,7 @@ import { Modal, ConfirmModal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/StatCard";
 import { DataTable } from "@/components/ui/DataTable";
 import { FilterBar } from "@/components/ui/FilterBar";
-import { GridActions, RowEditIcon, RowDeleteIcon } from "@/components/ui/GridActions";
+import { GridActions, RowEditIcon } from "@/components/ui/GridActions";
 import { api } from "@/lib/api-client";
 
 const EMPTY_FORM = { id: undefined as number | undefined, code: "", name: "", phone: "", email: "", address: "" };
@@ -19,7 +19,9 @@ export default function EmployeesPage() {
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [selected, setSelected] = useState<any>(null);
+  const [showDelete, setShowDelete] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -33,37 +35,37 @@ export default function EmployeesPage() {
 
   const handleSave = async () => {
     const payload = { code: form.code, name: form.name, phone: form.phone || undefined, email: form.email || undefined, address: form.address || undefined };
+    setSaving(true);
     if (form.id) {
       await api.patch("employees", form.id, payload).catch(() => ({}));
     } else {
       await api.post("employees", payload).catch(() => ({}));
     }
+    setSaving(false);
     setShowForm(false);
     fetchData();
   };
 
   const handleDelete = async () => {
-    if (!deleteId) return;
-    await api.delete("employees", deleteId).catch(() => ({}));
-    setDeleteId(null);
-    fetchData();
+    if (!selected) return;
+    setSaving(true);
+    try {
+      await api.delete("employees", selected.ID).catch(() => ({}));
+      setShowDelete(false);
+      setSelected(null);
+      fetchData();
+    } finally { setSaving(false); }
   };
 
+  const openEdit = (row: any) => { setSelected(row); setForm({ id: row.ID, code: row.Code, name: row.Name, phone: row.Phone || "", email: row.Email || "", address: row.Address || "" }); setShowForm(true); };
+
   const columns = [
+    { key: "edit", label: "", width: 36, render: (_: unknown, row: any) => <RowEditIcon onClick={() => openEdit(row)} /> },
     { key: "Code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
     { key: "Name", label: "Nama" },
     { key: "Phone", label: "Telepon", render: (v: unknown) => (v as string) || "-" },
     { key: "Email", label: "Email", render: (v: unknown) => (v as string) || "-" },
     { key: "Status", label: "Status", render: (_: unknown, row: any) => <Badge variant={row.Status?.Code === "ACTIVE" ? "success" : "default"}>{row.Status?.Name || "-"}</Badge> },
-    {
-      key: "actions", label: "", width: "70px",
-      render: (_: unknown, row: any) => (
-        <div className="flex gap-1">
-          <RowEditIcon onClick={() => { setForm({ id: row.ID, code: row.Code, name: row.Name, phone: row.Phone || "", email: row.Email || "", address: row.Address || "" }); setShowForm(true); }} />
-          <RowDeleteIcon onClick={() => setDeleteId(row.ID)} />
-        </div>
-      )
-    },
   ];
 
   return (
@@ -73,28 +75,43 @@ export default function EmployeesPage() {
           fields={[{ key: "search", label: "Kata Kunci", type: "text", placeholder: "Cari karyawan..." }]}
           onFilter={(v) => setSearch((v.search as string) || "")}
           loading={loading}
-          actions={<GridActions onAdd={() => { setForm(EMPTY_FORM); setShowForm(true); }} />}
+          actions={
+            <GridActions
+              onAdd={() => { setForm(EMPTY_FORM); setShowForm(true); }}
+              onEdit={() => selected && openEdit(selected)}
+              onDelete={() => selected && setShowDelete(true)}
+              disableEdit={!selected}
+              disableDelete={!selected}
+            />
+          }
         />
         <div className="mt-4">
-          <DataTable data={data} columns={columns} loading={loading} emptyMessage="Belum ada data karyawan" />
+          <DataTable data={data} columns={columns} loading={loading} selectedId={selected?.ID ?? null} onRowClick={setSelected} emptyMessage="Belum ada data karyawan" />
         </div>
       </Card>
 
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="Karyawan" size="sm">
+      <Modal open={showForm} onClose={() => setShowForm(false)} title={form.id ? "Ubah Karyawan" : "Tambah Karyawan"} size="sm"
+        footer={<><Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button><Button variant="primary" onClick={handleSave} loading={saving}>Simpan</Button></>}
+      >
         <div className="space-y-4">
           <Input label="Kode" value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} />
           <Input label="Nama" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
           <Input label="Telepon" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
           <Input label="Email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
           <Input label="Alamat" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button>
-            <Button variant="primary" onClick={handleSave}>Simpan</Button>
-          </div>
         </div>
       </Modal>
 
-      <ConfirmModal open={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={handleDelete} title="Hapus Karyawan" message="Yakin ingin menghapus karyawan ini?" confirmText="Hapus" variant="danger" />
+      <ConfirmModal
+        open={showDelete}
+        onClose={() => setShowDelete(false)}
+        onConfirm={handleDelete}
+        title="Hapus Karyawan"
+        message={`Yakin ingin menghapus karyawan ${selected?.Name ?? ""}?`}
+        confirmText="Hapus"
+        variant="danger"
+        loading={saving}
+      />
     </PageWrapper>
   );
 }
