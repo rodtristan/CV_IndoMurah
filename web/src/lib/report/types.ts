@@ -64,8 +64,23 @@ export interface TextStyle {
   bold?: boolean;
   italic?: boolean;
   underline?: boolean;
-  align: "left" | "center" | "right";
+  strike?: boolean;
+  align: "left" | "center" | "right" | "justify";
   color?: string;
+  /** text highlight (background) color */
+  highlight?: string;
+  /** unitless line-height multiplier (1, 1.15, 1.5, 2 ...) */
+  lineHeight?: number;
+  valign?: "top" | "middle" | "bottom";
+  /** pt */
+  letterSpacing?: number;
+}
+
+export interface ElementBorder {
+  width: number; // mm
+  color: string;
+  style: "solid" | "dashed";
+  sides: { top: boolean; right: boolean; bottom: boolean; left: boolean };
 }
 
 export interface ReportElement {
@@ -78,6 +93,15 @@ export interface ReportElement {
   /** text elements: may contain {Placeholders}; image elements: url or {InfoReport.LogoUrl} */
   text?: string;
   style: TextStyle;
+  /** line elements: draw vertically (uses `h` as length) instead of horizontally */
+  vertical?: boolean;
+  border?: ElementBorder;
+  /** fill color */
+  background?: string;
+  /** inner padding, mm */
+  padding?: number;
+  /** locked elements cannot be moved, resized or deleted in the designer */
+  locked?: boolean;
 }
 
 export interface ReportColumn {
@@ -89,17 +113,43 @@ export interface ReportColumn {
   format: "text" | "number" | "currency" | "date" | "datetime";
   decimals?: number;
   aggregate?: "none" | "sum";
+  /** per-column overrides merged over table.headerStyle / table.rowStyle */
+  headerStyle?: Partial<TextStyle>;
+  rowStyle?: Partial<TextStyle>;
+  headerBackground?: string;
+  rowBackground?: string;
 }
 
+export type PageSizeName = "A3" | "A4" | "A5" | "B5" | "Letter" | "Legal" | "Folio" | "Custom";
+
 export interface PageSetup {
-  size: "A4" | "A5" | "Letter" | "Legal";
+  size: PageSizeName;
   orientation: "portrait" | "landscape";
   margins: { top: number; right: number; bottom: number; left: number };
+  /** size "Custom": portrait-base dimensions in mm (landscape swaps them) */
+  customWidth?: number;
+  customHeight?: number;
+  watermark?: { text: string; fontSize: number; color: string; opacity: number; rotation: number };
+  pageBorder?: { show: boolean; width: number; color: string };
+  /** print scale in percent (50-150), default 100 */
+  printScale?: number;
+  /** optional cap of data rows per page */
+  maxRowsPerPage?: number;
+}
+
+export type GridLines = "header" | "none" | "horizontal" | "vertical" | "all";
+
+export interface ReportBand {
+  show: boolean;
+  height: number;
+  elements: ReportElement[];
 }
 
 export interface ReportTemplateDef {
   version: 1;
   page: PageSetup;
+  /** repeating page header, printed above everything on every page */
+  pageHeader?: ReportBand;
   title: { height: number; elements: ReportElement[] };
   table: {
     columns: ReportColumn[];
@@ -110,6 +160,19 @@ export interface ReportTemplateDef {
     zebra: boolean;
     showSummary: boolean;
     summaryLabel: string;
+    /** "header" (default) = only rules above/below the header row and above the summary */
+    gridLines?: GridLines;
+    gridColor?: string;
+    gridWidth?: number; // mm
+    headerBackground?: string;
+    zebraColor?: string;
+    cellPadding?: number; // mm (horizontal)
+    summaryStyle?: Partial<TextStyle>;
+    /** repeat the table header on every page (default true) */
+    repeatHeader?: boolean;
+    /** prepend an auto "No" column */
+    showRowNumber?: boolean;
+    sortBy?: { field: string; dir: "asc" | "desc" };
   };
   footer: { show: boolean; height: number; elements: ReportElement[] };
 }

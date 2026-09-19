@@ -7,13 +7,15 @@ import api from "@/lib/api-client";
 import { EllipsisLoader } from "@/components/ui/Loader";
 import { ReportPaper } from "../ReportPaper";
 import type { ReportCatalogItem, ReportDataResponse, ReportInfo, ReportTemplateDef, ReportTemplateRecord } from "@/lib/report/types";
-import { buildDefaultTemplate, decodeParams } from "@/lib/report/template";
+import { buildDefaultTemplate, decodeParams, pageDimensions, printScaleOf } from "@/lib/report/template";
 import { useDesignerState } from "./useDesignerState";
 import { Ribbon, type RibbonTab } from "./Ribbon";
 import { DictionaryPanel } from "./DictionaryPanel";
 import { PropertiesPanel } from "./PropertiesPanel";
 import { ReportTree } from "./ReportTree";
 import { DesignCanvas } from "./DesignCanvas";
+import { useViewSettings } from "./useViewSettings";
+import { ZOOM_MAX, ZOOM_MIN } from "./ui";
 
 type LeftTab = "Properties" | "Dictionary" | "Report Tree";
 
@@ -44,7 +46,9 @@ export function Designer() {
   const [notice, setNotice] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [tab, setTab] = useState<RibbonTab>("Home");
   const [leftTab, setLeftTab] = useState<LeftTab>("Dictionary");
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoomRaw] = useState(1);
+  const setZoom = useCallback((z: number) => setZoomRaw(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z * 100) / 100))), []);
+  const { view, update: updateView } = useViewSettings();
   const [data, setData] = useState<{ info: ReportInfo; rows: Record<string, unknown>[] } | null>(null);
   const [dataLoading, setDataLoading] = useState(false);
   const [dataError, setDataError] = useState("");
@@ -233,7 +237,15 @@ export function Designer() {
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
       if (tabRef.current === "Preview") return;
       const x = dRef.current;
-      if (ctrl && k === "z") { e.preventDefault(); e.shiftKey ? x.redo() : x.undo(); }
+      if (e.key === "Escape") { x.cancelPainter(); x.setSel({ type: "none" }); return; }
+      if (ctrl && k === "a") { e.preventDefault(); x.selectAll(); }
+      else if (ctrl && k === "d") { e.preventDefault(); x.duplicate(); }
+      else if (ctrl && (k === "b" || k === "i" || k === "u")) {
+        e.preventDefault();
+        const st = x.currentStyle;
+        if (st) x.applyStyle(k === "b" ? { bold: !st.bold } : k === "i" ? { italic: !st.italic } : { underline: !st.underline });
+      }
+      else if (ctrl && k === "z") { e.preventDefault(); e.shiftKey ? x.redo() : x.undo(); }
       else if (ctrl && k === "y") { e.preventDefault(); x.redo(); }
       else if (ctrl && k === "c") { x.copySelected(); }
       else if (ctrl && k === "x") { e.preventDefault(); x.cutSelected(); }
@@ -247,6 +259,17 @@ export function Designer() {
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, []);
+
+  const fit = (kind: "width" | "page") => {
+    const box = document.getElementById("dz-canvas-scroll");
+    const cur = dRef.current.def;
+    if (!box || !cur) return;
+    const { w, h } = pageDimensions(cur.page);
+    const mm = 96 / 25.4;
+    const zw = (box.clientWidth - 64 - 24) / (w * mm);
+    const zh = (box.clientHeight - 64 - 24) / (h * mm);
+    setZoom(kind === "width" ? zw : Math.min(zw, zh));
+  };
 
   if (loading) {
     return (
@@ -293,6 +316,9 @@ export function Designer() {
         setTab={setTab}
         zoom={zoom}
         setZoom={setZoom}
+        view={view}
+        updateView={updateView}
+        fit={fit}
         busy={busy}
         onSave={() => void doSave(false)}
         onSaveAs={() => void doSave(true)}
@@ -338,8 +364,24 @@ export function Designer() {
             )}
           </div>
         ) : (
-          <DesignCanvas d={d} zoom={zoom} setZoom={setZoom} />
+          <DesignCanvas d={d} zoom={zoom} setZoom={setZoom} view={view} />
         )}
+      </div>
+      <div className="flex shrink-0 items-center gap-4 border-t border-gray-300 bg-[#eaf0f9] px-3 py-1 text-[11px] text-gray-700 print:hidden">
+        <span title="Ukuran kertas dan orientasi">
+          {def.page.size === "Custom" ? "Custom" : def.page.size} {pageDimensions(def.page).w} x {pageDimensions(def.page).h} mm, {def.page.orientation === "landscape" ? "Landscape" : "Portrait"}
+          {printScaleOf(def.page) !== 1 ? ` , skala ${Math.round(printScaleOf(def.page) * 100)}%` : ""}
+        </span>
+        <span title="Zoom">Zoom {Math.round(zoom * 100)}%</span>
+        <span className="min-w-0 flex-1 truncate" title="Posisi dan ukuran elemen terpilih">
+          {d.currentEl && d.sel.type === "el"
+            ? `${d.sel.ids.length > 1 ? `${d.sel.ids.length} elemen; pertama: ` : ""}X ${d.currentEl.x}  Y ${d.currentEl.y}  L ${d.currentEl.w}  T ${d.currentEl.h} mm${d.currentEl.locked ? " (terkunci)" : ""}`
+            : d.sel.type === "col"
+              ? `Kolom: ${def.table.columns.find((c) => c.id === (d.sel as { id: string }).id)?.label ?? ""} (${d.sel.part === "header" ? "header" : "baris"})`
+              : "Tidak ada elemen terpilih"}
+        </span>
+        {d.painterOn && <span className="rounded bg-amber-200 px-1.5 text-amber-900">Format Painter aktif: klik elemen/kolom tujuan</span>}
+        <span className={`rounded px-2 ${d.dirty ? "bg-amber-400 text-amber-950" : "bg-emerald-500/90 text-white"}`}>{busy ? "Menyimpan..." : d.dirty ? "Belum disimpan" : "Tersimpan"}</span>
       </div>
       {nameDialog && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40">

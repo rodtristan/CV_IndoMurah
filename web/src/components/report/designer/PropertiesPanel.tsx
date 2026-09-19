@@ -1,10 +1,12 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { AlignCenter, AlignLeft, AlignRight, Bold, Italic, Underline } from "lucide-react";
+import { AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, Italic, Strikethrough, Underline } from "lucide-react";
 import type { ReportColumn, ReportFieldDef, TextStyle } from "@/lib/report/types";
 import { findElement, type DesignerApi } from "./useDesignerState";
-import { FONT_FAMILIES, FONT_SIZES, Field, NumInput, PAGE_SIZE_OPTIONS, inputCls } from "./ui";
+import { FONT_FAMILIES, FONT_SIZES, LINE_SPACINGS, Field, NumInput, PAGE_SIZE_LABEL, PAGE_SIZE_OPTIONS, inputCls } from "./ui";
+import { pageDimensions } from "@/lib/report/template";
+import { setOrientation } from "./ribbon/PageTab";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -46,15 +48,32 @@ function StyleForm({ style, apply }: { style: TextStyle; apply: (p: Partial<Text
         <Toggle on={style.bold} onClick={() => apply({ bold: !style.bold })}><Bold size={13} /></Toggle>
         <Toggle on={style.italic} onClick={() => apply({ italic: !style.italic })}><Italic size={13} /></Toggle>
         <Toggle on={style.underline} onClick={() => apply({ underline: !style.underline })}><Underline size={13} /></Toggle>
+        <Toggle on={style.strike} onClick={() => apply({ strike: !style.strike })}><Strikethrough size={13} /></Toggle>
         <span className="mx-1 h-5 w-px bg-gray-200" />
         <Toggle on={style.align === "left"} onClick={() => apply({ align: "left" })}><AlignLeft size={13} /></Toggle>
         <Toggle on={style.align === "center"} onClick={() => apply({ align: "center" })}><AlignCenter size={13} /></Toggle>
         <Toggle on={style.align === "right"} onClick={() => apply({ align: "right" })}><AlignRight size={13} /></Toggle>
+        <Toggle on={style.align === "justify"} onClick={() => apply({ align: "justify" })}><AlignJustify size={13} /></Toggle>
         <input type="color" value={style.color || "#000000"} onChange={(e) => apply({ color: e.target.value })} className="ml-1 h-7 w-8 cursor-pointer rounded border border-gray-300 p-0" />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Spasi baris">
+          <select className={inputCls} value={style.lineHeight ?? ""} onChange={(e) => apply({ lineHeight: e.target.value ? Number(e.target.value) : undefined })}>
+            <option value="">Bawaan</option>
+            {LINE_SPACINGS.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </Field>
+        <Field label="Rata vertikal">
+          <select className={inputCls} value={style.valign ?? ""} onChange={(e) => apply({ valign: (e.target.value || undefined) as TextStyle["valign"] })}>
+            <option value="">Bawaan</option><option value="top">Atas</option><option value="middle">Tengah</option><option value="bottom">Bawah</option>
+          </select>
+        </Field>
       </div>
     </>
   );
 }
+
+const BAND_LABEL = { title: "Title", pageHeader: "Header halaman", footer: "Footer" } as const;
 
 export function PropertiesPanel({ d, fields }: { d: DesignerApi; fields: ReportFieldDef[] }) {
   const def = d.def;
@@ -73,7 +92,7 @@ export function PropertiesPanel({ d, fields }: { d: DesignerApi; fields: ReportF
       }, key);
     return (
       <div>
-        <Section title={`Elemen ${el.type === "text" ? "Teks" : el.type === "image" ? "Gambar" : "Garis"} (${f.band === "title" ? "Title" : "Footer"})${sel.ids.length > 1 ? ` +${sel.ids.length - 1}` : ""}`}>
+        <Section title={`Elemen ${el.type === "text" ? "Teks" : el.type === "image" ? "Gambar" : "Garis"} (${BAND_LABEL[f.band]})${sel.ids.length > 1 ? ` +${sel.ids.length - 1}` : ""}`}>
           {el.type === "text" && (
             <Field label="Teks (boleh {Placeholder})">
               <textarea rows={4} className="w-full rounded border border-gray-300 p-1.5 text-xs" value={el.text ?? ""} onChange={(e) => set((t) => { t.text = e.target.value; }, `text${id}`)} />
@@ -96,6 +115,41 @@ export function PropertiesPanel({ d, fields }: { d: DesignerApi; fields: ReportF
             <StyleForm style={el.style} apply={d.applyStyle} />
           </Section>
         )}
+        {el.type !== "line" && (
+          <Section title="Border & Shading">
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="Warna latar">
+                <div className="flex items-center gap-1">
+                  <input type="color" value={el.background || "#ffffff"} onChange={(e) => set((t) => { t.background = e.target.value; }, `bg${id}`)} className="h-7 w-8 cursor-pointer rounded border border-gray-300 p-0" />
+                  <button type="button" className="text-[11px] text-gray-500 underline" onClick={() => set((t) => { delete t.background; })}>hapus</button>
+                </div>
+              </Field>
+              <Field label="Padding (mm)"><NumInput step={0.5} min={0} value={el.padding ?? 0} onChange={(v) => set((t) => { t.padding = v || undefined; }, `pad${id}`)} /></Field>
+              <Field label="Border">
+                <select
+                  className={inputCls}
+                  value={el.border ? (Object.values(el.border.sides).every(Boolean) ? "all" : "custom") : "none"}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    set((t) => {
+                      if (v === "none") delete t.border;
+                      else if (v === "all") t.border = { width: t.border?.width ?? 0.3, color: t.border?.color ?? "#000000", style: t.border?.style ?? "solid", sides: { top: true, right: true, bottom: true, left: true } };
+                    });
+                  }}
+                >
+                  <option value="none">Tanpa</option><option value="all">Semua sisi</option>
+                  {el.border && !Object.values(el.border.sides).every(Boolean) && <option value="custom">Sebagian (Ribbon)</option>}
+                </select>
+              </Field>
+              <Field label="Tebal border (mm)"><NumInput step={0.1} min={0.1} disabled={!el.border} value={el.border?.width ?? 0.3} onChange={(v) => set((t) => { if (t.border) t.border.width = v; }, `bw${id}`)} /></Field>
+            </div>
+          </Section>
+        )}
+        <div className="px-2 pt-2">
+          <label className="flex items-center gap-1.5 text-xs text-gray-700">
+            <input type="checkbox" checked={!!el.locked} onChange={() => d.toggleLock()} /> Kunci elemen (tidak dapat digeser/dihapus)
+          </label>
+        </div>
         {el.type === "line" && (
           <Section title="Warna garis">
             <input type="color" value={el.style.color || "#000000"} onChange={(e) => d.applyStyle({ color: e.target.value })} className="h-7 w-10 cursor-pointer rounded border border-gray-300 p-0" />
@@ -162,8 +216,20 @@ export function PropertiesPanel({ d, fields }: { d: DesignerApi; fields: ReportF
             </select>
           </Field>
         </Section>
-        <Section title={sel.part === "header" ? "Gaya header (semua kolom)" : "Gaya baris (semua kolom)"}>
-          <StyleForm style={sel.part === "header" ? def.table.headerStyle : def.table.rowStyle} apply={d.applyStyle} />
+        <Section title={sel.part === "header" ? "Gaya header (kolom ini)" : "Gaya baris (kolom ini)"}>
+          <StyleForm style={d.currentStyle ?? (sel.part === "header" ? def.table.headerStyle : def.table.rowStyle)} apply={d.applyStyle} />
+          <Field label="Warna latar">
+            <div className="flex items-center gap-1">
+              <input
+                type="color"
+                value={(sel.part === "header" ? col.headerBackground : col.rowBackground) || "#ffffff"}
+                onChange={(e) => d.applyShading(e.target.value)}
+                className="h-7 w-8 cursor-pointer rounded border border-gray-300 p-0"
+              />
+              <button type="button" className="text-[11px] text-gray-500 underline" onClick={() => d.applyShading(undefined)}>hapus</button>
+            </div>
+          </Field>
+          <button type="button" onClick={d.applyToAllColumns} className="rounded border border-blue-300 px-2 py-1 text-xs text-blue-700 hover:bg-blue-50">Terapkan ke semua kolom</button>
         </Section>
         <div className="p-2">
           <button type="button" onClick={d.deleteSelected} className="rounded border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50">Hapus kolom</button>
@@ -176,8 +242,15 @@ export function PropertiesPanel({ d, fields }: { d: DesignerApi; fields: ReportF
   return (
     <div>
       {sel.type === "band" && (
-        <Section title={sel.band === "title" ? "Title Band" : "Footer Band"}>
-          {sel.band === "title" ? (
+        <Section title={sel.band === "title" ? "Title Band" : sel.band === "pageHeader" ? "Page Header Band (berulang tiap halaman)" : "Footer Band"}>
+          {sel.band === "pageHeader" ? (
+            <>
+              <label className="flex items-center gap-1.5 text-xs text-gray-700">
+                <input type="checkbox" checked={!!def.pageHeader?.show} onChange={(e) => d.mutate((x) => { x.pageHeader = { height: 15, elements: [], ...(x.pageHeader ?? {}), show: e.target.checked }; })} /> Tampilkan header halaman
+              </label>
+              <Field label="Tinggi (mm)"><NumInput min={3} value={def.pageHeader?.height ?? 15} onChange={(v) => d.mutate((x) => { if (x.pageHeader) x.pageHeader.height = v; }, "phh")} /></Field>
+            </>
+          ) : sel.band === "title" ? (
             <Field label="Tinggi (mm)"><NumInput min={5} value={def.title.height} onChange={(v) => d.mutate((x) => { x.title.height = v; }, "titleh")} /></Field>
           ) : (
             <>
@@ -192,15 +265,27 @@ export function PropertiesPanel({ d, fields }: { d: DesignerApi; fields: ReportF
       <Section title="Halaman">
         <div className="grid grid-cols-2 gap-2">
           <Field label="Ukuran">
-            <select className={inputCls} value={def.page.size} onChange={(e) => d.mutate((x) => { x.page.size = e.target.value as typeof def.page.size; })}>
-              {PAGE_SIZE_OPTIONS.map((s) => <option key={s}>{s}</option>)}
+            <select className={inputCls} value={def.page.size} onChange={(e) => {
+              const v = e.target.value as typeof def.page.size;
+              d.mutate((x) => {
+                if (v === "Custom" && x.page.customWidth === undefined) { x.page.customWidth = 210; x.page.customHeight = 297; }
+                x.page.size = v;
+              });
+            }}>
+              {PAGE_SIZE_OPTIONS.map((s) => <option key={s} value={s}>{PAGE_SIZE_LABEL[s] ?? s}</option>)}
             </select>
           </Field>
           <Field label="Orientasi">
-            <select className={inputCls} value={def.page.orientation} onChange={(e) => d.mutate((x) => { x.page.orientation = e.target.value as typeof def.page.orientation; })}>
+            <select className={inputCls} value={def.page.orientation} onChange={(e) => setOrientation(d, e.target.value as "portrait" | "landscape")}>
               <option value="portrait">Portrait</option><option value="landscape">Landscape</option>
             </select>
           </Field>
+          {def.page.size === "Custom" && (
+            <>
+              <Field label="Lebar kustom (mm)"><NumInput min={20} max={2000} value={pageDimensions(def.page).w} onChange={(v) => d.mutate((x) => { if (x.page.orientation === "landscape") x.page.customHeight = v; else x.page.customWidth = v; }, "cw")} /></Field>
+              <Field label="Tinggi kustom (mm)"><NumInput min={20} max={2000} value={pageDimensions(def.page).h} onChange={(v) => d.mutate((x) => { if (x.page.orientation === "landscape") x.page.customWidth = v; else x.page.customHeight = v; }, "ch")} /></Field>
+            </>
+          )}
           {(["top", "right", "bottom", "left"] as const).map((k) => (
             <Field key={k} label={`Margin ${{ top: "atas", right: "kanan", bottom: "bawah", left: "kiri" }[k]} (mm)`}>
               <NumInput min={0} max={60} value={def.page.margins[k]} onChange={(v) => d.mutate((x) => { x.page.margins[k] = v; }, `m${k}`)} />

@@ -39,7 +39,7 @@ function Leaf({
 }
 
 const INFO_REPORT = ["NamaPerusahaan", "Alamat1", "Alamat2", "Telepon", "Fax", "LogoUrl"];
-const SYS_VARS = ["PageNumber", "TotalPages", "Tanggal", "UserLogin"];
+const SYS_VARS = ["PageNumber", "TotalPages", "Tanggal", "TanggalCetak", "JamCetak", "UserLogin"];
 
 export function DictionaryPanel({
   d, item, fields, sampleRow,
@@ -49,7 +49,7 @@ export function DictionaryPanel({
   const insertPath = (path: string) => {
     const def = d.def;
     if (!def || d.sel.type !== "el") {
-      setMsg("Pilih elemen teks pada Title/Footer dahulu.");
+      setMsg("Pilih elemen teks pada Title/Header/Footer dahulu.");
       return;
     }
     const id = d.sel.ids[0];

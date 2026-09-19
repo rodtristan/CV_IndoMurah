@@ -44,4 +44,13 @@ export const inputCls = "h-7 w-full rounded border border-gray-300 bg-white px-1
 
 export const FONT_FAMILIES = ["Arial", "Times New Roman", "Courier New", "Verdana", "Tahoma"];
 export const FONT_SIZES = [6, 7, 8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 36];
-export const PAGE_SIZE_OPTIONS = ["A4", "A5", "Letter", "Legal"] as const;
+export const PAGE_SIZE_OPTIONS = ["A3", "A4", "A5", "B5", "Letter", "Legal", "Folio", "Custom"] as const;
+export const PAGE_SIZE_LABEL: Record<string, string> = { Folio: "Folio / F4 (215 x 330)", Custom: "Custom...", A3: "A3 (297 x 420)", A4: "A4 (210 x 297)", A5: "A5 (148 x 210)", B5: "B5 (176 x 250)", Letter: "Letter (216 x 279)", Legal: "Legal (216 x 356)" };
+export const ZOOM_MIN = 0.25;
+export const ZOOM_MAX = 3;
+export const LINE_SPACINGS = [1, 1.15, 1.5, 2];
+export const STD_COLORS = [
+  "#000000", "#434343", "#666666", "#999999", "#cccccc", "#ffffff",
+  "#c00000", "#ff0000", "#ff9900", "#ffff00", "#92d050", "#00b050",
+  "#00b0f0", "#0070c0", "#002060", "#7030a0", "#f4b6c2", "#fce4d6",
+];

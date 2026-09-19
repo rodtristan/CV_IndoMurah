@@ -28,6 +28,14 @@ export function ReportTree({ d }: { d: DesignerApi }) {
   return (
     <div className="py-1">
       <Row label="Page1" depth={0} active={s.type === "page"} onClick={() => d.setSel({ type: "page" })} />
+      {def.pageHeader?.show && (
+        <>
+          <Row label="PageHeaderBand1" depth={1} active={s.type === "band" && s.band === "pageHeader"} onClick={() => d.setSel({ type: "band", band: "pageHeader" })} />
+          {def.pageHeader.elements.map((e) => (
+            <Row key={e.id} label={elLabel(e)} depth={2} active={elActive(e.id)} onClick={() => d.setSel({ type: "el", ids: [e.id] })} />
+          ))}
+        </>
+      )}
       <Row label="ReportTitleBand1" depth={1} active={s.type === "band" && s.band === "title"} onClick={() => d.setSel({ type: "band", band: "title" })} />
       {def.title.elements.map((e) => (
         <Row key={e.id} label={elLabel(e)} depth={2} active={elActive(e.id)} onClick={() => d.setSel({ type: "el", ids: [e.id] })} />

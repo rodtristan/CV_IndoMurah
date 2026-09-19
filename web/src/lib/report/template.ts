@@ -8,20 +8,89 @@ import type {
 } from "./types";
 
 export const PAGE_SIZES_MM: Record<string, { w: number; h: number }> = {
+  A3: { w: 297, h: 420 },
   A4: { w: 210, h: 297 },
   A5: { w: 148, h: 210 },
+  B5: { w: 176, h: 250 },
   Letter: { w: 216, h: 279 },
   Legal: { w: 216, h: 356 },
+  Folio: { w: 215, h: 330 },
 };
 
+/** sizes the browser understands by name in `@page size:`; others get explicit mm */
+export const CSS_NAMED_SIZES = ["A4", "A5", "Letter", "Legal"];
+
 export function pageDimensions(page: ReportTemplateDef["page"]) {
-  const base = PAGE_SIZES_MM[page.size] ?? PAGE_SIZES_MM.A4;
+  let base = PAGE_SIZES_MM[page.size];
+  if (page.size === "Custom") {
+    base = { w: Math.max(20, page.customWidth || 210), h: Math.max(20, page.customHeight || 297) };
+  }
+  base = base ?? PAGE_SIZES_MM.A4;
   return page.orientation === "landscape" ? { w: base.h, h: base.w } : { ...base };
 }
 
 export function printableWidth(def: ReportTemplateDef) {
   const { w } = pageDimensions(def.page);
   return w - def.page.margins.left - def.page.margins.right;
+}
+
+/** CSS value for `@page { size: ... }` */
+export function pageCssSize(page: ReportTemplateDef["page"]) {
+  if (CSS_NAMED_SIZES.includes(page.size)) return `${page.size} ${page.orientation}`;
+  const { w, h } = pageDimensions(page);
+  return `${w}mm ${h}mm`;
+}
+
+/** print scale factor (0.5 - 1.5), default 1 */
+export function printScaleOf(page: ReportTemplateDef["page"]) {
+  const v = page.printScale;
+  return v && v >= 50 && v <= 150 ? v / 100 : 1;
+}
+
+/** Virtual sheet size the content is laid out on; the whole sheet is then scaled by printScale. */
+export function layoutDimensions(page: ReportTemplateDef["page"]) {
+  const { w, h } = pageDimensions(page);
+  const s = printScaleOf(page);
+  return { w: w / s, h: h / s };
+}
+
+export const MARGIN_PRESETS: { name: string; label: string; m: { top: number; right: number; bottom: number; left: number } }[] = [
+  { name: "normal", label: "Normal", m: { top: 25.4, right: 25.4, bottom: 25.4, left: 25.4 } },
+  { name: "narrow", label: "Sempit", m: { top: 12.7, right: 12.7, bottom: 12.7, left: 12.7 } },
+  { name: "moderate", label: "Sedang", m: { top: 25.4, right: 19.1, bottom: 25.4, left: 19.1 } },
+  { name: "wide", label: "Lebar", m: { top: 25.4, right: 50.8, bottom: 25.4, left: 50.8 } },
+  { name: "ketoko", label: "Sempit Ketoko", m: { top: 12, right: 12, bottom: 12, left: 12 } },
+];
+
+export function marginPresetName(m: ReportTemplateDef["page"]["margins"]): string | null {
+  const eq = (a: number, b: number) => Math.abs(a - b) < 0.05;
+  const hit = MARGIN_PRESETS.find((p) => eq(p.m.top, m.top) && eq(p.m.right, m.right) && eq(p.m.bottom, m.bottom) && eq(p.m.left, m.left));
+  return hit ? hit.name : null;
+}
+
+/** Table columns as rendered: adds the auto "No" column when table.showRowNumber. */
+export const ROW_NO_FIELD = "__no";
+export function effectiveColumns(def: ReportTemplateDef): ReportColumn[] {
+  const cols = def.table.columns;
+  if (!def.table.showRowNumber) return cols;
+  const no: ReportColumn = { id: "__no", field: ROW_NO_FIELD, label: "No", width: 8, align: "center", format: "text" };
+  return [no, ...cols];
+}
+
+export function sortRows(def: ReportTemplateDef, rows: Record<string, unknown>[]): Record<string, unknown>[] {
+  const sb = def.table.sortBy;
+  if (!sb || !sb.field) return rows;
+  const dir = sb.dir === "desc" ? -1 : 1;
+  return [...rows].sort((a, b) => {
+    const x = a[sb.field];
+    const y = b[sb.field];
+    if (x == null || x === "") return y == null || y === "" ? 0 : 1;
+    if (y == null || y === "") return -1;
+    const nx = Number(x);
+    const ny = Number(y);
+    if (!Number.isNaN(nx) && !Number.isNaN(ny) && typeof x !== "object") return (nx - ny) * dir;
+    return String(x).localeCompare(String(y), "id") * dir;
+  });
 }
 
 let idCounter = 0;
@@ -126,6 +195,11 @@ export function resolvePlaceholders(text: string, ctx: PlaceholderCtx): string {
     if (path === "PageNumber") return String(ctx.pageNumber ?? 1);
     if (path === "TotalPages") return String(ctx.totalPages ?? 1);
     if (path === "Tanggal") return fmtDate(ctx.info.Tanggal, true);
+    if (path === "TanggalCetak") return fmtDate(ctx.info.Tanggal, false);
+    if (path === "JamCetak") {
+      const t = new Date(ctx.info.Tanggal);
+      return Number.isNaN(t.getTime()) ? "" : t.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+    }
     if (path === "UserLogin") return ctx.info.UserLogin ?? "";
     const parts = path.split(".");
     let cur: unknown = ctx.info;
