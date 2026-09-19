@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api-client";
 import { POSSidebar } from "./Sidebar";
 import { GlobalPageLoader, TopProgressBar } from "@/components/ui/Loader";
+import { usePageTitleOverride } from "@/lib/page-title";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -275,7 +276,8 @@ export function MainLayout({ children }: MainLayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  const title = pageTitle(pathname);
+  const titleOverride = usePageTitleOverride();
+  const title = titleOverride ?? pageTitle(pathname);
   const isDashboard = title === "Halaman Utama";
 
   return (

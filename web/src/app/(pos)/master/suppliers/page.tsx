@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { PageWrapper, Card } from "@/components/layout/PageWrapper";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Modal, ConfirmModal } from "@/components/ui/Modal";
+import { ConfirmModal } from "@/components/ui/Modal";
 import { DataTable } from "@/components/ui/DataTable";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { GridActions, RowEditIcon } from "@/components/ui/GridActions";
@@ -14,11 +13,10 @@ export default function SuppliersPage() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
-  const [showForm, setShowForm] = useState(false);
+  const router = useRouter();
   const [showDelete, setShowDelete] = useState(false);
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<any | null>(null);
-  const [form, setForm] = useState<{ id?: number; name: string; code: string; email: string; phone: string; address: string; notes: string; contactPerson: string }>({ name: "", code: "", email: "", phone: "", address: "", notes: "", contactPerson: "" });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -29,29 +27,6 @@ export default function SuppliersPage() {
   }, [search]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-    const isEdit = Boolean(form.id);
-    const payload = {
-      code: form.code,
-      name: form.name,
-      email: form.email || undefined,
-      phone: form.phone || undefined,
-      address: form.address || undefined,
-      notes: form.notes || undefined,
-      contactPerson: form.contactPerson || undefined,
-    };
-    if (isEdit) {
-      await api.patch("supplier", form.id!, payload).catch(() => ({}));
-    } else {
-      await api.post("supplier", payload).catch(() => ({}));
-    }
-    } finally { setSaving(false); }
-    setShowForm(false);
-    fetchData();
-  };
 
   const handleDelete = async () => {
     if (!selected) return;
@@ -73,13 +48,9 @@ export default function SuppliersPage() {
     { key: "Address", label: "Alamat", render: (v: unknown) => v ? <span className="text-muted">{v as string}</span> : <span className="text-muted">-</span> },
   ];
 
-  const openCreate = () => { setForm({ name: "", code: "", email: "", phone: "", address: "", notes: "", contactPerson: "" }); setShowForm(true); };
-  const openEdit = (row: any) => { setSelected(row); setForm({ id: row.ID, code: row.Code, name: row.Name, email: row.Email || "", phone: row.Phone || "", address: row.Address || "", notes: row.Notes || "", contactPerson: row.ContactPerson || "" }); setShowForm(true); };
-  const openCopy = () => {
-    if (!selected) return;
-    openEdit(selected);
-    setForm((f: any) => ({ ...f, id: undefined, ID: undefined, code: "" }));
-  };
+  const openCreate = () => router.push("/master/suppliers/new");
+  const openEdit = (row: any) => router.push(`/master/suppliers/${row.ID}`);
+  const openCopy = () => { if (selected) router.push(`/master/suppliers/new?copyFrom=${selected.ID}`); };
 
   return (
     <PageWrapper>
@@ -105,21 +76,6 @@ export default function SuppliersPage() {
         </div>
       </Card>
 
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="Supplier" size="lg" footer={<><Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button><Button variant="primary" onClick={handleSave} loading={saving}>Simpan</Button></>}>
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="Kode" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} />
-            <Input label="Nama" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="Contact Person" value={form.contactPerson} onChange={e => setForm(f => ({ ...f, contactPerson: e.target.value }))} />
-            <Input label="Telepon" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
-          </div>
-          <Input label="Email" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
-          <Input label="Alamat" value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} />
-          <Input label="Catatan" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
-        </div>
-      </Modal>
       <ConfirmModal
         open={showDelete}
         onClose={() => setShowDelete(false)}

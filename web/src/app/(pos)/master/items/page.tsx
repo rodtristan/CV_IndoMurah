@@ -1,39 +1,29 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Layers } from "lucide-react";
 import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { DataTable } from "@/components/ui/DataTable";
-import { Button } from "@/components/ui/Button";
-import { Modal } from "@/components/ui/Modal";
-import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { ConfirmModal } from "@/components/ui/Modal";
 import { GridActions, RowEditIcon, UtilityButton } from "@/components/ui/GridActions";
 import { api, odata } from "@/lib/api-client";
 import { formatNumber } from "@/lib/utils";
-import type { Product, Category, Brand, Unit, Warehouse } from "@/lib/types";
+import type { Product, Category, Brand, Warehouse } from "@/lib/types";
 
 export default function MasterItemsPage() {
+  const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
-  const [units, setUnits] = useState<Unit[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [filters, setFilters] = useState<Record<string, unknown>>({});
   const [pagination, setPagination] = useState({ page: 1, pageSize: 20, total: 0, totalPages: 0 });
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    code: "", barcode: "", name: "", categoryId: "", brandId: "",
-    unitId: "", warehouseId: "", purchasePrice: "", sellingPrice: "",
-    stock: "", minimumStock: "", description: "", isActive: true,
-  });
-
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
@@ -63,72 +53,20 @@ export default function MasterItemsPage() {
   }, [filters, pagination.page, pagination.pageSize]);
 
   const fetchLookups = async () => {
-    const [catRes, brandRes, unitRes, whRes] = await Promise.all([
+    const [catRes, brandRes, whRes] = await Promise.all([
       api.get<Category[]>("categories", odata().take(100).toParams()).catch(() => ({ data: [] } as any)),
-      api.get<Brand[]>("brands", odata().take(100).toParams()).catch(() => ({ data: [] } as any)),
-      api.get<Unit[]>("units", odata().take(100).toParams()).catch(() => ({ data: [] } as any)),
-      api.get<Warehouse[]>("warehouses", odata().take(100).toParams()).catch(() => ({ data: [] } as any)),
+      api.get<Brand[]>("brand", odata().take(100).toParams()).catch(() => ({ data: [] } as any)),
+      api.get<Warehouse[]>("warehouse", odata().take(100).toParams()).catch(() => ({ data: [] } as any)),
     ]);
     setCategories(catRes.data || []);
     setBrands(brandRes.data || []);
-    setUnits(unitRes.data || []);
     setWarehouses(whRes.data || []);
   };
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
-  const openCreate = () => {
-    setSelectedProduct(null);
-    setForm({ code: "", barcode: "", name: "", categoryId: "", brandId: "", unitId: "", warehouseId: "", purchasePrice: "", sellingPrice: "", stock: "", minimumStock: "", description: "", isActive: true });
-    fetchLookups();
-    setShowForm(true);
-  };
-
-  const openEdit = (product: Product) => {
-    setSelectedProduct(product);
-    setForm({
-      code: product.Code, barcode: product.Barcode || "", name: product.Name,
-      categoryId: String(product.CategoryID || ""), brandId: String(product.BrandID || ""),
-      unitId: String(product.UnitID), warehouseId: String(product.WarehouseID || ""),
-      purchasePrice: String(product.PurchasePrice), sellingPrice: String(product.SellingPrice),
-      stock: String(product.Stock), minimumStock: String(product.MinimumStock),
-      description: product.Description || "", isActive: product.IsActive,
-    });
-    fetchLookups();
-    setShowForm(true);
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const basePayload = {
-        code: form.code, barcode: form.barcode || null, name: form.name,
-        categoryId: form.categoryId ? Number(form.categoryId) : null,
-        brandId: form.brandId ? Number(form.brandId) : null,
-        unitId: Number(form.unitId),
-        warehouseId: form.warehouseId ? Number(form.warehouseId) : null,
-        purchasePrice: Number(form.purchasePrice),
-        sellingPrice: Number(form.sellingPrice),
-        minimumStock: Number(form.minimumStock),
-        description: form.description || null,
-        isActive: form.isActive,
-      };
-
-      if (selectedProduct) {
-        // UpdateProductDto deliberately excludes `stock` — stock changes go
-        // through the dedicated adjust-stock endpoint for auditability.
-        await api.patch("products", selectedProduct.ID, basePayload);
-      } else {
-        await api.post("products", { ...basePayload, stock: Number(form.stock) });
-      }
-      setShowForm(false);
-      fetchProducts();
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setSaving(false);
-    }
-  };
+  const openEdit = (product: Product) => router.push(`/master/items/${product.ID}`);
+  const openCopy = (product: Product) => router.push(`/master/items/new?copyFrom=${product.ID}`);
 
   const handleDelete = async () => {
     if (!selectedProduct) return;
@@ -214,9 +152,9 @@ export default function MasterItemsPage() {
           actions={
             <>
               <GridActions
-                onAdd={openCreate}
+                onAdd={() => router.push('/master/items/new')}
                 onEdit={() => selectedProduct && openEdit(selectedProduct)}
-                onCopy={() => {}}
+                onCopy={() => selectedProduct && openCopy(selectedProduct)}
                 onDelete={() => selectedProduct && setShowDelete(true)}
                 disableEdit={!selectedProduct}
                 disableCopy={!selectedProduct}
@@ -247,29 +185,6 @@ export default function MasterItemsPage() {
           />
         </div>
       </Card>
-
-      {/* Form Modal */}
-      <Modal
-        open={showForm}
-        onClose={() => setShowForm(false)}
-        title={selectedProduct ? "Edit Produk" : "Tambah Produk"}
-        size="lg"
-        footer={<><Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button><Button variant="primary" onClick={handleSave} loading={saving}>Simpan</Button></>}
-      >
-        <div className="grid grid-cols-2 gap-4">
-          <Input label="Kode" value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} required />
-          <Input label="Barcode" value={form.barcode} onChange={(e) => setForm((f) => ({ ...f, barcode: e.target.value }))} />
-          <div className="col-span-2"><Input label="Nama Produk" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required /></div>
-          <Select label="Kategori" value={form.categoryId} onChange={(e) => setForm((f) => ({ ...f, categoryId: e.target.value }))} options={[{ value: "", label: "Pilih..." }, ...categories.map(c => ({ value: c.ID, label: c.Name }))]} />
-          <Select label="Merek" value={form.brandId} onChange={(e) => setForm((f) => ({ ...f, brandId: e.target.value }))} options={[{ value: "", label: "Pilih..." }, ...brands.map(b => ({ value: b.ID, label: b.Name }))]} />
-          <Select label="Satuan" value={form.unitId} onChange={(e) => setForm((f) => ({ ...f, unitId: e.target.value }))} options={[{ value: "", label: "Pilih..." }, ...units.map(u => ({ value: u.ID, label: `${u.Name} (${u.Abbreviation || u.Code})` }))]} required />
-          <Select label="Gudang" value={form.warehouseId} onChange={(e) => setForm((f) => ({ ...f, warehouseId: e.target.value }))} options={[{ value: "", label: "Pilih..." }, ...warehouses.map(w => ({ value: w.ID, label: w.Name }))]} />
-          <Input label="Harga Beli" type="number" value={form.purchasePrice} onChange={(e) => setForm((f) => ({ ...f, purchasePrice: e.target.value }))} required />
-          <Input label="Harga Jual" type="number" value={form.sellingPrice} onChange={(e) => setForm((f) => ({ ...f, sellingPrice: e.target.value }))} required />
-          <Input label="Stok" type="number" value={form.stock} onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))} required />
-          <Input label="Stok Minimum" type="number" value={form.minimumStock} onChange={(e) => setForm((f) => ({ ...f, minimumStock: e.target.value }))} />
-        </div>
-      </Modal>
 
       <ConfirmModal
         open={showDelete}

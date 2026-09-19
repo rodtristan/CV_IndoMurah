@@ -24,9 +24,12 @@ import { useState, type CSSProperties } from "react";
 
 interface SubItem {
   label: string;
-  href: string;
+  /** Omitted for a submenu header that only groups `children`. */
+  href?: string;
   badge?: string;
   disabled?: boolean;
+  /** Nested submenu (one level, accordion). */
+  children?: SubItem[];
 }
 
 interface MenuGroup {
@@ -59,14 +62,40 @@ const MENU_GROUPS: MenuGroup[] = [
     items: [
       { label: "Daftar Item", href: "/master/items" },
       { label: "Kartu Stok", href: "/master/items/stock-card" },
-      { label: "Kategori", href: "/master/categories" },
-      { label: "Merek", href: "/master/brands" },
-      { label: "Satuan", href: "/master/units" },
-      { label: "Gudang", href: "/master/warehouses" },
-      { label: "Pelanggan", href: "/master/customers" },
-      { label: "Supplier", href: "/master/suppliers" },
-      { label: "Sales Person", href: "/master/sales-persons" },
-      { label: "Sale Point", href: "/master/sale-points" },
+      { label: "Datasheet", href: "/master/datasheet" },
+      { label: "Daftar Supplier", href: "/master/suppliers" },
+      { label: "Daftar Pelanggan", href: "/master/customers" },
+      { label: "Daftar Sales", href: "/master/sales-persons" },
+      { label: "Daftar Grup Pelanggan", href: "/master/customer-groups" },
+      {
+        label: "Wilayah",
+        children: [
+          { label: "Daftar Wilayah", href: "/master/regions" },
+          { label: "Daftar Sub Wilayah", href: "/master/sub-regions" },
+        ],
+      },
+      {
+        label: "Diskon & Promosi",
+        children: [
+          { label: "Promo Periode", href: "/master/promotions" },
+          { label: "Voucher", href: "/master/vouchers" },
+        ],
+      },
+      {
+        label: "Data Lainnya",
+        children: [
+          { label: "Data Jenis", href: "/master/categories" },
+          { label: "Data Merek", href: "/master/brands" },
+          { label: "Data Satuan", href: "/master/units" },
+          { label: "Dept./Gudang", href: "/master/warehouses" },
+          { label: "Daftar Rak", href: "/master/shelves" },
+          { label: "Data Bank", href: "/master/banks" },
+          { label: "Daftar E-Money", href: "/master/e-money" },
+          { label: "Daftar Ongkir", href: "/master/shipping-costs" },
+          { label: "Point Pelanggan", href: "/master/point-settings" },
+          { label: "Sale Point", href: "/master/sale-points" },
+        ],
+      },
     ],
   },
   {
@@ -170,11 +199,17 @@ const MENU_GROUPS: MenuGroup[] = [
   },
 ];
 
+/** Every linkable entry of a group, including nested submenu children. */
+function flatItems(items: SubItem[] | undefined): SubItem[] {
+  return (items ?? []).flatMap((i) => [i, ...flatItems(i.children)]);
+}
+
 /** Longest-href match across every menu item, so "/reports" doesn't light up for "/reports/sales". */
 function findActiveHref(pathname: string): string | null {
   let best: string | null = null;
   for (const g of MENU_GROUPS) {
-    for (const i of g.items ?? []) {
+    for (const i of flatItems(g.items)) {
+      if (!i.href) continue;
       if (pathname === i.href || pathname.startsWith(i.href + "/")) {
         if (!best || i.href.length > best.length) best = i.href;
       }
@@ -251,6 +286,34 @@ function GroupRow({
   return <div className={rowClass}>{inner}</div>;
 }
 
+function ItemLink({ item, active, depth }: { item: SubItem; active: boolean; depth: number }) {
+  const pad = depth === 0 ? "pl-[52px]" : "pl-[72px]";
+  if (item.disabled || !item.href) {
+    return (
+      <div
+        title="Fitur ini sedang tidak diaktifkan"
+        className={cn("flex cursor-not-allowed items-center gap-2 py-2.5 pr-5 text-[14px] text-white/30", pad)}
+      >
+        <span className="flex-1 truncate">{item.label}</span>
+        <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-normal text-white/40">nonaktif</span>
+      </div>
+    );
+  }
+  return (
+    <Link
+      href={item.href}
+      className={cn(
+        "flex items-center gap-2 py-2.5 pr-5 text-[14px] transition-colors",
+        pad,
+        active ? "bg-sidebar-active font-medium text-white" : "text-white/80 hover:bg-sidebar-hover hover:text-white"
+      )}
+    >
+      <span className="flex-1 truncate">{item.label}</span>
+      {item.badge && <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] text-white">{item.badge}</span>}
+    </Link>
+  );
+}
+
 function AccordionPanel({
   group,
   isOpen,
@@ -259,8 +322,12 @@ function AccordionPanel({
   isOpen: boolean;
 }) {
   const pathname = usePathname();
-  if (!group.items?.length) return null;
   const activeHref = findActiveHref(pathname);
+  // Only one nested submenu open at a time; the one holding the active page starts open.
+  const [openSub, setOpenSub] = useState<string | null>(
+    () => group.items?.find((i) => i.children?.some((c) => c.href === activeHref))?.label ?? null
+  );
+  if (!group.items?.length) return null;
 
   return (
     <div
@@ -271,37 +338,37 @@ function AccordionPanel({
     >
       <div className="min-h-0">
         {group.items.map((item) => {
-          const active = item.href === activeHref;
-
-          if (item.disabled) {
-            return (
-              <div
-                key={item.href}
-                title="Fitur ini sedang tidak diaktifkan"
-                className="flex cursor-not-allowed items-center gap-2 py-2.5 pl-[52px] pr-5 text-[14px] text-white/30"
+          if (!item.children?.length) {
+            return <ItemLink key={item.href ?? item.label} item={item} active={item.href === activeHref} depth={0} />;
+          }
+          const subOpen = openSub === item.label;
+          const subActive = item.children.some((c) => c.href === activeHref);
+          return (
+            <div key={item.label}>
+              <button
+                type="button"
+                onClick={() => setOpenSub(subOpen ? null : item.label)}
+                className={cn(
+                  "flex w-full items-center gap-2 py-2.5 pl-[52px] pr-5 text-left text-[14px] transition-colors",
+                  subActive ? "font-medium text-white" : "text-white/80 hover:bg-sidebar-hover hover:text-white"
+                )}
               >
                 <span className="flex-1 truncate">{item.label}</span>
-                <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-normal text-white/40">
-                  nonaktif
-                </span>
+                {subOpen ? <ChevronDown className="size-3.5 shrink-0 opacity-70" /> : <ChevronRight className="size-3.5 shrink-0 opacity-70" />}
+              </button>
+              <div
+                className={cn(
+                  "grid overflow-hidden bg-black/20 transition-[grid-template-rows] duration-200 ease-in-out",
+                  subOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                )}
+              >
+                <div className="min-h-0">
+                  {item.children.map((c) => (
+                    <ItemLink key={c.href ?? c.label} item={c} active={c.href === activeHref} depth={1} />
+                  ))}
+                </div>
               </div>
-            );
-          }
-
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-2 py-2.5 pl-[52px] pr-5 text-[14px] transition-colors",
-                active ? "bg-sidebar-active font-medium text-white" : "text-white/80 hover:bg-sidebar-hover hover:text-white"
-              )}
-            >
-              <span className="flex-1 truncate">{item.label}</span>
-              {item.badge && (
-                <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] text-white">{item.badge}</span>
-              )}
-            </Link>
+            </div>
           );
         })}
       </div>
@@ -313,7 +380,7 @@ export function POSSidebar({ collapsed = false }: { collapsed?: boolean }) {
   const pathname = usePathname();
   const activeHref = findActiveHref(pathname);
   const [openKey, setOpenKey] = useState<string | null>(() => {
-    const active = MENU_GROUPS.find((g) => g.items?.some((i) => i.href === activeHref));
+    const active = MENU_GROUPS.find((g) => flatItems(g.items).some((i) => i.href === activeHref));
     return active?.key ?? null;
   });
 
@@ -322,7 +389,7 @@ export function POSSidebar({ collapsed = false }: { collapsed?: boolean }) {
       {MENU_GROUPS.map((group) => {
         const isGroupActive =
           (group.href && (pathname === group.href || pathname.startsWith(group.href + "/"))) ||
-          !!group.items?.some((i) => i.href === activeHref);
+          flatItems(group.items).some((i) => i.href === activeHref);
         const isOpen = openKey === group.key;
 
         return (

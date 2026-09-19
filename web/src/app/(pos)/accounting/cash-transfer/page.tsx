@@ -1,137 +1,23 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { PageWrapper, Card } from "@/components/layout/PageWrapper";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
-import { Modal, ConfirmModal } from "@/components/ui/Modal";
-import { DataTable } from "@/components/ui/DataTable";
-import { FilterBar } from "@/components/ui/FilterBar";
-import { GridActions, RowEditIcon } from "@/components/ui/GridActions";
-import { api } from "@/lib/api-client";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { ListPage, fmt, fmtDate } from "@/components/kform/erp";
 
-export default function CashTransferPage() {
-  const [transfers, setTransfers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState("");
-  const [showForm, setShowForm] = useState(false);
-  const [selected, setSelected] = useState<any>(null);
-  const [showDelete, setShowDelete] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [accounts, setAccounts] = useState<any[]>([]);
-  const [form, setForm] = useState({ date: "", code: "", fromAccountId: "", toAccountId: "", amount: 0, description: "" });
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await api.get("cash-transfer", { $search: search || undefined, $include: "fromAccount,toAccount" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-      if (res.success) setTransfers(res.data || []);
-    } finally { setLoading(false); }
-  }, [search]);
-
-  const fetchAccounts = useCallback(async () => {
-    const res = await api.get("account", { $select: "ID,Code,Name", $where: { Type: { Code: "ASSET" } } } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-    if (res.success) setAccounts(res.data || []);
-  }, []);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
-  useEffect(() => { fetchAccounts(); }, [fetchAccounts]);
-
-  const handleSave = async () => {
-    const isEdit = Boolean((form as any).id);
-    setSaving(true);
-    const payload = {
-      code: form.code || `CT-${Date.now()}`,
-      fromAccountId: Number(form.fromAccountId),
-      toAccountId: Number(form.toAccountId),
-      amount: Number(form.amount),
-      description: form.description || undefined,
-    };
-    if (isEdit) {
-      await api.patch("cash-transfer", (form as any).id, payload).catch(() => ({}));
-    } else {
-      await api.post("cash-transfer", payload).catch(() => ({}));
-    }
-    setSaving(false);
-    setShowForm(false);
-    fetchData();
-  };
-
-  const columns = [
-    { key: "edit", label: "", width: 36, render: (_: unknown, row: any) => <RowEditIcon onClick={() => openEdit(row)} /> },
-    { key: "Date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
-    { key: "Code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "FromAccount", label: "Dari", render: (v: unknown) => (v as any)?.Name || "-" },
-    { key: "ToAccount", label: "Ke", render: (v: unknown) => (v as any)?.Name || "-" },
-    { key: "Amount", label: "Jumlah", align: "right" as const, render: (v: unknown) => <span className="font-bold text-primary">{formatCurrency(v as number)}</span> },
-    { key: "Description", label: "Keterangan" },
-  ];
-
-  const rowToForm = (row: any) => ({ date: row.Date ? String(row.Date).split("T")[0] : "", code: row.Code, fromAccountId: row.FromAccountID != null ? String(row.FromAccountID) : "", toAccountId: row.ToAccountID != null ? String(row.ToAccountID) : "", amount: Number(row.Amount), description: row.Description || "" });
-  const openEdit = (row: any) => { setSelected(row); setForm({ id: row.ID, ...rowToForm(row) } as any); setShowForm(true); };
-  const openCopy = (row: any) => { setForm({ ...rowToForm(row), date: new Date().toISOString().split("T")[0], code: "" } as any); setShowForm(true); };
-
-  const handleDelete = async () => {
-    if (!selected) return;
-    setSaving(true);
-    try {
-      await api.delete("cash-transfer", selected.ID).catch(() => ({}));
-      setShowDelete(false);
-      setSelected(null);
-      fetchData();
-    } finally { setSaving(false); }
-  };
-
-  const openCreate = () => { setForm({ date: new Date().toISOString().split("T")[0], code: "", fromAccountId: "", toAccountId: "", amount: 0, description: "" }); setShowForm(true); };
-
+export default function Page() {
   return (
-    <PageWrapper>
-      <Card className="p-4">
-        <FilterBar
-          fields={[{ key: "search", label: "Kata Kunci", type: "text", placeholder: "Cari..." }]}
-          onFilter={(v) => setSearch((v.search as string) || "")}
-          loading={loading}
-          actions={
-            <GridActions
-              onAdd={openCreate}
-              onEdit={() => selected && openEdit(selected)}
-              onCopy={() => selected && openCopy(selected)}
-              onDelete={() => selected && setShowDelete(true)}
-              disableEdit={!selected}
-              disableCopy={!selected}
-              disableDelete={!selected}
-            />
-          }
-        />
-        <div className="mt-4">
-          <DataTable data={transfers} columns={columns} loading={loading} selectedId={selected?.ID ?? null} onRowClick={setSelected} emptyMessage="Tidak ada transfer" />
-        </div>
-      </Card>
-
-      <Modal open={showForm} onClose={() => setShowForm(false)} title={(form as any).id ? "Ubah Transfer" : "Transfer Baru"} size="md"
-        footer={<><Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button><Button variant="primary" onClick={handleSave} loading={saving}>Simpan</Button></>}
-      >
-        <div className="space-y-4">
-          <Input label="Tanggal" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
-          <Select label="Dari Akun" value={form.fromAccountId} onChange={e => setForm(f => ({ ...f, fromAccountId: e.target.value }))} options={accounts.map(a => ({ value: a.ID, label: `${a.Code} - ${a.Name}` }))} />
-          <Select label="Ke Akun" value={form.toAccountId} onChange={e => setForm(f => ({ ...f, toAccountId: e.target.value }))} options={accounts.map(a => ({ value: a.ID, label: `${a.Code} - ${a.Name}` }))} />
-          <Input label="Jumlah" type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: Number(e.target.value) }))} />
-          <Input label="Keterangan" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
-        </div>
-      </Modal>
-
-      <ConfirmModal
-        open={showDelete}
-        onClose={() => setShowDelete(false)}
-        onConfirm={handleDelete}
-        title="Hapus Transfer"
-        message={`Yakin ingin menghapus ${selected?.Code ?? "data ini"}? Tindakan ini tidak dapat dibatalkan.`}
-        confirmText="Hapus"
-        variant="danger"
-        loading={saving}
-      />
-    </PageWrapper>
+    <ListPage
+      endpoint="cash-transfer"
+      base="/accounting/cash-transfer"
+      include="fromAccount,toAccount"
+      searchFields="Code,Description"
+      rowLabel={(r) => r.Code}
+      columns={[
+        { key: "Code", label: "No Transaksi", render: (v) => <span className="font-mono text-xs">{String(v)}</span> },
+        { key: "Date", label: "Tanggal", render: (v, r) => fmtDate((v as string) ?? r.CreatedAt) },
+        { key: "FromAccount.Name", label: "Dari Akun", render: (_, r) => r.FromAccount ? r.FromAccount.Code + " - " + r.FromAccount.Name : "-" },
+        { key: "ToAccount.Name", label: "Transfer ke", render: (_, r) => r.ToAccount ? r.ToAccount.Code + " - " + r.ToAccount.Name : "-" },
+        { key: "Description", label: "Keterangan", render: (v) => (v as string) || "-" },
+        { key: "Amount", label: "Jumlah", align: "right", render: (v) => fmt(v) },
+      ]}
+    />
   );
 }
