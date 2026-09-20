@@ -272,6 +272,13 @@ export class PurchaseService {
       throw new BadRequestException('Can only delete draft purchases');
     }
 
+    const [returns, payments] = await Promise.all([
+      this.prisma.purchaseReturn.count({ where: { PurchaseID: id } }),
+      this.prisma.purchasePayment.count({ where: { PurchaseID: id } }),
+    ]);
+    if (returns > 0) throw new BadRequestException('Pembelian tidak dapat dihapus karena sudah memiliki retur pembelian');
+    if (payments > 0) throw new BadRequestException('Pembelian tidak dapat dihapus karena sudah memiliki pembayaran');
+
     await this.prisma.purchase.delete({ where: { ID: id } });
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
     return { id };
