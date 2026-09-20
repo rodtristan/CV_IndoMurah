@@ -25,7 +25,7 @@ export class ProductStockService extends BaseService<
       allowedIncludes: ['*'],
       allowedSortFields: ['*'],
       allowedSelectFields: ['*'],
-      defaultOrderBy: { updatedAt: 'desc' },
+      defaultOrderBy: { UpdatedAt: 'desc' },
       maxTake: 100,
       defaultTake: 20,
       cacheTtl: 60,

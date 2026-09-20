@@ -252,7 +252,8 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
     return { unitId: num(r.unitId), barcode: r.barcode, purchasePrice: num(r.pokok), sellingPrice: num(sell) };
   };
 
-  const generateCode = async (): Promise<string> => {
+  // `skip` bumps the sequence so a retry avoids codes still held by soft-deleted rows.
+  const generateCode = async (skip = 0): Promise<string> => {
     try {
       const res = await api.get<Product[]>(
         "products", odata().select(["code"]).orderByMulti({ createdAt: "desc" }).take(100).toParams(), { skipCache: true });
@@ -261,7 +262,7 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
         const m = /^P(\d{6})$/.exec(String(p.Code ?? p.code ?? ""));
         if (m) max = Math.max(max, Number(m[1]));
       }
-      return `P${String(max + 1).padStart(6, "0")}`;
+      return `P${String(max + 1 + skip).padStart(6, "0")}`;
     } catch {
       return `P${String(Date.now()).slice(-6)}`;
     }
@@ -305,9 +306,19 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
         setNotice("Data item berhasil disimpan.");
         window.scrollTo({ top: 0, behavior: "smooth" });
       } else {
-        const code = payload.code || (await generateCode());
-        const res = await api.post<Product & { id?: number }>("products", { ...payload, code, stock: 0 });
-        if (!res.success) throw new Error(res.message || "Gagal menyimpan item.");
+        let res: Awaited<ReturnType<typeof api.post<Product & { id?: number }>>> | undefined;
+        for (let attempt = 0; attempt < 5; attempt++) {
+          const code = payload.code || (await generateCode(attempt));
+          try {
+            res = await api.post<Product & { id?: number }>("products", { ...payload, code, stock: 0 });
+            break;
+          } catch (err) {
+            // Auto-generated code may collide with a soft-deleted item (unique Code) -> try the next number.
+            const msg = err instanceof Error ? err.message : "";
+            if (payload.code || attempt === 4 || /must be|should not|invalid/i.test(msg)) throw err;
+          }
+        }
+        if (!res?.success) throw new Error(res?.message || "Gagal menyimpan item.");
         const newId = res.data?.ID ?? res.data?.id;
         router.replace(newId ? `/master/items/${newId}?saved=1` : "/master/items");
       }

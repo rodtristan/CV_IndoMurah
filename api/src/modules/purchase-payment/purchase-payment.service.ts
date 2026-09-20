@@ -54,7 +54,10 @@ export class PurchasePaymentService {
   }
 
   async findOne(id: number, query: Record<string, any> = {}) {
-    const cacheKey = `${this.CACHE_PREFIX}:${id}`;
+    // Include/select query params change the payload, so they must be part of the cache key.
+    const cacheKey = Object.keys(query).length
+      ? `${this.CACHE_PREFIX}:${id}:${this.queryService.generateCacheKey('q', query)}`
+      : `${this.CACHE_PREFIX}:${id}`;
 
     return this.redis.getOrSet(
       cacheKey,
