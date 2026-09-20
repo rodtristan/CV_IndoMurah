@@ -141,6 +141,7 @@ const MENU_GROUPS: MenuGroup[] = [
       { label: "Stock Opname", href: "/inventory/stock-opname" },
       { label: "Saldo Awal", href: "/inventory/opening-stock" },
       { label: "Stock Minim", href: "/inventory/minimum-stock", disabled: true },
+      { label: "Perbaikan Saldo", href: "/inventory/fix-balance" },
     ],
   },
   {
@@ -156,6 +157,10 @@ const MENU_GROUPS: MenuGroup[] = [
       { label: "Transfer Kas", href: "/accounting/cash-transfer", disabled: true },
       { label: "Setoran Pelanggan", href: "/accounting/customer-deposits" },
       { label: "Setoran Supplier", href: "/accounting/supplier-deposits" },
+      { label: "Saldo Deposit", href: "/accounting/deposit-balance" },
+      { label: "Setting Perkiraan", href: "/accounting/account-settings" },
+      { label: "Saldo Awal", href: "/accounting/opening-balance" },
+      { label: "Tutup Tahun", href: "/accounting/year-close" },
     ],
   },
   {
