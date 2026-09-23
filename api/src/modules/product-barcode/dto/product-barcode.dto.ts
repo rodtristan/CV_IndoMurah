@@ -11,16 +11,16 @@ export class CreateProductBarcodeDto {
   @IsString()
   barcode: string;
 
-  @ApiProperty({ description: 'isDefault' })
+  @ApiPropertyOptional({ description: 'isDefault' })
+  @IsOptional()
   @IsBoolean()
-  isDefault: boolean;
+  isDefault?: boolean;
 
-  @ApiProperty({ description: 'isActive' })
+  @ApiPropertyOptional({ description: 'isActive' })
+  @IsOptional()
   @IsBoolean()
-  isActive: boolean;
+  isActive?: boolean;
 
-  @ApiProperty({ description: 'product' })
-  product: any;
 
 }
 
@@ -45,9 +45,6 @@ export class UpdateProductBarcodeDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ description: 'product' })
-  @IsOptional()
-  product?: any;
 
 }
 

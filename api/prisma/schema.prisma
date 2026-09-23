@@ -613,6 +613,12 @@ model Category {
   CreatedAt   DateTime @default(now())
   UpdatedAt   DateTime @updatedAt
 
+  // Jenis (root, ParentID null) / Sub Jenis (child) hierarchy, per Ketoko's
+  // Data Umum "Jenis" + "Sub Jenis" item fields.
+  ParentID Int?
+  Parent   Category?  @relation("CategoryHierarchy", fields: [ParentID], references: [ID])
+  Children Category[] @relation("CategoryHierarchy")
+
   Products Product[]
 
   @@map("Categories")
@@ -1234,7 +1240,7 @@ model Purchase {
   Date            DateTime          @default(now())
   SupplierID      Int
   WarehouseID     Int?
-  PurchaseOrderId Int?
+  PurchaseOrderID Int?
   Subtotal        Decimal           @default(0) @db.Decimal(15, 2)
   DiscountPercent Decimal           @default(0) @db.Decimal(5, 2)
   DiscountAmount  Decimal           @default(0) @db.Decimal(15, 2)
@@ -1255,7 +1261,7 @@ model Purchase {
 
   Supplier       Supplier         @relation(fields: [SupplierID], references: [ID])
   Warehouse       Warehouse?       @relation(fields: [WarehouseID], references: [ID])
-  PurchaseOrder   PurchaseOrder?   @relation(fields: [PurchaseOrderId], references: [ID])
+  PurchaseOrder   PurchaseOrder?   @relation(fields: [PurchaseOrderID], references: [ID])
   Creator         User            @relation(fields: [CreatedByID], references: [ID])
   PaymentStatus   PaymentStatus   @relation(fields: [PaymentStatusID], references: [ID])
   PaymentMethod   PaymentMethod?  @relation(fields: [PaymentMethodID], references: [ID])

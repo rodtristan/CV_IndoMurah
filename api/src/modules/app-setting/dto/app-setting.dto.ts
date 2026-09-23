@@ -3,73 +3,90 @@ import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateAppSettingDto {
-  @ApiProperty({ description: 'reportDesignEnabled' })
+  @ApiPropertyOptional({ description: 'reportDesignEnabled' })
+  @IsOptional()
   @IsBoolean()
-  reportDesignEnabled: boolean;
+  reportDesignEnabled?: boolean;
 
-  @ApiProperty({ description: 'itemAddMode' })
+  @ApiPropertyOptional({ description: 'itemAddMode' })
+  @IsOptional()
   @IsString()
-  itemAddMode: string;
+  itemAddMode?: string;
 
-  @ApiProperty({ description: 'displayMode' })
+  @ApiPropertyOptional({ description: 'displayMode' })
+  @IsOptional()
   @IsString()
-  displayMode: string;
+  displayMode?: string;
 
-  @ApiProperty({ description: 'displayRowMode' })
+  @ApiPropertyOptional({ description: 'displayRowMode' })
+  @IsOptional()
   @IsString()
-  displayRowMode: string;
+  displayRowMode?: string;
 
-  @ApiProperty({ description: 'timezone' })
+  @ApiPropertyOptional({ description: 'timezone' })
+  @IsOptional()
   @IsString()
-  timezone: string;
+  timezone?: string;
 
-  @ApiProperty({ description: 'maxSearchRows' })
+  @ApiPropertyOptional({ description: 'maxSearchRows' })
+  @IsOptional()
   @IsNumber()
-  maxSearchRows: number;
+  maxSearchRows?: number;
 
-  @ApiProperty({ description: 'addressBinding' })
+  @ApiPropertyOptional({ description: 'addressBinding' })
+  @IsOptional()
   @IsString()
-  addressBinding: string;
+  addressBinding?: string;
 
-  @ApiProperty({ description: 'showImageOnTransaction' })
+  @ApiPropertyOptional({ description: 'showImageOnTransaction' })
+  @IsOptional()
   @IsBoolean()
-  showImageOnTransaction: boolean;
+  showImageOnTransaction?: boolean;
 
-  @ApiProperty({ description: 'warnPriceBelowCost' })
+  @ApiPropertyOptional({ description: 'warnPriceBelowCost' })
+  @IsOptional()
   @IsBoolean()
-  warnPriceBelowCost: boolean;
+  warnPriceBelowCost?: boolean;
 
-  @ApiProperty({ description: 'showBrandColumn' })
+  @ApiPropertyOptional({ description: 'showBrandColumn' })
+  @IsOptional()
   @IsBoolean()
-  showBrandColumn: boolean;
+  showBrandColumn?: boolean;
 
-  @ApiProperty({ description: 'showInfoColumn' })
+  @ApiPropertyOptional({ description: 'showInfoColumn' })
+  @IsOptional()
   @IsBoolean()
-  showInfoColumn: boolean;
+  showInfoColumn?: boolean;
 
-  @ApiProperty({ description: 'editRequiresAccess' })
+  @ApiPropertyOptional({ description: 'editRequiresAccess' })
+  @IsOptional()
   @IsBoolean()
-  editRequiresAccess: boolean;
+  editRequiresAccess?: boolean;
 
-  @ApiProperty({ description: 'autoShowSalesOnCustomer' })
+  @ApiPropertyOptional({ description: 'autoShowSalesOnCustomer' })
+  @IsOptional()
   @IsBoolean()
-  autoShowSalesOnCustomer: boolean;
+  autoShowSalesOnCustomer?: boolean;
 
-  @ApiProperty({ description: 'decimalPrice' })
+  @ApiPropertyOptional({ description: 'decimalPrice' })
+  @IsOptional()
   @IsNumber()
-  decimalPrice: number;
+  decimalPrice?: number;
 
-  @ApiProperty({ description: 'decimalQty' })
+  @ApiPropertyOptional({ description: 'decimalQty' })
+  @IsOptional()
   @IsNumber()
-  decimalQty: number;
+  decimalQty?: number;
 
-  @ApiProperty({ description: 'decimalTax' })
+  @ApiPropertyOptional({ description: 'decimalTax' })
+  @IsOptional()
   @IsNumber()
-  decimalTax: number;
+  decimalTax?: number;
 
-  @ApiProperty({ description: 'decimalDiscount' })
+  @ApiPropertyOptional({ description: 'decimalDiscount' })
+  @IsOptional()
   @IsNumber()
-  decimalDiscount: number;
+  decimalDiscount?: number;
 
 }
 

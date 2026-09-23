@@ -15,16 +15,16 @@ export class CreateShelfDto {
   @IsString()
   name: string;
 
-  @ApiProperty({ description: 'description' })
+  @ApiPropertyOptional({ description: 'description' })
+  @IsOptional()
   @IsString()
-  description: string;
+  description?: string;
 
-  @ApiProperty({ description: 'isActive' })
+  @ApiPropertyOptional({ description: 'isActive' })
+  @IsOptional()
   @IsBoolean()
-  isActive: boolean;
+  isActive?: boolean;
 
-  @ApiProperty({ description: 'warehouse' })
-  warehouse: any;
 
 }
 
@@ -54,9 +54,6 @@ export class UpdateShelfDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ description: 'warehouse' })
-  @IsOptional()
-  warehouse?: any;
 
 }
 

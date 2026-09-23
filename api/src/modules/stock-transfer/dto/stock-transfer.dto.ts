@@ -15,9 +15,10 @@ export class CreateStockTransferItemDto {
   @IsInt()
   UnitID: number;
 
-  @ApiProperty({ description: 'Unit price' })
+  @ApiPropertyOptional({ description: 'Unit price' })
+  @IsOptional()
   @IsNumber()
-  UnitPrice: number;
+  UnitPrice?: number;
 
   @ApiPropertyOptional({ description: 'Subtotal' })
   @IsOptional()

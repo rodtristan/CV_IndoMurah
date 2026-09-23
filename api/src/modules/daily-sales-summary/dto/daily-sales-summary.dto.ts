@@ -6,29 +6,35 @@ export class CreateDailySalesSummaryDto {
   @ApiProperty({ description: 'date' })
   date: Date;
 
-  @ApiProperty({ description: 'totalTransactions' })
+  @ApiPropertyOptional({ description: 'totalTransactions' })
+  @IsOptional()
   @IsNumber()
-  totalTransactions: number;
+  totalTransactions?: number;
 
-  @ApiProperty({ description: 'totalCost' })
+  @ApiPropertyOptional({ description: 'totalCost' })
+  @IsOptional()
   @IsNumber()
-  totalCost: number;
+  totalCost?: number;
 
-  @ApiProperty({ description: 'totalSales' })
+  @ApiPropertyOptional({ description: 'totalSales' })
+  @IsOptional()
   @IsNumber()
-  totalSales: number;
+  totalSales?: number;
 
-  @ApiProperty({ description: 'totalProfit' })
+  @ApiPropertyOptional({ description: 'totalProfit' })
+  @IsOptional()
   @IsNumber()
-  totalProfit: number;
+  totalProfit?: number;
 
-  @ApiProperty({ description: 'totalReturns' })
+  @ApiPropertyOptional({ description: 'totalReturns' })
+  @IsOptional()
   @IsNumber()
-  totalReturns: number;
+  totalReturns?: number;
 
-  @ApiProperty({ description: 'totalExpenses' })
+  @ApiPropertyOptional({ description: 'totalExpenses' })
+  @IsOptional()
   @IsNumber()
-  totalExpenses: number;
+  totalExpenses?: number;
 
 }
 

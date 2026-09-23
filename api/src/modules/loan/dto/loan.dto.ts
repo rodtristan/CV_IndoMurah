@@ -19,13 +19,15 @@ export class CreateLoanDto {
   @IsNumber()
   principalAmount: number;
 
-  @ApiProperty({ description: 'interestRate' })
+  @ApiPropertyOptional({ description: 'interestRate' })
+  @IsOptional()
   @IsNumber()
-  interestRate: number;
+  interestRate?: number;
 
-  @ApiProperty({ description: 'tenorMonths' })
+  @ApiPropertyOptional({ description: 'tenorMonths' })
+  @IsOptional()
   @IsNumber()
-  tenorMonths: number;
+  tenorMonths?: number;
 
   @ApiProperty({ description: 'installmentAmount' })
   @IsNumber()
@@ -39,22 +41,23 @@ export class CreateLoanDto {
   @IsNumber()
   remainingAmount: number;
 
-  @ApiProperty({ description: 'startDate' })
-  startDate: Date;
+  @ApiPropertyOptional({ description: 'startDate' })
+  @IsOptional()
+  startDate?: Date;
 
   @ApiProperty({ description: 'status' })
   status: any;
 
-  @ApiProperty({ description: 'notes' })
+  @ApiPropertyOptional({ description: 'notes' })
+  @IsOptional()
   @IsString()
-  notes: string;
+  notes?: string;
 
-  @ApiProperty({ description: 'isActive' })
+  @ApiPropertyOptional({ description: 'isActive' })
+  @IsOptional()
   @IsBoolean()
-  isActive: boolean;
+  isActive?: boolean;
 
-  @ApiProperty({ description: 'employee' })
-  employee: any;
 
 }
 
@@ -122,9 +125,6 @@ export class UpdateLoanDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ description: 'employee' })
-  @IsOptional()
-  employee?: any;
 
 }
 

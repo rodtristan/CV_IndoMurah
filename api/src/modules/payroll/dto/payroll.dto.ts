@@ -19,39 +19,45 @@ export class CreatePayrollDto {
   @IsNumber()
   basicSalary: number;
 
-  @ApiProperty({ description: 'allowances' })
+  @ApiPropertyOptional({ description: 'allowances' })
+  @IsOptional()
   @IsNumber()
-  allowances: number;
+  allowances?: number;
 
-  @ApiProperty({ description: 'deductions' })
+  @ApiPropertyOptional({ description: 'deductions' })
+  @IsOptional()
   @IsNumber()
-  deductions: number;
+  deductions?: number;
 
-  @ApiProperty({ description: 'overtimePay' })
+  @ApiPropertyOptional({ description: 'overtimePay' })
+  @IsOptional()
   @IsNumber()
-  overtimePay: number;
+  overtimePay?: number;
 
-  @ApiProperty({ description: 'totalSalary' })
+  @ApiPropertyOptional({ description: 'totalSalary' })
+  @IsOptional()
   @IsNumber()
-  totalSalary: number;
+  totalSalary?: number;
 
-  @ApiProperty({ description: 'paymentDate' })
-  paymentDate: Date;
+  @ApiPropertyOptional({ description: 'paymentDate' })
+  @IsOptional()
+  paymentDate?: Date;
 
-  @ApiProperty({ description: 'notes' })
+  @ApiPropertyOptional({ description: 'notes' })
+  @IsOptional()
   @IsString()
-  notes: string;
+  notes?: string;
 
-  @ApiProperty({ description: 'isPaid' })
+  @ApiPropertyOptional({ description: 'isPaid' })
+  @IsOptional()
   @IsBoolean()
-  isPaid: boolean;
+  isPaid?: boolean;
 
-  @ApiProperty({ description: 'isActive' })
+  @ApiPropertyOptional({ description: 'isActive' })
+  @IsOptional()
   @IsBoolean()
-  isActive: boolean;
+  isActive?: boolean;
 
-  @ApiProperty({ description: 'employee' })
-  employee: any;
 
 }
 
@@ -115,9 +121,6 @@ export class UpdatePayrollDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ description: 'employee' })
-  @IsOptional()
-  employee?: any;
 
 }
 

@@ -7,48 +7,9 @@ export class CreateStockAlertDto {
   @IsNumber()
   productId: number;
 
-  @ApiProperty({ description: 'alertType' })
-  @IsString()
-  alertType: string;
-
-  @ApiProperty({ description: 'threshold' })
+  @ApiProperty({ description: 'Alert type ID' })
   @IsNumber()
-  threshold: number;
-
-  @ApiProperty({ description: 'currentStock' })
-  @IsNumber()
-  currentStock: number;
-
-  @ApiProperty({ description: 'isRead' })
-  @IsBoolean()
-  isRead: boolean;
-
-  @ApiProperty({ description: 'isResolved' })
-  @IsBoolean()
-  isResolved: boolean;
-
-  @ApiProperty({ description: 'resolvedAt' })
-  resolvedAt: Date;
-
-  @ApiProperty({ description: 'notes' })
-  @IsString()
-  notes: string;
-
-  @ApiProperty({ description: 'product' })
-  product: any;
-
-}
-
-export class UpdateStockAlertDto {
-  @ApiPropertyOptional({ description: 'productId' })
-  @IsOptional()
-  @IsNumber()
-  productId?: number;
-
-  @ApiPropertyOptional({ description: 'alertType' })
-  @IsOptional()
-  @IsString()
-  alertType?: string;
+  alertTypeId: number;
 
   @ApiPropertyOptional({ description: 'threshold' })
   @IsOptional()
@@ -79,9 +40,49 @@ export class UpdateStockAlertDto {
   @IsString()
   notes?: string;
 
-  @ApiPropertyOptional({ description: 'product' })
+
+}
+
+export class UpdateStockAlertDto {
+  @ApiPropertyOptional({ description: 'productId' })
   @IsOptional()
-  product?: any;
+  @IsNumber()
+  productId?: number;
+
+  @ApiPropertyOptional({ description: 'Alert type ID' })
+  @IsOptional()
+  @IsNumber()
+  alertTypeId?: number;
+
+  @ApiPropertyOptional({ description: 'threshold' })
+  @IsOptional()
+  @IsNumber()
+  threshold?: number;
+
+  @ApiPropertyOptional({ description: 'currentStock' })
+  @IsOptional()
+  @IsNumber()
+  currentStock?: number;
+
+  @ApiPropertyOptional({ description: 'isRead' })
+  @IsOptional()
+  @IsBoolean()
+  isRead?: boolean;
+
+  @ApiPropertyOptional({ description: 'isResolved' })
+  @IsOptional()
+  @IsBoolean()
+  isResolved?: boolean;
+
+  @ApiPropertyOptional({ description: 'resolvedAt' })
+  @IsOptional()
+  resolvedAt?: Date;
+
+  @ApiPropertyOptional({ description: 'notes' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
 
 }
 
@@ -89,8 +90,8 @@ export class StockAlertResponseDto {
   @ApiProperty({ description: 'productId' })
   productId: number;
 
-  @ApiProperty({ description: 'alertType' })
-  alertType: string;
+  @ApiProperty({ description: 'Alert type ID' })
+  alertTypeId: number;
 
   @ApiProperty({ description: 'threshold' })
   threshold: number;

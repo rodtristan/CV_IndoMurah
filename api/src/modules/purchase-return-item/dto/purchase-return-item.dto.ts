@@ -27,14 +27,6 @@ export class CreatePurchaseReturnItemDto {
   @IsNumber()
   subtotal: number;
 
-  @ApiProperty({ description: 'purchaseReturn' })
-  purchaseReturn: any;
-
-  @ApiProperty({ description: 'product' })
-  product: any;
-
-  @ApiProperty({ description: 'unit' })
-  unit: any;
 
 }
 
@@ -69,17 +61,6 @@ export class UpdatePurchaseReturnItemDto {
   @IsNumber()
   subtotal?: number;
 
-  @ApiPropertyOptional({ description: 'purchaseReturn' })
-  @IsOptional()
-  purchaseReturn?: any;
-
-  @ApiPropertyOptional({ description: 'product' })
-  @IsOptional()
-  product?: any;
-
-  @ApiPropertyOptional({ description: 'unit' })
-  @IsOptional()
-  unit?: any;
 
 }
 

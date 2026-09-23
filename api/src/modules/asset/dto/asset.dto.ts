@@ -11,53 +11,61 @@ export class CreateAssetDto {
   @IsString()
   name: string;
 
-  @ApiProperty({ description: 'assetCategoryId' })
+  @ApiPropertyOptional({ description: 'assetCategoryId' })
+  @IsOptional()
   @IsNumber()
-  assetCategoryId: number;
+  assetCategoryId?: number;
 
-  @ApiProperty({ description: 'purchaseDate' })
-  purchaseDate: Date;
+  @ApiPropertyOptional({ description: 'purchaseDate' })
+  @IsOptional()
+  purchaseDate?: Date;
 
-  @ApiProperty({ description: 'purchasePrice' })
+  @ApiPropertyOptional({ description: 'purchasePrice' })
+  @IsOptional()
   @IsNumber()
-  purchasePrice: number;
+  purchasePrice?: number;
 
-  @ApiProperty({ description: 'currentValue' })
+  @ApiPropertyOptional({ description: 'currentValue' })
+  @IsOptional()
   @IsNumber()
-  currentValue: number;
+  currentValue?: number;
 
   @ApiProperty({ description: 'depreciationMethod' })
   depreciationMethod: any;
 
-  @ApiProperty({ description: 'usefulLifeYears' })
+  @ApiPropertyOptional({ description: 'usefulLifeYears' })
+  @IsOptional()
   @IsNumber()
-  usefulLifeYears: number;
+  usefulLifeYears?: number;
 
-  @ApiProperty({ description: 'location' })
+  @ApiPropertyOptional({ description: 'location' })
+  @IsOptional()
   @IsString()
-  location: string;
+  location?: string;
 
-  @ApiProperty({ description: 'assignedTo' })
+  @ApiPropertyOptional({ description: 'assignedTo' })
+  @IsOptional()
   @IsString()
-  assignedTo: string;
+  assignedTo?: string;
 
-  @ApiProperty({ description: 'serialNumber' })
+  @ApiPropertyOptional({ description: 'serialNumber' })
+  @IsOptional()
   @IsString()
-  serialNumber: string;
+  serialNumber?: string;
 
-  @ApiProperty({ description: 'description' })
+  @ApiPropertyOptional({ description: 'description' })
+  @IsOptional()
   @IsString()
-  description: string;
+  description?: string;
 
   @ApiProperty({ description: 'status' })
   status: any;
 
-  @ApiProperty({ description: 'isActive' })
+  @ApiPropertyOptional({ description: 'isActive' })
+  @IsOptional()
   @IsBoolean()
-  isActive: boolean;
+  isActive?: boolean;
 
-  @ApiProperty({ description: 'category' })
-  category: any;
 
 }
 
@@ -129,9 +137,6 @@ export class UpdateAssetDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ description: 'category' })
-  @IsOptional()
-  category?: any;
 
 }
 

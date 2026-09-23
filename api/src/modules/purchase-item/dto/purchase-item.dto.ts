@@ -23,26 +23,20 @@ export class CreatePurchaseItemDto {
   @IsNumber()
   unitPrice: number;
 
-  @ApiProperty({ description: 'discountPercent' })
+  @ApiPropertyOptional({ description: 'discountPercent' })
+  @IsOptional()
   @IsNumber()
-  discountPercent: number;
+  discountPercent?: number;
 
-  @ApiProperty({ description: 'discountAmount' })
+  @ApiPropertyOptional({ description: 'discountAmount' })
+  @IsOptional()
   @IsNumber()
-  discountAmount: number;
+  discountAmount?: number;
 
   @ApiProperty({ description: 'subtotal' })
   @IsNumber()
   subtotal: number;
 
-  @ApiProperty({ description: 'purchase' })
-  purchase: any;
-
-  @ApiProperty({ description: 'product' })
-  product: any;
-
-  @ApiProperty({ description: 'unit' })
-  unit: any;
 
 }
 
@@ -87,17 +81,6 @@ export class UpdatePurchaseItemDto {
   @IsNumber()
   subtotal?: number;
 
-  @ApiPropertyOptional({ description: 'purchase' })
-  @IsOptional()
-  purchase?: any;
-
-  @ApiPropertyOptional({ description: 'product' })
-  @IsOptional()
-  product?: any;
-
-  @ApiPropertyOptional({ description: 'unit' })
-  @IsOptional()
-  unit?: any;
 
 }
 

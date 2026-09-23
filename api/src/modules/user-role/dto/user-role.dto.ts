@@ -11,15 +11,11 @@ export class CreateUserRoleDto {
   @IsNumber()
   roleId: number;
 
-  @ApiProperty({ description: 'isActive' })
+  @ApiPropertyOptional({ description: 'isActive' })
+  @IsOptional()
   @IsBoolean()
-  isActive: boolean;
+  isActive?: boolean;
 
-  @ApiProperty({ description: 'user' })
-  user: any;
-
-  @ApiProperty({ description: 'role' })
-  role: any;
 
 }
 
@@ -39,13 +35,6 @@ export class UpdateUserRoleDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ description: 'user' })
-  @IsOptional()
-  user?: any;
-
-  @ApiPropertyOptional({ description: 'role' })
-  @IsOptional()
-  role?: any;
 
 }
 

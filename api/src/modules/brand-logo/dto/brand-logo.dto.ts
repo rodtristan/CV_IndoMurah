@@ -3,9 +3,10 @@ import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateBrandLogoDto {
-  @ApiProperty({ description: 'brandId' })
+  @ApiPropertyOptional({ description: 'brandId' })
+  @IsOptional()
   @IsNumber()
-  brandId: number;
+  brandId?: number;
 
   @ApiProperty({ description: 'name' })
   @IsString()
@@ -15,20 +16,21 @@ export class CreateBrandLogoDto {
   @IsString()
   logoUrl: string;
 
-  @ApiProperty({ description: 'website' })
+  @ApiPropertyOptional({ description: 'website' })
+  @IsOptional()
   @IsString()
-  website: string;
+  website?: string;
 
-  @ApiProperty({ description: 'sortOrder' })
+  @ApiPropertyOptional({ description: 'sortOrder' })
+  @IsOptional()
   @IsNumber()
-  sortOrder: number;
+  sortOrder?: number;
 
-  @ApiProperty({ description: 'isActive' })
+  @ApiPropertyOptional({ description: 'isActive' })
+  @IsOptional()
   @IsBoolean()
-  isActive: boolean;
+  isActive?: boolean;
 
-  @ApiProperty({ description: 'brand' })
-  brand: any;
 
 }
 
@@ -63,9 +65,6 @@ export class UpdateBrandLogoDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ description: 'brand' })
-  @IsOptional()
-  brand?: any;
 
 }
 

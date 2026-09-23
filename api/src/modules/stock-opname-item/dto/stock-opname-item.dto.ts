@@ -27,22 +27,16 @@ export class CreateStockOpnameItemDto {
   @IsNumber()
   unitId: number;
 
-  @ApiProperty({ description: 'unitPrice' })
+  @ApiPropertyOptional({ description: 'unitPrice' })
+  @IsOptional()
   @IsNumber()
-  unitPrice: number;
+  unitPrice?: number;
 
-  @ApiProperty({ description: 'note' })
+  @ApiPropertyOptional({ description: 'note' })
+  @IsOptional()
   @IsString()
-  note: string;
+  note?: string;
 
-  @ApiProperty({ description: 'stockOpname' })
-  stockOpname: any;
-
-  @ApiProperty({ description: 'product' })
-  product: any;
-
-  @ApiProperty({ description: 'unit' })
-  unit: any;
 
 }
 
@@ -87,17 +81,6 @@ export class UpdateStockOpnameItemDto {
   @IsString()
   note?: string;
 
-  @ApiPropertyOptional({ description: 'stockOpname' })
-  @IsOptional()
-  stockOpname?: any;
-
-  @ApiPropertyOptional({ description: 'product' })
-  @IsOptional()
-  product?: any;
-
-  @ApiPropertyOptional({ description: 'unit' })
-  @IsOptional()
-  unit?: any;
 
 }
 

@@ -7,43 +7,51 @@ export class CreateTransferDto {
   @IsString()
   code: string;
 
-  @ApiProperty({ description: 'date' })
-  date: Date;
+  @ApiPropertyOptional({ description: 'date' })
+  @IsOptional()
+  date?: Date;
 
-  @ApiProperty({ description: 'fromAccountId' })
+  @ApiPropertyOptional({ description: 'fromAccountId' })
+  @IsOptional()
   @IsNumber()
-  fromAccountId: number;
+  fromAccountId?: number;
 
-  @ApiProperty({ description: 'toAccountId' })
+  @ApiPropertyOptional({ description: 'toAccountId' })
+  @IsOptional()
   @IsNumber()
-  toAccountId: number;
+  toAccountId?: number;
 
-  @ApiProperty({ description: 'fromWarehouseId' })
+  @ApiPropertyOptional({ description: 'fromWarehouseId' })
+  @IsOptional()
   @IsNumber()
-  fromWarehouseId: number;
+  fromWarehouseId?: number;
 
-  @ApiProperty({ description: 'toWarehouseId' })
+  @ApiPropertyOptional({ description: 'toWarehouseId' })
+  @IsOptional()
   @IsNumber()
-  toWarehouseId: number;
+  toWarehouseId?: number;
 
   @ApiProperty({ description: 'amount' })
   @IsNumber()
   amount: number;
 
-  @ApiProperty({ description: 'description' })
+  @ApiPropertyOptional({ description: 'description' })
+  @IsOptional()
   @IsString()
-  description: string;
+  description?: string;
 
   @ApiProperty({ description: 'status' })
   status: any;
 
-  @ApiProperty({ description: 'notes' })
+  @ApiPropertyOptional({ description: 'notes' })
+  @IsOptional()
   @IsString()
-  notes: string;
+  notes?: string;
 
-  @ApiProperty({ description: 'isActive' })
+  @ApiPropertyOptional({ description: 'isActive' })
+  @IsOptional()
   @IsBoolean()
-  isActive: boolean;
+  isActive?: boolean;
 
   @ApiProperty({ description: 'fromAccount' })
   fromAccount: any;

@@ -11,15 +11,11 @@ export class CreateUserMenuDto {
   @IsNumber()
   menuId: number;
 
-  @ApiProperty({ description: 'isActive' })
+  @ApiPropertyOptional({ description: 'isActive' })
+  @IsOptional()
   @IsBoolean()
-  isActive: boolean;
+  isActive?: boolean;
 
-  @ApiProperty({ description: 'user' })
-  user: any;
-
-  @ApiProperty({ description: 'menu' })
-  menu: any;
 
 }
 
@@ -39,13 +35,6 @@ export class UpdateUserMenuDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ description: 'user' })
-  @IsOptional()
-  user?: any;
-
-  @ApiPropertyOptional({ description: 'menu' })
-  @IsOptional()
-  menu?: any;
 
 }
 

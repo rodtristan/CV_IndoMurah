@@ -15,9 +15,10 @@ export class CreateSaleItemDto {
   @IsNumber()
   quantity: number;
 
-  @ApiProperty({ description: 'Unit ID' })
+  @ApiPropertyOptional({ description: 'Unit ID' })
+  @IsOptional()
   @IsNumber()
-  unitId: number;
+  unitId?: number;
 
   @ApiProperty({ description: 'Unit price' })
   @IsNumber()

@@ -7,8 +7,9 @@ export class CreateExpenseDto {
   @IsString()
   code: string;
 
-  @ApiProperty({ description: 'date' })
-  date: Date;
+  @ApiPropertyOptional({ description: 'date' })
+  @IsOptional()
+  date?: Date;
 
   @ApiProperty({ description: 'expenseCategoryId' })
   @IsNumber()
@@ -18,38 +19,43 @@ export class CreateExpenseDto {
   @IsNumber()
   amount: number;
 
-  @ApiProperty({ description: 'description' })
+  @ApiPropertyOptional({ description: 'description' })
+  @IsOptional()
   @IsString()
-  description: string;
+  description?: string;
 
-  @ApiProperty({ description: 'referenceNumber' })
+  @ApiPropertyOptional({ description: 'referenceNumber' })
+  @IsOptional()
   @IsString()
-  referenceNumber: string;
+  referenceNumber?: string;
 
-  @ApiProperty({ description: 'isApproved' })
+  @ApiPropertyOptional({ description: 'isApproved' })
+  @IsOptional()
   @IsBoolean()
-  isApproved: boolean;
+  isApproved?: boolean;
 
-  @ApiProperty({ description: 'approvedById' })
+  @ApiPropertyOptional({ description: 'approvedById' })
+  @IsOptional()
   @IsString()
-  approvedById: string;
+  approvedById?: string;
 
-  @ApiProperty({ description: 'approvedAt' })
-  approvedAt: Date;
+  @ApiPropertyOptional({ description: 'approvedAt' })
+  @IsOptional()
+  approvedAt?: Date;
 
-  @ApiProperty({ description: 'notes' })
+  @ApiPropertyOptional({ description: 'notes' })
+  @IsOptional()
   @IsString()
-  notes: string;
+  notes?: string;
 
-  @ApiProperty({ description: 'isActive' })
+  @ApiPropertyOptional({ description: 'isActive' })
+  @IsOptional()
   @IsBoolean()
-  isActive: boolean;
+  isActive?: boolean;
 
   @ApiProperty({ description: 'expenseCategory' })
   expenseCategory: any;
 
-  @ApiProperty({ description: 'approver' })
-  approver: any;
 
 }
 
@@ -111,9 +117,6 @@ export class UpdateExpenseDto {
   @IsOptional()
   expenseCategory?: any;
 
-  @ApiPropertyOptional({ description: 'approver' })
-  @IsOptional()
-  approver?: any;
 
 }
 

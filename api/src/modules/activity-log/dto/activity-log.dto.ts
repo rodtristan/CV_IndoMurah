@@ -11,25 +11,30 @@ export class CreateActivityLogDto {
   @IsString()
   title: string;
 
-  @ApiProperty({ description: 'description' })
+  @ApiPropertyOptional({ description: 'description' })
+  @IsOptional()
   @IsString()
-  description: string;
+  description?: string;
 
-  @ApiProperty({ description: 'referenceType' })
+  @ApiPropertyOptional({ description: 'referenceType' })
+  @IsOptional()
   @IsString()
-  referenceType: string;
+  referenceType?: string;
 
-  @ApiProperty({ description: 'referenceId' })
+  @ApiPropertyOptional({ description: 'referenceId' })
+  @IsOptional()
   @IsNumber()
-  referenceId: number;
+  referenceId?: number;
 
-  @ApiProperty({ description: 'amount' })
+  @ApiPropertyOptional({ description: 'amount' })
+  @IsOptional()
   @IsNumber()
-  amount: number;
+  amount?: number;
 
-  @ApiProperty({ description: 'createdById' })
+  @ApiPropertyOptional({ description: 'createdById' })
+  @IsOptional()
   @IsString()
-  createdById: string;
+  createdById?: string;
 
 }
 

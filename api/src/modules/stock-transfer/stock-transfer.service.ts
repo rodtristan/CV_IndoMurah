@@ -51,12 +51,13 @@ export class StockTransferService extends BaseService<
     const totalItems = dto.Items.reduce((sum, item) => sum + Number(item.Quantity), 0);
 
     const itemsData = dto.Items.map((item) => {
-      const subtotal = item.Subtotal !== undefined ? item.Subtotal : item.Quantity * item.UnitPrice;
+      const unitPrice = item.UnitPrice ?? 0;
+      const subtotal = item.Subtotal !== undefined ? item.Subtotal : item.Quantity * unitPrice;
       return {
         ProductID: item.ProductID,
         Quantity: new Prisma.Decimal(item.Quantity),
         UnitID: item.UnitID,
-        UnitPrice: new Prisma.Decimal(item.UnitPrice),
+        UnitPrice: new Prisma.Decimal(unitPrice),
         Subtotal: new Prisma.Decimal(subtotal),
       };
     });

@@ -18,7 +18,7 @@ export class CreateCategoryDto {
   @ApiPropertyOptional({ description: 'Parent category ID for hierarchy' })
   @IsOptional()
   @IsInt()
-  parent_id?: number;
+  parentId?: number;
 
   @ApiPropertyOptional({ description: 'Category icon' })
   @IsOptional()
@@ -55,7 +55,7 @@ export class UpdateCategoryDto {
   @ApiPropertyOptional({ description: 'Parent category ID for hierarchy' })
   @IsOptional()
   @IsInt()
-  parent_id?: number;
+  parentId?: number;
 
   @ApiPropertyOptional({ description: 'Category icon' })
   @IsOptional()

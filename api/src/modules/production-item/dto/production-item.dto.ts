@@ -19,26 +19,21 @@ export class CreateProductionItemDto {
   @IsNumber()
   quantity: number;
 
-  @ApiProperty({ description: 'unitId' })
+  @ApiPropertyOptional({ description: 'unitId' })
+  @IsOptional()
   @IsNumber()
-  unitId: number;
+  unitId?: number;
 
-  @ApiProperty({ description: 'unitPrice' })
+  @ApiPropertyOptional({ description: 'unitPrice' })
+  @IsOptional()
   @IsNumber()
-  unitPrice: number;
+  unitPrice?: number;
 
-  @ApiProperty({ description: 'subtotal' })
+  @ApiPropertyOptional({ description: 'subtotal' })
+  @IsOptional()
   @IsNumber()
-  subtotal: number;
+  subtotal?: number;
 
-  @ApiProperty({ description: 'production' })
-  production: any;
-
-  @ApiProperty({ description: 'product' })
-  product: any;
-
-  @ApiProperty({ description: 'unit' })
-  unit: any;
 
 }
 
@@ -78,17 +73,6 @@ export class UpdateProductionItemDto {
   @IsNumber()
   subtotal?: number;
 
-  @ApiPropertyOptional({ description: 'production' })
-  @IsOptional()
-  production?: any;
-
-  @ApiPropertyOptional({ description: 'product' })
-  @IsOptional()
-  product?: any;
-
-  @ApiPropertyOptional({ description: 'unit' })
-  @IsOptional()
-  unit?: any;
 
 }
 

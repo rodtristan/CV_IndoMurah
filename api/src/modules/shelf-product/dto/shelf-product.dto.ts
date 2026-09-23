@@ -11,15 +11,11 @@ export class CreateShelfProductDto {
   @IsNumber()
   productId: number;
 
-  @ApiProperty({ description: 'quantity' })
+  @ApiPropertyOptional({ description: 'quantity' })
+  @IsOptional()
   @IsNumber()
-  quantity: number;
+  quantity?: number;
 
-  @ApiProperty({ description: 'shelf' })
-  shelf: any;
-
-  @ApiProperty({ description: 'product' })
-  product: any;
 
 }
 
@@ -39,13 +35,6 @@ export class UpdateShelfProductDto {
   @IsNumber()
   quantity?: number;
 
-  @ApiPropertyOptional({ description: 'shelf' })
-  @IsOptional()
-  shelf?: any;
-
-  @ApiPropertyOptional({ description: 'product' })
-  @IsOptional()
-  product?: any;
 
 }
 

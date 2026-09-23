@@ -11,24 +11,26 @@ export class CreateNotificationSettingDto {
   @IsString()
   type: string;
 
-  @ApiProperty({ description: 'emailEnabled' })
+  @ApiPropertyOptional({ description: 'emailEnabled' })
+  @IsOptional()
   @IsBoolean()
-  emailEnabled: boolean;
+  emailEnabled?: boolean;
 
-  @ApiProperty({ description: 'pushEnabled' })
+  @ApiPropertyOptional({ description: 'pushEnabled' })
+  @IsOptional()
   @IsBoolean()
-  pushEnabled: boolean;
+  pushEnabled?: boolean;
 
-  @ApiProperty({ description: 'inAppEnabled' })
+  @ApiPropertyOptional({ description: 'inAppEnabled' })
+  @IsOptional()
   @IsBoolean()
-  inAppEnabled: boolean;
+  inAppEnabled?: boolean;
 
-  @ApiProperty({ description: 'threshold' })
+  @ApiPropertyOptional({ description: 'threshold' })
+  @IsOptional()
   @IsNumber()
-  threshold: number;
+  threshold?: number;
 
-  @ApiProperty({ description: 'user' })
-  user: any;
 
 }
 
@@ -63,9 +65,6 @@ export class UpdateNotificationSettingDto {
   @IsNumber()
   threshold?: number;
 
-  @ApiPropertyOptional({ description: 'user' })
-  @IsOptional()
-  user?: any;
 
 }
 

@@ -31,19 +31,20 @@ export class CreateLoanInstallmentDto {
   @IsNumber()
   remainingAfter: number;
 
-  @ApiProperty({ description: 'paymentDate' })
-  paymentDate: Date;
+  @ApiPropertyOptional({ description: 'paymentDate' })
+  @IsOptional()
+  paymentDate?: Date;
 
-  @ApiProperty({ description: 'status' })
+  @ApiPropertyOptional({ description: 'status' })
+  @IsOptional()
   @IsString()
-  status: string;
+  status?: string;
 
-  @ApiProperty({ description: 'isActive' })
+  @ApiPropertyOptional({ description: 'isActive' })
+  @IsOptional()
   @IsBoolean()
-  isActive: boolean;
+  isActive?: boolean;
 
-  @ApiProperty({ description: 'loan' })
-  loan: any;
 
 }
 
@@ -97,9 +98,6 @@ export class UpdateLoanInstallmentDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ description: 'loan' })
-  @IsOptional()
-  loan?: any;
 
 }
 

@@ -7,57 +7,63 @@ export class CreateProductionDto {
   @IsString()
   code: string;
 
-  @ApiProperty({ description: 'date' })
-  date: Date;
+  @ApiPropertyOptional({ description: 'date' })
+  @IsOptional()
+  date?: Date;
 
-  @ApiProperty({ description: 'productId' })
+  @ApiPropertyOptional({ description: 'productId' })
+  @IsOptional()
   @IsNumber()
-  productId: number;
+  productId?: number;
 
-  @ApiProperty({ description: 'productName' })
+  @ApiPropertyOptional({ description: 'productName' })
+  @IsOptional()
   @IsString()
-  productName: string;
+  productName?: string;
 
-  @ApiProperty({ description: 'quantity' })
+  @ApiPropertyOptional({ description: 'quantity' })
+  @IsOptional()
   @IsNumber()
-  quantity: number;
+  quantity?: number;
 
-  @ApiProperty({ description: 'warehouseId' })
+  @ApiPropertyOptional({ description: 'warehouseId' })
+  @IsOptional()
   @IsNumber()
-  warehouseId: number;
+  warehouseId?: number;
 
-  @ApiProperty({ description: 'rawMaterialCost' })
+  @ApiPropertyOptional({ description: 'rawMaterialCost' })
+  @IsOptional()
   @IsNumber()
-  rawMaterialCost: number;
+  rawMaterialCost?: number;
 
-  @ApiProperty({ description: 'laborCost' })
+  @ApiPropertyOptional({ description: 'laborCost' })
+  @IsOptional()
   @IsNumber()
-  laborCost: number;
+  laborCost?: number;
 
-  @ApiProperty({ description: 'overheadCost' })
+  @ApiPropertyOptional({ description: 'overheadCost' })
+  @IsOptional()
   @IsNumber()
-  overheadCost: number;
+  overheadCost?: number;
 
-  @ApiProperty({ description: 'totalCost' })
+  @ApiPropertyOptional({ description: 'totalCost' })
+  @IsOptional()
   @IsNumber()
-  totalCost: number;
+  totalCost?: number;
 
   @ApiProperty({ description: 'status' })
   status: any;
 
-  @ApiProperty({ description: 'notes' })
+  @ApiPropertyOptional({ description: 'notes' })
+  @IsOptional()
   @IsString()
-  notes: string;
+  notes?: string;
 
-  @ApiProperty({ description: 'isActive' })
+  @ApiPropertyOptional({ description: 'isActive' })
+  @IsOptional()
   @IsBoolean()
-  isActive: boolean;
+  isActive?: boolean;
 
-  @ApiProperty({ description: 'warehouse' })
-  warehouse: any;
-
-  @ApiProperty({ description: 'product' })
-  product: any;
 
 }
 
@@ -125,13 +131,6 @@ export class UpdateProductionDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ description: 'warehouse' })
-  @IsOptional()
-  warehouse?: any;
-
-  @ApiPropertyOptional({ description: 'product' })
-  @IsOptional()
-  product?: any;
 
 }
 

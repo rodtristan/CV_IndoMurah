@@ -11,15 +11,11 @@ export class CreateRoleMenuDto {
   @IsNumber()
   menuId: number;
 
-  @ApiProperty({ description: 'isActive' })
+  @ApiPropertyOptional({ description: 'isActive' })
+  @IsOptional()
   @IsBoolean()
-  isActive: boolean;
+  isActive?: boolean;
 
-  @ApiProperty({ description: 'role' })
-  role: any;
-
-  @ApiProperty({ description: 'menu' })
-  menu: any;
 
 }
 
@@ -39,13 +35,6 @@ export class UpdateRoleMenuDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ description: 'role' })
-  @IsOptional()
-  role?: any;
-
-  @ApiPropertyOptional({ description: 'menu' })
-  @IsOptional()
-  menu?: any;
 
 }
 

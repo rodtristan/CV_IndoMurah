@@ -10,9 +10,10 @@ export class CreateProductStockDto {
   @IsNumber()
   warehouseId: number;
 
-  @ApiProperty({ description: 'quantity' })
+  @ApiPropertyOptional({ description: 'quantity' })
+  @IsOptional()
   @IsNumber()
-  quantity: number;
+  quantity?: number;
 
   @ApiPropertyOptional({ description: 'minimumStock' })
   @IsOptional()

@@ -11,9 +11,10 @@ export class CreateSaleReturnItemDto {
   @IsNumber()
   productId: number;
 
-  @ApiProperty({ description: 'Unit ID' })
+  @ApiPropertyOptional({ description: 'Unit ID' })
+  @IsOptional()
   @IsNumber()
-  unitId: number;
+  unitId?: number;
 
   @ApiProperty({ description: 'Quantity' })
   @IsNumber()

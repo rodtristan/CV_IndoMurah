@@ -3,13 +3,15 @@ import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateLogDto {
-  @ApiProperty({ description: 'method' })
+  @ApiPropertyOptional({ description: 'method' })
+  @IsOptional()
   @IsString()
-  method: string;
+  method?: string;
 
-  @ApiProperty({ description: 'endpoint' })
+  @ApiPropertyOptional({ description: 'endpoint' })
+  @IsOptional()
   @IsString()
-  endpoint: string;
+  endpoint?: string;
 
   @ApiProperty({ description: 'headers' })
   headers: any;
@@ -17,36 +19,44 @@ export class CreateLogDto {
   @ApiProperty({ description: 'payload' })
   payload: any;
 
-  @ApiProperty({ description: 'responseStatus' })
+  @ApiPropertyOptional({ description: 'responseStatus' })
+  @IsOptional()
   @IsNumber()
-  responseStatus: number;
+  responseStatus?: number;
 
-  @ApiProperty({ description: 'message' })
+  @ApiPropertyOptional({ description: 'message' })
+  @IsOptional()
   @IsString()
-  message: string;
+  message?: string;
 
-  @ApiProperty({ description: 'requesterLoginId' })
+  @ApiPropertyOptional({ description: 'requesterLoginId' })
+  @IsOptional()
   @IsNumber()
-  requesterLoginId: number;
+  requesterLoginId?: number;
 
-  @ApiProperty({ description: 'requesterFullName' })
+  @ApiPropertyOptional({ description: 'requesterFullName' })
+  @IsOptional()
   @IsString()
-  requesterFullName: string;
+  requesterFullName?: string;
 
-  @ApiProperty({ description: 'ipAddress' })
+  @ApiPropertyOptional({ description: 'ipAddress' })
+  @IsOptional()
   @IsString()
-  ipAddress: string;
+  ipAddress?: string;
 
-  @ApiProperty({ description: 'userAgent' })
+  @ApiPropertyOptional({ description: 'userAgent' })
+  @IsOptional()
   @IsString()
-  userAgent: string;
+  userAgent?: string;
 
-  @ApiProperty({ description: 'durationMs' })
+  @ApiPropertyOptional({ description: 'durationMs' })
+  @IsOptional()
   @IsNumber()
-  durationMs: number;
+  durationMs?: number;
 
-  @ApiProperty({ description: 'logDatetime' })
-  logDatetime: Date;
+  @ApiPropertyOptional({ description: 'logDatetime' })
+  @IsOptional()
+  logDatetime?: Date;
 
 }
 

@@ -14,24 +14,26 @@ export class CreateLeaveBalanceDto {
   @ApiProperty({ description: 'leaveType' })
   leaveType: any;
 
-  @ApiProperty({ description: 'totalDays' })
+  @ApiPropertyOptional({ description: 'totalDays' })
+  @IsOptional()
   @IsNumber()
-  totalDays: number;
+  totalDays?: number;
 
-  @ApiProperty({ description: 'usedDays' })
+  @ApiPropertyOptional({ description: 'usedDays' })
+  @IsOptional()
   @IsNumber()
-  usedDays: number;
+  usedDays?: number;
 
-  @ApiProperty({ description: 'remainingDays' })
+  @ApiPropertyOptional({ description: 'remainingDays' })
+  @IsOptional()
   @IsNumber()
-  remainingDays: number;
+  remainingDays?: number;
 
-  @ApiProperty({ description: 'isActive' })
+  @ApiPropertyOptional({ description: 'isActive' })
+  @IsOptional()
   @IsBoolean()
-  isActive: boolean;
+  isActive?: boolean;
 
-  @ApiProperty({ description: 'employee' })
-  employee: any;
 
 }
 
@@ -70,9 +72,6 @@ export class UpdateLeaveBalanceDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ description: 'employee' })
-  @IsOptional()
-  employee?: any;
 
 }
 

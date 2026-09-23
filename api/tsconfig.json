@@ -32,7 +32,6 @@
   "exclude": [
     "node_modules",
     "dist",
-    "src/modules/sale-order/**",
-    "src/modules/point-redemption/**"
+    "src/modules/sale-order/**"
   ]
 }

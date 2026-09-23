@@ -7,9 +7,10 @@ export class CreateServiceItemDto {
   @IsNumber()
   serviceId: number;
 
-  @ApiProperty({ description: 'productId' })
+  @ApiPropertyOptional({ description: 'productId' })
+  @IsOptional()
   @IsNumber()
-  productId: number;
+  productId?: number;
 
   @ApiProperty({ description: 'productName' })
   @IsString()
@@ -19,19 +20,16 @@ export class CreateServiceItemDto {
   @IsNumber()
   quantity: number;
 
-  @ApiProperty({ description: 'unitPrice' })
+  @ApiPropertyOptional({ description: 'unitPrice' })
+  @IsOptional()
   @IsNumber()
-  unitPrice: number;
+  unitPrice?: number;
 
-  @ApiProperty({ description: 'subtotal' })
+  @ApiPropertyOptional({ description: 'subtotal' })
+  @IsOptional()
   @IsNumber()
-  subtotal: number;
+  subtotal?: number;
 
-  @ApiProperty({ description: 'service' })
-  service: any;
-
-  @ApiProperty({ description: 'product' })
-  product: any;
 
 }
 
@@ -66,13 +64,6 @@ export class UpdateServiceItemDto {
   @IsNumber()
   subtotal?: number;
 
-  @ApiPropertyOptional({ description: 'service' })
-  @IsOptional()
-  service?: any;
-
-  @ApiPropertyOptional({ description: 'product' })
-  @IsOptional()
-  product?: any;
 
 }
 

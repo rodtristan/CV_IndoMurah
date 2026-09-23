@@ -19,22 +19,16 @@ export class CreateStockTransferItemDto {
   @IsNumber()
   unitId: number;
 
-  @ApiProperty({ description: 'unitPrice' })
+  @ApiPropertyOptional({ description: 'unitPrice' })
+  @IsOptional()
   @IsNumber()
-  unitPrice: number;
+  unitPrice?: number;
 
-  @ApiProperty({ description: 'subtotal' })
+  @ApiPropertyOptional({ description: 'subtotal' })
+  @IsOptional()
   @IsNumber()
-  subtotal: number;
+  subtotal?: number;
 
-  @ApiProperty({ description: 'stockTransfer' })
-  stockTransfer: any;
-
-  @ApiProperty({ description: 'product' })
-  product: any;
-
-  @ApiProperty({ description: 'unit' })
-  unit: any;
 
 }
 
@@ -69,17 +63,6 @@ export class UpdateStockTransferItemDto {
   @IsNumber()
   subtotal?: number;
 
-  @ApiPropertyOptional({ description: 'stockTransfer' })
-  @IsOptional()
-  stockTransfer?: any;
-
-  @ApiPropertyOptional({ description: 'product' })
-  @IsOptional()
-  product?: any;
-
-  @ApiPropertyOptional({ description: 'unit' })
-  @IsOptional()
-  unit?: any;
 
 }
 

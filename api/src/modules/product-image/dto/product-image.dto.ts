@@ -11,20 +11,21 @@ export class CreateProductImageDto {
   @IsString()
   url: string;
 
-  @ApiProperty({ description: 'caption' })
+  @ApiPropertyOptional({ description: 'caption' })
+  @IsOptional()
   @IsString()
-  caption: string;
+  caption?: string;
 
-  @ApiProperty({ description: 'sortOrder' })
+  @ApiPropertyOptional({ description: 'sortOrder' })
+  @IsOptional()
   @IsNumber()
-  sortOrder: number;
+  sortOrder?: number;
 
-  @ApiProperty({ description: 'isPrimary' })
+  @ApiPropertyOptional({ description: 'isPrimary' })
+  @IsOptional()
   @IsBoolean()
-  isPrimary: boolean;
+  isPrimary?: boolean;
 
-  @ApiProperty({ description: 'product' })
-  product: any;
 
 }
 
@@ -54,9 +55,6 @@ export class UpdateProductImageDto {
   @IsBoolean()
   isPrimary?: boolean;
 
-  @ApiPropertyOptional({ description: 'product' })
-  @IsOptional()
-  product?: any;
 
 }
 

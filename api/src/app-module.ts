@@ -100,7 +100,7 @@ import { JournalEntryModule } from './modules/journal-entry/journal-entry.module
 
 // Point & Settings Modules
 import { PointSettingModule } from './modules/point-setting/point-setting.module';
-// PointRedemptionModule disabled - has TypeScript errors
+import { PointRedemptionModule } from './modules/point-redemption/point-redemption.module';
 import { CompanyModule } from './modules/company/company.module';
 import { NumberingModule } from './modules/numbering/numbering.module';
 
@@ -159,12 +159,16 @@ import { LeaveBalanceModule } from './modules/leave-balance/leave-balance.module
 import { AppSettingModule } from './modules/app-setting/app-setting.module';
 import { ReportEngineModule } from './modules/report-engine/report-engine.module';
 
-// ── Business Logic Modules (Most disabled due to errors - see tsconfig exclude) ──
-// Only POSModule is enabled for now
-import { POSModule } from './modules/business-logic/pos/pos-module';
-import { ProductUnitModule } from './modules/business-logic/product-unit/product-unit-module';
-import { ProductionRecipeModule } from './modules/business-logic/production-recipe/production-recipe-module';
-// Disabled: ReceivableModule, StockAlertModule, AnalyticsModule, InventoryModule,
+// ── Business Logic Modules ──────────────────────────────────────────────
+// The entire `src/modules/business-logic/**` tree is excluded from the build
+// (tsconfig.build.json) — it's a large, disconnected, duplicate-feature tree
+// added by the "Business-logic" merge that doesn't match schema.prisma
+// (~565 TS errors) and was blocking `nest start --watch` from ever launching
+// the app. None of its modules were reachable from the frontend. Re-enable
+// individual submodules here once they're fixed to compile against the real
+// schema and un-excluded from tsconfig.build.json.
+// Previously-registered here (now disabled, none used by the frontend):
+// POSModule, ProductUnitModule, ProductionRecipeModule, ReceivableModule, StockAlertModule, AnalyticsModule, InventoryModule,
 // BLPurchaseModule, BLServiceModule, HRMModule, BLExpenseModule, BLVoucherModule,
 // LoyaltyModule, BLSaleReturnModule, AccountingModule, QualityControlModule,
 // WorkOrderModule, AssemblyModule, BLAssetModule, CashModule, SupplierDebtModule,
@@ -253,7 +257,7 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
 
     // Point & Settings
     PointSettingModule,   // Pengaturan Poin
-    // PointRedemptionModule disabled - has TypeScript errors
+    PointRedemptionModule, // Penukaran Poin (sale/points)
     CompanyModule,        // Informasi Perusahaan
     NumberingModule,      // Format Penomoran
     TestingModule,
@@ -309,10 +313,8 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     AppSettingModule,
     ReportEngineModule,
 
-    // Business Logic Modules (Most disabled due to TypeScript errors)
-    POSModule,  // Only POS is enabled
-    ProductUnitModule, // Product Unit conversion management
-    ProductionRecipeModule, // Production recipe/BOM management
+    // Business Logic Modules: none registered. See the comment above the
+    // (removed) imports for why the whole tree is currently excluded.
   ],
   providers: [
     // ── [5] Guard & Interceptor Global ───────────────────────────────

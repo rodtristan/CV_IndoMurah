@@ -35,15 +35,17 @@ export class CreateProductDto {
   @IsInt()
   warehouseId?: number;
 
-  @ApiProperty({ description: 'Purchase price' })
+  @ApiPropertyOptional({ description: 'Purchase price' })
+  @IsOptional()
   @IsNumber()
   @Transform(({ value }) => parseFloat(value))
-  purchasePrice: number;
+  purchasePrice?: number;
 
-  @ApiProperty({ description: 'Selling price' })
+  @ApiPropertyOptional({ description: 'Selling price' })
+  @IsOptional()
   @IsNumber()
   @Transform(({ value }) => parseFloat(value))
-  sellingPrice: number;
+  sellingPrice?: number;
 
   @ApiPropertyOptional({ description: 'Initial stock quantity', default: 0 })
   @IsOptional()

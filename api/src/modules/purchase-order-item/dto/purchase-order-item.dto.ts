@@ -23,13 +23,15 @@ export class CreatePurchaseOrderItemDto {
   @IsNumber()
   unitPrice: number;
 
-  @ApiProperty({ description: 'discountPercent' })
+  @ApiPropertyOptional({ description: 'discountPercent' })
+  @IsOptional()
   @IsNumber()
-  discountPercent: number;
+  discountPercent?: number;
 
-  @ApiProperty({ description: 'discountAmount' })
+  @ApiPropertyOptional({ description: 'discountAmount' })
+  @IsOptional()
   @IsNumber()
-  discountAmount: number;
+  discountAmount?: number;
 
   @ApiProperty({ description: 'subtotal' })
   @IsNumber()
@@ -38,11 +40,6 @@ export class CreatePurchaseOrderItemDto {
   @ApiProperty({ description: 'purchaseOrder' })
   purchaseOrder: any;
 
-  @ApiProperty({ description: 'product' })
-  product: any;
-
-  @ApiProperty({ description: 'unit' })
-  unit: any;
 
 }
 
@@ -91,13 +88,6 @@ export class UpdatePurchaseOrderItemDto {
   @IsOptional()
   purchaseOrder?: any;
 
-  @ApiPropertyOptional({ description: 'product' })
-  @IsOptional()
-  product?: any;
-
-  @ApiPropertyOptional({ description: 'unit' })
-  @IsOptional()
-  unit?: any;
 
 }
 

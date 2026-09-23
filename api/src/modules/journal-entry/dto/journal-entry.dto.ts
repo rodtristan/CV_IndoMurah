@@ -2,9 +2,10 @@ import { IsOptional, IsInt, IsNumber, IsString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateJournalEntryDto {
-  @ApiProperty({ description: 'Jurnal induk' })
+  @ApiPropertyOptional({ description: 'Jurnal induk' })
+  @IsOptional()
   @IsInt()
-  journalId: number;
+  journalId?: number;
 
   @ApiProperty({ description: 'Akun' })
   @IsInt()

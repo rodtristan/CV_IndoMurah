@@ -19,15 +19,15 @@ export class CreatePriceHistoryDto {
   @IsNumber()
   newPrice: number;
 
-  @ApiProperty({ description: 'changedBy' })
+  @ApiPropertyOptional({ description: 'changedBy' })
+  @IsOptional()
   @IsString()
-  changedBy: string;
+  changedBy?: string;
 
-  @ApiProperty({ description: 'changedAt' })
-  changedAt: Date;
+  @ApiPropertyOptional({ description: 'changedAt' })
+  @IsOptional()
+  changedAt?: Date;
 
-  @ApiProperty({ description: 'product' })
-  product: any;
 
 }
 
@@ -61,9 +61,6 @@ export class UpdatePriceHistoryDto {
   @IsOptional()
   changedAt?: Date;
 
-  @ApiPropertyOptional({ description: 'product' })
-  @IsOptional()
-  product?: any;
 
 }
 

@@ -7,73 +7,89 @@ export class CreateServiceDto {
   @IsString()
   code: string;
 
-  @ApiProperty({ description: 'date' })
-  date: Date;
+  @ApiPropertyOptional({ description: 'date' })
+  @IsOptional()
+  date?: Date;
 
-  @ApiProperty({ description: 'customerId' })
+  @ApiPropertyOptional({ description: 'customerId' })
+  @IsOptional()
   @IsNumber()
-  customerId: number;
+  customerId?: number;
 
-  @ApiProperty({ description: 'customerName' })
+  @ApiPropertyOptional({ description: 'customerName' })
+  @IsOptional()
   @IsString()
-  customerName: string;
+  customerName?: string;
 
-  @ApiProperty({ description: 'customerPhone' })
+  @ApiPropertyOptional({ description: 'customerPhone' })
+  @IsOptional()
   @IsString()
-  customerPhone: string;
+  customerPhone?: string;
 
-  @ApiProperty({ description: 'customerAddress' })
+  @ApiPropertyOptional({ description: 'customerAddress' })
+  @IsOptional()
   @IsString()
-  customerAddress: string;
+  customerAddress?: string;
 
-  @ApiProperty({ description: 'productName' })
+  @ApiPropertyOptional({ description: 'productName' })
+  @IsOptional()
   @IsString()
-  productName: string;
+  productName?: string;
 
-  @ApiProperty({ description: 'serialNumber' })
+  @ApiPropertyOptional({ description: 'serialNumber' })
+  @IsOptional()
   @IsString()
-  serialNumber: string;
+  serialNumber?: string;
 
-  @ApiProperty({ description: 'problem' })
+  @ApiPropertyOptional({ description: 'problem' })
+  @IsOptional()
   @IsString()
-  problem: string;
+  problem?: string;
 
-  @ApiProperty({ description: 'diagnosis' })
+  @ApiPropertyOptional({ description: 'diagnosis' })
+  @IsOptional()
   @IsString()
-  diagnosis: string;
+  diagnosis?: string;
 
-  @ApiProperty({ description: 'repairStatus' })
-  repairStatus: any;
-
-  @ApiProperty({ description: 'technician' })
-  @IsString()
-  technician: string;
-
-  @ApiProperty({ description: 'warrantyUntil' })
-  warrantyUntil: Date;
-
-  @ApiProperty({ description: 'subtotal' })
+  @ApiPropertyOptional({ description: 'Repair status ID (defaults to the initial status)' })
+  @IsOptional()
   @IsNumber()
-  subtotal: number;
+  repairStatusId?: number;
 
-  @ApiProperty({ description: 'laborCost' })
-  @IsNumber()
-  laborCost: number;
-
-  @ApiProperty({ description: 'totalAmount' })
-  @IsNumber()
-  totalAmount: number;
-
-  @ApiProperty({ description: 'notes' })
+  @ApiPropertyOptional({ description: 'technician' })
+  @IsOptional()
   @IsString()
-  notes: string;
+  technician?: string;
 
-  @ApiProperty({ description: 'isActive' })
+  @ApiPropertyOptional({ description: 'warrantyUntil' })
+  @IsOptional()
+  warrantyUntil?: Date;
+
+  @ApiPropertyOptional({ description: 'subtotal' })
+  @IsOptional()
+  @IsNumber()
+  subtotal?: number;
+
+  @ApiPropertyOptional({ description: 'laborCost' })
+  @IsOptional()
+  @IsNumber()
+  laborCost?: number;
+
+  @ApiPropertyOptional({ description: 'totalAmount' })
+  @IsOptional()
+  @IsNumber()
+  totalAmount?: number;
+
+  @ApiPropertyOptional({ description: 'notes' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @ApiPropertyOptional({ description: 'isActive' })
+  @IsOptional()
   @IsBoolean()
-  isActive: boolean;
+  isActive?: boolean;
 
-  @ApiProperty({ description: 'customer' })
-  customer: any;
 
 }
 
@@ -127,9 +143,10 @@ export class UpdateServiceDto {
   @IsString()
   diagnosis?: string;
 
-  @ApiPropertyOptional({ description: 'repairStatus' })
+  @ApiPropertyOptional({ description: 'Repair status ID' })
   @IsOptional()
-  repairStatus?: any;
+  @IsNumber()
+  repairStatusId?: number;
 
   @ApiPropertyOptional({ description: 'technician' })
   @IsOptional()
@@ -165,9 +182,6 @@ export class UpdateServiceDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ description: 'customer' })
-  @IsOptional()
-  customer?: any;
 
 }
 
@@ -202,8 +216,8 @@ export class ServiceResponseDto {
   @ApiProperty({ description: 'diagnosis' })
   diagnosis: string;
 
-  @ApiProperty({ description: 'repairStatus' })
-  repairStatus: any;
+  @ApiProperty({ description: 'Repair status ID' })
+  repairStatusId: number;
 
   @ApiProperty({ description: 'technician' })
   technician: string;

@@ -18,13 +18,15 @@ export class CreateVoucherDto {
   @IsNumber()
   value: number;
 
-  @ApiProperty({ description: 'minPurchaseAmount' })
+  @ApiPropertyOptional({ description: 'minPurchaseAmount' })
+  @IsOptional()
   @IsNumber()
-  minPurchaseAmount: number;
+  minPurchaseAmount?: number;
 
-  @ApiProperty({ description: 'maxDiscountAmount' })
+  @ApiPropertyOptional({ description: 'maxDiscountAmount' })
+  @IsOptional()
   @IsNumber()
-  maxDiscountAmount: number;
+  maxDiscountAmount?: number;
 
   @ApiProperty({ description: 'startDate' })
   startDate: Date;
@@ -32,17 +34,20 @@ export class CreateVoucherDto {
   @ApiProperty({ description: 'endDate' })
   endDate: Date;
 
-  @ApiProperty({ description: 'usageLimit' })
+  @ApiPropertyOptional({ description: 'usageLimit' })
+  @IsOptional()
   @IsNumber()
-  usageLimit: number;
+  usageLimit?: number;
 
-  @ApiProperty({ description: 'usedCount' })
+  @ApiPropertyOptional({ description: 'usedCount' })
+  @IsOptional()
   @IsNumber()
-  usedCount: number;
+  usedCount?: number;
 
-  @ApiProperty({ description: 'isActive' })
+  @ApiPropertyOptional({ description: 'isActive' })
+  @IsOptional()
   @IsBoolean()
-  isActive: boolean;
+  isActive?: boolean;
 
 }
 

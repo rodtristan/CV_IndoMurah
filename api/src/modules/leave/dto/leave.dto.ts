@@ -20,41 +20,43 @@ export class CreateLeaveDto {
   @ApiProperty({ description: 'endDate' })
   endDate: Date;
 
-  @ApiProperty({ description: 'totalDays' })
+  @ApiPropertyOptional({ description: 'totalDays' })
+  @IsOptional()
   @IsNumber()
-  totalDays: number;
+  totalDays?: number;
 
-  @ApiProperty({ description: 'reason' })
+  @ApiPropertyOptional({ description: 'reason' })
+  @IsOptional()
   @IsString()
-  reason: string;
+  reason?: string;
 
   @ApiProperty({ description: 'status' })
   status: any;
 
-  @ApiProperty({ description: 'approvedById' })
+  @ApiPropertyOptional({ description: 'approvedById' })
+  @IsOptional()
   @IsString()
-  approvedById: string;
+  approvedById?: string;
 
-  @ApiProperty({ description: 'approvedAt' })
-  approvedAt: Date;
+  @ApiPropertyOptional({ description: 'approvedAt' })
+  @IsOptional()
+  approvedAt?: Date;
 
-  @ApiProperty({ description: 'rejectedReason' })
+  @ApiPropertyOptional({ description: 'rejectedReason' })
+  @IsOptional()
   @IsString()
-  rejectedReason: string;
+  rejectedReason?: string;
 
-  @ApiProperty({ description: 'notes' })
+  @ApiPropertyOptional({ description: 'notes' })
+  @IsOptional()
   @IsString()
-  notes: string;
+  notes?: string;
 
-  @ApiProperty({ description: 'isActive' })
+  @ApiPropertyOptional({ description: 'isActive' })
+  @IsOptional()
   @IsBoolean()
-  isActive: boolean;
+  isActive?: boolean;
 
-  @ApiProperty({ description: 'employee' })
-  employee: any;
-
-  @ApiProperty({ description: 'approver' })
-  approver: any;
 
 }
 
@@ -119,13 +121,6 @@ export class UpdateLeaveDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ description: 'employee' })
-  @IsOptional()
-  employee?: any;
-
-  @ApiPropertyOptional({ description: 'approver' })
-  @IsOptional()
-  approver?: any;
 
 }
 
