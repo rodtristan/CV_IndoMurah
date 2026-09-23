@@ -171,7 +171,7 @@ export class LoggingInterceptor implements NestInterceptor {
           Payload:           (log.requestBody as object) ?? {},
           ResponseStatus:    log.responseStatus,
           Message:           log.message,
-          // requesterLoginId is Int? in schema but User.id is now a uuid
+          // RequesterLoginID is Int? in schema but User.id is now a uuid
           // string (see auth-service.ts) — nothing sensible to store here.
           RequesterFullName: log.userFullName,
           IpAddress:         log.ipAddress,

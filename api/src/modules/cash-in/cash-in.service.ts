@@ -18,12 +18,12 @@ export class CashInService extends BaseService<
   ) {
     super(prisma, redis, queryService, {
       modelName: 'cashIn',
-      primaryKey: 'id',
+      primaryKey: 'ID',
       searchableFields: ['*'],
       allowedIncludes: ['*'],
       allowedSortFields: ['*'],
       allowedSelectFields: ['*'],
-      defaultOrderBy: { createdAt: 'desc' },
+      defaultOrderBy: { CreatedAt: 'desc' },
       maxTake: 100,
       defaultTake: 20,
       cacheTtl: 60,

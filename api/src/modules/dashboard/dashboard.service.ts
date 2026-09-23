@@ -8,6 +8,7 @@ import {
   TopSupplierDto,
   LowStockItemDto,
   RecentTransactionDto,
+  SalesByBranchDto,
 } from './dashboard.dto';
 
 @Injectable()
@@ -24,7 +25,7 @@ export class DashboardService {
     const cached = await this.redis.get(this.CACHE_KEY);
     if (cached) return JSON.parse(cached);
 
-    const [summary, topProducts, topCustomers, topSuppliers, lowStockItems, outOfStockItems, recentTransactions] =
+    const [summary, topProducts, topCustomers, topSuppliers, lowStockItems, outOfStockItems, recentTransactions, salesByBranch] =
       await Promise.all([
         this.getSummary(),
         this.getTopProducts(),
@@ -33,6 +34,7 @@ export class DashboardService {
         this.getLowStockItems(),
         this.getOutOfStockItems(),
         this.getRecentTransactions(),
+        this.getSalesByBranch(),
       ]);
 
     const result: DashboardResponseDto = {
@@ -43,6 +45,7 @@ export class DashboardService {
       lowStockItems,
       outOfStockItems,
       recentTransactions,
+      salesByBranch,
     };
 
     await this.redis.set(this.CACHE_KEY, JSON.stringify(result), this.CACHE_TTL);
@@ -140,6 +143,41 @@ export class DashboardService {
         totalRevenue: Number(item._sum.Subtotal) || 0,
       };
     });
+  }
+
+  private async getSalesByBranch(): Promise<SalesByBranchDto[]> {
+    const today = new Date();
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    const paidStatus = await this.prisma.paymentStatus.findUnique({ where: { Code: 'PAID' } });
+    const partialStatus = await this.prisma.paymentStatus.findUnique({ where: { Code: 'PARTIAL' } });
+    const statusIds = [paidStatus?.ID, partialStatus?.ID].filter(Boolean) as number[];
+
+    const grouped = await this.prisma.sale.groupBy({
+      by: ['SalePointID'],
+      where: {
+        Date: { gte: startOfMonth },
+        PaymentStatusID: { in: statusIds },
+        SalePointID: { not: null },
+      },
+      _sum: { Total: true },
+      _count: true,
+      orderBy: { _sum: { Total: 'desc' } },
+    });
+
+    const salePointIds = grouped.map((g) => g.SalePointID).filter((id): id is number => id !== null);
+    const salePoints = await this.prisma.salePoint.findMany({
+      where: { ID: { in: salePointIds } },
+      select: { ID: true, Name: true },
+    });
+    const nameMap = new Map(salePoints.map((s) => [s.ID, s.Name]));
+
+    return grouped.map((g) => ({
+      salePointId: g.SalePointID!,
+      salePointName: nameMap.get(g.SalePointID!) || `Cabang #${g.SalePointID}`,
+      totalSales: Number(g._sum.Total) || 0,
+      transactionCount: g._count,
+    }));
   }
 
   private async getTopCustomers(limit: number = 5): Promise<TopCustomerDto[]> {

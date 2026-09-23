@@ -127,6 +127,7 @@ import { PayrollModule } from './modules/payroll/payroll.module';
 import { LoanModule } from './modules/loan/loan.module';
 import { LoanInstallmentModule } from './modules/loan-installment/loan-installment.module';
 import { NotificationModule } from './modules/notification/notification.module';
+import { PaymentMethodModule } from './modules/payment-method/payment-method.module';
 import { ProductStockModule } from './modules/product-stock/product-stock.module';
 import { StockInItemModule } from './modules/stock-in-item/stock-in-item.module';
 import { StockOutItemModule } from './modules/stock-out-item/stock-out-item.module';
@@ -156,6 +157,7 @@ import { UserMenuModule } from './modules/user-menu/user-menu.module';
 import { LeaveModule } from './modules/leave/leave.module';
 import { LeaveBalanceModule } from './modules/leave-balance/leave-balance.module';
 import { AppSettingModule } from './modules/app-setting/app-setting.module';
+import { ReportEngineModule } from './modules/report-engine/report-engine.module';
 
 // ── Business Logic Modules (Most disabled due to errors - see tsconfig exclude) ──
 // Only POSModule is enabled for now
@@ -275,6 +277,7 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     LoanModule,
     LoanInstallmentModule,
     NotificationModule,
+    PaymentMethodModule,
     ProductStockModule,
     StockInItemModule,
     StockOutItemModule,
@@ -304,11 +307,17 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     LeaveModule,
     LeaveBalanceModule,
     AppSettingModule,
+<<<<<<< HEAD
 
     // Business Logic Modules (Most disabled due to TypeScript errors)
     POSModule,  // Only POS is enabled
     ProductUnitModule, // Product Unit conversion management
     ProductionRecipeModule, // Production recipe/BOM management
+=======
+    ReportEngineModule,
+    POSModule,
+    ProductUnitModule,
+    ProductionRecipeModule,
   ],
   providers: [
     // ── [5] Guard & Interceptor Global ───────────────────────────────

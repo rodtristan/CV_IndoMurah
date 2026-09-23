@@ -1,12 +1,15 @@
 "use client";
 
-import { Bell, Menu, ChevronLeft, ChevronDown, LogOut, Settings, UserRound } from "lucide-react";
+import { Bell, Menu, ChevronLeft, ChevronDown, LogOut, Settings, UserRound, ShoppingCart, Package, Archive, CreditCard, Calendar, CheckCheck } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
-import { cn } from "@/lib/utils";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { cn, formatTimeAgo } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
+import { api } from "@/lib/api-client";
 import { POSSidebar } from "./Sidebar";
+import { GlobalPageLoader, TopProgressBar } from "@/components/ui/Loader";
+import { usePageTitleOverride } from "@/lib/page-title";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -31,9 +34,11 @@ const TITLE_OVERRIDES: Record<string, string> = {
   "/master/units": "Satuan",
   "/sale/pos": "Kasir (POS)",
   "/accounting/accounts": "Daftar Perkiraan",
+  "/reports": "Menu Laporan",
   "/reports/sales": "Laporan Penjualan",
   "/reports/purchase": "Laporan Pembelian",
   "/reports/inventory": "Laporan Persediaan",
+  "/reports/stock-mutation": "Mutasi Stok",
   "/reports/financial": "Laporan Keuangan",
   "/reports/profit": "Laporan Laba Rugi",
   "/reports/cash": "Laporan Arus Kas",
@@ -49,10 +54,15 @@ const TITLE_OVERRIDES: Record<string, string> = {
   "/accounting/journals": "Jurnal Umum",
   "/accounting/supplier-deposits": "Setoran Supplier",
   "/inventory/minimum-stock": "Stock Minim",
+  "/inventory/stock-in": "Barang Masuk",
   "/inventory/opening-stock": "Saldo Awal Item",
   "/inventory/stock-out": "Barang Keluar",
   "/inventory/transfers": "Transfer Stock",
   "/purchase/list": "Daftar Pembelian",
+  "/purchase/returns": "Retur Pembelian",
+  "/sale/list": "Daftar Penjualan",
+  "/inventory/stock-opname": "Stock Opname",
+  "/reports/stock-opname": "Laporan Stock Opname",
   "/purchase/order": "Pesanan Pembelian",
   "/reports/debt": "Hutang",
   "/reports/receivable": "Piutang",
@@ -61,11 +71,17 @@ const TITLE_OVERRIDES: Record<string, string> = {
   "/sale/points": "Point Penjualan",
   "/sale/shipping": "Data Pengiriman",
   "/settings/roles": "Hak Akses",
+  "/settings/menus": "Menu Aplikasi",
+  "/settings/activity-log": "Log Aktivitas",
+  "/settings/import": "Import Data",
+  "/hr/attendance": "Absensi",
+  "/hr/employees": "Karyawan",
   "/settings/users": "Pengguna",
 };
 
 function pageTitle(pathname: string): string {
   if (TITLE_OVERRIDES[pathname]) return TITLE_OVERRIDES[pathname];
+  if (pathname.startsWith("/reports/run/")) return "Laporan";
 
   const segments = pathname.split("/").filter(Boolean);
   if (segments.length === 0 || (segments.length === 1 && segments[0] === "dashboard")) {
@@ -73,6 +89,135 @@ function pageTitle(pathname: string): string {
   }
   const last = segments[segments.length - 1];
   return last.split("-").map(capitalize).join(" ");
+}
+
+const NOTIF_TYPE_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
+  SALE: ShoppingCart,
+  PURCHASE: Package,
+  STOCK: Archive,
+  PAYMENT: CreditCard,
+  APPOINTMENT: Calendar,
+  REMINDER: Bell,
+};
+
+function NotificationBell() {
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const fetchUnreadCount = useCallback(async () => {
+    const res = await api.get<{ count: number }>("notifications/unread-count").catch(() => ({ success: false } as any));
+    if (res.success && res.data) setUnreadCount(res.data.count);
+  }, []);
+
+  const fetchList = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.get<any[]>("notifications", { $include: "Type", $orderBy: { CreatedAt: "desc" }, $take: 10 } as any)
+        .catch(() => ({ success: false, data: [] } as any));
+      if (res.success) setItems(res.data || []);
+    } finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    fetchUnreadCount();
+    pollRef.current = setInterval(fetchUnreadCount, 30000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [fetchUnreadCount]);
+
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (next) fetchList();
+  };
+
+  const handleClickItem = async (item: any) => {
+    if (!item.IsRead) {
+      await api.patch("notifications", `${item.ID}/read`, {}).catch(() => ({}));
+      setItems((prev) => prev.map((n) => (n.ID === item.ID ? { ...n, IsRead: true } : n)));
+      setUnreadCount((c) => Math.max(0, c - 1));
+    }
+    setOpen(false);
+    if (item.ReferenceType === "Sale") router.push("/sale/list");
+    else if (item.ReferenceType === "Purchase") router.push("/purchase/list");
+    else if (item.ReferenceType === "Product") router.push("/master/items");
+  };
+
+  const markAllRead = async () => {
+    await api.patch("notifications", "mark-all-read", {}).catch(() => ({}));
+    setItems((prev) => prev.map((n) => ({ ...n, IsRead: true })));
+    setUnreadCount(0);
+  };
+
+  return (
+    <div className="relative">
+      <button
+        onClick={toggle}
+        className="relative flex size-9 items-center justify-center rounded-lg text-toned transition-colors hover:bg-bg hover:text-highlighted"
+      >
+        <Bell className="size-5" />
+        {unreadCount > 0 && (
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-semibold text-white">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full z-20 mt-2 w-80 rounded-lg border border-default bg-elevated shadow-lg">
+            <div className="flex items-center justify-between border-b border-default px-3 py-2.5">
+              <span className="text-sm font-semibold text-highlighted">Notifikasi</span>
+              {unreadCount > 0 && (
+                <button onClick={markAllRead} className="flex items-center gap-1 text-xs text-primary hover:underline">
+                  <CheckCheck className="size-3.5" />
+                  Tandai semua dibaca
+                </button>
+              )}
+            </div>
+            <div className="max-h-96 overflow-y-auto">
+              {loading ? (
+                <p className="px-3 py-6 text-center text-sm text-muted">Memuat...</p>
+              ) : items.length === 0 ? (
+                <p className="px-3 py-6 text-center text-sm text-muted">Tidak ada notifikasi</p>
+              ) : (
+                items.map((item) => {
+                  const Icon = NOTIF_TYPE_ICON[item.Type?.Code] || Bell;
+                  return (
+                    <button
+                      key={item.ID}
+                      onClick={() => handleClickItem(item)}
+                      className={cn(
+                        "flex w-full items-start gap-3 border-b border-default px-3 py-2.5 text-left transition-colors last:border-0 hover:bg-bg",
+                        !item.IsRead && "bg-primary/5"
+                      )}
+                    >
+                      <div
+                        className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full"
+                        style={{ backgroundColor: `${item.Type?.Color || "#78909C"}20`, color: item.Type?.Color || "#78909C" }}
+                      >
+                        <Icon className="size-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className={cn("text-sm text-highlighted", !item.IsRead && "font-semibold")}>{item.Title}</p>
+                        <p className="truncate text-xs text-muted">{item.Message}</p>
+                        <p className="mt-0.5 text-[11px] text-muted">{formatTimeAgo(item.CreatedAt)}</p>
+                      </div>
+                      {!item.IsRead && <span className="mt-1.5 size-2 shrink-0 rounded-full bg-primary" />}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 function UserMenu() {
@@ -131,11 +276,13 @@ export function MainLayout({ children }: MainLayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  const title = pageTitle(pathname);
+  const titleOverride = usePageTitleOverride();
+  const title = titleOverride ?? pageTitle(pathname);
   const isDashboard = title === "Halaman Utama";
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg">
+      <TopProgressBar />
       {/* Sidebar */}
       <aside
         className={cn(
@@ -176,17 +323,13 @@ export function MainLayout({ children }: MainLayoutProps) {
               </button>
             )}
             <h1 className="text-lg font-semibold text-highlighted">{title}</h1>
+            <GlobalPageLoader className="text-primary" />
           </div>
           <div className="flex items-center gap-4">
             <span className="hidden text-sm font-medium text-toned md:inline">
               CV INDOMURAH GROUP <span className="text-muted">[UTM]</span>
             </span>
-            <button className="relative flex size-9 items-center justify-center rounded-lg text-toned transition-colors hover:bg-bg hover:text-highlighted">
-              <Bell className="size-5" />
-              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-semibold text-white">
-                50
-              </span>
-            </button>
+            <NotificationBell />
             <div className="h-6 w-px bg-default" />
             <UserMenu />
           </div>

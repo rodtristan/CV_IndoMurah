@@ -39,7 +39,7 @@ export class SalePaymentService {
         const prismaQuery = this.queryService.buildPrismaQuery(query, {
           searchableFields: ['*'],
           allowedIncludes: ['*'],
-          defaultOrderBy: { createdAt: 'desc' },
+          defaultOrderBy: { CreatedAt: 'desc' },
         });
 
         const findArgs: any = {
@@ -68,7 +68,10 @@ export class SalePaymentService {
   }
 
   async findOne(id: number, query: Record<string, any> = {}) {
-    const cacheKey = `${this.CACHE_PREFIX}:${id}`;
+    // Include/select query params change the payload, so they must be part of the cache key.
+    const cacheKey = Object.keys(query).length
+      ? `${this.CACHE_PREFIX}:${id}:${this.queryService.generateCacheKey('q', query)}`
+      : `${this.CACHE_PREFIX}:${id}`;
 
     return this.redis.getOrSet(
       cacheKey,
@@ -77,7 +80,7 @@ export class SalePaymentService {
           allowedIncludes: ['*'],
         });
 
-        const findArgs: any = { where: { id } };
+        const findArgs: any = { where: { ID: id } };
 
         if (prismaQuery.select) {
           findArgs.select = prismaQuery.select;
@@ -94,17 +97,17 @@ export class SalePaymentService {
 
   async create(dto: CreateSalePaymentDto, userId: string) {
     // Verify sale exists
-    const sale = await this.prisma.sale.findUnique({ where: { id: dto.saleId } });
+    const sale = await this.prisma.sale.findUnique({ where: { ID: dto.SaleID } });
     if (!sale) throw new NotFoundException('Sale not found');
 
     // Check if payment would exceed sale total
     const existingPayments = await this.prisma.salePayment.findMany({
-      where: { saleId: dto.saleId },
+      where: { SaleID: dto.SaleID },
     });
-    const paidAmount = existingPayments.reduce((sum, p) => sum + Number(p.amount), 0);
-    const newTotal = paidAmount + dto.amount;
+    const paidAmount = existingPayments.reduce((sum, p) => sum + Number(p.Amount), 0);
+    const newTotal = paidAmount + dto.Amount;
 
-    if (newTotal > Number(sale.total)) {
+    if (newTotal > Number(sale.Total)) {
       throw new BadRequestException('Payment amount exceeds sale total');
     }
 
@@ -118,20 +121,21 @@ export class SalePaymentService {
         notes: dto.notes,
         createdById: userId,
       },
-      include: { sale: true, creator: true },
+      include: { Sale: true, Creator: true },
     });
 
     // Update sale payment status
-    await this.updateSalePaymentStatus(dto.saleId);
+    await this.updateSalePaymentStatus(dto.SaleID);
 
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
-    await this.redis.invalidatePattern(`sales:${dto.saleId}*`);
+    await this.redis.invalidatePattern(`sales:${dto.SaleID}*`);
+    await this.redis.invalidatePattern('reports:*');
 
     return this.serialize(payment);
   }
 
   async update(id: number, dto: UpdateSalePaymentDto) {
-    const payment = await this.prisma.salePayment.findUnique({ where: { id } });
+    const payment = await this.prisma.salePayment.findUnique({ where: { ID: id } });
     if (!payment) throw new NotFoundException('Sale payment not found');
 
     const updateData: any = {};
@@ -142,27 +146,29 @@ export class SalePaymentService {
     if (dto.notes !== undefined) updateData.notes = dto.notes;
 
     const updated = await this.prisma.salePayment.update({
-      where: { id },
+      where: { ID: id },
       data: updateData,
-      include: { sale: true, creator: true },
+      include: { Sale: true, Creator: true },
     });
 
-    await this.updateSalePaymentStatus(payment.saleId);
+    await this.updateSalePaymentStatus(payment.SaleID);
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
-    await this.redis.invalidatePattern(`sales:${payment.saleId}*`);
+    await this.redis.invalidatePattern(`sales:${payment.SaleID}*`);
+    await this.redis.invalidatePattern('reports:*');
 
     return this.serialize(updated);
   }
 
   async delete(id: number) {
-    const payment = await this.prisma.salePayment.findUnique({ where: { id } });
+    const payment = await this.prisma.salePayment.findUnique({ where: { ID: id } });
     if (!payment) throw new NotFoundException('Sale payment not found');
 
-    await this.prisma.salePayment.delete({ where: { id } });
-    await this.updateSalePaymentStatus(payment.saleId);
+    await this.prisma.salePayment.delete({ where: { ID: id } });
+    await this.updateSalePaymentStatus(payment.SaleID);
 
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
-    await this.redis.invalidatePattern(`sales:${payment.saleId}*`);
+    await this.redis.invalidatePattern(`sales:${payment.SaleID}*`);
+    await this.redis.invalidatePattern('reports:*');
 
     return { id };
   }
@@ -170,11 +176,11 @@ export class SalePaymentService {
   async findBySale(saleId: number, query: Record<string, any> = {}) {
     const prismaQuery = this.queryService.buildPrismaQuery(query, {
       allowedIncludes: ['*'],
-      defaultOrderBy: { createdAt: 'desc' },
+      defaultOrderBy: { CreatedAt: 'desc' },
     });
 
     const findArgs: any = {
-      where: { saleId: saleId, ...prismaQuery.where },
+      where: { SaleID: saleId, ...prismaQuery.where },
       orderBy: prismaQuery.orderBy,
       skip: prismaQuery.skip,
       take: prismaQuery.take,
@@ -186,7 +192,7 @@ export class SalePaymentService {
 
     const [data, total] = await Promise.all([
       this.prisma.salePayment.findMany(findArgs),
-      this.prisma.salePayment.count({ where: { saleId: saleId } }),
+      this.prisma.salePayment.count({ where: { SaleID: saleId } }),
     ]);
 
     const serializedData = data.map((item) => this.serialize(item));
@@ -195,14 +201,14 @@ export class SalePaymentService {
 
   private async updateSalePaymentStatus(saleId: number) {
     const sale = await this.prisma.sale.findUnique({
-      where: { id: saleId },
-      include: { salePayments: true },
+      where: { ID: saleId },
+      include: { SalePayments: true },
     });
 
     if (!sale) return;
 
-    const paidAmount = sale.salePayments.reduce((sum, p) => sum + Number(p.amount), 0);
-    const totalAmount = Number(sale.total);
+    const paidAmount = sale.SalePayments.reduce((sum, p) => sum + Number(p.Amount), 0);
+    const totalAmount = Number(sale.Total);
 
     let paymentStatusCode: 'PENDING' | 'PARTIAL' | 'PAID' = 'PENDING';
     if (paidAmount > 0 && paidAmount < totalAmount) {

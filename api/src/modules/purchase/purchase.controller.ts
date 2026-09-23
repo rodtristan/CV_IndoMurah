@@ -21,7 +21,7 @@ import { ApiResponse } from '../../common/dto/api-response-dto';
 @ApiTags('Purchases')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('Purchases')
+@Controller('purchases')
 export class PurchaseController {
   constructor(private purchaseService: PurchaseService) {}
 
@@ -59,7 +59,7 @@ export class PurchaseController {
   @Post()
   @ApiOperation({ summary: 'Create purchase' })
   async create(@Body() dto: CreatePurchaseDto, @CurrentUser() user: any) {
-    const data = await this.purchaseService.create(dto, user.ID);
+    const data = await this.purchaseService.create(dto, user.id);
     return ApiResponse.ok(data, 'Purchase created successfully');
   }
 

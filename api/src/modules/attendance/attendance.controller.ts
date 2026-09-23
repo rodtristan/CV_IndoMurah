@@ -14,7 +14,7 @@ export class AttendanceController extends BaseController<
   CreateAttendanceDto,
   UpdateAttendanceDto
 > {
-  constructor(attendanceService: AttendanceService) {
+  constructor(private readonly attendanceService: AttendanceService) {
     super(attendanceService, {
       modelName: 'Attendance',
       pluralName: 'Attendances',
@@ -60,7 +60,8 @@ export class AttendanceController extends BaseController<
   @Post()
   @ApiOperation({ summary: 'Create new Attendance' })
   async create(@Body() dto: CreateAttendanceDto) {
-    return super.create(dto);
+    const data = await this.attendanceService.createAttendance(dto);
+    return { success: true, data, message: 'Attendance created successfully' };
   }
 
   @Post('bulk')
@@ -73,7 +74,8 @@ export class AttendanceController extends BaseController<
   @Patch(':id')
   @ApiOperation({ summary: 'Update Attendance by ID' })
   async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateAttendanceDto>) {
-    return super.patchById(id, dto);
+    const data = await this.attendanceService.updateAttendance(Number(id), dto);
+    return { success: true, data, message: 'Attendance updated successfully' };
   }
 
   @Patch('by/:field/:value')

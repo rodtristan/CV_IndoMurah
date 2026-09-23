@@ -185,15 +185,15 @@ export class UpdateShippingDto {
   @ApiPropertyOptional({ description: 'Shipping status', enum: ['PENDING', 'SHIPPED'] })
   @IsOptional()
   @IsString()
-  shippingStatus?: string;
+  ShippingStatus?: string;
 
   @ApiPropertyOptional({ description: 'Shipping date', type: String })
   @IsOptional()
   @IsString()
-  shippingDate?: string;
+  ShippingDate?: string;
 
   @ApiPropertyOptional({ description: 'Tracking / resi number' })
   @IsOptional()
   @IsString()
-  trackingNumber?: string;
+  TrackingNumber?: string;
 }

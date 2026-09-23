@@ -25,7 +25,7 @@ export class PurchasePaymentService {
         const prismaQuery = this.queryService.buildPrismaQuery(query, {
           searchableFields: ['*'],
           allowedIncludes: ['*'],
-          defaultOrderBy: { createdAt: 'desc' },
+          defaultOrderBy: { CreatedAt: 'desc' },
         });
 
         const findArgs: any = {
@@ -54,7 +54,10 @@ export class PurchasePaymentService {
   }
 
   async findOne(id: number, query: Record<string, any> = {}) {
-    const cacheKey = `${this.CACHE_PREFIX}:${id}`;
+    // Include/select query params change the payload, so they must be part of the cache key.
+    const cacheKey = Object.keys(query).length
+      ? `${this.CACHE_PREFIX}:${id}:${this.queryService.generateCacheKey('q', query)}`
+      : `${this.CACHE_PREFIX}:${id}`;
 
     return this.redis.getOrSet(
       cacheKey,
@@ -63,7 +66,7 @@ export class PurchasePaymentService {
           allowedIncludes: ['*'],
         });
 
-        const findArgs: any = { where: { id } };
+        const findArgs: any = { where: { ID: id } };
 
         if (prismaQuery.select) {
           findArgs.select = prismaQuery.select;
@@ -80,76 +83,78 @@ export class PurchasePaymentService {
 
   async create(dto: CreatePurchasePaymentDto, userId: string) {
     // Verify purchase exists
-    const purchase = await this.prisma.purchase.findUnique({ where: { id: dto.purchaseId } });
+    const purchase = await this.prisma.purchase.findUnique({ where: { ID: dto.PurchaseID } });
     if (!purchase) throw new NotFoundException('Purchase not found');
 
     // Check if payment would exceed remaining amount
     const existingPayments = await this.prisma.purchasePayment.findMany({
-      where: { purchaseId: dto.purchaseId },
+      where: { PurchaseID: dto.PurchaseID },
     });
-    const paidAmount = existingPayments.reduce((sum, p) => sum + Number(p.amount), 0);
-    const newTotal = paidAmount + dto.amount;
-    const remaining = Number(purchase.total) - paidAmount;
+    const paidAmount = existingPayments.reduce((sum, p) => sum + Number(p.Amount), 0);
+    const remaining = Number(purchase.Total) - paidAmount;
 
-    if (dto.amount > remaining) {
-      throw new BadRequestException(`Payment amount (${dto.amount}) exceeds remaining amount (${remaining})`);
+    if (dto.Amount > remaining) {
+      throw new BadRequestException(`Payment amount (${dto.Amount}) exceeds remaining amount (${remaining})`);
     }
 
     const payment = await this.prisma.purchasePayment.create({
       data: {
-        purchaseId: dto.purchaseId,
-        method: dto.method,
-        amount: new Prisma.Decimal(dto.amount.toString()),
-        referenceNumber: dto.referenceNumber,
-        date: dto.date ? new Date(dto.date) : new Date(),
-        notes: dto.notes,
-        createdById: userId,
+        PurchaseID: dto.PurchaseID,
+        MethodID: dto.MethodID,
+        Amount: new Prisma.Decimal(dto.Amount.toString()),
+        ReferenceNumber: dto.ReferenceNumber,
+        Date: dto.Date ? new Date(dto.Date) : new Date(),
+        Notes: dto.Notes,
+        CreatedByID: userId,
       },
-      include: { purchase: true, creator: true },
+      include: { Purchase: true, Creator: true },
     });
 
     // Update purchase payment status
-    await this.updatePurchasePaymentStatus(dto.purchaseId);
+    await this.updatePurchasePaymentStatus(dto.PurchaseID);
 
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
-    await this.redis.invalidatePattern(`purchases:${dto.purchaseId}*`);
+    await this.redis.invalidatePattern(`purchases:${dto.PurchaseID}*`);
+    await this.redis.invalidatePattern('reports:*');
 
     return this.serialize(payment);
   }
 
   async update(id: number, dto: UpdatePurchasePaymentDto) {
-    const payment = await this.prisma.purchasePayment.findUnique({ where: { id } });
+    const payment = await this.prisma.purchasePayment.findUnique({ where: { ID: id } });
     if (!payment) throw new NotFoundException('Purchase payment not found');
 
     const updateData: any = {};
-    if (dto.method) updateData.method = dto.method;
-    if (dto.amount) updateData.amount = new Prisma.Decimal(dto.amount.toString());
-    if (dto.referenceNumber !== undefined) updateData.referenceNumber = dto.referenceNumber;
-    if (dto.date) updateData.date = new Date(dto.date);
-    if (dto.notes !== undefined) updateData.notes = dto.notes;
+    if (dto.MethodID) updateData.MethodID = dto.MethodID;
+    if (dto.Amount) updateData.Amount = new Prisma.Decimal(dto.Amount.toString());
+    if (dto.ReferenceNumber !== undefined) updateData.ReferenceNumber = dto.ReferenceNumber;
+    if (dto.Date) updateData.Date = new Date(dto.Date);
+    if (dto.Notes !== undefined) updateData.Notes = dto.Notes;
 
     const updated = await this.prisma.purchasePayment.update({
-      where: { id },
+      where: { ID: id },
       data: updateData,
-      include: { purchase: true, creator: true },
+      include: { Purchase: true, Creator: true },
     });
 
-    await this.updatePurchasePaymentStatus(payment.purchaseId);
+    await this.updatePurchasePaymentStatus(payment.PurchaseID);
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
-    await this.redis.invalidatePattern(`purchases:${payment.purchaseId}*`);
+    await this.redis.invalidatePattern(`purchases:${payment.PurchaseID}*`);
+    await this.redis.invalidatePattern('reports:*');
 
     return this.serialize(updated);
   }
 
   async delete(id: number) {
-    const payment = await this.prisma.purchasePayment.findUnique({ where: { id } });
+    const payment = await this.prisma.purchasePayment.findUnique({ where: { ID: id } });
     if (!payment) throw new NotFoundException('Purchase payment not found');
 
-    await this.prisma.purchasePayment.delete({ where: { id } });
-    await this.updatePurchasePaymentStatus(payment.purchaseId);
+    await this.prisma.purchasePayment.delete({ where: { ID: id } });
+    await this.updatePurchasePaymentStatus(payment.PurchaseID);
 
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
-    await this.redis.invalidatePattern(`purchases:${payment.purchaseId}*`);
+    await this.redis.invalidatePattern(`purchases:${payment.PurchaseID}*`);
+    await this.redis.invalidatePattern('reports:*');
 
     return { id };
   }
@@ -157,11 +162,11 @@ export class PurchasePaymentService {
   async findByPurchase(purchaseId: number, query: Record<string, any> = {}) {
     const prismaQuery = this.queryService.buildPrismaQuery(query, {
       allowedIncludes: ['*'],
-      defaultOrderBy: { createdAt: 'desc' },
+      defaultOrderBy: { CreatedAt: 'desc' },
     });
 
     const findArgs: any = {
-      where: { purchaseId: purchaseId, ...prismaQuery.where },
+      where: { PurchaseID: purchaseId, ...prismaQuery.where },
       orderBy: prismaQuery.orderBy,
       skip: prismaQuery.skip,
       take: prismaQuery.take,
@@ -173,7 +178,7 @@ export class PurchasePaymentService {
 
     const [data, total] = await Promise.all([
       this.prisma.purchasePayment.findMany(findArgs),
-      this.prisma.purchasePayment.count({ where: { purchaseId: purchaseId } }),
+      this.prisma.purchasePayment.count({ where: { PurchaseID: purchaseId } }),
     ]);
 
     const serializedData = data.map((item) => this.serialize(item));
@@ -182,30 +187,32 @@ export class PurchasePaymentService {
 
   private async updatePurchasePaymentStatus(purchaseId: number) {
     const purchase = await this.prisma.purchase.findUnique({
-      where: { id: purchaseId },
-      include: { purchasePayments: true },
+      where: { ID: purchaseId },
+      include: { PurchasePayments: true },
     });
 
     if (!purchase) return;
 
-    const paidAmount = purchase.purchasePayments.reduce((sum, p) => sum + Number(p.amount), 0);
-    const totalAmount = Number(purchase.total);
+    const paidAmount = purchase.PurchasePayments.reduce((sum, p) => sum + Number(p.Amount), 0);
+    const totalAmount = Number(purchase.Total);
 
-    let paymentStatus: 'PENDING' | 'PARTIAL' | 'PAID' = 'PENDING';
+    let paymentStatusCode: 'PENDING' | 'PARTIAL' | 'PAID' = 'PENDING';
     if (paidAmount > 0 && paidAmount < totalAmount) {
-      paymentStatus = 'PARTIAL';
+      paymentStatusCode = 'PARTIAL';
     } else if (paidAmount >= totalAmount) {
-      paymentStatus = 'PAID';
+      paymentStatusCode = 'PAID';
     }
+
+    const paymentStatus = await this.prisma.paymentStatus.findUnique({ where: { Code: paymentStatusCode } });
 
     const remainingAmount = totalAmount - paidAmount;
 
     await this.prisma.purchase.update({
-      where: { id: purchaseId },
+      where: { ID: purchaseId },
       data: {
-        paymentStatus,
-        paid: new Prisma.Decimal(paidAmount.toString()),
-        remaining: new Prisma.Decimal(remainingAmount.toString()),
+        PaymentStatusID: paymentStatus?.ID ?? purchase.PaymentStatusID,
+        Paid: new Prisma.Decimal(paidAmount.toString()),
+        Remaining: new Prisma.Decimal(remainingAmount.toString()),
       },
     });
   }

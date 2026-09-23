@@ -1,116 +1,101 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { PageWrapper, Card } from "@/components/layout/PageWrapper";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
-import { Modal } from "@/components/ui/Modal";
+import { ConfirmModal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/StatCard";
 import { DataTable } from "@/components/ui/DataTable";
 import { FilterBar } from "@/components/ui/FilterBar";
-import { GridActions, RowEditIcon, RowDeleteIcon } from "@/components/ui/GridActions";
+import { GridActions, RowEditIcon } from "@/components/ui/GridActions";
 import { api } from "@/lib/api-client";
+import { usePageTitle } from "@/lib/page-title";
+import { apiError } from "../_lib/local";
+
+interface UserRow { ID: string; Username: string; Name: string; Email?: string | null; Role?: string; IsActive: boolean }
 
 export default function UsersPage() {
-  const [data, setData] = useState<any[]>([]);
+  usePageTitle("Daftar User");
+  const router = useRouter();
+  const [data, setData] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
-  const [showForm, setShowForm] = useState(false);
-  const [companyId, setCompanyId] = useState<number | null>(null);
-  const roleOptions = [
-    { value: "admin", label: "Admin" },
-    { value: "cashier", label: "Kasir" },
-  ];
-  const [form, setForm] = useState({ name: "", username: "", email: "", password: "", role: "cashier", isActive: true });
+  const [status, setStatus] = useState("");
+  const [selected, setSelected] = useState<UserRow | null>(null);
+  const [showDelete, setShowDelete] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("users", { $search: search || undefined } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-      if (res.success) setData(res.data || []);
-    } finally { setLoading(false); }
+      const res = await api.get<UserRow[]>("users", { $search: search || undefined, $take: 200 }, { skipCache: true });
+      setData(res.data ?? []);
+    } catch (e) { toast.error(apiError(e)); } finally { setLoading(false); }
   }, [search]);
+  useEffect(() => { void fetchData(); }, [fetchData]);
 
-  const fetchCompany = useCallback(async () => {
-    const res = await api.get("company", { $take: 1 } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-    if (res.success) {
-      const company = Array.isArray(res.data) ? res.data[0] : res.data;
-      if (company?.id) setCompanyId(company.id);
-    }
-  }, []);
+  const rows = data.filter((u) => (status === "" ? true : status === "1" ? u.IsActive : !u.IsActive));
+  const edit = (u: UserRow) => router.push(`/settings/users/${u.ID}`);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
-  useEffect(() => { fetchCompany(); }, [fetchCompany]);
-
-  const handleSave = async () => {
-    const isEdit = Boolean((form as any).id);
-    if (isEdit) {
-      const payload = { name: form.name, email: form.email || undefined, isActive: form.isActive };
-      await api.put("users", (form as any).id, payload).catch(() => ({}));
-    } else {
-      const payload = { companyId, username: form.username, name: form.name, email: form.email || undefined, password: form.password };
-      await api.post("users", payload).catch(() => ({}));
-    }
-    setShowForm(false);
-    fetchData();
-  };
-
-  const handleDelete = async (id: string) => {
-    await api.delete(`users`, id).catch(() => ({}));
-    fetchData();
+  const remove = async () => {
+    if (!selected) return;
+    if (selected.Username === "admin") { toast.error("User admin tidak dapat dihapus"); setShowDelete(false); return; }
+    setBusy(true);
+    try {
+      await api.delete("users", selected.ID);
+      toast.success("User dinonaktifkan");
+      setShowDelete(false); setSelected(null); await fetchData();
+    } catch (e) { toast.error(apiError(e)); } finally { setBusy(false); }
   };
 
   const columns = [
-    { key: "name", label: "Nama" },
-    { key: "username", label: "Username" },
-    { key: "email", label: "Email" },
-    { key: "role", label: "Role", render: (v: unknown) => <span className="capitalize">{v as string}</span> },
-    { key: "isActive", label: "Status", render: (v: unknown) => v ? <Badge variant="success">Aktif</Badge> : <Badge variant="default">Nonaktif</Badge> },
-    {
-      key: "actions", label: "", width: "70px",
-      render: (_: unknown, row: any) => (
-        <div className="flex gap-1">
-          <RowEditIcon onClick={() => { setForm({ ...row, password: "" }); setShowForm(true); }} />
-          <RowDeleteIcon onClick={() => handleDelete(row.id)} />
-        </div>
-      )
-    },
+    { key: "edit", label: "", width: 36, render: (_: unknown, row: UserRow) => <RowEditIcon onClick={() => edit(row)} /> },
+    { key: "Username", label: "User ID" },
+    { key: "Name", label: "Nama User" },
+    { key: "Email", label: "Email", render: (v: unknown) => (v as string) || "-" },
+    { key: "Role", label: "Kelompok User", render: (v: unknown) => <span className="capitalize">{(v as string) || "-"}</span> },
+    { key: "IsActive", label: "Status", render: (v: unknown) => v ? <Badge variant="success">Aktif</Badge> : <Badge variant="default">Nonaktif</Badge> },
   ];
-
-  const openCreate = () => { setForm({ name: "", username: "", email: "", password: "", role: "cashier", isActive: true }); setShowForm(true); };
 
   return (
     <PageWrapper>
       <Card className="p-4">
+        <p className="mb-3 text-[13px] text-[#3a4654]">
+          Daftar user pada program. User &quot;admin&quot; memiliki hak akses paling tinggi; disarankan tidak mengubah hak akses user admin.
+        </p>
         <FilterBar
-          fields={[{ key: "search", label: "Kata Kunci", type: "text", placeholder: "Cari pengguna..." }]}
-          onFilter={(v) => setSearch((v.search as string) || "")}
+          fields={[
+            { key: "search", label: "Kata Kunci", type: "text", placeholder: "User ID / nama..." },
+            { key: "status", label: "Status", type: "select", options: [{ value: "", label: "Semua" }, { value: "1", label: "Aktif" }, { value: "0", label: "Nonaktif" }] },
+          ]}
+          onFilter={(v) => { setSearch((v.search as string) || ""); setStatus((v.status as string) || ""); }}
           loading={loading}
-          actions={<GridActions onAdd={openCreate} />}
+          actions={
+            <GridActions
+              onAdd={() => router.push("/settings/users/new")}
+              onEdit={() => selected && edit(selected)}
+              onDelete={() => selected && setShowDelete(true)}
+              disableEdit={!selected}
+              disableDelete={!selected}
+            />
+          }
         />
         <div className="mt-4">
-          <DataTable data={data} columns={columns} loading={loading} emptyMessage="Tidak ada pengguna" />
+          <DataTable data={rows} columns={columns} loading={loading} selectedId={selected?.ID ?? null} onRowClick={setSelected} emptyMessage="Tidak ada user" />
         </div>
       </Card>
 
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="Pengguna" size="md">
-        <div className="space-y-4">
-          <Input label="Nama" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-          {!(form as any).id && (
-            <Input label="Username" value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} />
-          )}
-          <Input label="Email" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
-          {!(form as any).id && (
-            <Input label="Password" type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
-          )}
-          <Select label="Role" value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} options={roleOptions} />
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button>
-            <Button variant="primary" onClick={handleSave}>Simpan</Button>
-          </div>
-        </div>
-      </Modal>
+      <ConfirmModal
+        open={showDelete}
+        onClose={() => setShowDelete(false)}
+        onConfirm={remove}
+        title="Hapus User"
+        message={`Yakin ingin menghapus (menonaktifkan) user ${selected?.Name ?? ""}?`}
+        confirmText="Hapus"
+        variant="danger"
+        loading={busy}
+      />
     </PageWrapper>
   );
 }

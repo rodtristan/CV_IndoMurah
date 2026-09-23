@@ -1,7 +1,8 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 interface Column<T = any> {
@@ -68,6 +69,38 @@ export function DataTable<T = any>({
   selectedId,
   pagination,
 }: DataTableProps<T>) {
+  const [sort, setSort] = useState<{ key: string; dir: "asc" | "desc" } | null>(null);
+
+  const isSortable = (col: Column<T>) =>
+    col.sortable !== false && !!col.label && col.key !== "edit" && col.key !== "actions";
+
+  const getValue = (row: T, key: string): unknown =>
+    key.includes(".")
+      ? key.split(".").reduce((obj: any, k: string) => obj?.[k], row)
+      : (row as Record<string, unknown>)[key];
+
+  const sortedData = useMemo(() => {
+    if (!sort) return data;
+    const factor = sort.dir === "asc" ? 1 : -1;
+    return [...data].sort((a, b) => {
+      const av = getValue(a, sort.key);
+      const bv = getValue(b, sort.key);
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      const an = typeof av === "number" ? av : Number(av);
+      const bn = typeof bv === "number" ? bv : Number(bv);
+      if (!Number.isNaN(an) && !Number.isNaN(bn) && String(av).trim() !== "" && String(bv).trim() !== "") {
+        return (an - bn) * factor;
+      }
+      return String(av).localeCompare(String(bv), "id", { numeric: true, sensitivity: "base" }) * factor;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, sort]);
+
+  const toggleSort = (key: string) =>
+    setSort((cur) => (!cur || cur.key !== key ? { key, dir: "asc" } : cur.dir === "asc" ? { key, dir: "desc" } : null));
+
   return (
     <div className="space-y-2">
       {pagination && pagination.totalPages > 0 && (
@@ -94,7 +127,25 @@ export function DataTable<T = any>({
                   )}
                   style={{ width: col.width }}
                 >
-                  {col.label}
+                  {isSortable(col) ? (
+                    <button
+                      type="button"
+                      onClick={() => toggleSort(col.key)}
+                      className={cn(
+                        "inline-flex items-center gap-1 hover:text-highlighted",
+                        col.align === "right" && "flex-row-reverse"
+                      )}
+                    >
+                      {col.label}
+                      {sort?.key === col.key ? (
+                        sort.dir === "asc" ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />
+                      ) : (
+                        <ChevronsUpDown className="size-3 opacity-40" />
+                      )}
+                    </button>
+                  ) : (
+                    col.label
+                  )}
                 </th>
               ))}
             </tr>
@@ -117,13 +168,14 @@ export function DataTable<T = any>({
                 </td>
               </tr>
             ) : (
-              data.map((row, index) => {
-                const rowId = (row as Record<string, unknown>)["id"];
+              sortedData.map((row, index) => {
+                const record = row as Record<string, unknown>;
+                const rowId = record["id"] ?? record["ID"];
                 const isSelected = selectedId !== undefined && rowId === selectedId;
 
                 return (
                   <tr
-                    key={String(rowId) || index}
+                    key={rowId !== undefined && rowId !== null ? String(rowId) : index}
                     onClick={() => onRowClick?.(row)}
                     className={cn(
                       "border-b border-default transition-colors last:border-b-0",

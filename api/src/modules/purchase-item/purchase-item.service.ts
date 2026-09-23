@@ -19,13 +19,13 @@ export class PurchaseItemService extends BaseService<
   ) {
     super(prisma, redis, queryService, {
       modelName: 'purchaseItem',
-      primaryKey: 'id',
+      primaryKey: 'ID',
       // Use '*' to allow all fields (searchable, sortable, selectable, includable)
       searchableFields: ['*'],
       allowedIncludes: ['*'],
       allowedSortFields: ['*'],
       allowedSelectFields: ['*'],
-      defaultOrderBy: { createdAt: 'desc' },
+      defaultOrderBy: { CreatedAt: 'desc' },
       maxTake: 100,
       defaultTake: 20,
       cacheTtl: 60,

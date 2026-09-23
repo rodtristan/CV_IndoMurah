@@ -33,7 +33,7 @@ export class AuthService {
     }
 
     // Find user by companyId + username
-    // `password` di-omit secara global (lihat prisma-service.ts) — override di
+    // `Password` di-omit secara global (lihat prisma-service.ts) — override di
     // sini karena login butuh hash-nya untuk verifikasi.
     const user = await this.prisma.user.findFirst({
       where: {

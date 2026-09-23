@@ -1,149 +1,106 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { PageWrapper, Card } from "@/components/layout/PageWrapper";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
-import { Modal } from "@/components/ui/Modal";
-import { DataTable } from "@/components/ui/DataTable";
-import { FilterBar } from "@/components/ui/FilterBar";
-import { GridActions, RowEditIcon, RowDeleteIcon } from "@/components/ui/GridActions";
+// Saldo Awal Item Barang: pick Dept/Gudang, add items with opening quantity + price, Simpan.
+// Backed by product-stock (Quantity per Product+Warehouse). Price / date are UI-only.
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Plus, Trash2 } from "lucide-react";
+import { KCard, KInfoBox, KInput, KSelect, KRow } from "@/components/kform";
+import { DocActions, ItemPicker, KReadOnly, fmt, nowLocal, num, useList, type Row } from "@/components/kform/erp";
+import { PageWrapper } from "@/components/layout/PageWrapper";
 import { api } from "@/lib/api-client";
-import { formatNumber } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+
+interface Line { psId?: number; productId: number; code: string; name: string; unit: string; qty: string; price: string }
+const cell = "h-8 w-full rounded border border-[#cfd4da] bg-white px-2 text-right text-[13px] outline-none focus:border-primary";
 
 export default function OpeningStockPage() {
-  const [data, setData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState("");
-  const [warehouseFilter, setWarehouseFilter] = useState("");
-  const [showForm, setShowForm] = useState(false);
-  const [products, setProducts] = useState<any[]>([]);
-  const [warehouses, setWarehouses] = useState<any[]>([]);
-  const [form, setForm] = useState({ productId: "", warehouseId: "", quantity: 0, minimumStock: 0 });
+  const warehouses = useList("warehouse");
+  const [warehouseId, setWarehouseId] = useState("");
+  const [date, setDate] = useState(nowLocal());
+  const [lines, setLines] = useState<Line[]>([]);
+  const [removed, setRemoved] = useState<number[]>([]);
+  const [sel, setSel] = useState<number | null>(null);
+  const [picker, setPicker] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+  const [ok, setOk] = useState("");
+  const whOpts = useMemo(() => warehouses.map((w) => ({ value: w.ID, label: `${w.Code} - ${w.Name}` })), [warehouses]);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async () => {
+    setRemoved([]); setSel(null);
+    if (!warehouseId) { setLines([]); return; }
+    const r = await api.get<Row[]>("product-stock", { $include: "Product,Product.Unit", $where: { WarehouseID: Number(warehouseId) }, $orderBy: { ID: "asc" }, $take: 500 }, { skipCache: true }).catch(() => null);
+    setLines((r?.data ?? []).map((s) => ({
+      psId: s.ID, productId: s.ProductID, code: s.Product?.Code ?? "", name: s.Product?.Name ?? "", unit: s.Product?.Unit?.Name ?? "",
+      qty: String(num(s.Quantity)), price: String(num(s.Product?.PurchasePrice)),
+    })));
+  }, [warehouseId]);
+  useEffect(() => { void load(); }, [load]);
+
+  const addItem = (p: Row) => setLines((ls) => ls.some((l) => l.productId === p.ID) ? ls : [...ls, { productId: p.ID, code: p.Code, name: p.Name, unit: p.Unit?.Name ?? "", qty: "0", price: String(num(p.PurchasePrice)) }]);
+  const setLine = (i: number, patch: Partial<Line>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
+  const total = lines.reduce((s, l) => s + num(l.qty) * num(l.price), 0);
+
+  const save = async () => {
+    setErr(""); setOk("");
+    if (!warehouseId) return setErr("Dept/Gudang wajib dipilih");
+    setSaving(true);
     try {
-      const params: any = { $include: "product,warehouse" };
-      if (warehouseFilter) params.$where = { warehouseId: Number(warehouseFilter) };
-      const res = await api.get("product-stock", params).catch(() => ({ success: false, data: { data: [] } } as any));
-      let rows: any[] = res.success ? res.data || [] : [];
-      if (search) {
-        const q = search.toLowerCase();
-        rows = rows.filter((r) => r.product?.name?.toLowerCase().includes(q) || r.product?.code?.toLowerCase().includes(q));
+      for (const id of removed) await api.delete("product-stock", id);
+      for (const l of lines) {
+        const body = { productId: l.productId, warehouseId: Number(warehouseId), quantity: num(l.qty) };
+        const r = l.psId ? await api.patch("product-stock", l.psId, { quantity: body.quantity }) : await api.post("product-stock", body);
+        if (r.success === false) throw new Error(r.message || "Gagal menyimpan");
       }
-      setData(rows);
-    } finally { setLoading(false); }
-  }, [search, warehouseFilter]);
-
-  const fetchOptions = useCallback(async () => {
-    const [prodRes, whRes] = await Promise.all([
-      api.get("products", { $select: "id,code,name", $take: 500 } as any).catch(() => ({ success: false, data: [] } as any)),
-      api.get("warehouse", { $select: "id,name" } as any).catch(() => ({ success: false, data: [] } as any)),
-    ]);
-    if (prodRes.success) setProducts(prodRes.data || []);
-    if (whRes.success) setWarehouses(whRes.data || []);
-  }, []);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
-  useEffect(() => { fetchOptions(); }, [fetchOptions]);
-
-  const openCreate = () => {
-    setForm({
-      productId: products[0]?.id ? String(products[0].id) : "",
-      warehouseId: warehouses[0]?.id ? String(warehouses[0].id) : "",
-      quantity: 0,
-      minimumStock: 0,
-    });
-    setShowForm(true);
+      setOk("Saldo awal tersimpan."); await load();
+    } catch (e) { setErr((e as Error).message || "Gagal menyimpan"); } finally { setSaving(false); }
   };
-
-  const handleSave = async () => {
-    if (!form.productId || !form.warehouseId) return;
-    const payload = {
-      productId: Number(form.productId),
-      warehouseId: Number(form.warehouseId),
-      quantity: Number(form.quantity),
-      minimumStock: Number(form.minimumStock) || undefined,
-    };
-    const isEdit = Boolean((form as any).id);
-    if (isEdit) {
-      await api.patch("product-stock", (form as any).id, payload).catch(() => ({}));
-    } else {
-      await api.post("product-stock", payload).catch(() => ({}));
-    }
-    setShowForm(false);
-    fetchData();
-  };
-
-  const handleDelete = async (id: number) => {
-    await api.delete("product-stock", String(id)).catch(() => ({}));
-    fetchData();
-  };
-
-  const columns = [
-    { key: "productCode", label: "Kode Item", render: (_: unknown, row: any) => <span className="font-mono text-xs">{row.product?.code || "-"}</span> },
-    { key: "product", label: "Nama Item", render: (v: unknown) => (v as any)?.name || "-" },
-    { key: "warehouse", label: "Gudang", render: (v: unknown) => (v as any)?.name || "-" },
-    { key: "quantity", label: "Saldo Awal", align: "right" as const, render: (v: unknown) => <span className="font-semibold">{formatNumber(v as number)}</span> },
-    { key: "minimumStock", label: "Stok Minimum", align: "right" as const, render: (v: unknown) => formatNumber(v as number) },
-    {
-      key: "actions", label: "", width: "70px",
-      render: (_: unknown, row: any) => (
-        <div className="flex gap-1">
-          <RowEditIcon onClick={() => { setForm({ id: row.id, productId: row.productId, warehouseId: row.warehouseId, quantity: row.quantity, minimumStock: row.minimumStock } as any); setShowForm(true); }} />
-          <RowDeleteIcon onClick={() => handleDelete(row.id)} />
-        </div>
-      )
-    },
-  ];
 
   return (
     <PageWrapper>
-      <Card className="p-4">
-        <p className="mb-4 text-sm text-muted">
-          Saldo Awal Item digunakan untuk mengisi jumlah stok awal barang saat pertama kali menggunakan aplikasi.
-          Nilai ini tidak akan berubah saat terjadi transaksi — gunakan halaman transaksi (Barang Masuk/Keluar) untuk stok setelahnya.
-        </p>
-        <FilterBar
-          fields={[
-            { key: "search", label: "Kata Kunci", type: "text", placeholder: "Cari item..." },
-            { key: "warehouse", label: "Gudang", type: "select", options: [{ value: "", label: "Semua Gudang" }, ...warehouses.map((w) => ({ value: String(w.id), label: w.name }))] },
-          ]}
-          onFilter={(v) => { setSearch((v.search as string) || ""); setWarehouseFilter((v.warehouse as string) || ""); }}
-          loading={loading}
-          actions={<GridActions onAdd={openCreate} />}
-        />
-        <div className="mt-4">
-          <DataTable data={data} columns={columns} loading={loading} emptyMessage="Belum ada saldo awal item" />
+      <KCard>
+        {err && <div className="mb-3 rounded border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">{err}</div>}
+        {ok && <div className="mb-3 rounded border border-[#4caf50]/40 bg-[#e8f5e9] px-3 py-2 text-sm text-[#2e7d32]">{ok}</div>}
+        <KInfoBox variant="warning" title="Penting" items={[
+          "Saldo Awal diinput pertama kali saat mulai memakai program. Pembelian setelah tanggal saldo awal diinput dari transaksi pembelian.",
+          "Pilih Dept/Gudang dengan benar: salah gudang membuat stok tidak tampil pada daftar item.",
+        ]} />
+        <KRow cols={3}>
+          <KSelect label="Dept/Gudang" value={warehouseId} onChange={setWarehouseId} options={whOpts} />
+          <KInput label="Tanggal Saldo Awal" type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)} hint="Tanggal tidak disimpan oleh API." />
+          <span />
+        </KRow>
+        <div className="overflow-x-auto border border-[#c9d0d8]">
+          <table className="w-full text-[13px]">
+            <thead><tr className="border-b border-[#c9d0d8]">
+              {["No", "Kode", "Keterangan", "Gudang", "Jumlah", "Satuan", "Harga", "Total"].map((h) => <th key={h} className={cn("border-r border-[#e1e5e9] px-2 py-2 font-medium", ["Jumlah", "Harga", "Total"].includes(h) ? "text-right" : "text-left")}>{h}</th>)}
+            </tr></thead>
+            <tbody>
+              {lines.length === 0 && <tr><td colSpan={8} className="h-52 text-center text-[18px] text-[#9aa3ad]">{warehouseId ? "No data" : "Pilih Dept/Gudang terlebih dahulu"}</td></tr>}
+              {lines.map((l, i) => (
+                <tr key={l.productId} onClick={() => setSel(i)} className={cn("border-b border-[#eceff2]", sel === i && "bg-primary/5")}>
+                  <td className="px-2 py-1">{i + 1}</td>
+                  <td className="px-2 py-1 font-mono text-xs">{l.code}</td>
+                  <td className="px-2 py-1">{l.name}</td>
+                  <td className="px-2 py-1">{warehouses.find((w) => String(w.ID) === warehouseId)?.Name}</td>
+                  <td className="w-28 p-1"><input type="number" className={cell} value={l.qty} onChange={(e) => setLine(i, { qty: e.target.value })} /></td>
+                  <td className="px-2 py-1">{l.unit}</td>
+                  <td className="w-32 p-1"><input type="number" className={cell} value={l.price} onChange={(e) => setLine(i, { price: e.target.value })} /></td>
+                  <td className="w-32 px-2 py-1 text-right">{fmt(num(l.qty) * num(l.price), 0)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </Card>
-
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="Saldo Awal Item" size="md">
-        <div className="space-y-4">
-          <Select
-            label="Item"
-            value={form.productId}
-            onChange={(e) => setForm((f) => ({ ...f, productId: e.target.value }))}
-            options={products.map((p) => ({ value: p.id, label: `${p.code} - ${p.name}` }))}
-            disabled={Boolean((form as any).id)}
-          />
-          <Select
-            label="Gudang"
-            value={form.warehouseId}
-            onChange={(e) => setForm((f) => ({ ...f, warehouseId: e.target.value }))}
-            options={warehouses.map((w) => ({ value: w.id, label: w.name }))}
-            disabled={Boolean((form as any).id)}
-          />
-          <Input label="Jumlah Saldo Awal" type="number" value={form.quantity} onChange={(e) => setForm((f) => ({ ...f, quantity: Number(e.target.value) }))} />
-          <Input label="Stok Minimum" type="number" value={form.minimumStock} onChange={(e) => setForm((f) => ({ ...f, minimumStock: Number(e.target.value) }))} />
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setShowForm(false)}>Batal</Button>
-            <Button variant="primary" onClick={handleSave}>Simpan</Button>
-          </div>
+        <div className="mt-3 flex gap-2">
+          <button type="button" disabled={!warehouseId} onClick={() => setPicker(true)} className="inline-flex h-10 items-center gap-1 rounded border border-[#cfd4da] bg-white px-4 text-sm hover:bg-[#f3f4f6] disabled:opacity-50"><Plus className="size-4" /> Tambah Data</button>
+          <button type="button" disabled={sel === null} onClick={() => { if (sel === null) return; const l = lines[sel]; if (l.psId) setRemoved((r) => [...r, l.psId!]); setLines(lines.filter((_, i) => i !== sel)); setSel(null); }} className="inline-flex h-10 w-11 items-center justify-center rounded border border-[#cfd4da] bg-white hover:bg-[#f3f4f6] disabled:opacity-50"><Trash2 className="size-4" /></button>
         </div>
-      </Modal>
+        <div className="mt-3 max-w-[360px]"><KReadOnly label="Total Nilai Saldo Awal" value={fmt(total, 2)} align="right" /></div>
+        <DocActions hideNew onSave={save} saving={saving} canDelete={false} />
+        <ItemPicker open={picker} onClose={() => setPicker(false)} onPick={addItem} />
+      </KCard>
     </PageWrapper>
   );
 }

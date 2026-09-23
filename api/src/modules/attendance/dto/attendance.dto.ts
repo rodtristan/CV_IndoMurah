@@ -1,100 +1,112 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNumber, IsInt, IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateAttendanceDto {
-  @ApiProperty({ description: 'employeeId' })
-  @IsNumber()
+  @ApiProperty({ description: 'Employee ID' })
+  @IsInt()
   employeeId: number;
 
-  @ApiProperty({ description: 'date' })
-  date: Date;
+  @ApiProperty({ description: 'Attendance date', type: String })
+  @IsDateString()
+  date: string;
 
-  @ApiProperty({ description: 'checkIn' })
-  checkIn: Date;
+  @ApiPropertyOptional({ description: 'Check-in time', type: String })
+  @IsOptional()
+  @IsDateString()
+  checkIn?: string;
 
-  @ApiProperty({ description: 'checkOut' })
-  checkOut: Date;
+  @ApiPropertyOptional({ description: 'Check-in GPS latitude (for mobile check-in)' })
+  @IsOptional()
+  @IsNumber()
+  checkInLatitude?: number;
 
-  @ApiProperty({ description: 'status' })
-  status: any;
+  @ApiPropertyOptional({ description: 'Check-in GPS longitude (for mobile check-in)' })
+  @IsOptional()
+  @IsNumber()
+  checkInLongitude?: number;
 
-  @ApiProperty({ description: 'notes' })
+  @ApiPropertyOptional({ description: 'Check-out time', type: String })
+  @IsOptional()
+  @IsDateString()
+  checkOut?: string;
+
+  @ApiPropertyOptional({ description: 'Check-out GPS latitude (for mobile check-in)' })
+  @IsOptional()
+  @IsNumber()
+  checkOutLatitude?: number;
+
+  @ApiPropertyOptional({ description: 'Check-out GPS longitude (for mobile check-in)' })
+  @IsOptional()
+  @IsNumber()
+  checkOutLongitude?: number;
+
+  @ApiPropertyOptional({ description: 'Status code (PRESENT, ABSENT, LATE, LEAVE, SICK, PERMIT)', default: 'PRESENT' })
+  @IsOptional()
   @IsString()
-  notes: string;
+  statusCode?: string;
 
-  @ApiProperty({ description: 'isActive' })
-  @IsBoolean()
-  isActive: boolean;
-
-  @ApiProperty({ description: 'employee' })
-  employee: any;
-
+  @ApiPropertyOptional({ description: 'Notes' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }
 
 export class UpdateAttendanceDto {
-  @ApiPropertyOptional({ description: 'employeeId' })
+  @ApiPropertyOptional({ description: 'Employee ID' })
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   employeeId?: number;
 
-  @ApiPropertyOptional({ description: 'date' })
+  @ApiPropertyOptional({ description: 'Attendance date', type: String })
   @IsOptional()
-  date?: Date;
+  @IsDateString()
+  date?: string;
 
-  @ApiPropertyOptional({ description: 'checkIn' })
+  @ApiPropertyOptional({ description: 'Check-in time', type: String })
   @IsOptional()
-  checkIn?: Date;
+  @IsDateString()
+  checkIn?: string;
 
-  @ApiPropertyOptional({ description: 'checkOut' })
+  @ApiPropertyOptional({ description: 'Check-in GPS latitude' })
   @IsOptional()
-  checkOut?: Date;
+  @IsNumber()
+  checkInLatitude?: number;
 
-  @ApiPropertyOptional({ description: 'status' })
+  @ApiPropertyOptional({ description: 'Check-in GPS longitude' })
   @IsOptional()
-  status?: any;
+  @IsNumber()
+  checkInLongitude?: number;
 
-  @ApiPropertyOptional({ description: 'notes' })
+  @ApiPropertyOptional({ description: 'Check-out time', type: String })
+  @IsOptional()
+  @IsDateString()
+  checkOut?: string;
+
+  @ApiPropertyOptional({ description: 'Check-out GPS latitude' })
+  @IsOptional()
+  @IsNumber()
+  checkOutLatitude?: number;
+
+  @ApiPropertyOptional({ description: 'Check-out GPS longitude' })
+  @IsOptional()
+  @IsNumber()
+  checkOutLongitude?: number;
+
+  @ApiPropertyOptional({ description: 'Status code' })
+  @IsOptional()
+  @IsString()
+  statusCode?: string;
+
+  @ApiPropertyOptional({ description: 'Notes' })
   @IsOptional()
   @IsString()
   notes?: string;
 
-  @ApiPropertyOptional({ description: 'isActive' })
+  @ApiPropertyOptional({ description: 'Is active' })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
-
-  @ApiPropertyOptional({ description: 'employee' })
-  @IsOptional()
-  employee?: any;
-
-}
-
-export class AttendanceResponseDto {
-  @ApiProperty({ description: 'employeeId' })
-  employeeId: number;
-
-  @ApiProperty({ description: 'date' })
-  date: Date;
-
-  @ApiProperty({ description: 'checkIn' })
-  checkIn: Date;
-
-  @ApiProperty({ description: 'checkOut' })
-  checkOut: Date;
-
-  @ApiProperty({ description: 'status' })
-  status: any;
-
-  @ApiProperty({ description: 'notes' })
-  notes: string;
-
-  @ApiProperty({ description: 'isActive' })
-  isActive: boolean;
-
-  @ApiProperty({ description: 'employee' })
-  employee: any;
-
 }
 
 export class QueryAttendanceDto {

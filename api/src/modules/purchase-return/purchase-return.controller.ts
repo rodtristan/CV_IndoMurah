@@ -51,7 +51,7 @@ export class PurchaseReturnController {
   @Post()
   @ApiOperation({ summary: 'Create purchase return' })
   async create(@Body() dto: CreatePurchaseReturnDto, @CurrentUser() user: any) {
-    const data = await this.purchaseReturnService.create(dto, user.ID);
+    const data = await this.purchaseReturnService.create(dto, user.id);
     return ApiResponse.ok(data, 'Purchase return created successfully');
   }
 

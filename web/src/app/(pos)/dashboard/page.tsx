@@ -15,21 +15,38 @@ import {
   FileText,
   Users,
   Coins,
+  Store,
 } from "lucide-react";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
 import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { StatCard, Badge } from "@/components/ui/StatCard";
 import { DataTable } from "@/components/ui/DataTable";
 import { Button } from "@/components/ui/Button";
 import { api } from "@/lib/api-client";
 import { formatCurrency, formatNumber, formatDate } from "@/lib/utils";
-import type { DashboardStats, Sale, TopProduct, ChartDataPoint } from "@/lib/types";
+import type { DashboardStats, Sale, TopProduct, ChartDataPoint, DashboardTopProduct, SalesByBranch } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+const PIE_COLORS = ["#7C3AED", "#28A745", "#17A2B8", "#FFC107", "#DC3545", "#FF7043"];
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [recentSales, setRecentSales] = useState<Sale[]>([]);
-  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [topProducts, setTopProducts] = useState<DashboardTopProduct[]>([]);
+  const [salesByBranch, setSalesByBranch] = useState<SalesByBranch[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -40,7 +57,7 @@ export default function DashboardPage() {
       // Fetch dashboard stats
       const [statsRes, salesRes, chartRes] = await Promise.all([
         api.get<any>("dashboard").catch(() => ({ success: false } as any)),
-        api.get<Sale[]>("sales", { $orderBy: { createdAt: "desc" }, $take: 10 }).catch(() => ({ success: false, data: [] } as any)),
+        api.get<Sale[]>("sales", { $include: "Customer,PaymentStatus", $orderBy: { createdAt: "desc" }, $take: 10 }).catch(() => ({ success: false, data: [] } as any)),
         api.get<ChartDataPoint[]>("reports/sales/summary", {}).catch(() => ({ success: false, data: [] } as any)),
       ]);
 
@@ -64,6 +81,8 @@ export default function DashboardPage() {
           totalReceivable: 0,
           totalPayable: 0,
         });
+        setTopProducts(d.topProducts || []);
+        setSalesByBranch(d.salesByBranch || []);
       } else {
         setStats({
           totalSales: 0,
@@ -103,13 +122,10 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  const maxValue = chartData.length > 0
-    ? Math.max(...chartData.map(d => Math.max(d.sales || 0, d.purchases || 0)), 1)
-    : 1;
 
   const columns = [
     {
-      key: "code",
+      key: "Code",
       label: "Kode",
       sortable: true,
       render: (v: unknown) => (
@@ -117,18 +133,18 @@ export default function DashboardPage() {
       ),
     },
     {
-      key: "date",
+      key: "Date",
       label: "Tanggal",
       sortable: true,
       render: (v: unknown) => formatDate(v as string),
     },
     {
-      key: "customer.name",
+      key: "Customer.Name",
       label: "Pelanggan",
-      render: (_: unknown, row: Sale) => row.customer?.name || "-",
+      render: (_: unknown, row: Sale) => row.Customer?.Name || "-",
     },
     {
-      key: "total",
+      key: "Total",
       label: "Total",
       align: "right" as const,
       sortable: true,
@@ -137,7 +153,7 @@ export default function DashboardPage() {
       ),
     },
     {
-      key: "paymentStatus",
+      key: "PaymentStatus.Code",
       label: "Status",
       render: (v: unknown) => {
         const status = v as string;
@@ -180,7 +196,8 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Penjualan"
-          value={loading ? "-" : formatCurrency(stats?.totalSales || 0)}
+          value={formatCurrency(stats?.totalSales || 0)}
+          loading={loading}
           change="+12.5%"
           changeType="up"
           icon={TrendingUp}
@@ -189,7 +206,8 @@ export default function DashboardPage() {
         />
         <StatCard
           title="Total Pembelian"
-          value={loading ? "-" : formatCurrency(stats?.totalPurchases || 0)}
+          value={formatCurrency(stats?.totalPurchases || 0)}
+          loading={loading}
           change="+8.3%"
           changeType="up"
           icon={ShoppingCart}
@@ -198,7 +216,8 @@ export default function DashboardPage() {
         />
         <StatCard
           title="Laba Kotor"
-          value={loading ? "-" : formatCurrency(stats?.grossProfit || 0)}
+          value={formatCurrency(stats?.grossProfit || 0)}
+          loading={loading}
           change="+15.2%"
           changeType="up"
           icon={DollarSign}
@@ -207,7 +226,8 @@ export default function DashboardPage() {
         />
         <StatCard
           title="Stock Minim"
-          value={loading ? "-" : formatNumber(stats?.lowStockCount || 0)}
+          value={formatNumber(stats?.lowStockCount || 0)}
+          loading={loading}
           subtitle={`${stats?.outOfStockCount || 0} out of stock`}
           icon={AlertTriangle}
           iconClassName="bg-warning/10 text-warning"
@@ -262,38 +282,30 @@ export default function DashboardPage() {
           </div>
 
           {loading ? (
-            <div className="flex h-48 items-center justify-center">
+            <div className="flex h-64 items-center justify-center">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             </div>
           ) : chartData.length === 0 ? (
-            <div className="flex h-48 flex-col items-center justify-center text-muted">
+            <div className="flex h-64 flex-col items-center justify-center text-muted">
               <Coins className="mb-2 size-10" />
               <p className="text-sm">Tidak ada data untuk periode ini</p>
             </div>
           ) : (
-            <div className="flex items-end justify-between gap-1 h-48">
-              {chartData.map((d, i) => (
-                <div key={i} className="flex flex-1 flex-col items-center gap-2">
-                  <div className="flex h-40 w-full items-end justify-center gap-0.5">
-                    {d.purchases > 0 && (
-                      <div
-                        className="w-4 rounded-t-sm bg-info transition-all hover:bg-info/80"
-                        style={{ height: `${Math.max((d.purchases / maxValue) * 100, 2)}%` }}
-                        title={formatCurrency(d.purchases)}
-                      />
-                    )}
-                    {d.sales > 0 && (
-                      <div
-                        className="w-4 rounded-t-sm bg-success transition-all hover:bg-success/80"
-                        style={{ height: `${Math.max((d.sales / maxValue) * 100, 2)}%` }}
-                        title={formatCurrency(d.sales)}
-                      />
-                    )}
-                  </div>
-                  <span className="text-xs text-muted">{d.label}</span>
-                </div>
-              ))}
-            </div>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-default" />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 11 }}
+                  tickFormatter={(v: string) => v.slice(5)}
+                  interval={chartData.length > 14 ? Math.ceil(chartData.length / 10) : 0}
+                />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => formatNumber(v)} width={56} />
+                <Tooltip formatter={(v: number) => formatCurrency(v)} labelFormatter={(v: string) => v} />
+                <Bar dataKey="sales" name="Penjualan" fill="#28A745" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="purchases" name="Pembelian" fill="#17A2B8" radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           )}
         </Card>
 
@@ -326,6 +338,70 @@ export default function DashboardPage() {
               </span>
             </div>
           </div>
+        </Card>
+      </div>
+
+      {/* Top Products Pie & Sales by Branch */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Card>
+          <h3 className="mb-4 font-semibold text-highlighted">Produk Terlaris (Bulan Ini)</h3>
+          {loading ? (
+            <div className="flex h-64 items-center justify-center">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            </div>
+          ) : topProducts.length === 0 ? (
+            <div className="flex h-64 flex-col items-center justify-center text-muted">
+              <Package className="mb-2 size-10" />
+              <p className="text-sm">Belum ada penjualan bulan ini</p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart>
+                <Pie
+                  data={topProducts}
+                  dataKey="totalRevenue"
+                  nameKey="productName"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={90}
+                  label={({ percent }: { percent: number }) => `${(percent * 100).toFixed(0)}%`}
+                >
+                  {topProducts.map((_, i) => (
+                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                <Legend
+                  verticalAlign="bottom"
+                  formatter={(value: string) => <span className="text-xs">{value}</span>}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </Card>
+
+        <Card>
+          <h3 className="mb-4 font-semibold text-highlighted">Penjualan per Cabang (Bulan Ini)</h3>
+          {loading ? (
+            <div className="flex h-64 items-center justify-center">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            </div>
+          ) : salesByBranch.length === 0 ? (
+            <div className="flex h-64 flex-col items-center justify-center text-muted">
+              <Store className="mb-2 size-10" />
+              <p className="text-sm">Belum ada transaksi per cabang bulan ini</p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={salesByBranch} layout="vertical" margin={{ top: 8, right: 24, left: 8, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-default" />
+                <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => formatNumber(v)} />
+                <YAxis type="category" dataKey="salePointName" tick={{ fontSize: 11 }} width={120} />
+                <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                <Bar dataKey="totalSales" name="Penjualan" fill="#7C3AED" radius={[0, 3, 3, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </Card>
       </div>
 

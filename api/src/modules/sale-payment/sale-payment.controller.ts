@@ -57,7 +57,7 @@ export class SalePaymentController {
   @Post()
   @ApiOperation({ summary: 'Create sale payment' })
   async create(@Body() dto: CreateSalePaymentDto, @CurrentUser() user: any) {
-    const data = await this.salePaymentService.create(dto, user.ID);
+    const data = await this.salePaymentService.create(dto, user.id);
     return ApiResponse.ok(data, 'Sale payment created successfully');
   }
 

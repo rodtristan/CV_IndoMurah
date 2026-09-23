@@ -38,7 +38,7 @@ export default function ProfilePage() {
         <Field icon={UserRound} label="Username" value={user?.username || ""} />
         <Field icon={Mail} label="Email" value={user?.email || ""} />
         <Field icon={ShieldCheck} label="Role" value={user?.role || ""} />
-        <Field icon={Building2} label="Perusahaan" value={user?.company?.name || ""} />
+        <Field icon={Building2} label="Perusahaan" value={user?.company?.Name || ""} />
 
         <div className="mt-4 flex items-center gap-2 rounded-lg border border-default bg-elevated/50 p-3 text-xs text-muted">
           <Lock className="size-4 shrink-0" />

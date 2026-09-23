@@ -1,17 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { Building2, UserRound, ShieldCheck, KeyRound, Settings2, Hash } from "lucide-react";
+import { Building2, UserRound, ShieldCheck, KeyRound, Settings2, Hash, Menu as MenuIcon, ScrollText, Upload, Globe, Database, DatabaseBackup } from "lucide-react";
 import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { useAuth } from "@/lib/auth-context";
 
 const SETTINGS_LINKS = [
-  { href: "/settings/profile", label: "Profil Saya", description: "Lihat data akun Anda", icon: UserRound },
-  { href: "/settings/company", label: "Data Perusahaan", description: "Kelola informasi perusahaan", icon: Building2 },
-  { href: "/settings/users", label: "Pengguna", description: "Kelola akun pengguna", icon: KeyRound },
-  { href: "/settings/roles", label: "Hak Akses", description: "Kelola role & izin", icon: ShieldCheck },
+  { href: "/settings/users", label: "Daftar User", description: "Tambah, ubah dan hapus user program", icon: KeyRound },
+  { href: "/settings/roles", label: "Kelompok Akses User", description: "Hak akses per kelompok user dan modul", icon: ShieldCheck },
   { href: "/settings/general", label: "Pengaturan Umum", description: "Umum, transaksi, dan desimal digit", icon: Settings2 },
-  { href: "/settings/numbering", label: "Setting Nomor", description: "Format penomoran otomatis transaksi", icon: Hash },
+  { href: "/settings/company", label: "Data Perusahaan", description: "Nama, alamat, logo untuk bukti dan laporan", icon: Building2 },
+  { href: "/settings/website", label: "Pengaturan Website", description: "Share Info, ID Toko dan pesanan online", icon: Globe },
+  { href: "/settings/numbering", label: "Setting Nomor", description: "Penomoran transaksi, supplier, pelanggan, sales", icon: Hash },
+  { href: "/settings/activity-log", label: "Log Aktivitas", description: "Aktivitas Transaksi, Master, Akuntansi, Impor, Sistem", icon: ScrollText },
+  { href: "/settings/backup", label: "List Backup", description: "Lihat dan restore data lama", icon: DatabaseBackup },
+  { href: "/settings/import", label: "Import Data", description: "Import Item, Supplier dan Pelanggan dari Excel", icon: Upload },
+  { href: "/settings/database", label: "Pengaturan Database", description: "Vacuum, Re Index dan informasi sistem", icon: Database },
+  { href: "/settings/menus", label: "Menu Aplikasi", description: "Katalog menu untuk hak akses", icon: MenuIcon },
+  { href: "/settings/profile", label: "Profil Saya", description: "Lihat data akun Anda", icon: UserRound },
 ];
 
 export default function SettingsHubPage() {
@@ -22,7 +28,7 @@ export default function SettingsHubPage() {
       <Card className="p-4">
         <p className="mb-4 text-sm text-muted">
           Masuk sebagai <span className="font-semibold text-highlighted">{user?.name}</span>
-          {user?.company && <> &middot; {user.company.name}</>}
+          {user?.company && <> &middot; {user.company.Name}</>}
         </p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {SETTINGS_LINKS.map(({ href, label, description, icon: Icon }) => (

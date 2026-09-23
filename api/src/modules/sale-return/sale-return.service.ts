@@ -3,7 +3,7 @@ import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
 import { Prisma } from '@prisma/client';
-import { CreateSaleReturnDto, UpdateSaleReturnDto, UpdateStatusDto } from './dto/sale-return.dto';
+import { CreateSaleReturnDto, UpdateSaleReturnDto, UpdateSaleReturnStatusDto } from './dto/sale-return.dto';
 
 @Injectable()
 export class SaleReturnService {
@@ -41,7 +41,7 @@ export class SaleReturnService {
         const prismaQuery = this.queryService.buildPrismaQuery(query, {
           searchableFields: ['*'],
           allowedIncludes: ['*'],
-          defaultOrderBy: { createdAt: 'desc' },
+          defaultOrderBy: { CreatedAt: 'desc' },
         });
 
         const findArgs: any = {
@@ -70,7 +70,10 @@ export class SaleReturnService {
   }
 
   async findOne(id: number, query: Record<string, any> = {}) {
-    const cacheKey = `${this.CACHE_PREFIX}:${id}`;
+    // Include/select query params change the payload, so they must be part of the cache key.
+    const cacheKey = Object.keys(query).length
+      ? `${this.CACHE_PREFIX}:${id}:${this.queryService.generateCacheKey('q', query)}`
+      : `${this.CACHE_PREFIX}:${id}`;
 
     return this.redis.getOrSet(
       cacheKey,
@@ -79,7 +82,7 @@ export class SaleReturnService {
           allowedIncludes: ['*'],
         });
 
-        const findArgs: any = { where: { id } };
+        const findArgs: any = { where: { ID: id } };
 
         if (prismaQuery.select) {
           findArgs.select = prismaQuery.select;
@@ -96,15 +99,15 @@ export class SaleReturnService {
 
   async create(dto: CreateSaleReturnDto, userId: string) {
     // Verify sale exists
-    const sale = await this.prisma.sale.findUnique({ where: { id: dto.saleId } });
+    const sale = await this.prisma.sale.findUnique({ where: { ID: dto.SaleID } });
     if (!sale) throw new NotFoundException('Sale not found');
 
     const code = await this.generateCode();
     const statusId = await this.getStatusId('DRAFT');
 
     // Calculate total return
-    const itemsData = dto.items.map((item) => {
-      const subtotal = item.unitPrice * item.quantity;
+    const itemsData = dto.Items.map((item) => {
+      const subtotal = item.UnitPrice * item.Quantity;
       return {
         productId: item.productId,
         unitId: item.unitId,
@@ -114,7 +117,7 @@ export class SaleReturnService {
       };
     });
 
-    const totalReturn = itemsData.reduce((sum, item) => sum + Number(item.subtotal), 0);
+    const totalReturn = itemsData.reduce((sum, item) => sum + Number(item.Subtotal), 0);
 
     const saleReturn = await this.prisma.saleReturn.create({
       data: {
@@ -158,7 +161,7 @@ export class SaleReturnService {
     }
 
     const updated = await this.prisma.saleReturn.update({
-      where: { id },
+      where: { ID: id },
       data: {
         warehouseId: dto.warehouseId,
         date: dto.date ? new Date(dto.date) : undefined,
@@ -178,7 +181,7 @@ export class SaleReturnService {
     return this.serialize(updated);
   }
 
-  async updateStatus(id: number, dto: UpdateStatusDto) {
+  async updateStatus(id: number, dto: UpdateSaleReturnStatusDto) {
     const saleReturn = await this.prisma.saleReturn.findUnique({
       where: { id },
       include: { status: true, returnItems: true },
@@ -229,10 +232,22 @@ export class SaleReturnService {
       throw new BadRequestException('Can only delete draft sale returns');
     }
 
-    await this.prisma.saleReturn.delete({ where: { id } });
+    await this.prisma.saleReturn.delete({ where: { ID: id } });
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
 
     return { id };
+  }
+
+  // ─── TransactionStatus lookup helpers ───────────────────────────────────
+
+  private async getStatusByCode(code: string) {
+    const status = await this.prisma.transactionStatus.findUnique({ where: { Code: code } });
+    if (!status) throw new BadRequestException(`Status '${code}' tidak ditemukan`);
+    return status;
+  }
+
+  private async getStatusById(id: number) {
+    return this.prisma.transactionStatus.findUnique({ where: { ID: id } });
   }
 
   private async generateCode(): Promise<string> {
@@ -242,14 +257,14 @@ export class SaleReturnService {
     const prefix = `SR-${year}${month}`;
 
     const lastReturn = await this.prisma.saleReturn.findFirst({
-      where: { code: { startsWith: prefix } },
-      orderBy: { code: 'desc' },
-      select: { code: true },
+      where: { Code: { startsWith: prefix } },
+      orderBy: { Code: 'desc' },
+      select: { Code: true },
     });
 
     let nextNumber = 1;
     if (lastReturn) {
-      const lastSeq = parseInt(lastReturn.code.split('-').pop() || '0', 10);
+      const lastSeq = parseInt(lastReturn.Code.split('-').pop() || '0', 10);
       nextNumber = lastSeq + 1;
     }
 
@@ -270,8 +285,8 @@ export class SaleReturnService {
       }
     }
 
-    if (data.returnItems && Array.isArray(data.returnItems)) {
-      result.returnItems = data.returnItems.map((item: any) => this.serialize(item));
+    if (data.ReturnItems && Array.isArray(data.ReturnItems)) {
+      result.ReturnItems = data.ReturnItems.map((item: any) => this.serialize(item));
     }
 
     return result;

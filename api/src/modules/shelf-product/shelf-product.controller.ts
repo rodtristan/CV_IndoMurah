@@ -8,7 +8,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 @ApiTags('Shelf Products')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('ShelfProducts')
+@Controller('shelf-product')
 export class ShelfProductController extends BaseController<
   any,
   CreateShelfProductDto,

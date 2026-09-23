@@ -46,7 +46,7 @@ export class SaleOrderService {
         const prismaQuery = this.queryService.buildPrismaQuery(query, {
           searchableFields: ['*'],
           allowedIncludes: ['*'],
-          defaultOrderBy: { createdAt: 'desc' },
+          defaultOrderBy: { CreatedAt: 'desc' },
         });
 
         const findArgs: any = {

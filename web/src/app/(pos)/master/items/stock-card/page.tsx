@@ -49,13 +49,25 @@ export default function StockCardPage() {
     setLoading(true);
     try {
       const res = await api
-        .get<StockCardRow[]>(`product/${values.productId}/stock-card`, {
+        .get<any>("reports/stock-mutation", {
+          productId: values.productId,
           warehouseId: values.warehouseId || undefined,
-          dateFrom: values.dateFrom || undefined,
-          dateTo: values.dateTo || undefined,
+          startDate: values.dateFrom || undefined,
+          endDate: values.dateTo || undefined,
         })
-        .catch(() => ({ success: false, data: [] } as any));
-      setRows(res.success ? res.data || [] : []);
+        .catch(() => ({ success: false, data: null } as any));
+      const mutations = res.success && res.data ? res.data.mutations || [] : [];
+      setRows(
+        mutations.map((m: any, i: number) => ({
+          id: i,
+          date: m.date,
+          reference: m.code,
+          description: `${m.description || ""} (${m.warehouseName})`.trim(),
+          masuk: m.qtyIn,
+          keluar: m.qtyOut,
+          saldo: m.balance,
+        })),
+      );
     } finally {
       setLoading(false);
     }
@@ -84,14 +96,14 @@ export default function StockCardPage() {
               key: "productId",
               label: "Kode / Nama Item",
               type: "select",
-              options: products.map((p) => ({ value: p.id, label: `${p.code} - ${p.name}` })),
+              options: products.map((p) => ({ value: p.ID, label: `${p.Code} - ${p.Name}` })),
               placeholder: "Pilih item...",
             },
             {
               key: "warehouseId",
               label: "Dept/Gudang",
               type: "select",
-              options: [{ value: "", label: "Semua Gudang" }, ...warehouses.map((w) => ({ value: w.id, label: w.name }))],
+              options: [{ value: "", label: "Semua Gudang" }, ...warehouses.map((w) => ({ value: w.ID, label: w.Name }))],
             },
             { key: "dateFrom", label: "Dari Tanggal", type: "date" },
             { key: "dateTo", label: "Sampai Tanggal", type: "date" },

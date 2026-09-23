@@ -9,13 +9,13 @@ import { CurrentUser } from '../../common/decorators/current-user-decorator';
 @ApiTags('StockIn')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('StockIn')
+@Controller('stock-in')
 export class StockInController extends BaseController<
   any,
   CreateStockInDto,
   UpdateStockInDto
 > {
-  constructor(stockInService: StockInService) {
+  constructor(private readonly stockInService: StockInService) {
     super(stockInService, {
       modelName: 'StockIn',
       pluralName: 'StockIns',
@@ -61,7 +61,8 @@ export class StockInController extends BaseController<
   @Post()
   @ApiOperation({ summary: 'Create new StockIn' })
   async create(@Body() dto: CreateStockInDto, @CurrentUser() user?: any) {
-    return super.create({ ...dto, createdById: user.id } as any);
+    const data = await this.stockInService.createStockIn(dto, user.id);
+    return { success: true, data, message: 'StockIn created successfully' };
   }
 
   @Post('bulk')

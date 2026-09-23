@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { ReportService } from './report.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
@@ -80,6 +80,49 @@ export class ReportController {
   @ApiOperation({ summary: 'Receivable Report (Unpaid Sales)' })
   async receivableReport() {
     const data = await this.reportService.receivableReport();
+    return ApiResponse.ok(data);
+  }
+
+  @Get('sales/summary')
+  @ApiOperation({ summary: 'Sales vs Purchases vs Profit chart (per day)' })
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  async salesSummaryReport(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const data = await this.reportService.salesSummaryReport({ startDate, endDate });
+    return ApiResponse.ok(data);
+  }
+
+  @Get('stock-opname')
+  @ApiOperation({ summary: 'Stock Opname Report' })
+  async stockOpnameReport() {
+    const data = await this.reportService.stockOpnameReport();
+    return ApiResponse.ok(data);
+  }
+
+  @Get('stock-mutation')
+  @ApiOperation({ summary: 'Stock Mutation Report (Kartu Stok / Mutasi Stok)' })
+  @ApiQuery({ name: 'productId', required: true })
+  @ApiQuery({ name: 'warehouseId', required: false })
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  async stockMutationReport(
+    @Query('productId') productId: string,
+    @Query('warehouseId') warehouseId?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    if (!productId || !Number.isFinite(Number(productId))) {
+      throw new BadRequestException('productId is required');
+    }
+    const data = await this.reportService.stockMutationReport({
+      productId: Number(productId),
+      warehouseId: warehouseId ? Number(warehouseId) : undefined,
+      startDate,
+      endDate,
+    });
     return ApiResponse.ok(data);
   }
 }

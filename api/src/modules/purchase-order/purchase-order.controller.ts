@@ -56,7 +56,7 @@ export class PurchaseOrderController {
   @Post()
   @ApiOperation({ summary: 'Create new purchase order' })
   async create(@Body() dto: CreatePurchaseOrderDto, @CurrentUser() user: any) {
-    const data = await this.purchaseOrderService.create(dto, user.ID);
+    const data = await this.purchaseOrderService.create(dto, user.id);
     return ApiResponse.ok(data, 'Purchase order created successfully');
   }
 

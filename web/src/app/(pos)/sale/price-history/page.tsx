@@ -21,15 +21,15 @@ export default function SalePriceHistoryPage() {
   const [rows, setRows] = useState<any[]>([]);
 
   const fetchCustomers = useCallback(async () => {
-    const res = await api.get("customer", { $select: "id,name" } as any).catch(() => ({ success: false, data: [] } as any));
+    const res = await api.get("customer", { $select: "ID,Name" } as any).catch(() => ({ success: false, data: [] } as any));
     if (res.success) setCustomers(res.data || []);
   }, []);
 
   const runReport = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("sale-item", {
-        $include: "sale,sale.customer,sale.salesPerson,product",
+      const res = await api.get("SaleItem", {
+        $include: "Sale,Sale.Customer,Sale.SalesPerson,Product",
         $orderBy: { createdAt: "desc" },
         $take: 500,
       } as any).catch(() => ({ success: false, data: [] } as any));
@@ -37,15 +37,15 @@ export default function SalePriceHistoryPage() {
       let data: any[] = res.success ? res.data || [] : [];
 
       data = data.filter((row) => {
-        const saleDate = row.sale?.date ? new Date(row.sale.date) : null;
+        const saleDate = row.Sale?.Date ? new Date(row.Sale.Date) : null;
         if (saleDate) {
           if (startDate && saleDate < new Date(startDate)) return false;
           if (endDate && saleDate > new Date(endDate + "T23:59:59")) return false;
         }
-        if (customerId && String(row.sale?.customerId) !== customerId) return false;
+        if (customerId && String(row.Sale?.CustomerID) !== customerId) return false;
         if (onlyChanged) {
-          const current = Number(row.product?.sellingPrice ?? 0);
-          const used = Number(row.unitPrice);
+          const current = Number(row.Product?.SellingPrice ?? 0);
+          const used = Number(row.UnitPrice);
           if (current === used) return false;
         }
         return true;
@@ -59,14 +59,14 @@ export default function SalePriceHistoryPage() {
   useEffect(() => { runReport(); }, [runReport]);
 
   const columns = [
-    { key: "saleCode", label: "Kode Transaksi", render: (_: unknown, row: any) => <span className="font-mono text-xs">{row.sale?.code || "-"}</span> },
-    { key: "saleDate", label: "Tanggal", render: (_: unknown, row: any) => formatDate(row.sale?.date) },
-    { key: "productName", label: "Item", render: (_: unknown, row: any) => row.product?.name || "-" },
-    { key: "customerName", label: "Pelanggan", render: (_: unknown, row: any) => row.sale?.customer?.name || "-" },
-    { key: "salesName", label: "Sales", render: (_: unknown, row: any) => row.sale?.salesPerson?.name || "-" },
-    { key: "quantity", label: "Qty", align: "right" as const },
-    { key: "unitPrice", label: "Harga Saat Jual", align: "right" as const, render: (v: unknown) => <span className="font-semibold">{formatCurrency(v as number)}</span> },
-    { key: "currentPrice", label: "Harga Saat Ini", align: "right" as const, render: (_: unknown, row: any) => formatCurrency(row.product?.sellingPrice ?? 0) },
+    { key: "Sale.Code", label: "Kode Transaksi", render: (_: unknown, row: any) => <span className="font-mono text-xs">{row.Sale?.Code || "-"}</span> },
+    { key: "Sale.Date", label: "Tanggal", render: (_: unknown, row: any) => formatDate(row.Sale?.Date) },
+    { key: "productName", label: "Item", render: (_: unknown, row: any) => row.Product?.Name || "-" },
+    { key: "customerName", label: "Pelanggan", render: (_: unknown, row: any) => row.Sale?.Customer?.Name || "-" },
+    { key: "salesName", label: "Sales", render: (_: unknown, row: any) => row.Sale?.SalesPerson?.Name || "-" },
+    { key: "Quantity", label: "Qty", align: "right" as const },
+    { key: "UnitPrice", label: "Harga Saat Jual", align: "right" as const, render: (v: unknown) => <span className="font-semibold">{formatCurrency(v as number)}</span> },
+    { key: "currentPrice", label: "Harga Saat Ini", align: "right" as const, render: (_: unknown, row: any) => formatCurrency(row.Product?.SellingPrice ?? 0) },
   ];
 
   return (
@@ -83,7 +83,7 @@ export default function SalePriceHistoryPage() {
             label="Pelanggan"
             value={customerId}
             onChange={(e) => setCustomerId(e.target.value)}
-            options={[{ value: "", label: "Semua Pelanggan" }, ...customers.map((c) => ({ value: String(c.id), label: c.name }))]}
+            options={[{ value: "", label: "Semua Pelanggan" }, ...customers.map((c) => ({ value: String(c.ID), label: c.Name }))]}
           />
           <label className="flex items-center gap-2 pb-2 text-sm text-highlighted">
             <input type="checkbox" checked={onlyChanged} onChange={(e) => setOnlyChanged(e.target.checked)} className="size-4 rounded border-default accent-primary" />

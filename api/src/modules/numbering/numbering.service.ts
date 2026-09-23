@@ -19,17 +19,17 @@ export class NumberingService extends BaseService<
   ) {
     super(prisma, redis, queryService, {
       modelName: 'numbering',
-      primaryKey: 'id',
+      primaryKey: 'ID',
       searchableFields: ['*'],
       allowedIncludes: ['*'],
       allowedSortFields: ['*'],
       allowedSelectFields: ['*'],
-      defaultOrderBy: { createdAt: 'desc' },
+      defaultOrderBy: { CreatedAt: 'desc' },
       maxTake: 100,
       defaultTake: 20,
       cacheTtl: 60,
       softDelete: true,
-      softDeleteField: 'isActive',
+      softDeleteField: 'IsActive',
     });
   }
 

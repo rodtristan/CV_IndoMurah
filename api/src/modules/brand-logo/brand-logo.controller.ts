@@ -8,7 +8,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 @ApiTags('BrandLogos')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('BrandLogo')
+@Controller('brand-logo')
 export class BrandLogoController extends BaseController<
   any,
   CreateBrandLogoDto,

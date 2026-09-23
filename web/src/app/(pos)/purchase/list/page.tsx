@@ -1,109 +1,40 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Eye } from "lucide-react";
-import { PageWrapper, Card } from "@/components/layout/PageWrapper";
-import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/StatCard";
-import { Modal } from "@/components/ui/Modal";
-import { DataTable } from "@/components/ui/DataTable";
-import { FilterBar } from "@/components/ui/FilterBar";
-import { api } from "@/lib/api-client";
+import { TransactionList } from "@/components/transaction/TransactionList";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
+const statusColors: Record<string, string> = { PENDING: "warning", PAID: "success", PARTIAL: "info", INSTALMENT: "info", CANCELLED: "danger" };
+const statusLabels: Record<string, string> = { PENDING: "Kredit", PAID: "Lunas", PARTIAL: "Sebagian", INSTALMENT: "Cicilan", CANCELLED: "Batal" };
+
 export default function PurchaseListPage() {
-  const [data, setData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
-  const [detailData, setDetailData] = useState<any>(null);
-  const [showDetail, setShowDetail] = useState(false);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params: any = { $include: "supplier,purchasePayments,purchaseItems,purchaseItems.product" };
-      if (search) params.$search = search;
-      if (filterStatus) params.$where = { paymentStatus: filterStatus };
-      const res = await api.get("purchases", params).catch(() => ({ success: false, data: { data: [] } } as any));
-      if (res.success) setData(res.data || []);
-    } finally { setLoading(false); }
-  }, [search, filterStatus]);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  const statusColors: Record<string, string> = {
-    PENDING: "warning", PAID: "success", PARTIAL: "info",
-    INSTALMENT: "info", CANCELLED: "danger",
-  };
-
-  const columns = [
-    { key: "code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
-    { key: "supplier", label: "Supplier", render: (v: unknown) => (v as any)?.name || "-" },
-    { key: "paymentStatus", label: "Status", render: (v: unknown) => <Badge variant={statusColors[v as string] as any || "default"}>{v as string}</Badge> },
-    { key: "total", label: "Total", align: "right" as const, render: (v: unknown) => <span className="font-semibold">{formatCurrency(v as number)}</span> },
-    { key: "paid", label: "Dibayar", align: "right" as const, render: (v: unknown) => <span className="text-success">{formatCurrency(v as number)}</span> },
-    { key: "remaining", label: "Sisa", align: "right" as const, render: (v: unknown) => <span className={Number(v) > 0 ? "font-bold text-danger" : ""}>{formatCurrency(v as number)}</span> },
-    {
-      key: "actions", label: "", width: "60px",
-      render: (_: unknown, row: any) => (
-        <Button size="sm" variant="ghost" icon={Eye} onClick={() => { setDetailData(row); setShowDetail(true); }} />
-      )
-    },
-  ];
-
   return (
-    <PageWrapper>
-      <Card className="p-4">
-        <FilterBar
-          fields={[
-            { key: "search", label: "Kata Kunci", type: "text", placeholder: "Cari..." },
-            { key: "status", label: "Status", type: "select", options: [{ value: "", label: "Semua" }, { value: "PENDING", label: "Pending" }, { value: "PAID", label: "Lunas" }, { value: "PARTIAL", label: "Sebagian" }, { value: "CANCELLED", label: "Batal" }] },
-          ]}
-          onFilter={(v) => { setSearch((v.search as string) || ""); setFilterStatus((v.status as string) || ""); }}
-          loading={loading}
-        />
-        <div className="mt-4">
-          <DataTable data={data} columns={columns} loading={loading} emptyMessage="Tidak ada pembelian" />
-        </div>
-      </Card>
-
-      <Modal open={showDetail} onClose={() => setShowDetail(false)} title={`Pembelian ${detailData?.code || ""}`} size="lg">
-        {detailData && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><span className="text-muted">Tanggal:</span> {formatDate(detailData.date)}</div>
-              <div><span className="text-muted">Supplier:</span> {detailData.supplier?.name || "-"}</div>
-              <div><span className="text-muted">Status:</span> <Badge variant={statusColors[detailData.paymentStatus] as any || "default"}>{detailData.paymentStatus}</Badge></div>
-              <div><span className="text-muted">Total:</span> <span className="font-bold">{formatCurrency(detailData.total)}</span></div>
-            </div>
-            <div className="border-t border-default pt-4">
-              <h4 className="font-semibold mb-2">Item Pembelian</h4>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-default">
-                    <th className="text-left py-1">Produk</th>
-                    <th className="text-right py-1">Qty</th>
-                    <th className="text-right py-1">Harga</th>
-                    <th className="text-right py-1">Subtotal</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(detailData.purchaseItems || []).map((d: any, i: number) => (
-                    <tr key={i} className="border-b border-default">
-                      <td className="py-1">{d.product?.name || "-"}</td>
-                      <td className="text-right">{d.quantity}</td>
-                      <td className="text-right">{formatCurrency(d.unitPrice)}</td>
-                      <td className="text-right font-semibold">{formatCurrency(d.subtotal)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </Modal>
-    </PageWrapper>
+    <TransactionList
+      endpoint="purchases"
+      basePath="/purchase/list"
+      include="Supplier,Warehouse,PaymentStatus,Status"
+      deleteLabel="Pembelian"
+      emptyMessage="Tidak ada pembelian"
+      searchPlaceholder="No. transaksi..."
+      filterPartner={{ field: "SupplierID", endpoint: "supplier", label: "Supplier" }}
+      statusFilter={{
+        relation: "PaymentStatus",
+        options: [{ value: "PENDING", label: "Kredit" }, { value: "PARTIAL", label: "Sebagian" }, { value: "PAID", label: "Lunas" }, { value: "CANCELLED", label: "Batal" }],
+      }}
+      sortOptions={[{ value: "Date", label: "Tanggal" }, { value: "Code", label: "No. Transaksi" }, { value: "Total", label: "Total" }, { value: "CreatedAt", label: "Waktu Input" }]}
+      canDelete={(r) => r.Status?.Code === "DRAFT"}
+      columns={[
+        { key: "Code", label: "No. Transaksi", render: (v) => <span className="font-mono text-xs">{v as string}</span> },
+        { key: "Date", label: "Tanggal", render: (v) => formatDate(v as string) },
+        { key: "DueDate", label: "Jatuh Tempo", render: (v) => (v ? formatDate(v as string) : "-") },
+        { key: "Supplier", label: "Supplier", render: (v) => (v as { Name?: string })?.Name || "-" },
+        { key: "Warehouse", label: "Gudang", render: (v) => (v as { Name?: string })?.Name || "-" },
+        { key: "Status.Code", label: "Status", render: (v) => <Badge variant={((v as string) === "DRAFT" ? "warning" : "info") as never}>{v as string}</Badge> },
+        { key: "PaymentStatus.Code", label: "Pembayaran", render: (v) => <Badge variant={(statusColors[v as string] || "default") as never}>{statusLabels[v as string] || (v as string)}</Badge> },
+        { key: "Total", label: "Total", align: "right", render: (v) => <span className="font-semibold">{formatCurrency(v as number)}</span> },
+        { key: "Paid", label: "Dibayar", align: "right", render: (v) => <span className="text-success">{formatCurrency(v as number)}</span> },
+        { key: "Remaining", label: "Sisa", align: "right", render: (v) => <span className={Number(v) > 0 ? "font-bold text-danger" : ""}>{formatCurrency(v as number)}</span> },
+      ]}
+    />
   );
 }

@@ -1060,13 +1060,12 @@ model Sale {
   ReturnedAt      DateTime?
   PaymentMethodID Int?
   Notes           String?        @db.VarChar(1000)
+  ShippingStatus  String?        @default("PENDING") @db.VarChar(20)
+  ShippingDate    DateTime?
+  TrackingNumber  String?        @db.VarChar(100)
   CreatedByID     String
   CreatedAt       DateTime       @default(now())
   UpdatedAt       DateTime       @updatedAt
-  // Shipping fields
-  ShippingStatus  String?        @db.VarChar(50)
-  ShippingDate    DateTime?
-  TrackingNumber  String?        @db.VarChar(100)
 
   Customer      Customer        @relation(fields: [CustomerID], references: [ID])
   SalesPerson   SalesPerson?    @relation(fields: [SalesPersonID], references: [ID])
@@ -1774,6 +1773,32 @@ model Company {
   @@map("Companies")
 }
 
+// ─── AppSetting (Pengaturan Umum/Transaksi/Desimal) ──────────────────
+model AppSetting {
+  ID                      Int      @id @default(autoincrement())
+  ReportDesignEnabled     Boolean  @default(false)
+  ItemAddMode             String   @default("SEDANG") @db.VarChar(50)
+  DisplayMode             String   @default("ACTIVE_ONLY") @db.VarChar(50)
+  DisplayRowMode          String   @default("SINGLE_ROW") @db.VarChar(50)
+  Timezone                String   @default("Asia/Jakarta") @db.VarChar(100)
+  MaxSearchRows           Int      @default(100)
+  AddressBinding          String   @default("COMPANY") @db.VarChar(50)
+  ShowImageOnTransaction  Boolean  @default(true)
+  WarnPriceBelowCost      Boolean  @default(true)
+  ShowBrandColumn         Boolean  @default(false)
+  ShowInfoColumn          Boolean  @default(false)
+  EditRequiresAccess      Boolean  @default(false)
+  AutoShowSalesOnCustomer Boolean  @default(false)
+  DecimalPrice            Int      @default(0)
+  DecimalQty              Int      @default(0)
+  DecimalTax              Int      @default(0)
+  DecimalDiscount         Int      @default(0)
+  CreatedAt               DateTime @default(now())
+  UpdatedAt               DateTime @updatedAt
+
+  @@map("AppSettings")
+}
+
 // ─── NumberingFormat ───────────────────────────────────────
 model Numbering {
   ID         Int      @id @default(autoincrement())
@@ -2416,11 +2441,15 @@ model Employee {
 
 // ─── Attendance ───────────────────────────────────────────────
 model Attendance {
-  ID         Int              @id @default(autoincrement())
-  EmployeeID Int
-  Date       DateTime
-  CheckIn    DateTime?
-  CheckOut   DateTime?
+  ID               Int              @id @default(autoincrement())
+  EmployeeID       Int
+  Date             DateTime
+  CheckIn          DateTime?
+  CheckInLatitude  Decimal?         @db.Decimal(10, 7)
+  CheckInLongitude Decimal?         @db.Decimal(10, 7)
+  CheckOut         DateTime?
+  CheckOutLatitude  Decimal?        @db.Decimal(10, 7)
+  CheckOutLongitude Decimal?        @db.Decimal(10, 7)
   StatusID    Int              @default(1)
   Notes      String?          @db.VarChar(1000)
   IsActive   Boolean          @default(true)
@@ -2576,6 +2605,7 @@ model Notification {
   @@map("Notifications")
 }
 
+<<<<<<< HEAD
 // ═══════════════════════════════════════════════════════════════════════════════
 // STOCK MUTATION MODULE
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -3517,4 +3547,21 @@ model ScheduleAssignment {
 
   @@unique([EmployeeID, ScheduleID])
   @@map("ScheduleAssignments")
+=======
+// ─── ReportTemplate ────────────────────────────────────────
+// User-editable print templates for the dynamic report engine.
+model ReportTemplate {
+  ID          Int      @id @default(autoincrement())
+  ReportKey   String   @db.VarChar(100)
+  Name        String   @db.VarChar(255)
+  Definition  Json
+  IsDefault   Boolean  @default(false)
+  CompanyID   Int?
+  CreatedByID String?
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
+
+  @@index([ReportKey])
+  @@map("ReportTemplates")
+>>>>>>> origin/main
 }

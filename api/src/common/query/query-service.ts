@@ -183,6 +183,24 @@ import { Injectable } from '@nestjs/common';
 @Injectable()
 export class QueryService {
   /**
+   * Field-name normalization for callers still on the pre-rename
+   * lowerCamelCase convention (most frontend pages were never migrated
+   * when the schema moved to PascalCase). Capitalizes the first letter
+   * and normalizes a trailing "Id" to "ID" to match the schema's real
+   * field/relation names (Code, Name, CategoryID, ...). A caller that
+   * already sends the correct PascalCase name passes through unchanged.
+   */
+  private normalizeFieldKey(key: string): string {
+    if (!key) return key;
+    const capitalized = key.charAt(0).toUpperCase() + key.slice(1);
+    return capitalized.replace(/Id\b/g, 'ID');
+  }
+
+  private normalizeFieldPath(path: string): string {
+    return path.split('.').map((part) => this.normalizeFieldKey(part)).join('.');
+  }
+
+  /**
    * Build a complete Prisma query from request query parameters
    */
   buildPrismaQuery(
@@ -248,12 +266,13 @@ export class QueryService {
           continue;
         }
 
+        const normalizedField = this.normalizeFieldKey(field);
         if (value && typeof value === 'object' && !Array.isArray(value)) {
           // Advanced operator: $where[field][$gt]=10
-          where[field] = this.parseOperators(field, value as Record<string, any>);
+          where[normalizedField] = this.parseOperators(normalizedField, value as Record<string, any>);
         } else {
           // Simple: $where[field]=value (default to eq)
-          where[field] = this.castValue(value as any);
+          where[normalizedField] = this.castValue(value as any);
         }
       }
     }
@@ -264,7 +283,8 @@ export class QueryService {
       if (this.isFieldWithOperator(key) && value !== undefined && value !== '') {
         const fieldMatch = key.match(/^(.+)\[(\w+)\]$/);
         if (fieldMatch) {
-          const [, fieldName, operator] = fieldMatch;
+          const [, rawFieldName, operator] = fieldMatch;
+          const fieldName = this.normalizeFieldKey(rawFieldName);
           if (!where[fieldName]) {
             where[fieldName] = {};
           }
@@ -283,7 +303,7 @@ export class QueryService {
 
       if (searchFields.length > 0) {
         where.OR = searchFields.map((field) => ({
-          [field]: { contains: String(searchStr).trim(), mode: 'insensitive' },
+          [this.normalizeFieldKey(field)]: { contains: String(searchStr).trim(), mode: 'insensitive' },
         }));
       }
     }
@@ -950,8 +970,9 @@ export class QueryService {
     const allowAll = allowedFields?.includes('*');
 
     const select: Record<string, boolean> = {};
-    for (const field of fields) {
-      if (allowAll || !allowedFields || allowedFields.includes(field)) {
+    for (const rawField of fields) {
+      const field = this.normalizeFieldKey(rawField);
+      if (allowAll || !allowedFields || allowedFields.includes(field) || allowedFields.includes(rawField)) {
         select[field] = true;
       }
     }
@@ -976,10 +997,17 @@ export class QueryService {
 
     const include: Record<string, any> = {};
 
-    for (const relation of relations) {
+    for (const rawRelation of relations) {
+      const relation = this.normalizeFieldPath(rawRelation);
       const rootRelation = relation.split('.')[0];
+      const rawRoot = rawRelation.split('.')[0];
 
-      if (!allowAll && allowedIncludes && !allowedIncludes.includes(rootRelation)) {
+      if (
+        !allowAll &&
+        allowedIncludes &&
+        !allowedIncludes.includes(rootRelation) &&
+        !allowedIncludes.includes(rawRoot)
+      ) {
         continue;
       }
 
@@ -1017,17 +1045,17 @@ export class QueryService {
   ): Record<string, any> | Record<string, any>[] {
     const orderByObj = query['$orderBy'];
     if (!orderByObj || typeof orderByObj !== 'object') {
-      return defaultOrderBy || { createdAt: 'desc' };
+      return defaultOrderBy || { CreatedAt: 'desc' };
     }
 
     const allowAll = allowedSortFields?.includes('*');
 
     const orderByArray: Record<string, any>[] = [];
-    for (const [field, direction] of Object.entries(orderByObj)) {
-      if (!allowAll && allowedSortFields && !allowedSortFields.includes(field)) continue;
+    for (const [rawField, direction] of Object.entries(orderByObj)) {
+      if (!allowAll && allowedSortFields && !allowedSortFields.includes(rawField) && !allowedSortFields.includes(this.normalizeFieldKey(rawField))) continue;
       const dir = String(direction).toLowerCase();
       if (dir === 'asc' || dir === 'desc') {
-        orderByArray.push({ [field]: dir });
+        orderByArray.push({ [this.normalizeFieldKey(rawField)]: dir });
       }
     }
 
@@ -1035,7 +1063,7 @@ export class QueryService {
       ? orderByArray.length === 1
         ? orderByArray[0]
         : orderByArray
-      : defaultOrderBy || { createdAt: 'desc' };
+      : defaultOrderBy || { CreatedAt: 'desc' };
   }
 
   private parseSkip(query: Record<string, any>): number {

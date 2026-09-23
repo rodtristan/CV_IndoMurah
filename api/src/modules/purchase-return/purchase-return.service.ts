@@ -3,7 +3,7 @@ import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
 import { Prisma } from '@prisma/client';
-import { CreatePurchaseReturnDto, UpdatePurchaseReturnDto, UpdateStatusDto } from './dto/purchase-return.dto';
+import { CreatePurchaseReturnDto, UpdatePurchaseReturnDto, UpdatePurchaseReturnStatusDto } from './dto/purchase-return.dto';
 
 @Injectable()
 export class PurchaseReturnService {
@@ -25,7 +25,7 @@ export class PurchaseReturnService {
         const prismaQuery = this.queryService.buildPrismaQuery(query, {
           searchableFields: ['*'],
           allowedIncludes: ['*'],
-          defaultOrderBy: { createdAt: 'desc' },
+          defaultOrderBy: { CreatedAt: 'desc' },
         });
 
         const findArgs: any = {
@@ -54,7 +54,10 @@ export class PurchaseReturnService {
   }
 
   async findOne(id: number, query: Record<string, any> = {}) {
-    const cacheKey = `${this.CACHE_PREFIX}:${id}`;
+    // Include/select query params change the payload, so they must be part of the cache key.
+    const cacheKey = Object.keys(query).length
+      ? `${this.CACHE_PREFIX}:${id}:${this.queryService.generateCacheKey('q', query)}`
+      : `${this.CACHE_PREFIX}:${id}`;
 
     return this.redis.getOrSet(
       cacheKey,
@@ -63,7 +66,7 @@ export class PurchaseReturnService {
           allowedIncludes: ['*'],
         });
 
-        const findArgs: any = { where: { id } };
+        const findArgs: any = { where: { ID: id } };
 
         if (prismaQuery.select) {
           findArgs.select = prismaQuery.select;
@@ -80,45 +83,46 @@ export class PurchaseReturnService {
 
   async create(dto: CreatePurchaseReturnDto, userId: string) {
     // Verify purchase exists
-    const purchase = await this.prisma.purchase.findUnique({ where: { id: dto.purchaseId } });
+    const purchase = await this.prisma.purchase.findUnique({ where: { ID: dto.PurchaseID } });
     if (!purchase) throw new NotFoundException('Purchase not found');
 
     const code = await this.generateCode();
+    const draftStatus = await this.getStatusByCode('DRAFT');
 
     // Calculate total return
-    const itemsData = dto.items.map((item) => {
-      const subtotal = item.unitPrice * item.quantity;
+    const itemsData = dto.Items.map((item) => {
+      const subtotal = item.UnitPrice * item.Quantity;
       return {
-        productId: item.productId,
-        quantity: new Prisma.Decimal(item.quantity.toString()),
-        unitId: item.unitId,
-        unitPrice: new Prisma.Decimal(item.unitPrice.toString()),
-        subtotal: new Prisma.Decimal(subtotal.toString()),
+        ProductID: item.ProductID,
+        Quantity: new Prisma.Decimal(item.Quantity.toString()),
+        UnitID: item.UnitID,
+        UnitPrice: new Prisma.Decimal(item.UnitPrice.toString()),
+        Subtotal: new Prisma.Decimal(subtotal.toString()),
       };
     });
 
-    const totalReturn = itemsData.reduce((sum, item) => sum + Number(item.subtotal), 0);
+    const totalReturn = itemsData.reduce((sum, item) => sum + Number(item.Subtotal), 0);
 
     const purchaseReturn = await this.prisma.purchaseReturn.create({
       data: {
-        code,
-        purchaseId: dto.purchaseId,
-        supplierId: dto.supplierId || purchase.supplierId,
-        warehouseId: dto.warehouseId,
-        date: dto.date ? new Date(dto.date) : new Date(),
-        totalReturn: new Prisma.Decimal(totalReturn.toString()),
-        reason: dto.reason,
-        status: 'DRAFT',
-        createdById: userId,
-        returnItems: {
+        Code: code,
+        PurchaseID: dto.PurchaseID,
+        SupplierID: dto.SupplierID || purchase.SupplierID,
+        WarehouseID: dto.WarehouseID,
+        Date: dto.Date ? new Date(dto.Date) : new Date(),
+        TotalReturn: new Prisma.Decimal(totalReturn.toString()),
+        Reason: dto.Reason,
+        StatusID: draftStatus.ID,
+        CreatedByID: userId,
+        ReturnItems: {
           create: itemsData,
         },
       },
       include: {
-        purchase: true,
-        supplier: true,
-        warehouse: true,
-        returnItems: { include: { product: true, unit: true } },
+        Purchase: true,
+        Supplier: true,
+        Warehouse: true,
+        ReturnItems: { include: { Product: true, Unit: true } },
       },
     });
 
@@ -128,24 +132,25 @@ export class PurchaseReturnService {
   }
 
   async update(id: number, dto: UpdatePurchaseReturnDto) {
-    const purchaseReturn = await this.prisma.purchaseReturn.findUnique({ where: { id } });
+    const purchaseReturn = await this.prisma.purchaseReturn.findUnique({ where: { ID: id } });
     if (!purchaseReturn) throw new NotFoundException('Purchase return not found');
-    if (purchaseReturn.status !== 'DRAFT') {
+    const status = await this.getStatusById(purchaseReturn.StatusID);
+    if (status?.Code !== 'DRAFT') {
       throw new BadRequestException('Can only update draft purchase returns');
     }
 
     const updated = await this.prisma.purchaseReturn.update({
-      where: { id },
+      where: { ID: id },
       data: {
-        warehouseId: dto.warehouseId,
-        date: dto.date ? new Date(dto.date) : undefined,
-        reason: dto.reason,
+        WarehouseID: dto.WarehouseID,
+        Date: dto.Date ? new Date(dto.Date) : undefined,
+        Reason: dto.Reason,
       },
       include: {
-        purchase: true,
-        supplier: true,
-        warehouse: true,
-        returnItems: { include: { product: true, unit: true } },
+        Purchase: true,
+        Supplier: true,
+        Warehouse: true,
+        ReturnItems: { include: { Product: true, Unit: true } },
       },
     });
 
@@ -154,31 +159,36 @@ export class PurchaseReturnService {
     return this.serialize(updated);
   }
 
-  async updateStatus(id: number, dto: UpdateStatusDto) {
+  async updateStatus(id: number, dto: UpdatePurchaseReturnStatusDto) {
     const purchaseReturn = await this.prisma.purchaseReturn.findUnique({
-      where: { id },
-      include: { returnItems: true },
+      where: { ID: id },
+      include: { ReturnItems: true },
     });
     if (!purchaseReturn) throw new NotFoundException('Purchase return not found');
+
+    const currentStatus = await this.getStatusById(purchaseReturn.StatusID);
+    const currentCode = currentStatus?.Code ?? 'DRAFT';
 
     const validTransitions: Record<string, string[]> = {
       DRAFT: ['CONFIRMED', 'CANCELLED'],
       CONFIRMED: ['COMPLETED', 'CANCELLED'],
     };
 
-    const allowed = validTransitions[purchaseReturn.status] || [];
-    if (!allowed.includes(dto.status)) {
-      throw new BadRequestException(`Cannot transition from '${purchaseReturn.status}' to '${dto.status}'`);
+    const allowed = validTransitions[currentCode] || [];
+    if (!allowed.includes(dto.StatusCode)) {
+      throw new BadRequestException(`Cannot transition from '${currentCode}' to '${dto.StatusCode}'`);
     }
 
+    const newStatus = await this.getStatusByCode(dto.StatusCode);
+
     const updated = await this.prisma.purchaseReturn.update({
-      where: { id },
-      data: { status: dto.status as any },
+      where: { ID: id },
+      data: { StatusID: newStatus.ID },
       include: {
-        purchase: true,
-        supplier: true,
-        warehouse: true,
-        returnItems: { include: { product: true, unit: true } },
+        Purchase: true,
+        Supplier: true,
+        Warehouse: true,
+        ReturnItems: { include: { Product: true, Unit: true } },
       },
     });
 
@@ -188,16 +198,29 @@ export class PurchaseReturnService {
   }
 
   async delete(id: number) {
-    const purchaseReturn = await this.prisma.purchaseReturn.findUnique({ where: { id } });
+    const purchaseReturn = await this.prisma.purchaseReturn.findUnique({ where: { ID: id } });
     if (!purchaseReturn) throw new NotFoundException('Purchase return not found');
-    if (purchaseReturn.status !== 'DRAFT') {
+    const status = await this.getStatusById(purchaseReturn.StatusID);
+    if (status?.Code !== 'DRAFT') {
       throw new BadRequestException('Can only delete draft purchase returns');
     }
 
-    await this.prisma.purchaseReturn.delete({ where: { id } });
+    await this.prisma.purchaseReturn.delete({ where: { ID: id } });
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
 
     return { id };
+  }
+
+  // ─── TransactionStatus lookup helpers ───────────────────────────────────
+
+  private async getStatusByCode(code: string) {
+    const status = await this.prisma.transactionStatus.findUnique({ where: { Code: code } });
+    if (!status) throw new BadRequestException(`Status '${code}' tidak ditemukan`);
+    return status;
+  }
+
+  private async getStatusById(id: number) {
+    return this.prisma.transactionStatus.findUnique({ where: { ID: id } });
   }
 
   private async generateCode(): Promise<string> {
@@ -207,14 +230,14 @@ export class PurchaseReturnService {
     const prefix = `PR-${year}${month}`;
 
     const lastReturn = await this.prisma.purchaseReturn.findFirst({
-      where: { code: { startsWith: prefix } },
-      orderBy: { code: 'desc' },
-      select: { code: true },
+      where: { Code: { startsWith: prefix } },
+      orderBy: { Code: 'desc' },
+      select: { Code: true },
     });
 
     let nextNumber = 1;
     if (lastReturn) {
-      const lastSeq = parseInt(lastReturn.code.split('-').pop() || '0', 10);
+      const lastSeq = parseInt(lastReturn.Code.split('-').pop() || '0', 10);
       nextNumber = lastSeq + 1;
     }
 
@@ -235,8 +258,8 @@ export class PurchaseReturnService {
       }
     }
 
-    if (data.returnItems && Array.isArray(data.returnItems)) {
-      result.returnItems = data.returnItems.map((item: any) => this.serialize(item));
+    if (data.ReturnItems && Array.isArray(data.ReturnItems)) {
+      result.ReturnItems = data.ReturnItems.map((item: any) => this.serialize(item));
     }
 
     return result;

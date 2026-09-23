@@ -16,13 +16,14 @@ export type CustomerGroup = 'RETAIL' | 'WHOLESALE' | 'VIP' | 'GENERAL';
 // ─── Auth ────────────────────────────────────────────────────
 
 export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt?: string;
+  ID: string;
+  Username?: string;
+  Email?: string;
+  Name: string;
+  Role: string;
+  IsActive: boolean;
+  CreatedAt: string;
+  UpdatedAt?: string;
 }
 
 export interface LoginRequest {
@@ -38,582 +39,607 @@ export interface LoginResponse {
 // ─── Master Data ─────────────────────────────────────────────
 
 export interface Category {
-  id: number;
-  code: string;
-  name: string;
-  icon?: string;
-  image?: string;
-  description?: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt?: string;
-  _count?: { products: number };
+  ID: number;
+  Code: string;
+  Name: string;
+  Icon?: string;
+  Image?: string;
+  Description?: string;
+  IsActive: boolean;
+  CreatedAt: string;
+  UpdatedAt?: string;
+  _count?: { Products: number };
 }
 
 export interface Brand {
-  id: number;
-  code: string;
-  name: string;
-  description?: string;
-  logoUrl?: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt?: string;
-  _count?: { products: number };
+  ID: number;
+  Code: string;
+  Name: string;
+  Description?: string;
+  LogoUrl?: string;
+  IsActive: boolean;
+  CreatedAt: string;
+  UpdatedAt?: string;
+  _count?: { Products: number };
 }
 
 export interface Unit {
-  id: number;
-  code: string;
-  name: string;
-  abbreviation?: string;
-  description?: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt?: string;
+  ID: number;
+  Code: string;
+  Name: string;
+  Abbreviation?: string;
+  Description?: string;
+  IsActive: boolean;
+  CreatedAt: string;
+  UpdatedAt?: string;
 }
 
 export interface Warehouse {
-  id: number;
-  code: string;
-  name: string;
-  address?: string;
-  phone?: string;
-  isDefault: boolean;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt?: string;
+  ID: number;
+  Code: string;
+  Name: string;
+  Address?: string;
+  Phone?: string;
+  IsDefault: boolean;
+  IsActive: boolean;
+  CreatedAt: string;
+  UpdatedAt?: string;
 }
 
 export interface Supplier {
-  id: number;
-  code: string;
-  name: string;
-  contactPerson?: string;
-  phone?: string;
-  email?: string;
-  address?: string;
-  totalDebt: number;
-  notes?: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt?: string;
+  ID: number;
+  Code: string;
+  Name: string;
+  ContactPerson?: string;
+  Phone?: string;
+  Email?: string;
+  Address?: string;
+  TotalDebt: number;
+  Notes?: string;
+  IsActive: boolean;
+  CreatedAt: string;
+  UpdatedAt?: string;
 }
 
 export interface Customer {
-  id: number;
-  code: string;
-  name: string;
-  phone?: string;
-  email?: string;
-  address?: string;
-  totalReceivable: number;
-  customerGroup: CustomerGroup;
-  pointBalance: number;
-  notes?: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt?: string;
+  ID: number;
+  Code: string;
+  Name: string;
+  Phone?: string;
+  Email?: string;
+  Address?: string;
+  TotalReceivable: number;
+  CustomerGroupID: number;
+  CustomerGroup?: { ID: number; Name: string; [key: string]: unknown };
+  PointBalance: number;
+  Notes?: string;
+  IsActive: boolean;
+  CreatedAt: string;
+  UpdatedAt?: string;
 }
 
 export interface SalesPerson {
-  id: number;
-  code: string;
-  name: string;
-  phone?: string;
-  email?: string;
-  address?: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt?: string;
+  ID: number;
+  Code: string;
+  Name: string;
+  Phone?: string;
+  Email?: string;
+  Address?: string;
+  IsActive: boolean;
+  CreatedAt: string;
+  UpdatedAt?: string;
 }
 
 export interface SalePoint {
-  id: number;
-  code: string;
-  name: string;
-  warehouseId?: number;
-  warehouse?: Warehouse;
-  description?: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt?: string;
+  ID: number;
+  Code: string;
+  Name: string;
+  WarehouseID?: number;
+  Warehouse?: Warehouse;
+  Description?: string;
+  IsActive: boolean;
+  CreatedAt: string;
+  UpdatedAt?: string;
 }
 
 export interface Product {
-  id: number;
-  code: string;
-  barcode?: string;
-  name: string;
-  categoryId?: number;
-  category?: Category;
-  brandId?: number;
-  brand?: Brand;
-  unitId: number;
-  unit?: Unit;
-  warehouseId?: number;
-  warehouse?: Warehouse;
-  purchasePrice: number;
-  sellingPrice: number;
-  discountPercent: number;
-  stock: number;
-  minimumStock: number;
-  image?: string;
-  description?: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt?: string;
+  ID: number;
+  Code: string;
+  Barcode?: string;
+  Name: string;
+  CategoryID?: number;
+  Category?: Category;
+  BrandID?: number;
+  Brand?: Brand;
+  UnitID: number;
+  Unit?: Unit;
+  WarehouseID?: number;
+  Warehouse?: Warehouse;
+  ProductGroupID?: number;
+  ProductGroup?: { ID: number; Name: string; [key: string]: unknown };
+  PurchasePrice: number;
+  SellingPrice: number;
+  DiscountPercent: number;
+  Stock: number;
+  MinimumStock: number;
+  Image?: string;
+  Description?: string;
+  IsActive: boolean;
+  CreatedAt: string;
+  UpdatedAt?: string;
 }
 
 // ─── Sales ────────────────────────────────────────────────────
 
 export interface Sale {
-  id: number;
-  code: string;
-  date: string;
-  customerId: number;
-  customer?: Customer;
-  salesPersonId?: number;
-  salesPerson?: SalesPerson;
-  salePointId?: number;
-  salePoint?: SalePoint;
-  warehouseId?: number;
-  warehouse?: Warehouse;
-  subtotal: number;
-  discountPercent: number;
-  discountAmount: number;
-  taxPercent: number;
-  taxAmount: number;
-  total: number;
-  cashAmount: number;
-  changeAmount: number;
-  paymentStatus: PaymentStatus;
-  isReturn: boolean;
-  returnedAt?: string;
-  paymentMethod?: PaymentMethod;
-  notes?: string;
-  createdById: string;
-  creator?: User;
-  createdAt: string;
-  updatedAt?: string;
-  saleItems?: SaleItem[];
-  salePayments?: SalePayment[];
+  ID: number;
+  Code: string;
+  Date: string;
+  CustomerID: number;
+  Customer?: Customer;
+  SalesPersonID?: number;
+  SalesPerson?: SalesPerson;
+  SalePointID?: number;
+  SalePoint?: SalePoint;
+  WarehouseID?: number;
+  Warehouse?: Warehouse;
+  Subtotal: number;
+  DiscountPercent: number;
+  DiscountAmount: number;
+  TaxPercent: number;
+  TaxAmount: number;
+  Total: number;
+  CashAmount: number;
+  ChangeAmount: number;
+  PaymentStatusID: number;
+  PaymentStatus?: { ID: number; Code: string; Name?: string; [key: string]: unknown };
+  IsReturn: boolean;
+  ReturnedAt?: string;
+  PaymentMethodID?: number;
+  PaymentMethod?: { ID: number; Code: string; Name?: string; [key: string]: unknown };
+  Notes?: string;
+  ShippingStatus?: string;
+  ShippingDate?: string;
+  TrackingNumber?: string;
+  CreatedByID: string;
+  Creator?: User;
+  CreatedAt: string;
+  UpdatedAt?: string;
+  SaleItems?: SaleItem[];
+  SalePayments?: SalePayment[];
 }
 
 export interface SaleItem {
-  id: number;
-  saleId: number;
-  productId: number;
-  product?: Product;
-  unitId?: number;
-  unit?: Unit;
-  quantity: number;
-  unitPrice: number;
-  discountPercent: number;
-  discountAmount: number;
-  subtotal: number;
-  createdAt: string;
+  ID: number;
+  SaleID: number;
+  ProductID: number;
+  Product?: Product;
+  UnitID?: number;
+  Unit?: Unit;
+  Quantity: number;
+  UnitPrice: number;
+  DiscountPercent: number;
+  DiscountAmount: number;
+  Subtotal: number;
+  CreatedAt: string;
 }
 
 export interface SalePayment {
-  id: number;
-  saleId: number;
-  method: PaymentMethod;
-  amount: number;
-  referenceNumber?: string;
-  date: string;
-  notes?: string;
-  createdById: string;
-  creator?: User;
-  createdAt: string;
+  ID: number;
+  SaleID: number;
+  MethodID: number;
+  Method?: { ID: number; Code: string; Name?: string; [key: string]: unknown };
+  Amount: number;
+  ReferenceNumber?: string;
+  Date: string;
+  Notes?: string;
+  CreatedByID: string;
+  Creator?: User;
+  CreatedAt: string;
 }
 
 export interface SaleReturn {
-  id: number;
-  code: string;
-  date: string;
-  saleId: number;
-  sale?: Sale;
-  customerId: number;
-  customer?: Customer;
-  warehouseId?: number;
-  warehouse?: Warehouse;
-  totalReturn: number;
-  reason?: string;
-  status: TransactionStatus;
-  createdById: string;
-  createdAt: string;
-  updatedAt?: string;
-  returnItems?: SaleReturnItem[];
+  ID: number;
+  Code: string;
+  Date: string;
+  SaleID: number;
+  Sale?: Sale;
+  CustomerID: number;
+  Customer?: Customer;
+  WarehouseID?: number;
+  Warehouse?: Warehouse;
+  TotalReturn: number;
+  Reason?: string;
+  StatusID: number;
+  Status?: { ID: number; Code: string; Name?: string; [key: string]: unknown };
+  CreatedByID: string;
+  CreatedAt: string;
+  UpdatedAt?: string;
+  ReturnItems?: SaleReturnItem[];
 }
 
 export interface SaleReturnItem {
-  id: number;
-  saleReturnId: number;
-  productId: number;
-  product?: Product;
-  quantity: number;
-  unitPrice: number;
-  subtotal: number;
+  ID: number;
+  SaleReturnID: number;
+  ProductID: number;
+  Product?: Product;
+  Quantity: number;
+  UnitPrice: number;
+  Subtotal: number;
 }
 
 // ─── Purchases ───────────────────────────────────────────────
 
 export interface PurchaseOrder {
-  id: number;
-  code: string;
-  date: string;
-  supplierId: number;
-  supplier?: Supplier;
-  warehouseId?: number;
-  warehouse?: Warehouse;
-  subtotal: number;
-  discountPercent: number;
-  discountAmount: number;
-  taxPercent: number;
-  taxAmount: number;
-  total: number;
-  downPayment: number;
-  paymentStatus: PaymentStatus;
-  dueDate?: string;
-  isInvoice: boolean;
-  status: TransactionStatus;
-  notes?: string;
-  createdById: string;
-  createdAt: string;
-  updatedAt?: string;
-  purchaseOrderItems?: PurchaseOrderItem[];
+  ID: number;
+  Code: string;
+  Date: string;
+  SupplierID: number;
+  Supplier?: Supplier;
+  WarehouseID?: number;
+  Warehouse?: Warehouse;
+  Subtotal: number;
+  DiscountPercent: number;
+  DiscountAmount: number;
+  TaxPercent: number;
+  TaxAmount: number;
+  Total: number;
+  DownPayment: number;
+  PaymentStatusID: number;
+  PaymentStatus?: { ID: number; Code: string; Name?: string; [key: string]: unknown };
+  DueDate?: string;
+  IsInvoice: boolean;
+  PurchaseID?: number;
+  StatusID: number;
+  Status?: { ID: number; Code: string; Name?: string; [key: string]: unknown };
+  Notes?: string;
+  CreatedByID: string;
+  CreatedAt: string;
+  UpdatedAt?: string;
+  PurchaseOrderItems?: PurchaseOrderItem[];
 }
 
 export interface PurchaseOrderItem {
-  id: number;
-  purchaseOrderId: number;
-  productId: number;
-  product?: Product;
-  unitId: number;
-  unit?: Unit;
-  quantity: number;
-  unitPrice: number;
-  discountPercent: number;
-  discountAmount: number;
-  subtotal: number;
+  ID: number;
+  PurchaseOrderID: number;
+  ProductID: number;
+  Product?: Product;
+  UnitID: number;
+  Unit?: Unit;
+  Quantity: number;
+  UnitPrice: number;
+  DiscountPercent: number;
+  DiscountAmount: number;
+  Subtotal: number;
 }
 
 export interface Purchase {
-  id: number;
-  code: string;
-  date: string;
-  supplierId: number;
-  supplier?: Supplier;
-  warehouseId?: number;
-  warehouse?: Warehouse;
-  subtotal: number;
-  discountPercent: number;
-  discountAmount: number;
-  taxPercent: number;
-  taxAmount: number;
-  total: number;
-  paid: number;
-  remaining: number;
-  paymentStatus: PaymentStatus;
-  paymentMethod?: PaymentMethod;
-  dueDate?: string;
-  isReturn: boolean;
-  status: TransactionStatus;
-  notes?: string;
-  createdById: string;
-  createdAt: string;
-  updatedAt?: string;
-  purchaseItems?: PurchaseItem[];
-  purchasePayments?: PurchasePayment[];
+  ID: number;
+  Code: string;
+  Date: string;
+  SupplierID: number;
+  Supplier?: Supplier;
+  WarehouseID?: number;
+  Warehouse?: Warehouse;
+  Subtotal: number;
+  DiscountPercent: number;
+  DiscountAmount: number;
+  TaxPercent: number;
+  TaxAmount: number;
+  Total: number;
+  Paid: number;
+  Remaining: number;
+  PaymentStatusID: number;
+  PaymentStatus?: { ID: number; Code: string; Name?: string; [key: string]: unknown };
+  PaymentMethodID?: number;
+  PaymentMethod?: { ID: number; Code: string; Name?: string; [key: string]: unknown };
+  DueDate?: string;
+  IsReturn: boolean;
+  StatusID: number;
+  Status?: { ID: number; Code: string; Name?: string; [key: string]: unknown };
+  Notes?: string;
+  CreatedByID: string;
+  CreatedAt: string;
+  UpdatedAt?: string;
+  PurchaseItems?: PurchaseItem[];
+  PurchasePayments?: PurchasePayment[];
 }
 
 export interface PurchaseItem {
-  id: number;
-  purchaseId: number;
-  productId: number;
-  product?: Product;
-  unitId: number;
-  unit?: Unit;
-  quantity: number;
-  unitPrice: number;
-  discountPercent: number;
-  discountAmount: number;
-  subtotal: number;
+  ID: number;
+  PurchaseID: number;
+  ProductID: number;
+  Product?: Product;
+  UnitID: number;
+  Unit?: Unit;
+  Quantity: number;
+  UnitPrice: number;
+  DiscountPercent: number;
+  DiscountAmount: number;
+  Subtotal: number;
 }
 
 export interface PurchasePayment {
-  id: number;
-  purchaseId: number;
-  method: PaymentMethod;
-  amount: number;
-  referenceNumber?: string;
-  date: string;
-  notes?: string;
-  createdById: string;
-  createdAt: string;
+  ID: number;
+  PurchaseID: number;
+  MethodID: number;
+  Method?: { ID: number; Code: string; Name?: string; [key: string]: unknown };
+  Amount: number;
+  ReferenceNumber?: string;
+  Date: string;
+  Notes?: string;
+  CreatedByID: string;
+  CreatedAt: string;
 }
 
 export interface PurchaseReturn {
-  id: number;
-  code: string;
-  date: string;
-  purchaseId: number;
-  purchase?: Purchase;
-  supplierId: number;
-  supplier?: Supplier;
-  warehouseId?: number;
-  warehouse?: Warehouse;
-  totalReturn: number;
-  reason?: string;
-  status: TransactionStatus;
-  createdById: string;
-  createdAt: string;
-  updatedAt?: string;
-  returnItems?: PurchaseReturnItem[];
+  ID: number;
+  Code: string;
+  Date: string;
+  PurchaseID: number;
+  Purchase?: Purchase;
+  SupplierID: number;
+  Supplier?: Supplier;
+  WarehouseID?: number;
+  Warehouse?: Warehouse;
+  TotalReturn: number;
+  Reason?: string;
+  StatusID: number;
+  Status?: { ID: number; Code: string; Name?: string; [key: string]: unknown };
+  CreatedByID: string;
+  CreatedAt: string;
+  UpdatedAt?: string;
+  ReturnItems?: PurchaseReturnItem[];
 }
 
 export interface PurchaseReturnItem {
-  id: number;
-  purchaseReturnId: number;
-  productId: number;
-  product?: Product;
-  quantity: number;
-  price: number;
-  subtotal: number;
+  ID: number;
+  PurchaseReturnID: number;
+  ProductID: number;
+  Product?: Product;
+  Quantity: number;
+  UnitPrice: number;
+  Subtotal: number;
 }
 
 // ─── Inventory ────────────────────────────────────────────────
 
 export interface StockIn {
-  id: number;
-  code: string;
-  date: string;
-  warehouseId: number;
-  warehouse?: Warehouse;
-  supplierId?: number;
-  supplier?: Supplier;
-  referenceType?: ReferenceType;
-  referenceId?: number;
-  totalItems: number;
-  description?: string;
-  status: TransactionStatus;
-  createdById: string;
-  createdAt: string;
-  updatedAt?: string;
-  stockInItems?: StockInItem[];
+  ID: number;
+  Code: string;
+  Date: string;
+  WarehouseID: number;
+  Warehouse?: Warehouse;
+  SupplierID?: number;
+  Supplier?: Supplier;
+  ReferenceTypeID?: number;
+  ReferenceType?: { ID: number; Code: string; Name?: string; [key: string]: unknown };
+  ReferenceID?: number;
+  TotalItems: number;
+  Description?: string;
+  StatusID: number;
+  Status?: { ID: number; Code: string; Name?: string; [key: string]: unknown };
+  CreatedByID: string;
+  CreatedAt: string;
+  UpdatedAt?: string;
+  StockInItems?: StockInItem[];
 }
 
 export interface StockInItem {
-  id: number;
-  stockInId: number;
-  productId: number;
-  product?: Product;
-  quantity: number;
-  unitId: number;
-  unit?: Unit;
-  unitPrice: number;
-  subtotal: number;
+  ID: number;
+  StockInID: number;
+  ProductID: number;
+  Product?: Product;
+  Quantity: number;
+  UnitID: number;
+  Unit?: Unit;
+  UnitPrice: number;
+  Subtotal: number;
 }
 
 export interface StockOut {
-  id: number;
-  code: string;
-  date: string;
-  warehouseId: number;
-  warehouse?: Warehouse;
-  referenceType?: ReferenceType;
-  referenceId?: number;
-  totalItems: number;
-  description?: string;
-  status: TransactionStatus;
-  createdById: string;
-  createdAt: string;
-  updatedAt?: string;
-  stockOutItems?: StockOutItem[];
+  ID: number;
+  Code: string;
+  Date: string;
+  WarehouseID: number;
+  Warehouse?: Warehouse;
+  ReferenceTypeID?: number;
+  ReferenceType?: { ID: number; Code: string; Name?: string; [key: string]: unknown };
+  ReferenceID?: number;
+  TotalItems: number;
+  Description?: string;
+  StatusID: number;
+  Status?: { ID: number; Code: string; Name?: string; [key: string]: unknown };
+  CreatedByID: string;
+  CreatedAt: string;
+  UpdatedAt?: string;
+  StockOutItems?: StockOutItem[];
 }
 
 export interface StockOutItem {
-  id: number;
-  stockOutId: number;
-  productId: number;
-  product?: Product;
-  quantity: number;
-  unitId: number;
-  unit?: Unit;
-  unitPrice: number;
-  subtotal: number;
+  ID: number;
+  StockOutID: number;
+  ProductID: number;
+  Product?: Product;
+  Quantity: number;
+  UnitID: number;
+  Unit?: Unit;
+  UnitPrice: number;
+  Subtotal: number;
 }
 
 export interface StockTransfer {
-  id: number;
-  code: string;
-  date: string;
-  fromWarehouseId: number;
-  fromWarehouse?: Warehouse;
-  toWarehouseId: number;
-  toWarehouse?: Warehouse;
-  totalItems: number;
-  status: TransactionStatus;
-  notes?: string;
-  createdById: string;
-  createdAt: string;
-  updatedAt?: string;
-  transferItems?: StockTransferItem[];
+  ID: number;
+  Code: string;
+  Date: string;
+  FromWarehouseID: number;
+  FromWarehouse?: Warehouse;
+  ToWarehouseID: number;
+  ToWarehouse?: Warehouse;
+  TotalItems: number;
+  StatusID: number;
+  Status?: { ID: number; Code: string; Name?: string; [key: string]: unknown };
+  Notes?: string;
+  CreatedByID: string;
+  CreatedAt: string;
+  UpdatedAt?: string;
+  TransferItems?: StockTransferItem[];
 }
 
 export interface StockTransferItem {
-  id: number;
-  stockTransferId: number;
-  productId: number;
-  product?: Product;
-  quantity: number;
-  unitId: number;
-  unit?: Unit;
-  unitPrice: number;
-  subtotal: number;
+  ID: number;
+  StockTransferID: number;
+  ProductID: number;
+  Product?: Product;
+  Quantity: number;
+  UnitID: number;
+  Unit?: Unit;
+  UnitPrice: number;
+  Subtotal: number;
 }
 
 export interface StockOpname {
-  id: number;
-  code: string;
-  date: string;
-  warehouseId: number;
-  warehouse?: Warehouse;
-  totalItems: number;
-  status: StockOpnameStatus;
-  notes?: string;
-  createdById: string;
-  createdAt: string;
-  updatedAt?: string;
-  opnameItems?: StockOpnameItem[];
+  ID: number;
+  Code: string;
+  Date: string;
+  WarehouseID: number;
+  Warehouse?: Warehouse;
+  TotalItems: number;
+  StatusID: number;
+  Status?: { ID: number; Code: string; Name?: string; [key: string]: unknown };
+  Notes?: string;
+  CreatedByID: string;
+  CreatedAt: string;
+  UpdatedAt?: string;
+  OpnameItems?: StockOpnameItem[];
 }
 
 export interface StockOpnameItem {
-  id: number;
-  stockOpnameId: number;
-  productId: number;
-  product?: Product;
-  systemStock: number;
-  countedStock: number;
-  difference: number;
-  unitId: number;
-  unit?: Unit;
-  unitPrice: number;
-  note?: string;
+  ID: number;
+  StockOpnameID: number;
+  ProductID: number;
+  Product?: Product;
+  SystemStock: number;
+  CountedStock: number;
+  Difference: number;
+  UnitID: number;
+  Unit?: Unit;
+  UnitPrice: number;
+  Note?: string;
 }
 
 // ─── Accounting ──────────────────────────────────────────────
 
 export interface Account {
-  id: number;
-  code: string;
-  name: string;
-  type: AccountType;
-  parentId?: number;
-  parent?: Account;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt?: string;
-  children?: Account[];
+  ID: number;
+  Code: string;
+  Name: string;
+  TypeID: number;
+  Type?: { ID: number; Code: string; Name?: string; [key: string]: unknown };
+  ParentID?: number;
+  Parent?: Account;
+  IsActive: boolean;
+  CreatedAt: string;
+  UpdatedAt?: string;
+  Children?: Account[];
 }
 
 export interface Journal {
-  id: number;
-  code: string;
-  date: string;
-  description?: string;
-  referenceType?: string;
-  referenceId?: number;
-  isPosted: boolean;
-  postedAt?: string;
-  createdById: string;
-  createdAt: string;
-  updatedAt?: string;
-  journalEntries?: JournalEntry[];
+  ID: number;
+  Code: string;
+  Date: string;
+  Description?: string;
+  ReferenceType?: string;
+  ReferenceID?: number;
+  IsPosted: boolean;
+  PostedAt?: string;
+  CreatedByID: string;
+  CreatedAt: string;
+  UpdatedAt?: string;
+  JournalEntries?: JournalEntry[];
 }
 
 export interface JournalEntry {
-  id: number;
-  journalId: number;
-  accountId: number;
-  account?: Account;
-  debit: number;
-  credit: number;
-  memo?: string;
+  ID: number;
+  JournalID: number;
+  AccountID: number;
+  Account?: Account;
+  Debit: number;
+  Credit: number;
+  Memo?: string;
 }
 
 export interface CashIn {
-  id: number;
-  code: string;
-  date: string;
-  accountId: number;
-  account?: Account;
-  amount: number;
-  description?: string;
-  referenceType?: string;
-  referenceId?: number;
-  createdById: string;
-  createdAt: string;
-  updatedAt?: string;
+  ID: number;
+  Code: string;
+  Date: string;
+  AccountID: number;
+  Account?: Account;
+  Amount: number;
+  Description?: string;
+  ReferenceType?: string;
+  ReferenceID?: number;
+  CreatedByID: string;
+  CreatedAt: string;
+  UpdatedAt?: string;
 }
 
 export interface CashOut {
-  id: number;
-  code: string;
-  date: string;
-  accountId: number;
-  account?: Account;
-  amount: number;
-  description?: string;
-  referenceType?: string;
-  referenceId?: number;
-  createdById: string;
-  createdAt: string;
-  updatedAt?: string;
+  ID: number;
+  Code: string;
+  Date: string;
+  AccountID: number;
+  Account?: Account;
+  Amount: number;
+  Description?: string;
+  ReferenceType?: string;
+  ReferenceID?: number;
+  CreatedByID: string;
+  CreatedAt: string;
+  UpdatedAt?: string;
 }
 
 export interface CashTransfer {
-  id: number;
-  code: string;
-  date: string;
-  fromAccountId: number;
-  fromAccount?: Account;
-  toAccountId: number;
-  toAccount?: Account;
-  amount: number;
-  description?: string;
-  createdById: string;
-  createdAt: string;
-  updatedAt?: string;
+  ID: number;
+  Code: string;
+  Date: string;
+  FromAccountID: number;
+  FromAccount?: Account;
+  ToAccountID: number;
+  ToAccount?: Account;
+  Amount: number;
+  Description?: string;
+  CreatedByID: string;
+  CreatedAt: string;
+  UpdatedAt?: string;
 }
 
 export interface CustomerDeposit {
-  id: number;
-  code: string;
-  date: string;
-  customerId: number;
-  customer?: Customer;
-  amount: number;
-  remainingAmount: number;
-  description?: string;
-  createdById: string;
-  createdAt: string;
-  updatedAt?: string;
+  ID: number;
+  Code: string;
+  Date: string;
+  CustomerID: number;
+  Customer?: Customer;
+  Amount: number;
+  RemainingAmount: number;
+  Description?: string;
+  CreatedByID: string;
+  CreatedAt: string;
+  UpdatedAt?: string;
 }
 
 export interface SupplierDeposit {
-  id: number;
-  code: string;
-  date: string;
-  supplierId: number;
-  supplier?: Supplier;
-  amount: number;
-  remainingAmount: number;
-  description?: string;
-  createdById: string;
-  createdAt: string;
-  updatedAt?: string;
+  ID: number;
+  Code: string;
+  Date: string;
+  SupplierID: number;
+  Supplier?: Supplier;
+  Amount: number;
+  RemainingAmount: number;
+  Description?: string;
+  CreatedByID: string;
+  CreatedAt: string;
+  UpdatedAt?: string;
 }
 
 // ─── Reports ──────────────────────────────────────────────────
@@ -646,6 +672,21 @@ export interface TopProduct {
   productName: string;
   quantity: number;
   totalSales: number;
+}
+
+export interface DashboardTopProduct {
+  productId: number;
+  productCode: string;
+  productName: string;
+  totalQuantity: number;
+  totalRevenue: number;
+}
+
+export interface SalesByBranch {
+  salePointId: number;
+  salePointName: string;
+  totalSales: number;
+  transactionCount: number;
 }
 
 export interface SalesReport {

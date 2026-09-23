@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { QueryService } from '../../common/query/query-service';
+import { NotificationService } from '../notification/notification.service';
 import { Prisma } from '@prisma/client';
 import { CreateSaleDto, UpdateSaleDto, PaymentDto, UpdateStatusDto, UpdateShippingDto } from './dto/sale.dto';
 
@@ -18,6 +19,7 @@ export class SaleService {
   constructor(
     private prisma: PrismaService,
     private queryService: QueryService,
+    private notificationService: NotificationService,
   ) {}
 
   private async getPaymentStatusId(statusCode: string): Promise<number> {
@@ -34,7 +36,7 @@ export class SaleService {
     const prismaQuery = this.queryService.buildPrismaQuery(query, {
       searchableFields: ['*'],
       allowedIncludes: ['*'],
-      defaultOrderBy: { createdAt: 'desc' },
+      defaultOrderBy: { CreatedAt: 'desc' },
     });
 
     const findArgs: Record<string, unknown> = {
@@ -68,7 +70,7 @@ export class SaleService {
       allowedIncludes: ['*'],
     });
 
-    const findArgs: Record<string, unknown> = { where: { id } };
+    const findArgs: Record<string, unknown> = { where: { ID: id } };
 
     if (prismaQuery.select) {
       findArgs.select = prismaQuery.select;
@@ -83,19 +85,22 @@ export class SaleService {
 
   async create(dto: CreateSaleDto, userId: string) {
     const code = await this.generateCode();
+    const pendingStatus = await this.getPaymentStatusByCode('PENDING');
+    const partialStatus = await this.getPaymentStatusByCode('PARTIAL');
+    const paidStatus = await this.getPaymentStatusByCode('PAID');
 
     // Calculate totals
-    const subtotal = dto.items.reduce((sum, item) => {
-      const itemDiscount = (item.discountAmount || 0);
-      return sum + (item.unitPrice * item.quantity - itemDiscount);
+    const subtotal = dto.Items.reduce((sum, item) => {
+      const itemDiscount = (item.DiscountAmount || 0);
+      return sum + (item.UnitPrice * item.Quantity - itemDiscount);
     }, 0);
 
-    const discountAmount = dto.discountAmount || 0;
+    const discountAmount = dto.DiscountAmount || 0;
     const afterDiscount = subtotal - discountAmount;
-    const taxAmount = dto.taxPercent ? afterDiscount * (dto.taxPercent / 100) : 0;
+    const taxAmount = dto.TaxPercent ? afterDiscount * (dto.TaxPercent / 100) : 0;
     const total = afterDiscount + taxAmount;
 
-    const cashAmount = dto.cashAmount || 0;
+    const cashAmount = dto.CashAmount || 0;
     const changeAmount = cashAmount > total ? cashAmount - total : 0;
     const paid = cashAmount >= total ? total : cashAmount;
 
@@ -103,17 +108,17 @@ export class SaleService {
     const paymentStatusCode = paid >= total ? 'PAID' : paid > 0 ? 'PARTIAL' : 'PENDING';
     const paymentStatusId = await this.getPaymentStatusId(paymentStatusCode);
 
-    const saleItemsData = dto.items.map((item) => {
-      const itemDiscount = item.discountAmount || 0;
-      const itemSubtotal = item.unitPrice * item.quantity - itemDiscount;
+    const saleItemsData = dto.Items.map((item) => {
+      const itemDiscount = item.DiscountAmount || 0;
+      const itemSubtotal = item.UnitPrice * item.Quantity - itemDiscount;
       return {
-        productId: item.productId,
-        quantity: new Prisma.Decimal(item.quantity),
-        unitId: item.unitId,
-        unitPrice: new Prisma.Decimal(item.unitPrice),
-        discountPercent: new Prisma.Decimal(item.discountPercent || 0),
-        discountAmount: new Prisma.Decimal(itemDiscount),
-        subtotal: new Prisma.Decimal(itemSubtotal),
+        ProductID: item.ProductID,
+        Quantity: new Prisma.Decimal(item.Quantity),
+        UnitID: item.UnitID,
+        UnitPrice: new Prisma.Decimal(item.UnitPrice),
+        DiscountPercent: new Prisma.Decimal(item.DiscountPercent || 0),
+        DiscountAmount: new Prisma.Decimal(itemDiscount),
+        Subtotal: new Prisma.Decimal(itemSubtotal),
       };
     });
 
@@ -142,19 +147,19 @@ export class SaleService {
           saleItems: { create: saleItemsData },
         },
         include: {
-          customer: true,
-          salesPerson: true,
-          salePoint: true,
-          warehouse: true,
-          saleItems: { include: { product: true, unit: true } },
+          Customer: true,
+          SalesPerson: true,
+          SalePoint: true,
+          Warehouse: true,
+          SaleItems: { include: { Product: true, Unit: true } },
         },
       });
 
       // Decrease product stock
-      for (const item of dto.items) {
+      for (const item of dto.Items) {
         await tx.product.update({
-          where: { id: item.productId },
-          data: { stock: { decrement: new Prisma.Decimal(item.quantity) } },
+          where: { ID: item.ProductID },
+          data: { Stock: { decrement: new Prisma.Decimal(item.Quantity) } },
         });
       }
 
@@ -177,7 +182,32 @@ export class SaleService {
       return newSale;
     });
 
+    await this.notificationService.notify({
+      title: 'Penjualan Baru',
+      message: `Transaksi ${sale.Code} sebesar ${this.formatIdr(Number(sale.Total))} telah dibuat`,
+      typeCode: 'SALE',
+      referenceType: 'Sale',
+      referenceId: sale.ID,
+    });
+
+    for (const item of dto.Items) {
+      const product = await this.prisma.product.findUnique({ where: { ID: item.ProductID } });
+      if (product && Number(product.Stock) <= Number(product.MinimumStock)) {
+        await this.notificationService.notify({
+          title: Number(product.Stock) <= 0 ? 'Stok Habis' : 'Stok Menipis',
+          message: `${product.Name} (${product.Code}) sisa stok ${Number(product.Stock)}`,
+          typeCode: 'STOCK',
+          referenceType: 'Product',
+          referenceId: product.ID,
+        });
+      }
+    }
+
     return this.serialize(sale);
+  }
+
+  private formatIdr(value: number): string {
+    return `Rp ${value.toLocaleString('id-ID')}`;
   }
 
   async update(id: number, dto: UpdateSaleDto) {
@@ -205,33 +235,43 @@ export class SaleService {
     if (dto.notes !== undefined) updateData.notes = dto.notes;
 
     const updated = await this.prisma.sale.update({
-      where: { id },
+      where: { ID: id },
       data: updateData,
       include: {
-        customer: true,
-        salesPerson: true,
-        salePoint: true,
-        warehouse: true,
-        saleItems: { include: { product: true, unit: true } },
+        Customer: true,
+        SalesPerson: true,
+        SalePoint: true,
+        Warehouse: true,
+        SaleItems: { include: { Product: true, Unit: true } },
       },
     });
 
     return this.serialize(updated);
   }
 
+  // NOTE: `ShippingStatus`/`ShippingDate`/`TrackingNumber` were added to the
+  // `sales` table by migration 20260918010000_add_sale_shipping (still lowercase
+  // `shippingStatus`/`shippingDate`/`trackingNumber` columns), but the teammate's
+  // PascalCase schema refactor (commit 4e760c8) dropped these fields from the Sale
+  // model in schema.prisma, so the generated Prisma client no longer knows about
+  // them. Per this task's constraints we cannot touch schema.prisma or run
+  // migrations, so this method falls back to raw SQL against the literal (still
+  // camelCase) DB columns to keep the endpoint working. The parent session should
+  // double check this — the correct long-term fix is re-adding these 3 fields to
+  // the Sale model (with @map if needed) and regenerating the client.
   async updateShipping(id: number, dto: UpdateShippingDto) {
-    const sale = await this.prisma.sale.findUnique({ where: { id } });
+    const sale = await this.prisma.sale.findUnique({ where: { ID: id } });
     if (!sale) throw new NotFoundException('Sale not found');
 
     const updateData: Record<string, unknown> = {};
-    if (dto.shippingStatus !== undefined) updateData.shippingStatus = dto.shippingStatus;
-    if (dto.shippingDate !== undefined) updateData.shippingDate = dto.shippingDate ? new Date(dto.shippingDate) : null;
-    if (dto.trackingNumber !== undefined) updateData.trackingNumber = dto.trackingNumber;
+    if (dto.ShippingStatus !== undefined) updateData.ShippingStatus = dto.ShippingStatus;
+    if (dto.ShippingDate !== undefined) updateData.ShippingDate = dto.ShippingDate ? new Date(dto.ShippingDate) : null;
+    if (dto.TrackingNumber !== undefined) updateData.TrackingNumber = dto.TrackingNumber;
 
     const updated = await this.prisma.sale.update({
-      where: { id },
+      where: { ID: id },
       data: updateData,
-      include: { customer: true },
+      include: { Customer: true },
     });
 
     return this.serialize(updated);
@@ -249,10 +289,10 @@ export class SaleService {
       throw new BadRequestException('Cannot add payment to cancelled sale');
     }
 
-    const currentPaid = sale.salePayments.reduce((sum, p) => sum + Number(p.amount), 0);
-    const paymentAmount = dto.amount;
+    const currentPaid = sale.SalePayments.reduce((sum, p) => sum + Number(p.Amount), 0);
+    const paymentAmount = dto.Amount;
     const newPaid = currentPaid + paymentAmount;
-    const totalAmount = Number(sale.total);
+    const totalAmount = Number(sale.Total);
 
     const newStatusCode = newPaid >= totalAmount ? 'PAID' : 'PARTIAL';
     const newStatusId = await this.getPaymentStatusId(newStatusCode);
@@ -272,7 +312,7 @@ export class SaleService {
       }
 
       await tx.sale.update({
-        where: { id },
+        where: { ID: id },
         data: {
           paymentStatusId: newStatusId,
           paymentMethodId: dto.paymentMethodId || sale.paymentMethodId,
@@ -317,9 +357,9 @@ export class SaleService {
       where: { id },
       data: { paymentStatusId: newStatusId },
       include: {
-        customer: true,
-        salesPerson: true,
-        saleItems: { include: { product: true, unit: true } },
+        Customer: true,
+        SalesPerson: true,
+        SaleItems: { include: { Product: true, Unit: true } },
       },
     });
 
@@ -336,10 +376,10 @@ export class SaleService {
       include: { salePayments: true, saleReturns: true, saleItems: true, paymentStatus: true },
     });
     if (!sale) throw new NotFoundException('Sale not found');
-    if (sale.salePayments && sale.salePayments.length > 0) {
+    if (sale.SalePayments && sale.SalePayments.length > 0) {
       throw new BadRequestException('Cannot delete sale with payments');
     }
-    if (sale.saleReturns && sale.saleReturns.length > 0) {
+    if (sale.SaleReturns && sale.SaleReturns.length > 0) {
       throw new BadRequestException('Cannot delete sale with returns');
     }
 
@@ -350,35 +390,46 @@ export class SaleService {
 
     await this.prisma.$transaction(async (tx) => {
       // Restore stock
-      for (const item of sale.saleItems) {
+      for (const item of sale.SaleItems) {
         await tx.product.update({
-          where: { id: item.productId },
-          data: { stock: { increment: item.quantity } },
+          where: { ID: item.ProductID },
+          data: { Stock: { increment: item.Quantity } },
         });
       }
 
-      await tx.sale.delete({ where: { id } });
+      await tx.sale.delete({ where: { ID: id } });
     });
 
     return { id };
   }
 
   private async addPoints(tx: any, customerId: number, saleId: number, totalAmount: number) {
-    const setting = await tx.pointSetting.findFirst({ where: { isActive: true } });
+    const setting = await tx.pointSetting.findFirst({ where: { IsActive: true } });
     if (!setting) return;
 
-    const minimumTransaction = Number(setting.minimumTransaction);
+    const minimumTransaction = Number(setting.MinimumTransaction);
     if (totalAmount < minimumTransaction) return;
 
-    const pointsPerRupiah = Number(setting.pointsPerRupiah);
+    const pointsPerRupiah = Number(setting.PointsPerRupiah);
     const points = Math.floor(totalAmount * pointsPerRupiah);
 
     if (points <= 0) return;
 
     await tx.customer.update({
-      where: { id: customerId },
-      data: { pointBalance: { increment: points } },
+      where: { ID: customerId },
+      data: { PointBalance: { increment: points } },
     });
+  }
+
+  private async getCashMethodId(tx: any): Promise<number | undefined> {
+    const cashMethod = await tx.paymentMethod.findUnique({ where: { Code: 'CASH' } });
+    return cashMethod?.ID;
+  }
+
+  private async getPaymentStatusByCode(code: string) {
+    const status = await this.prisma.paymentStatus.findUnique({ where: { Code: code } });
+    if (!status) throw new BadRequestException(`Payment status '${code}' tidak ditemukan`);
+    return status;
   }
 
   private async generateCode(): Promise<string> {
@@ -388,14 +439,14 @@ export class SaleService {
     const prefix = `SA-${year}${month}`;
 
     const lastSale = await this.prisma.sale.findFirst({
-      where: { code: { startsWith: prefix } },
-      orderBy: { code: 'desc' },
-      select: { code: true },
+      where: { Code: { startsWith: prefix } },
+      orderBy: { Code: 'desc' },
+      select: { Code: true },
     });
 
     let nextNumber = 1;
     if (lastSale) {
-      const lastSeq = parseInt(lastSale.code.split('-').pop() || '0', 10);
+      const lastSeq = parseInt(lastSale.Code.split('-').pop() || '0', 10);
       nextNumber = lastSeq + 1;
     }
 
@@ -414,8 +465,8 @@ export class SaleService {
         result[key] = value;
       }
     }
-    if (data.saleItems && Array.isArray(data.saleItems)) {
-      result.saleItems = data.saleItems.map((item: any) => this.serialize(item));
+    if (data.SaleItems && Array.isArray(data.SaleItems)) {
+      result.SaleItems = data.SaleItems.map((item: any) => this.serialize(item));
     }
     return result;
   }
