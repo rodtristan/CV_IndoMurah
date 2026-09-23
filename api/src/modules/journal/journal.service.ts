@@ -91,6 +91,82 @@ export class JournalService extends BaseService<
     return journal;
   }
 
+  async updateJournal(id: number, dto: UpdateJournalDto, userId: string): Promise<any> {
+    const existing = await this.prisma.journal.findUnique({ where: { ID: id } });
+    if (!existing) throw new BadRequestException('Jurnal tidak ditemukan');
+    if (existing.ReferenceType) {
+      throw new BadRequestException('Jurnal otomatis dari sistem tidak dapat diubah');
+    }
+
+    if (dto.entries && dto.entries.length > 0) {
+      const entries = dto.entries;
+      const totalDebit = entries.reduce((sum, e) => sum + (e.debit || 0), 0);
+      const totalCredit = entries.reduce((sum, e) => sum + (e.credit || 0), 0);
+      if (Math.round(totalDebit * 100) !== Math.round(totalCredit * 100)) {
+        throw new BadRequestException(
+          `Jurnal tidak balance: total debit ${totalDebit} tidak sama dengan total kredit ${totalCredit}`,
+        );
+      }
+
+      const journal = await this.prisma.$transaction(async (tx) => {
+        // JournalEntryLine rows cascade-delete with their parent JournalEntry.
+        await tx.journalEntry.deleteMany({ where: { JournalID: id } });
+        await tx.journalEntry.create({
+          data: {
+            JournalNumber: existing.Code,
+            Description: dto.description ?? existing.Description,
+            TotalDebit: new Prisma.Decimal(totalDebit),
+            TotalCredit: new Prisma.Decimal(totalCredit),
+            Status: 'POSTED',
+            CreatedByID: userId,
+            JournalID: id,
+            Lines: {
+              create: entries.map((e, index) => ({
+                AccountID: e.accountId,
+                Debit: new Prisma.Decimal(e.debit || 0),
+                Credit: new Prisma.Decimal(e.credit || 0),
+                Description: e.memo,
+                LineNumber: index + 1,
+                CreatedByID: userId,
+              })),
+            },
+          },
+        });
+        return tx.journal.update({
+          where: { ID: id },
+          data: { Description: dto.description ?? existing.Description },
+          include: { JournalEntries: { include: { Lines: { include: { Account: true } } } }, Creator: true },
+        });
+      });
+
+      await this.invalidateCache();
+      return journal;
+    }
+
+    const journal = await this.prisma.journal.update({
+      where: { ID: id },
+      data: { Description: dto.description ?? existing.Description },
+      include: { JournalEntries: { include: { Lines: { include: { Account: true } } } }, Creator: true },
+    });
+    await this.invalidateCache();
+    return journal;
+  }
+
+  async deleteJournal(id: number): Promise<any> {
+    const existing = await this.prisma.journal.findUnique({ where: { ID: id } });
+    if (!existing) throw new BadRequestException('Jurnal tidak ditemukan');
+    if (existing.ReferenceType) {
+      throw new BadRequestException('Jurnal otomatis dari sistem tidak dapat dihapus');
+    }
+    const result = await this.prisma.$transaction(async (tx) => {
+      // JournalEntryLine rows cascade-delete with their parent JournalEntry.
+      await tx.journalEntry.deleteMany({ where: { JournalID: id } });
+      return tx.journal.delete({ where: { ID: id } });
+    });
+    await this.invalidateCache();
+    return result;
+  }
+
   private async generateCode(): Promise<string> {
     const today = new Date();
     const year = today.getFullYear();

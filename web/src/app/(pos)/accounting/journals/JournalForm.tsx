@@ -28,7 +28,6 @@ export default function JournalForm() {
   const [desc, setDesc] = useState("");
   const [refType, setRefType] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
-  const [oldEntries, setOldEntries] = useState<number[]>([]);
   const [sel, setSel] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
@@ -39,11 +38,13 @@ export default function JournalForm() {
 
   useEffect(() => {
     if (!loadId) return;
-    api.getOne<Row>("journal", loadId, { $include: "JournalEntries" }).then((r) => {
+    api.getOne<Row>("journal", loadId, { $include: "JournalEntries,JournalEntries.Lines" }).then((r) => {
       const d = r.data; if (!d) return setErr("Data tidak ditemukan");
-      if (isEdit) { setCode(d.Code); setDate(toLocalInput(d.Date)); setRefType(d.ReferenceType ?? ""); setOldEntries((d.JournalEntries ?? []).map((e: Row) => e.ID)); }
+      // Journal -> JournalEntry (header) -> JournalEntryLine (per-account debit/kredit row).
+      const allLines: Row[] = (d.JournalEntries ?? []).flatMap((je: Row) => je.Lines ?? []);
+      if (isEdit) { setCode(d.Code); setDate(toLocalInput(d.Date)); setRefType(d.ReferenceType ?? ""); }
       setDesc(d.Description ?? "");
-      setLines((d.JournalEntries ?? []).map((e: Row): Line => ({ entryId: isEdit ? e.ID : undefined, accountId: String(e.AccountID), memo: e.Memo ?? "", debit: String(num(e.Debit)), credit: String(num(e.Credit)) })));
+      setLines(allLines.map((l): Line => ({ entryId: isEdit ? l.ID : undefined, accountId: String(l.AccountID), memo: l.Description ?? "", debit: String(num(l.Debit)), credit: String(num(l.Credit)) })));
     }).catch(() => setErr("Data tidak ditemukan"));
   }, [loadId, isEdit]);
 
@@ -63,13 +64,9 @@ export default function JournalForm() {
     try {
       const entries = lines.map((l) => ({ accountId: Number(l.accountId), debit: num(l.debit), credit: num(l.credit), memo: l.memo || undefined }));
       if (isEdit) {
-        const r = await api.patch("journal", id!, { description: desc || undefined });
+        // Replaces all entry lines atomically in one call (balance re-validated server-side).
+        const r = await api.patch("journal", id!, { description: desc || undefined, entries });
         if (r.success === false) throw new Error(r.message || "Gagal menyimpan");
-        for (const eid of oldEntries) await api.delete("journal-entry", eid);
-        for (const e of entries) {
-          const er = await api.post("journal-entry", { journalId: Number(id), ...e });
-          if (er.success === false) throw new Error(er.message || "Gagal menyimpan baris jurnal");
-        }
         router.push("/accounting/journals");
       } else {
         const res = await api.post("journal", { date: toIso(date), description: desc || undefined, entries });

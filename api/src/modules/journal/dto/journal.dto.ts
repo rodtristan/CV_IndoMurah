@@ -76,4 +76,11 @@ export class UpdateJournalDto {
   @IsOptional()
   @IsBoolean()
   isPosted?: boolean;
+
+  @ApiPropertyOptional({ description: 'Replace all entry lines (debit/credit per account), must balance', type: [CreateJournalEntryLineDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateJournalEntryLineDto)
+  entries?: CreateJournalEntryLineDto[];
 }

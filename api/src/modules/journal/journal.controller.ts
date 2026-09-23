@@ -73,9 +73,10 @@ export class JournalController extends BaseController<
 
   // PATCH endpoints
   @Patch(':id')
-  @ApiOperation({ summary: 'Update Journal by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateJournalDto>) {
-    return super.patchById(id, dto);
+  @ApiOperation({ summary: 'Update Journal by ID (pass `entries` to replace all debit/credit lines atomically)' })
+  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateJournalDto>, @CurrentUser() user?: any) {
+    const data = await this.journalService.updateJournal(Number(id), dto, user.id);
+    return { success: true, data, message: 'Journal updated successfully' };
   }
 
   @Patch('by/:field/:value')
@@ -120,7 +121,8 @@ export class JournalController extends BaseController<
   @Delete(':id')
   @ApiOperation({ summary: 'Delete Journal by ID' })
   async deleteById(@Param('id') id: string) {
-    return super.deleteById(id);
+    const data = await this.journalService.deleteJournal(Number(id));
+    return { success: true, data, message: 'Journal deleted successfully' };
   }
 
   @Delete('by/:field/:value')
