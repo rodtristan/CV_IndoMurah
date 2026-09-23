@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Put, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
 import { WarehouseService } from './warehouse-service';
 import {
   CreateWarehouseDto,

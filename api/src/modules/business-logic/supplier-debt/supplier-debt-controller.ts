@@ -42,7 +42,7 @@ export class SupplierDebtController {
     @Param('supplierId', ParseIntPipe) supplierId: number,
     @Query() dto: SupplierDebtDetailDto,
   ) {
-    dto.supplierId = supplierId;
+    dto.SupplierId = supplierId;
     return this.supplierDebtService.getSupplierDebt(dto);
   }
 

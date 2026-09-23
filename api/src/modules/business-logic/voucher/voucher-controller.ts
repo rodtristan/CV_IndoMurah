@@ -13,8 +13,8 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { VoucherService } from './voucher-service';
 import {
   CreateVoucherDto,
-  UpdateVoucherDto,
-  ValidateVoucherDto,
+  UpDateVoucherDto,
+  ValiDateVoucherDto,
   VoucherFilterDto,
 } from './voucher.dto';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
@@ -53,7 +53,7 @@ export class VoucherController {
   @ApiOperation({ summary: 'Update voucher' })
   async updateVoucher(
     @Param('id') id: number,
-    @Body() dto: UpdateVoucherDto,
+    @Body() dto: UpDateVoucherDto,
   ) {
     const userId = 'system';
     const data = await this.voucherService.updateVoucher(id, dto, userId);
@@ -62,7 +62,7 @@ export class VoucherController {
 
   @Post('validate')
   @ApiOperation({ summary: 'Validate voucher code' })
-  async validateVoucher(@Body() dto: ValidateVoucherDto) {
+  async validateVoucher(@Body() dto: ValiDateVoucherDto) {
     const data = await this.voucherService.validateVoucher(dto);
     return ApiResponse.ok(data);
   }

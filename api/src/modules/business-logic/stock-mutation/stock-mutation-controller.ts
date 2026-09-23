@@ -9,6 +9,7 @@ import {
   Body,
   Query,
   Request,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { StockMutationService } from './stock-mutation-service';

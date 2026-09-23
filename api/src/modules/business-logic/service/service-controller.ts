@@ -12,7 +12,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ServiceService } from './service-service';
 import {
   CreateServiceDto,
-  UpdateServiceStatusDto,
+  UpDateServiceStatusDto,
   AddServiceItemDto,
   CompleteServiceDto,
   ServiceFilterDto,
@@ -68,7 +68,7 @@ export class ServiceController {
   @ApiOperation({ summary: 'Update service status' })
   async updateServiceStatus(
     @Param('id') id: number,
-    @Body() dto: UpdateServiceStatusDto,
+    @Body() dto: UpDateServiceStatusDto,
   ) {
     const userId = 'system';
     const data = await this.serviceService.updateServiceStatus(id, dto, userId);

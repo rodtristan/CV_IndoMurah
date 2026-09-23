@@ -3,12 +3,12 @@ import { PrismaService } from '../../../common/prisma/prisma-service';
 import { Prisma } from '@prisma/client';
 import {
   CreateQCCategoryDto,
-  UpDateQCCategoryDto,
-  CreateQCCheckPointDto,
-  UpDateQCCheckPointDto,
+  UpdateQCCategoryDto,
+  CreateQCCheckpointDto,
+  UpdateQCCheckpointDto,
   RecordQCCheckDto,
   QCCheckFilterDto,
-} from './quality-control-Category.dto';
+} from './quality-control-category.dto';
 
 @Injectable()
 export class QualityControlCategoryService {
@@ -35,7 +35,7 @@ export class QualityControlCategoryService {
         Code: dto.Code,
         Name: dto.Name,
         Description: dto.Description,
-        QCType: dto.qcType,
+        QCType: dto.QcType,
         IsActive: true,
       },
     });
@@ -51,13 +51,13 @@ export class QualityControlCategoryService {
 
     const Categories = await this.prisma.qCCategory.findMany({
       where,
-      include: { _Count: { select: { CheckPoints: true } } },
+      include: { _count: { select: { Checkpoints: true } } },
       orderBy: { Name: 'asc' },
     });
 
     return Categories.map((c) => ({
       ...this.formatCategory(c),
-      CheckPointCount: c._Count.CheckPoints,
+      CheckpointCount: c._count.Checkpoints,
     }));
   }
 
@@ -67,20 +67,20 @@ export class QualityControlCategoryService {
   async getQCCategory(ID: number) {
     const Category = await this.prisma.qCCategory.findUnique({
       where: { ID: ID },
-      include: { CheckPoints: { where: { IsActive: true }, orderBy: { SortOrder: 'asc' } } },
+      include: { Checkpoints: { where: { IsActive: true }, orderBy: { SortOrder: 'asc' } } },
     });
 
     if (!Category) throw new NotFoundException('Category not found');
     return {
       ...this.formatCategory(Category),
-      CheckPoints: Category.CheckPoints.map((cp) => this.formatCheckPoint(cp)),
+      Checkpoints: Category.Checkpoints.map((cp) => this.formatCheckPoint(cp)),
     };
   }
 
   /**
    * UpDate QC Category (PATCH)
    */
-  async updateQCCategory(ID: number, dto: UpDateQCCategoryDto) {
+  async updateQCCategory(ID: number, dto: UpdateQCCategoryDto) {
     const Category = await this.prisma.qCCategory.findUnique({ where: { ID: ID } });
     if (!Category) throw new NotFoundException('Category not found');
 
@@ -89,7 +89,7 @@ export class QualityControlCategoryService {
       data: {
         Name: dto.Name ?? Category.Name,
         Description: dto.Description ?? Category.Description,
-        QCType: dto.qcType ?? Category.QCType,
+        QCType: dto.QcType ?? Category.QCType,
         IsActive: dto.IsActive ?? Category.IsActive,
       },
     });
@@ -103,10 +103,10 @@ export class QualityControlCategoryService {
   async deleteQCCategory(ID: number) {
     const Category = await this.prisma.qCCategory.findUnique({
       where: { ID: ID },
-      include: { _Count: { select: { CheckPoints: true } } },
+      include: { _count: { select: { Checkpoints: true } } },
     });
     if (!Category) throw new NotFoundException('Category not found');
-    if (Category._Count.CheckPoints > 0) {
+    if (Category._count.Checkpoints > 0) {
       throw new BadRequestException('Cannot delete Category with existing CheckPoints');
     }
 
@@ -121,11 +121,11 @@ export class QualityControlCategoryService {
   /**
    * Create QC CheckPoint
    */
-  async createQCCheckPoint(dto: CreateQCCheckPointDto) {
+  async createQCCheckpoint(dto: CreateQCCheckpointDto) {
     const Category = await this.prisma.qCCategory.findUnique({ where: { ID: dto.CategoryId } });
     if (!Category) throw new NotFoundException('Category not found');
 
-    const CheckPointCount = await this.prisma.qCCheckpoint.Count({
+    const CheckPointCount = await this.prisma.qCCheckpoint.count({
       where: { QCCategoryID: dto.CategoryId },
     });
 
@@ -134,8 +134,8 @@ export class QualityControlCategoryService {
         Name: dto.Name,
         QCCategoryID: dto.CategoryId,
         Description: dto.Description,
-        IsRequired: dto.isRequired ?? true,
-        PassCriteria: dto.passCriteria,
+        IsRequired: dto.IsRequired ?? true,
+        PassCriteria: dto.PassCriteria,
         SortOrder: CheckPointCount + 1,
         IsActive: true,
       },
@@ -147,7 +147,7 @@ export class QualityControlCategoryService {
   /**
    * UpDate QC CheckPoint (PATCH)
    */
-  async updateQCCheckPoint(ID: number, dto: UpDateQCCheckPointDto) {
+  async updateQCCheckpoint(ID: number, dto: UpdateQCCheckpointDto) {
     const CheckPoint = await this.prisma.qCCheckpoint.findUnique({ where: { ID: ID } });
     if (!CheckPoint) throw new NotFoundException('CheckPoint not found');
 
@@ -156,8 +156,8 @@ export class QualityControlCategoryService {
       data: {
         Name: dto.Name ?? CheckPoint.Name,
         Description: dto.Description ?? CheckPoint.Description,
-        IsRequired: dto.isRequired ?? CheckPoint.IsRequired,
-        PassCriteria: dto.passCriteria ?? CheckPoint.PassCriteria,
+        IsRequired: dto.IsRequired ?? CheckPoint.IsRequired,
+        PassCriteria: dto.PassCriteria ?? CheckPoint.PassCriteria,
         IsActive: dto.IsActive ?? CheckPoint.IsActive,
       },
     });
@@ -168,7 +168,7 @@ export class QualityControlCategoryService {
   /**
    * Delete QC CheckPoint
    */
-  async deleteQCCheckPoint(ID: number) {
+  async deleteQCCheckpoint(ID: number) {
     const CheckPoint = await this.prisma.qCCheckpoint.findUnique({ where: { ID: ID } });
     if (!CheckPoint) throw new NotFoundException('CheckPoint not found');
 
@@ -183,10 +183,10 @@ export class QualityControlCategoryService {
   /**
    * Record QC Check
    */
-  async RecordQCCheck(dto: RecordQCCheckDto, UserId: string) {
+  async recordQCCheck(dto: RecordQCCheckDto, UserId: string) {
     const Category = await this.prisma.qCCategory.findUnique({
       where: { ID: dto.CategoryId },
-      include: { CheckPoints: { where: { IsActive: true } } },
+      include: { Checkpoints: { where: { IsActive: true } } },
     });
 
     if (!Category) throw new NotFoundException('QC Category not found');
@@ -200,9 +200,9 @@ export class QualityControlCategoryService {
           Code: Code,
           QCCategoryID: dto.CategoryId,
           ReferenceType: dto.ReferenceType,
-          ReferenceID: dto.referenceId,
+          ReferenceID: dto.ReferenceId,
           Date: new Date(dto.Date),
-          InspectorName: dto.inspectorName,
+          InspectorName: dto.InspectorName,
           Result: dto.Result || 'PENDING',
           Notes: dto.Notes,
           CreatedByID: UserId,
@@ -210,13 +210,13 @@ export class QualityControlCategoryService {
       });
 
       // Create CheckPoint Results if provided
-      if (dto.CheckPointResults && dto.CheckPointResults.length > 0) {
+      if (dto.CheckpointResults && dto.CheckpointResults.length > 0) {
         await tx.qCCheckResult.createMany({
-          data: dto.CheckPointResults.map((cr) => ({
+          data: dto.CheckpointResults.map((cr) => ({
             QCCheckID: newCheck.ID,
-            QCCheckPointID: cr.CheckPointId,
+            QCCheckpointID: cr.CheckpointId,
             Result: cr.Result,
-            ActualValue: cr.actualValue,
+            ActualValue: cr.ActualValue,
             Notes: cr.Notes,
           })),
         });

@@ -94,7 +94,7 @@ export class PurchaseOrderFilterDto {
   @IsNumber()
   WarehouseId?: number;
 
-  @ApiPropertyOptional({ description: 'Status filter: DRAFT, PENDING, APPROVED, RECEIVED, CANCELLED' })
+  @ApiPropertyOptional({ description: 'Status filter: PENDING, APPROVED, RECEIVED, CANCELLED' })
   @IsOptional()
   @IsString()
   Status?: string;

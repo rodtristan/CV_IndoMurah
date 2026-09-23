@@ -12,12 +12,12 @@ export class ReportsServiceExtensions {
   async getPayrollSummary(dto: PayrollSummaryReportDto) {
     const where: any = {};
 
-    if (dto.period) {
-      where.Period = dto.period;
+    if (dto.Period) {
+      where.Period = dto.Period;
     }
 
-    if (dto.departmentId) {
-      where.Employee = { DepartmentID: dto.departmentId };
+    if (dto.DepartmentId) {
+      where.Employee = { DepartmentID: dto.DepartmentId };
     }
 
     const payrolls = await this.prisma.payroll.findMany({

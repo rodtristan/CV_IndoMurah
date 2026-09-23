@@ -74,7 +74,7 @@ export class WorkOrderService {
     const workOrder = await this.prisma.$transaction(async (tx) => {
       const newWorkOrder = await tx.workOrder.create({
         data: {
-          WorkOrderNumber: workOrderNumber,
+          WorkOrderNumber: workOrdernumber,
           WorkOrderDate: new Date(dto.WorkOrderDate),
           DueDate: dto.DueDate ? new Date(dto.DueDate) : null,
           ProductionID: dto.ProductionId || null,
@@ -129,7 +129,6 @@ export class WorkOrderService {
       include: {
         Production: true,
         Warehouse: true,
-        AssignedTo: true,
         Status: true,
         Items: { include: { Product: true, Unit: true }, orderBy: { SortOrder: 'asc' } },
         ProgressRecords: { include: { WorkStation: true, Employee: true }, orderBy: { CreatedAt: 'desc' } },
@@ -142,7 +141,7 @@ export class WorkOrderService {
     }
 
     const TotalCompleted = workOrder.ProgressRecords.reduce(
-      (sum, p) => sum + p.CompletedQuantity,
+      (sum, p) => sum + Number(p.CompletedQuantity),
       0,
     );
 
@@ -153,7 +152,7 @@ export class WorkOrderService {
       dueDate: workOrder.DueDate,
       Production: workOrder.Production?.Code,
       Warehouse: workOrder.Warehouse?.Name,
-      assignedTo: workOrder.AssignedTo?.Name,
+      assignedToId: workOrder.AssignedToID, // schema gap: AssignedToID has no relation, raw FK only
       Status: workOrder.Status?.Name,
       StatusCode: workOrder.Status?.Code,
       priority: workOrder.Priority,
@@ -167,10 +166,10 @@ export class WorkOrderService {
         Quantity: number(item.Quantity),
         Unit: item.Unit?.Name,
         UnitPrice: number(item.UnitPrice),
-        subTotal: number(item.SubTotal),
+        subTotal: number(item.Subtotal),
         completedQuantity: workOrder.ProgressRecords
           .filter((p) => p.ProductID === item.ProductID)
-          .reduce((sum, p) => sum + p.CompletedQuantity, 0),
+          .reduce((sum, p) => sum + Number(p.CompletedQuantity), 0),
       })),
       TotalQuantity: workOrder.Items.reduce((sum, i) => sum + Number(i.Quantity), 0),
       completedQuantity: TotalCompleted,
@@ -241,7 +240,6 @@ export class WorkOrderService {
       include: {
         Production: true,
         Warehouse: true,
-        AssignedTo: true,
         Status: true,
         Items: true,
         ProgressRecords: true,
@@ -264,7 +262,7 @@ export class WorkOrderService {
         dueDate: wo.DueDate,
         Production: wo.Production?.Code,
         Warehouse: wo.Warehouse?.Name,
-        assignedTo: wo.AssignedTo?.Name,
+        assignedToId: wo.AssignedToID, // schema gap: AssignedToID has no relation, raw FK only
         Status: wo.Status?.Name,
         StatusColor: wo.Status?.Color,
         priority: wo.Priority,
@@ -349,7 +347,7 @@ export class WorkOrderService {
     });
 
     // Release allocated Materials
-    await this.prisma.MaterialAllocation.updateMany({
+    await this.prisma.materialAllocation.updateMany({
       where: { WorkOrderID: workOrderId },
       data: { Status: 'CANCELLED' },
     });
@@ -369,7 +367,7 @@ export class WorkOrderService {
    * Schedule work Order
    * Flow: Production planner Schedule work Order ke tanggal tertentu
    */
-  async ScheduleWorkOrder(dto: ScheduleWorkOrderDto, UserId: string) {
+  async scheduleWorkOrder(dto: ScheduleWorkOrderDto, UserId: string) {
     const workOrder = await this.prisma.workOrder.findUnique({
       where: { ID: dto.workOrderId },
     });
@@ -387,8 +385,8 @@ export class WorkOrderService {
       const wo = await tx.workOrder.update({
         where: { ID: dto.workOrderId },
         data: {
-          ScheduledStartDate: new Date(dto.ScheduledStartDate),
-          ScheduledEndDate: new Date(dto.ScheduledEndDate),
+          ScheduledStartDate: new Date(dto.scheduledStartDate),
+          ScheduledEndDate: new Date(dto.scheduledEndDate),
           StatusID: ScheduledStatus?.ID || workOrder.StatusID,
         },
       });
@@ -404,7 +402,7 @@ export class WorkOrderService {
             WorkOrderID: dto.workOrderId!,
             ResourceType: r.resourceType,
             ResourceID: r.resourceId,
-            AllocatedHours: r.allocatedHours,
+            AllocatedHours: r.AllocatedHours,
           })),
         });
       }
@@ -438,7 +436,6 @@ export class WorkOrderService {
       include: {
         Production: true,
         Warehouse: true,
-        AssignedTo: true,
         Status: true,
         Items: { include: { Product: true } },
         Schedules: true,
@@ -469,7 +466,7 @@ export class WorkOrderService {
           priority: wo.Priority,
           Status: wo.Status?.Name,
           Production: wo.Production?.Code,
-          assignedTo: wo.AssignedTo?.Name,
+          assignedToId: wo.AssignedToID, // schema gap: AssignedToID has no relation, raw FK only
           itemCount: wo.Items.length,
           Products: wo.Items.slice(0, 3).map((i) => i.Product?.Name),
           resources: wo.Schedules.map((s) => ({
@@ -496,7 +493,7 @@ export class WorkOrderService {
         Status: wo.Status?.Name,
         Production: wo.Production?.Code,
         Warehouse: wo.Warehouse?.Name,
-        assignedTo: wo.AssignedTo?.Name,
+        assignedToId: wo.AssignedToID, // schema gap: AssignedToID has no relation, raw FK only
         items: wo.Items.map((i) => i.Product?.Name),
       })),
     };
@@ -510,7 +507,7 @@ export class WorkOrderService {
    * Record work Order progress
    * Flow: Operator input progress produksi
    */
-  async RecordProgress(dto: RecordProgressDto, UserId: string) {
+  async recordProgress(dto: RecordProgressDto, UserId: string) {
     const workOrder = await this.prisma.workOrder.findUnique({
       where: { ID: dto.workOrderId },
       include: { Items: true, ProgressRecords: true },
@@ -527,9 +524,9 @@ export class WorkOrderService {
     );
     const TotalQuantity = workOrder.Items.reduce((sum, i) => sum + Number(i.Quantity), 0);
 
-    if (dto.completedQuantity + currentCompleted > TotalQuantity) {
+    if (dto.CompletedQuantity + currentCompleted > TotalQuantity) {
       throw new BadRequestException(
-        `Cannot exceed Total Quantity. Current: ${currentCompleted}, Requested: ${dto.completedQuantity}, Total: ${TotalQuantity}`,
+        `Cannot exceed Total Quantity. Current: ${currentCompleted}, Requested: ${dto.CompletedQuantity}, Total: ${TotalQuantity}`,
       );
     }
 
@@ -538,7 +535,7 @@ export class WorkOrderService {
         data: {
           WorkOrderID: dto.workOrderId,
           ProductID: workOrder.Items[0]?.ProductID,
-          CompletedQuantity: new Prisma.Decimal(dto.completedQuantity),
+          CompletedQuantity: new Prisma.Decimal(dto.CompletedQuantity),
           WorkStationID: dto.workStationId,
           EmployeeID: dto.EmployeeId,
           Notes: dto.Notes,
@@ -547,7 +544,7 @@ export class WorkOrderService {
       });
 
       // Check if completed
-      const newTotal = currentCompleted + dto.completedQuantity;
+      const newTotal = currentCompleted + dto.CompletedQuantity;
       if (newTotal >= TotalQuantity) {
         const completedStatus = await tx.transactionStatus.findFirst({
           where: { Code: 'COMPLETED' },
@@ -575,11 +572,11 @@ export class WorkOrderService {
         completedQuantity: number(progress.CompletedQuantity),
         RecordedAt: progress.CreatedAt,
       },
-      TotalCompleted: currentCompleted + dto.completedQuantity,
+      TotalCompleted: currentCompleted + dto.CompletedQuantity,
       TotalQuantity,
-      progressPercent: ((currentCompleted + dto.completedQuantity) / TotalQuantity) * 100,
+      progressPercent: ((currentCompleted + dto.CompletedQuantity) / TotalQuantity) * 100,
       Status: updatedWorkOrder?.Status?.Name,
-      isCompleted: currentCompleted + dto.completedQuantity >= TotalQuantity,
+      isCompleted: currentCompleted + dto.CompletedQuantity >= TotalQuantity,
     };
   }
 
@@ -597,7 +594,12 @@ export class WorkOrderService {
     }
 
     const allocations = await this.prisma.$transaction(async (tx) => {
-      const Results = [];
+      const Results: Array<{
+        ID: number;
+        ProductId: number;
+        ProductName: string;
+        allocatedQuantity: number;
+      }> = [];
 
       for (const item of dto.allocations) {
         // Check Stock availability
@@ -609,18 +611,18 @@ export class WorkOrderService {
           throw new NotFoundException(`Product ${item.ProductId} not found`);
         }
 
-        if (Number(Product.Stock) < item.allocatedQuantity) {
+        if (Number(Product.Stock) < item.AllocatedQuantity) {
           throw new BadRequestException(
-            `Insufficient Stock for ${Product.Name}. Available: ${Product.Stock}, Requested: ${item.allocatedQuantity}`,
+            `Insufficient Stock for ${Product.Name}. Available: ${Product.Stock}, Requested: ${item.AllocatedQuantity}`,
           );
         }
 
         // Create allocation
-        const allocation = await tx.MaterialAllocation.create({
+        const allocation = await tx.materialAllocation.create({
           data: {
             WorkOrderID: dto.workOrderId,
             ProductID: item.ProductId,
-            AllocatedQuantity: new Prisma.Decimal(item.allocatedQuantity),
+            AllocatedQuantity: new Prisma.Decimal(item.AllocatedQuantity),
             UsedQuantity: new Prisma.Decimal(0),
             Status: 'ALLOCATED',
           },
@@ -629,14 +631,14 @@ export class WorkOrderService {
         // Reserve Stock
         await tx.product.update({
           where: { ID: item.ProductId },
-          data: { Stock: { decrement: new Prisma.Decimal(item.allocatedQuantity) } },
+          data: { Stock: { decrement: new Prisma.Decimal(item.AllocatedQuantity) } },
         });
 
         Results.push({
           ID: allocation.ID,
           ProductId: item.ProductId,
           ProductName: Product.Name,
-          allocatedQuantity: item.allocatedQuantity,
+          allocatedQuantity: item.AllocatedQuantity,
         });
       }
 
@@ -654,7 +656,7 @@ export class WorkOrderService {
    * Release allocated Materials (if work Order cancelled)
    */
   async releaseMaterials(workOrderId: number, UserId: string) {
-    const allocations = await this.prisma.MaterialAllocation.findMany({
+    const allocations = await this.prisma.materialAllocation.findMany({
       where: { WorkOrderID: workOrderId, Status: 'ALLOCATED' },
     });
 
@@ -671,7 +673,7 @@ export class WorkOrderService {
         });
 
         // UpDate allocation Status
-        await tx.MaterialAllocation.update({
+        await tx.materialAllocation.update({
           where: { ID: allocation.ID },
           data: { Status: 'RELEASED' },
         });
@@ -742,7 +744,7 @@ export class WorkOrderService {
     const StationsWithUtilization = await Promise.all(
       Stations.map(async (Station) => {
         // Count Active work Orders assigned to this Station
-        const ActiveWorkOrders = await this.prisma.workOrder.Count({
+        const ActiveWorkOrders = await this.prisma.workOrder.count({
           where: {
             Schedules: { some: { ResourceType: 'WORKSTATION', ResourceID: Station.ID } },
             Status: { IsTerminal: false },
@@ -844,8 +846,8 @@ export class WorkOrderService {
     });
 
     // By Status
-    const byStatus: Record<string, Number> = {};
-    const byPriority: Record<string, Number> = {};
+    const byStatus: Record<string, number> = {};
+    const byPriority: Record<string, number> = {};
     let TotalCompletedOnTime = 0;
     let TotalCompletedLate = 0;
     let TotalInProgress = 0;
@@ -856,7 +858,7 @@ export class WorkOrderService {
 
       const isCompleted = wo.Status?.Code === 'COMPLETED';
       if (isCompleted) {
-        if (wo.DueDate && new Date(wo.DueDate) >= wo.UpDatedAt) {
+        if (wo.DueDate && new Date(wo.DueDate) >= wo.UpdatedAt) {
           TotalCompletedOnTime++;
         } else if (wo.DueDate) {
           TotalCompletedLate++;
@@ -870,7 +872,7 @@ export class WorkOrderService {
     const completedWorkOrders = WorkOrders.filter((wo) => wo.Status?.Code === 'COMPLETED');
     const completionTimes = completedWorkOrders.map((wo) => {
       const created = new Date(wo.WorkOrderDate);
-      const completed = new Date(wo.UpDatedAt);
+      const completed = new Date(wo.UpdatedAt);
       return (completed.getTime() - created.getTime()) / (1000 * 60 * 60); // Hours
     });
     const avgCompletionTime = completionTimes.length > 0

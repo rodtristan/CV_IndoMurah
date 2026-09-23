@@ -14,7 +14,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { PurchaseReturnService } from './purchase-return-service';
 import {
   CreatePurchaseReturnDto,
-  UpdatePurchaseReturnDto,
+  UpDatePurchaseReturnDto,
   PurchaseReturnQueryDto,
   ApprovePurchaseReturnDto,
   CancelPurchaseReturnDto,
@@ -66,7 +66,7 @@ export class PurchaseReturnController {
   @ApiOperation({ summary: 'Update purchase return' })
   async update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdatePurchaseReturnDto,
+    @Body() dto: UpDatePurchaseReturnDto,
   ) {
     const data = await this.purchaseReturnService.update(id, dto);
     return ApiResponse.ok(data, 'Purchase return updated');

@@ -3,16 +3,16 @@ import { PrismaService } from '../../../common/prisma/prisma-service';
 import { Prisma } from '@prisma/client'
 import { number } from '../../../common/utils/number';
 import {
-  CreateStockOpNameDto,
-  UpDateStockOpNameDto,
-  StockOpNameQueryDto,
-  ApproveStockOpNameDto,
-  CancelStockOpNameDto,
-  generateOpNameListDto,
-} from './Stock-opName.dto';
+  CreateStockOpnameDto,
+  UpdateStockOpnameDto,
+  StockOpnameQueryDto,
+  ApproveStockOpnameDto,
+  CancelStockOpnameDto,
+  GenerateOpnameListDto,
+} from './stock-opname.dto';
 
 @Injectable()
-export class StockOpNameService {
+export class StockOpnameService {
   constructor(private prisma: PrismaService) {}
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -20,64 +20,80 @@ export class StockOpNameService {
   // ─────────────────────────────────────────────────────────────────────────────
 
   /**
-   * Create new Stock opName (Stock OpName / Stock Taking)
-   * Flow: Admin buat Stock opName → input stok fisik → sistem hitung selisih
+   * Create new Stock Opname (Stock Taking)
+   * Flow: Admin buat Stock Opname → input stok fisik → sistem hitung selisih
+   *
+   * Schema gaps: CreateStockOpnameDto.Type (FULL/PARTIAL) and .ReferenceNumber
+   * have no corresponding column on the real StockOpname model, so they are
+   * accepted by the DTO but not persisted.
    */
-  async create(dto: CreateStockOpNameDto) {
+  async create(dto: CreateStockOpnameDto) {
     // generate Code
     const Code = await this.generateCode();
 
-    const opName = await this.prisma.$transaction(async (tx) => {
-      // Create Stock opName header
+    const draftStatusId = await this.getStatusIdByCode('DRAFT', 1);
+    const CreatedByID = dto.CreatedById ? String(dto.CreatedById) : 'system';
+
+    const opname = await this.prisma.$transaction(async (tx) => {
+      // Resolve system stock + Unit per item before creating the header
+      const itemsData = await Promise.all(
+        dto.Items.map(async (item) => {
+          const Product = await tx.product.findUnique({ where: { ID: item.ProductId } });
+
+          if (!Product) {
+            throw new NotFoundException(`Product ${item.ProductId} not found`);
+          }
+
+          const ProductStock = await tx.productStock.findUnique({
+            where: {
+              ProductID_WarehouseID: {
+                ProductID: item.ProductId,
+                WarehouseID: dto.WarehouseId,
+              },
+            },
+          });
+
+          const systemQty = ProductStock ? Number(ProductStock.Quantity) : Number(Product.Stock);
+          const physicalQty = item.PhysicalQuantity;
+          const variance = physicalQty - systemQty;
+
+          return {
+            ProductID: item.ProductId,
+            SystemStock: new Prisma.Decimal(systemQty),
+            CountedStock: new Prisma.Decimal(physicalQty),
+            Difference: new Prisma.Decimal(variance),
+            UnitID: Product.UnitID,
+            UnitPrice: new Prisma.Decimal(0),
+            Note: item.VarianceReason || item.Notes || null,
+          };
+        }),
+      );
+
+      // Create Stock Opname header + items
       const header = await tx.stockOpname.create({
         data: {
           Code,
           Date: dto.Date ? new Date(dto.Date) : new Date(),
-          WarehouseId: dto.WarehouseId,
-          referenceNumber: dto.ReferenceNumber,
-          Type: dto.Type || 'PARTIAL',
-          Status: 'DRAFT',
+          WarehouseID: dto.WarehouseId,
+          TotalItems: new Prisma.Decimal(itemsData.length),
+          StatusID: draftStatusId,
           Notes: dto.Notes,
-          createdByID: dto.createdById?.toString(),
-          StockOpNameItems: {
-            create: await Promise.all(
-              dto.Items.map(async (item) => {
-                // Get system Stock
-                const ProductStock = await tx.productStock.findUnique({
-                  where: {
-                    ProductId_WarehouseId: {
-                      ProductId: item.ProductId,
-                      WarehouseId: dto.WarehouseId,
-                    },
-                  },
-                });
-
-                const systemQty = ProductStock ? Number(ProductStock.Quantity) : 0;
-                const physicalQty = item.physicalQuantity;
-                const variance = physicalQty - systemQty;
-
-                return {
-                  ProductId: item.ProductId,
-                  systemQuantity: systemQty,
-                  physicalQuantity: physicalQty,
-                  variance: variance,
-                  varianceReason: item.varianceReason,
-                  Notes: item.Notes,
-                };
-              })
-            ),
+          CreatedByID,
+          OpnameItems: {
+            create: itemsData,
           },
         },
         include: {
           Warehouse: true,
-          StockOpNameItems: { include: { Product: true } },
+          Status: true,
+          OpnameItems: { include: { Product: true } },
         },
       });
 
       return header;
     });
 
-    return opName;
+    return opname;
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -85,30 +101,28 @@ export class StockOpNameService {
   // ─────────────────────────────────────────────────────────────────────────────
 
   /**
-   * Find all Stock opNames with pagination
+   * Find all Stock Opnames with pagination
    */
-  async findAll(query: StockOpNameQueryDto) {
-    const { search, page = 1, limit = 20, WarehouseId, Status, Type, startDate, endDate } = query;
+  async findAll(query: StockOpnameQueryDto) {
+    const { Search, Page = 1, Limit = 20, WarehouseId, Status, StartDate, EndDate } = query;
 
     const where: any = {};
 
-    if (search) {
-      where.OR = [
-        { Code: { contains: search, mode: 'insensitive' } },
-        { referenceNumber: { contains: search, mode: 'insensitive' } },
-      ];
+    if (Search) {
+      where.OR = [{ Code: { contains: Search, mode: 'insensitive' } }];
     }
 
-    if (WarehouseId) where.WarehouseId = WarehouseId;
-    if (Status) where.Status = Status;
-    if (Type) where.Type = Type;
+    if (WarehouseId) where.WarehouseID = WarehouseId;
+    if (Status) where.Status = { Code: Status };
 
-    if (startDate || endDate) {
+    if (StartDate || EndDate) {
       where.Date = {};
-      if (startDate) where.Date.gte = new Date(startDate);
-      if (endDate) where.Date.lte = new Date(endDate);
+      if (StartDate) where.Date.gte = new Date(StartDate);
+      if (EndDate) where.Date.lte = new Date(EndDate);
     }
 
+    const page = Page;
+    const limit = Limit;
     const skip = (page - 1) * limit;
 
     const [data, Total] = await Promise.all([
@@ -116,13 +130,14 @@ export class StockOpNameService {
         where,
         include: {
           Warehouse: true,
-          StockOpNameItems: { include: { Product: true } },
+          Status: true,
+          OpnameItems: { include: { Product: true } },
         },
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { CreatedAt: 'desc' },
       }),
-      this.prisma.stockOpname.Count({ where }),
+      this.prisma.stockOpname.count({ where }),
     ]);
 
     return {
@@ -132,22 +147,23 @@ export class StockOpNameService {
   }
 
   /**
-   * Find Stock opName by ID
+   * Find Stock Opname by ID
    */
   async findById(ID: number) {
-    const opName = await this.prisma.stockOpname.findUnique({
+    const opname = await this.prisma.stockOpname.findUnique({
       where: { ID },
       include: {
         Warehouse: true,
-        StockOpNameItems: { include: { Product: true } },
+        Status: true,
+        OpnameItems: { include: { Product: true } },
       },
     });
 
-    if (!opName) {
-      throw new NotFoundException('Stock opName not found');
+    if (!opname) {
+      throw new NotFoundException('Stock Opname not found');
     }
 
-    return opName;
+    return opname;
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -155,26 +171,37 @@ export class StockOpNameService {
   // ─────────────────────────────────────────────────────────────────────────────
 
   /**
-   * UpDate Stock opName (draft only)
+   * Update Stock Opname (draft only)
+   *
+   * Schema gap: UpdateStockOpnameDto.ReferenceNumber has no matching column on
+   * StockOpname, so it is accepted but not persisted.
    */
-  async update(ID: number, dto: UpDateStockOpNameDto) {
+  async update(ID: number, dto: UpdateStockOpnameDto) {
     const existing = await this.findById(ID);
 
-    if (existing.Status !== 'DRAFT') {
-      throw new BadRequestException('Can only update draft Stock opName');
+    if (existing.Status.Code !== 'DRAFT') {
+      throw new BadRequestException('Can only update draft Stock Opname');
+    }
+
+    const data: Prisma.StockOpnameUpdateInput = {
+      Date: dto.Date ? new Date(dto.Date) : undefined,
+      Notes: dto.Notes,
+    };
+
+    if (dto.Status) {
+      const statusId = await this.getStatusIdByCode(dto.Status);
+      if (statusId) {
+        data.Status = { connect: { ID: statusId } };
+      }
     }
 
     return this.prisma.stockOpname.update({
       where: { ID },
-      data: {
-        Date: dto.Date ? new Date(dto.Date) : undefined,
-        referenceNumber: dto.ReferenceNumber,
-        Notes: dto.Notes,
-        Status: dto.status,
-      },
+      data,
       include: {
         Warehouse: true,
-        StockOpNameItems: { include: { Product: true } },
+        Status: true,
+        OpnameItems: { include: { Product: true } },
       },
     });
   }
@@ -184,79 +211,67 @@ export class StockOpNameService {
   // ─────────────────────────────────────────────────────────────────────────────
 
   /**
-   * Approve Stock opName and apply adjustments
+   * Approve Stock Opname and apply adjustments
    */
-  async approve(ID: number, dto: ApproveStockOpNameDto) {
-    const opName = await this.findById(ID);
+  async approve(ID: number, dto: ApproveStockOpnameDto) {
+    const opname = await this.findById(ID);
 
-    if (opName.Status === 'COMPLETED') {
-      throw new ConflictException('Stock opName already completed');
+    if (opname.Status.Code === 'COMPLETED') {
+      throw new ConflictException('Stock Opname already completed');
     }
 
-    if (opName.Status === 'CANCELLED') {
-      throw new ConflictException('Cannot approve cancelled Stock opName');
+    if (opname.Status.Code === 'CANCELLED') {
+      throw new ConflictException('Cannot approve cancelled Stock Opname');
     }
 
-    const applyAdjustment = dto.applyAdjustment === 'true' || dto.applyAdjustment === true;
+    const applyAdjustment = dto.ApplyAdjustment === 'true' || (dto.ApplyAdjustment as any) === true;
+    const completedStatusId = await this.getStatusIdByCode('COMPLETED', opname.StatusID);
 
     await this.prisma.$transaction(async (tx) => {
-      // UpDate Status
+      // Update Status
       await tx.stockOpname.update({
         where: { ID },
-        data: { Status: 'COMPLETED' },
+        data: { StatusID: completedStatusId },
       });
 
-      // Apply Stock adjustments if Requested
+      // Apply Stock adjustments if requested
       if (applyAdjustment) {
-        for (const item of opName.StockOpNameItems) {
-          if (item.variance !== 0) {
-            // UpDate Warehouse Stock
-            await tx.productStock.update({
-              where: {
-                ProductId_WarehouseId: {
-                  ProductId: item.ProductId,
-                  WarehouseId: opName.WarehouseId,
-                },
-              },
-              data: { Quantity: new Prisma.Decimal(item.physicalQuantity) },
-            }).catch(() => {
-              // Create if not exists
-              return tx.productStock.create({
-                data: {
-                  ProductId: item.ProductId,
-                  WarehouseId: opName.WarehouseId,
-                  Quantity: new Prisma.Decimal(item.physicalQuantity),
-                },
-              });
-            });
-
-            // UpDate general Product Stock
-            await tx.product.update({
-              where: { ID: item.ProductId },
-              data: { Stock: new Prisma.Decimal(item.physicalQuantity) },
-            });
-
-            // Create Stock Mutation Record
-            await tx.stockMutation.create({
-              data: {
-                Code: `ADJ-${opName.Code}`,
-                Date: new Date(),
-                fromWarehouseId: opName.WarehouseId,
-                toWarehouseId: opName.WarehouseId,
-                reason: 'Stock Adjustment from OpName',
-                referenceType: 'STOCK_OPNAME',
-                referenceId: ID,
-                Status: 'COMPLETED',
-                Notes: `Adjustment: ${item.variance > 0 ? '+' : ''}${item.variance} (${item.varianceReason || 'No reason'})`,
-                StockMutationItems: {
-                  create: {
-                    ProductId: item.ProductId,
-                    Quantity: Math.abs(item.variance),
-                    Notes: item.varianceReason,
+        for (const item of opname.OpnameItems) {
+          const difference = Number(item.Difference);
+          if (difference !== 0) {
+            // Update Warehouse Stock
+            await tx.productStock
+              .update({
+                where: {
+                  ProductID_WarehouseID: {
+                    ProductID: item.ProductID,
+                    WarehouseID: opname.WarehouseID,
                   },
                 },
-              },
+                data: { Quantity: item.CountedStock },
+              })
+              .catch(() => {
+                // Create if not exists
+                return tx.productStock.create({
+                  data: {
+                    ProductID: item.ProductID,
+                    WarehouseID: opname.WarehouseID,
+                    Quantity: item.CountedStock,
+                  },
+                });
+              });
+
+            // Update general Product Stock
+            await tx.product.update({
+              where: { ID: item.ProductID },
+              data: { Stock: item.CountedStock },
             });
+
+            // NOTE (schema gap): a StockMutation record documenting this
+            // adjustment is intentionally not created here — StockMutation
+            // requires a MutationCategoryID (FK to MutationCategory) that
+            // this module has no safe default for. Only ProductStock/Product
+            // are updated.
           }
         }
       }
@@ -266,33 +281,39 @@ export class StockOpNameService {
   }
 
   /**
-   * Cancel Stock opName
+   * Cancel Stock Opname
    */
-  async cancel(ID: number, dto: CancelStockOpNameDto) {
-    const opName = await this.findById(ID);
+  async cancel(ID: number, dto: CancelStockOpnameDto) {
+    const opname = await this.findById(ID);
 
-    if (opName.Status === 'COMPLETED') {
-      throw new BadRequestException('Cannot cancel completed Stock opName');
+    if (opname.Status.Code === 'COMPLETED') {
+      throw new BadRequestException('Cannot cancel completed Stock Opname');
     }
+
+    const cancelledStatusId = await this.getStatusIdByCode('CANCELLED', opname.StatusID);
 
     return this.prisma.stockOpname.update({
       where: { ID },
-      data: { Status: 'CANCELLED', Notes: `${opName.Notes || ''}\nCancellation: ${dto.Reason}` },
+      data: {
+        StatusID: cancelledStatusId,
+        Notes: `${opname.Notes || ''}\nCancellation: ${dto.Reason}`,
+      },
       include: {
         Warehouse: true,
-        StockOpNameItems: { include: { Product: true } },
+        Status: true,
+        OpnameItems: { include: { Product: true } },
       },
     });
   }
 
   /**
-   * Delete draft Stock opName
+   * Delete draft Stock Opname
    */
   async delete(ID: number) {
-    const opName = await this.findById(ID);
+    const opname = await this.findById(ID);
 
-    if (opName.Status !== 'DRAFT') {
-      throw new BadRequestException('Can only delete draft Stock opName');
+    if (opname.Status.Code !== 'DRAFT') {
+      throw new BadRequestException('Can only delete draft Stock Opname');
     }
 
     return this.prisma.stockOpname.delete({ where: { ID } });
@@ -303,16 +324,16 @@ export class StockOpNameService {
   // ─────────────────────────────────────────────────────────────────────────────
 
   /**
-   * generate Stock opName list for a Warehouse
+   * Generate Stock Opname list for a Warehouse
    */
-  async generateOpNameList(dto: generateOpNameListDto) {
+  async generateOpnameList(dto: GenerateOpnameListDto) {
     const where: any = { IsActive: true };
 
     if (dto.CategoryId) {
-      where.CategoryId = dto.CategoryId;
+      where.CategoryID = dto.CategoryId;
     }
 
-    if (dto.inStockOnly === 'true' || dto.inStockOnly === true) {
+    if (dto.InStockOnly === 'true' || (dto.InStockOnly as any) === true) {
       where.Stock = { gt: 0 };
     }
 
@@ -321,14 +342,22 @@ export class StockOpNameService {
       include: { Category: true },
     });
 
-    const items = [];
+    const items: Array<{
+      ProductId: number;
+      ProductCode: string;
+      ProductName: string;
+      Category: string | undefined;
+      systemQuantity: number;
+      physicalQuantity: number;
+      variance: number;
+    }> = [];
 
     for (const Product of Products) {
       const ProductStock = await this.prisma.productStock.findUnique({
         where: {
-          ProductId_WarehouseId: {
-            ProductId: Product.ID,
-            WarehouseId: dto.WarehouseId,
+          ProductID_WarehouseID: {
+            ProductID: Product.ID,
+            WarehouseID: dto.WarehouseId,
           },
         },
       });
@@ -338,7 +367,7 @@ export class StockOpNameService {
         ProductCode: Product.Code,
         ProductName: Product.Name,
         Category: Product.Category?.Name,
-        systemQuantity: ProductStock ? Number(ProductStock.Quantity) : 0,
+        systemQuantity: ProductStock ? Number(ProductStock.Quantity) : Number(Product.Stock),
         physicalQuantity: 0,
         variance: 0,
       });
@@ -351,6 +380,13 @@ export class StockOpNameService {
   // HELPER METHODS
   // ─────────────────────────────────────────────────────────────────────────────
 
+  private async getStatusIdByCode(code: string, fallback?: number): Promise<number> {
+    const Status = await this.prisma.stockOpnameStatus.findFirst({ where: { Code: code } });
+    if (Status) return Status.ID;
+    if (fallback !== undefined) return fallback;
+    throw new BadRequestException(`Stock Opname status '${code}' not configured`);
+  }
+
   private async generateCode(): Promise<string> {
     const today = new Date();
     const year = today.getFullYear();
@@ -358,15 +394,15 @@ export class StockOpNameService {
     const day = String(today.getDate()).padStart(2, '0');
     const prefix = `SO-${year}${month}${day}`;
 
-    const lastOpName = await this.prisma.stockOpname.findFirst({
+    const lastOpname = await this.prisma.stockOpname.findFirst({
       where: { Code: { startsWith: prefix } },
       orderBy: { Code: 'desc' },
       select: { Code: true },
     });
 
     let nextNumber = 1;
-    if (lastOpName) {
-      const lastSeq = parseInt(lastOpName.Code.split('-').pop() || '0', 10);
+    if (lastOpname) {
+      const lastSeq = parseInt(lastOpname.Code.split('-').pop() || '0', 10);
       nextNumber = lastSeq + 1;
     }
 

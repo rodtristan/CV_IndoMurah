@@ -2,7 +2,7 @@ import { Controller, Get, Post, Patch, Delete, Body, Param, Query, ParseIntPipe 
 import { SupplierService } from './supplier-service';
 import {
   CreateSupplierDto,
-  UpdateSupplierDto,
+  UpDateSupplierDto,
   SupplierFilterDto,
   SupplierStatementDto,
   AddSupplierDebtDto,
@@ -44,7 +44,7 @@ export class SupplierController {
   @Patch(':id')
   async updateSupplier(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateSupplierDto,
+    @Body() dto: UpDateSupplierDto,
     @Query('userId') userId: string = 'system',
   ) {
     return this.supplierService.updateSupplier(id, dto, userId);
@@ -82,6 +82,6 @@ export class SupplierController {
 
   @Get(':id/statement')
   async getSupplierStatement(@Param('id', ParseIntPipe) id: number, @Query() dto: SupplierStatementDto) {
-    return this.supplierService.getSupplierStatement({ ...dto, supplierId: id });
+    return this.supplierService.getSupplierStatement({ ...dto, SupplierId: id });
   }
 }

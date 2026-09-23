@@ -15,7 +15,7 @@ import {
 // STOCK OPNAME DTOs - Stock OpName / Stock Taking
 // ─────────────────────────────────────────────────────────────────────────────
 
-export class StockOpNameItemDto {
+export class StockOpnameItemDto {
   @ApiProperty({ description: 'Product ID' })
   @IsNumber()
   ProductId: number;
@@ -41,7 +41,7 @@ export class StockOpNameItemDto {
   Notes?: string;
 }
 
-export class CreateStockOpNameDto {
+export class CreateStockOpnameDto {
   @ApiProperty({ description: 'OpName Date' })
   @IsOptional()
   @IsDateString()
@@ -66,11 +66,11 @@ export class CreateStockOpNameDto {
   @IsNumber()
   CreatedById?: number;
 
-  @ApiProperty({ description: 'OpName Items', type: [StockOpNameItemDto] })
+  @ApiProperty({ description: 'OpName Items', type: [StockOpnameItemDto] })
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => StockOpNameItemDto)
-  Items: StockOpNameItemDto[];
+  @Type(() => StockOpnameItemDto)
+  Items: StockOpnameItemDto[];
 
   @ApiPropertyOptional({ description: 'Notes' })
   @IsOptional()
@@ -78,7 +78,7 @@ export class CreateStockOpNameDto {
   Notes?: string;
 }
 
-export class UpDateStockOpNameDto {
+export class UpdateStockOpnameDto {
   @ApiPropertyOptional({ description: 'OpName Date' })
   @IsOptional()
   @IsDateString()
@@ -100,7 +100,7 @@ export class UpDateStockOpNameDto {
   Status?: string;
 }
 
-export class StockOpNameQueryDto {
+export class StockOpnameQueryDto {
   @ApiPropertyOptional({ description: 'Search keyword' })
   @IsOptional()
   @IsString()
@@ -144,7 +144,7 @@ export class StockOpNameQueryDto {
   Limit?: number;
 }
 
-export class ApproveStockOpNameDto {
+export class ApproveStockOpnameDto {
   @ApiPropertyOptional({ description: 'Approval Notes' })
   @IsOptional()
   @IsString()
@@ -161,14 +161,14 @@ export class ApproveStockOpNameDto {
   ApplyAdjustment?: string;
 }
 
-export class CancelStockOpNameDto {
+export class CancelStockOpnameDto {
   @ApiProperty({ description: 'Cancellation reason' })
   @IsString()
   @IsNotEmpty()
   Reason: string;
 }
 
-export class GenerateOpNameListDto {
+export class GenerateOpnameListDto {
   @ApiProperty({ description: 'Warehouse ID' })
   @IsNumber()
   WarehouseId: number;

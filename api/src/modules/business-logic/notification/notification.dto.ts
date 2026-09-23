@@ -107,7 +107,7 @@ export class UpdateNotificationSettingsDto {
 export class BulkNotificationDto {
   @ApiProperty({ description: 'User IDs to send notification to', type: [String] })
   @IsArray()
-  @IsString({}, { each: true })
+  @IsString({ each: true })
   UserIds: string[];
 
   @ApiProperty({ description: 'Notification title' })

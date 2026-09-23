@@ -67,14 +67,14 @@ export class ReceivableController {
     @Body() dto: RecordPaymentDto,
     @CurrentUser() user: any,
   ) {
-    const data = await this.receivableService.recordPayment(saleId, dto, user.ID);
+    const data = await this.receivableService.RecordPayment(saleId, dto, user.ID);
     return ApiResponse.ok(data, 'Payment recorded successfully');
   }
 
   @Post('bulk-payment')
   @ApiOperation({ summary: 'Record bulk payment for multiple sales' })
   async recordBulkPayment(@Body() dto: RecordBulkPaymentDto, @CurrentUser() user: any) {
-    const data = await this.receivableService.recordBulkPayment(dto, user.ID);
+    const data = await this.receivableService.RecordBulkPayment(dto, user.ID);
     return ApiResponse.ok(data, 'Bulk payment recorded successfully');
   }
 
@@ -115,7 +115,7 @@ export class ReceivableController {
     @Param('customerId', ParseIntPipe) customerId: number,
     @Query('amount') amount: string,
   ) {
-    const data = await this.receivableService.checkCreditAvailability(customerId, parseFloat(amount));
+    const data = await this.receivableService.CheckCreditAvailability(customerId, parseFloat(amount));
     return ApiResponse.ok(data);
   }
 

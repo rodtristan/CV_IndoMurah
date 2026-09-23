@@ -36,7 +36,7 @@ export class CreateWarehouseDto {
   IsDefault?: boolean;
 }
 
-export class UpDateWarehouseDto {
+export class UpdateWarehouseDto {
   @ApiPropertyOptional({ description: 'Warehouse Name' })
   @IsOptional()
   @IsString()
@@ -125,7 +125,7 @@ export class CreateShelfDto {
   Description?: string;
 }
 
-export class UpDateShelfDto {
+export class UpdateShelfDto {
   @ApiPropertyOptional({ description: 'Shelf Name' })
   @IsOptional()
   @IsString()

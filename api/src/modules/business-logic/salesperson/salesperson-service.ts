@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma-service';
+import { number } from '../../../common/utils/number';
 import {
   CreateSalesPersonDto,
   UpDateSalesPersonDto,
@@ -24,9 +25,9 @@ export class SalesPersonService {
       data: {
         Code: dto.Code,
         Name: dto.Name,
-        Phone: dto.phone,
-        Email: dto.email,
-        Address: dto.address,
+        Phone: dto.Phone,
+        Email: dto.Email,
+        Address: dto.Address,
       },
     });
 
@@ -60,9 +61,9 @@ export class SalesPersonService {
       where: { ID: SalesPersonId },
       data: {
         Name: dto.Name,
-        Phone: dto.phone,
-        Email: dto.email,
-        Address: dto.address,
+        Phone: dto.Phone,
+        Email: dto.Email,
+        Address: dto.Address,
         IsActive: dto.IsActive,
       },
     });
@@ -125,7 +126,7 @@ export class SalesPersonService {
     const SalesPersons = await this.prisma.salesPerson.findMany({
       where,
       include: {
-        _Count: {
+        _count: {
           select: { Sales: true },
         },
       },
@@ -134,7 +135,7 @@ export class SalesPersonService {
 
     return SalesPersons.map((sp) => ({
       ...this.formatSalesPerson(sp),
-      SalesCount: sp._Count.Sales,
+      SalesCount: sp._count.Sales,
     }));
   }
 
@@ -147,7 +148,7 @@ export class SalesPersonService {
       throw new NotFoundException('Sales person not found');
     }
 
-    const SalesCount = await this.prisma.sale.Count({
+    const SalesCount = await this.prisma.sale.count({
       where: { SalesPersonID: SalesPersonId },
     });
 
@@ -205,7 +206,7 @@ export class SalesPersonService {
       }))
       .filter((p) => p.transactionCount > 0)
       .sort((a, b) => b.TotalSales - a.TotalSales)
-      .slice(0, dto.limit || 10);
+      .slice(0, dto.Limit || 10);
 
     return {
       period: { startDate: dto.StartDate, endDate: dto.EndDate },

@@ -26,7 +26,7 @@ export class CreateQCCategoryDto {
   QcType?: string;
 }
 
-export class UpDateQCCategoryDto {
+export class UpdateQCCategoryDto {
   @ApiPropertyOptional({ description: 'Category Name' })
   @IsOptional()
   @IsString()
@@ -77,7 +77,7 @@ export class CreateQCCheckpointDto {
   PassCriteria?: string;
 }
 
-export class UpDateQCCheckpointDto {
+export class UpdateQCCheckpointDto {
   @ApiPropertyOptional({ description: 'Checkpoint Name' })
   @IsOptional()
   @IsString()

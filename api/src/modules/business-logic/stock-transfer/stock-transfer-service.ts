@@ -32,7 +32,16 @@ export class StockTransferService {
     }
 
     // Validate and process items
-    const itemsWithValIDation = [];
+    const itemsWithValIDation: Array<{
+      ProductId: number;
+      ProductName: string;
+      ProductCode: string;
+      Quantity: number;
+      UnitId: number;
+      UnitPrice: number;
+      subTotal: number;
+      Notes: string | undefined;
+    }> = [];
     let TotalValue = 0;
 
     for (const item of dto.Items) {
@@ -95,6 +104,7 @@ export class StockTransferService {
           TotalItems: new Prisma.Decimal(TotalValue),
           StatusID: pendingStatus?.ID || 1,
           Notes: dto.Notes,
+          CreatedByID: UserId,
         },
       });
 
@@ -106,7 +116,7 @@ export class StockTransferService {
           Quantity: new Prisma.Decimal(item.Quantity),
           UnitID: item.UnitId,
           UnitPrice: new Prisma.Decimal(item.UnitPrice),
-          SubTotal: new Prisma.Decimal(item.subTotal),
+          Subtotal: new Prisma.Decimal(item.subTotal),
         })),
       });
 
@@ -181,8 +191,8 @@ export class StockTransferService {
       where.StatusID = dto.StatusId;
     }
 
-    const page = dto.page || 1;
-    const limit = dto.limit || 20;
+    const page = dto.Page || 1;
+    const limit = dto.Limit || 20;
     const skip = (page - 1) * limit;
 
     const [Transfers, Total] = await Promise.all([
@@ -198,7 +208,7 @@ export class StockTransferService {
         skip,
         take: limit,
       }),
-      this.prisma.stockTransfer.Count({ where }),
+      this.prisma.stockTransfer.count({ where }),
     ]);
 
     return {

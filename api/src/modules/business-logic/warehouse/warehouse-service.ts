@@ -4,12 +4,12 @@ import { Prisma } from '@prisma/client'
 import { number } from '../../../common/utils/number';
 import {
   CreateWarehouseDto,
-  UpDateWarehouseDto,
+  UpdateWarehouseDto,
   WarehouseFilterDto,
   WarehouseStockDto,
   CreateShelfDto,
-  UpDateShelfDto,
-} from './Warehouse.dto';
+  UpdateShelfDto,
+} from './warehouse.dto';
 
 @Injectable()
 export class WarehouseService {
@@ -40,8 +40,8 @@ export class WarehouseService {
       data: {
         Code: dto.Code,
         Name: dto.Name,
-        Address: dto.address,
-        Phone: dto.phone,
+        Address: dto.Address,
+        Phone: dto.Phone,
         IsDefault: dto.IsDefault || false,
       },
     });
@@ -63,7 +63,7 @@ export class WarehouseService {
     };
   }
 
-  async updateWarehouse(WarehouseId: number, dto: UpDateWarehouseDto, UserId: string) {
+  async updateWarehouse(WarehouseId: number, dto: UpdateWarehouseDto, UserId: string) {
     const Warehouse = await this.prisma.warehouse.findUnique({
       where: { ID: WarehouseId },
     });
@@ -83,8 +83,8 @@ export class WarehouseService {
       where: { ID: WarehouseId },
       data: {
         Name: dto.Name,
-        Address: dto.address,
-        Phone: dto.phone,
+        Address: dto.Address,
+        Phone: dto.Phone,
         IsDefault: dto.IsDefault,
         IsActive: dto.IsActive,
       },
@@ -101,7 +101,7 @@ export class WarehouseService {
       where: { ID: WarehouseId },
       include: {
         Shelves: true,
-        _Count: {
+        _count: {
           select: {
             Products: true,
             ProductStocks: true,
@@ -122,8 +122,8 @@ export class WarehouseService {
         Name: s.Name,
         Description: s.Description,
       })),
-      ProductCount: Warehouse._Count.Products,
-      StockCount: Warehouse._Count.ProductStocks,
+      ProductCount: Warehouse._count.Products,
+      StockCount: Warehouse._count.ProductStocks,
     };
   }
 
@@ -137,14 +137,14 @@ export class WarehouseService {
       ];
     }
 
-    if (!dto.includeInActive) {
+    if (!dto.IncludeInactive) {
       where.IsActive = true;
     }
 
     const Warehouses = await this.prisma.warehouse.findMany({
       where,
       include: {
-        _Count: {
+        _count: {
           select: {
             Products: true,
             Sales: true,
@@ -158,10 +158,10 @@ export class WarehouseService {
 
     return Warehouses.map((w) => ({
       ...this.formatWarehouse(w),
-      ProductCount: w._Count.Products,
-      SalesCount: w._Count.Sales,
-      PurchaseCount: w._Count.Purchases,
-      ProductionCount: w._Count.Productions,
+      ProductCount: w._count.Products,
+      SalesCount: w._count.Sales,
+      PurchaseCount: w._count.Purchases,
+      ProductionCount: w._count.Productions,
     }));
   }
 
@@ -178,7 +178,7 @@ export class WarehouseService {
       throw new BadRequestException('Cannot delete Default Warehouse');
     }
 
-    const transactionCount = await this.prisma.sale.Count({
+    const transactionCount = await this.prisma.sale.count({
       where: { WarehouseID: WarehouseId },
     });
 
@@ -221,14 +221,14 @@ export class WarehouseService {
       ProductWhere.CategoryID = dto.CategoryId;
     }
 
-    if (dto.lowStockOnly) {
+    if (dto.LowStockOnly) {
       ProductWhere.AND = [
         { ProductStocks: { some: { WarehouseID: WarehouseId } } },
       ];
     }
 
-    const page = dto.page || 1;
-    const limit = dto.limit || 50;
+    const page = dto.Page || 1;
+    const limit = dto.Limit || 50;
     const skip = (page - 1) * limit;
 
     const [Stocks, Total] = await Promise.all([
@@ -245,7 +245,7 @@ export class WarehouseService {
         skip,
         take: limit,
       }),
-      this.prisma.productStock.Count({ where }),
+      this.prisma.productStock.count({ where }),
     ]);
 
     const StockData = Stocks
@@ -269,7 +269,7 @@ export class WarehouseService {
         };
       })
       .filter((s) => {
-        if (dto.lowStockOnly) {
+        if (dto.LowStockOnly) {
           return s.isLowStock;
         }
         return true;
@@ -289,8 +289,8 @@ export class WarehouseService {
 
   async getWarehouseSummary() {
     const [TotalWarehouses, ActiveWarehouses, DefaultWarehouse] = await Promise.all([
-      this.prisma.warehouse.Count(),
-      this.prisma.warehouse.Count({ where: { IsActive: true } }),
+      this.prisma.warehouse.count(),
+      this.prisma.warehouse.count({ where: { IsActive: true } }),
       this.prisma.warehouse.findFirst({
         where: { IsDefault: true },
       }),
@@ -300,7 +300,7 @@ export class WarehouseService {
       _sum: { Quantity: true },
     });
 
-    const lowStockCount = await this.prisma.productStock.Count({
+    const lowStockCount = await this.prisma.productStock.count({
       where: {
         Quantity: { lte: 10 }, // Default minimum Stock threshold
       },
@@ -351,7 +351,7 @@ export class WarehouseService {
     };
   }
 
-  async updateShelf(ShelfId: number, dto: UpDateShelfDto) {
+  async updateShelf(ShelfId: number, dto: UpdateShelfDto) {
     const Shelf = await this.prisma.shelf.findUnique({
       where: { ID: ShelfId },
     });
@@ -379,7 +379,7 @@ export class WarehouseService {
     const Shelves = await this.prisma.shelf.findMany({
       where: { WarehouseID: WarehouseId, IsActive: true },
       include: {
-        _Count: {
+        _count: {
           select: { ShelfProducts: true },
         },
       },
@@ -387,7 +387,7 @@ export class WarehouseService {
 
     return Shelves.map((s) => ({
       ...this.formatShelf(s),
-      ProductCount: s._Count.ShelfProducts,
+      ProductCount: s._count.ShelfProducts,
     }));
   }
 

@@ -35,10 +35,10 @@ export class SupplierService {
       data: {
         Code: dto.Code,
         Name: dto.Name,
-        ContactPerson: dto.contactPerson,
-        Phone: dto.phone,
-        Email: dto.email,
-        Address: dto.address,
+        ContactPerson: dto.ContactPerson,
+        Phone: dto.Phone,
+        Email: dto.Email,
+        Address: dto.Address,
         TotalDebt: new Prisma.Decimal(dto.TotalDebt || 0),
         Notes: dto.Notes,
         IsActive: true,
@@ -78,10 +78,10 @@ export class SupplierService {
       where: { ID: SupplierId },
       data: {
         Name: dto.Name,
-        ContactPerson: dto.contactPerson,
-        Phone: dto.phone,
-        Email: dto.email,
-        Address: dto.address,
+        ContactPerson: dto.ContactPerson,
+        Phone: dto.Phone,
+        Email: dto.Email,
+        Address: dto.Address,
         Notes: dto.Notes,
         IsActive: dto.IsActive,
       },
@@ -152,19 +152,19 @@ export class SupplierService {
       where.IsActive = dto.IsActive;
     }
 
-    if (dto.hasDebt) {
+    if (dto.HasDebt) {
       where.TotalDebt = { gt: 0 };
     }
 
-    const page = dto.page || 1;
-    const limit = dto.limit || 20;
+    const page = dto.Page || 1;
+    const limit = dto.Limit || 20;
     const skip = (page - 1) * limit;
 
     const [Suppliers, Total] = await Promise.all([
       this.prisma.supplier.findMany({
         where,
         include: {
-          _Count: {
+          _count: {
             select: {
               Purchases: true,
               PurchaseOrders: true,
@@ -175,14 +175,14 @@ export class SupplierService {
         skip,
         take: limit,
       }),
-      this.prisma.supplier.Count({ where }),
+      this.prisma.supplier.count({ where }),
     ]);
 
     return {
       data: Suppliers.map((s) => ({
         ...this.formatSupplier(s),
-        PurchaseCount: s._Count.Purchases,
-        OrderCount: s._Count.PurchaseOrders,
+        PurchaseCount: s._count.Purchases,
+        OrderCount: s._count.PurchaseOrders,
       })),
       pagination: {
         page,
@@ -205,7 +205,7 @@ export class SupplierService {
       throw new NotFoundException('Supplier not found');
     }
 
-    const PurchaseCount = await this.prisma.purchase.Count({
+    const PurchaseCount = await this.prisma.purchase.count({
       where: { SupplierID: SupplierId },
     });
 
@@ -255,7 +255,7 @@ export class SupplierService {
         Title: 'Supplier Debt Added',
         Description: `Added ${dto.Amount} to ${Supplier.Name}'s debt`,
         ReferenceType: dto.ReferenceType,
-        ReferenceID: dto.referenceId,
+        ReferenceID: dto.ReferenceId,
         Amount: new Prisma.Decimal(dto.Amount),
         CreatedByID: UserId,
       },
@@ -274,7 +274,7 @@ export class SupplierService {
   /**
    * Record Payment for Supplier debt
    */
-  async PaymentDebt(dto: PaymentSupplierDebtDto, UserId: string) {
+  async paymentDebt(dto: PaymentSupplierDebtDto, UserId: string) {
     const Supplier = await this.prisma.supplier.findUnique({
       where: { ID: dto.SupplierId },
     });
@@ -459,9 +459,9 @@ export class SupplierService {
       ActiveSuppliers,
       SuppliersWithDebt,
     ] = await Promise.all([
-      this.prisma.supplier.Count(),
-      this.prisma.supplier.Count({ where: { IsActive: true } }),
-      this.prisma.supplier.Count({ where: { TotalDebt: { gt: 0 } } }),
+      this.prisma.supplier.count(),
+      this.prisma.supplier.count({ where: { IsActive: true } }),
+      this.prisma.supplier.count({ where: { TotalDebt: { gt: 0 } } }),
     ]);
 
     const TotalDebt = await this.prisma.supplier.aggregate({
@@ -522,7 +522,7 @@ export class SupplierService {
       Notes: Supplier.Notes,
       IsActive: Supplier.IsActive,
       createdAt: Supplier.CreatedAt,
-      updatedAt: Supplier.UpDatedAt,
+      updatedAt: Supplier.UpdatedAt,
     };
   }
 }

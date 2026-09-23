@@ -31,10 +31,10 @@ export class ReportsService {
    * Get dashboard Summary
    */
   async getDashboardSummary(dto: DashboardSummaryDto) {
-    const Date = dto.Date ? new Date(dto.Date) : new Date();
-    const startOfDay = new Date(Date);
+    const reportDate = dto.Date ? new Date(dto.Date) : new Date();
+    const startOfDay = new Date(reportDate);
     startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(Date);
+    const endOfDay = new Date(reportDate);
     endOfDay.setHours(23, 59, 59, 999);
 
     const whereClause: any = {
@@ -57,7 +57,7 @@ export class ReportsService {
     });
 
     // Get low Stock Count
-    const lowStockCount = await this.prisma.product.Count({
+    const lowStockCount = await this.prisma.product.count({
       where: {
         Stock: { lte: 10 }, // Default minimum Stock threshold
         IsActive: true,
@@ -65,7 +65,7 @@ export class ReportsService {
     });
 
     // Get out of Stock Count
-    const outOfStockCount = await this.prisma.product.Count({
+    const outOfStockCount = await this.prisma.product.count({
       where: {
         Stock: { lte: 0 },
         IsActive: true,
@@ -106,7 +106,7 @@ export class ReportsService {
           };
         }
         ProductSales[item.ProductID].Quantity += Number(item.Quantity);
-        ProductSales[item.ProductID].revenue += Number(item.SubTotal);
+        ProductSales[item.ProductID].revenue += Number(item.Subtotal);
       }
     }
 
@@ -124,7 +124,7 @@ export class ReportsService {
     }, 0);
 
     return {
-      Date: Date.toISOString().split('T')[0],
+      Date: reportDate.toISOString().split('T')[0],
       Summary: {
         todaySales: TotalSales,
         todayTransactions: SalesData.length,
@@ -189,7 +189,7 @@ export class ReportsService {
 
       for (const item of Sale.SaleItems) {
         const Cost = Number(item.Quantity) * Number(item.Product?.PurchasePrice || 0);
-        const profit = Number(item.SubTotal) - Cost;
+        const profit = Number(item.Subtotal) - Cost;
         TotalCost += Cost;
         TotalProfit += profit;
 
@@ -199,7 +199,7 @@ export class ReportsService {
           byCategory[CategoryName] = { Category: CategoryName, Quantity: 0, revenue: 0, Cost: 0, profit: 0 };
         }
         byCategory[CategoryName].Quantity += Number(item.Quantity);
-        byCategory[CategoryName].revenue += Number(item.SubTotal);
+        byCategory[CategoryName].revenue += Number(item.Subtotal);
         byCategory[CategoryName].Cost += Cost;
         byCategory[CategoryName].profit += profit;
 
@@ -216,7 +216,7 @@ export class ReportsService {
           };
         }
         byProduct[item.ProductID].Quantity += Number(item.Quantity);
-        byProduct[item.ProductID].revenue += Number(item.SubTotal);
+        byProduct[item.ProductID].revenue += Number(item.Subtotal);
         byProduct[item.ProductID].Cost += Cost;
         byProduct[item.ProductID].profit += profit;
 
@@ -266,7 +266,7 @@ export class ReportsService {
       where.Stock = { gt: 0, lte: 10 }; // Default minimum Stock threshold
     }
 
-    if (dto.outOfStockOnly) {
+    if (dto.OutOfStockOnly) {
       where.Stock = { lte: 0 };
     }
 
@@ -284,7 +284,7 @@ export class ReportsService {
       ID: p.ID,
       Code: p.Code,
       Name: p.Name,
-      BarCode: p.BarCode,
+      Barcode: p.Barcode,
       Category: p.Category?.Name,
       Brand: p.Brand?.Name,
       Unit: p.Unit?.Name,
@@ -325,7 +325,7 @@ export class ReportsService {
     const movements: any[] = [];
 
     // Stock In
-    if (!dto.movementType || dto.movementType === 'STOCK_IN') {
+    if (!dto.MovementType || dto.MovementType === 'STOCK_IN') {
       const StockIns = await this.prisma.stockIn.findMany({
         where: {
           Date: { gte: startDate, lte: endDate },
@@ -349,7 +349,7 @@ export class ReportsService {
             Warehouse: si.Warehouse?.Name,
             Quantity: number(item.Quantity),
             UnitPrice: number(item.UnitPrice),
-            subTotal: number(item.SubTotal),
+            subTotal: number(item.Subtotal),
             Notes: si.Description,
           });
         }
@@ -357,7 +357,7 @@ export class ReportsService {
     }
 
     // Stock Out
-    if (!dto.movementType || dto.movementType === 'STOCK_OUT') {
+    if (!dto.MovementType || dto.MovementType === 'STOCK_OUT') {
       const StockOuts = await this.prisma.stockOut.findMany({
         where: {
           Date: { gte: startDate, lte: endDate },
@@ -380,7 +380,7 @@ export class ReportsService {
             Warehouse: so.Warehouse?.Name,
             Quantity: -Number(item.Quantity),
             UnitPrice: number(item.UnitPrice),
-            subTotal: -Number(item.SubTotal),
+            subTotal: -Number(item.Subtotal),
             Notes: so.Description,
           });
         }
@@ -407,7 +407,7 @@ export class ReportsService {
    * Get receivable aging Report
    */
   async getReceivableAgingReport(dto: ReceivableAgingReportDto) {
-    const asOfDate = dto.asOfDate ? new Date(dto.asOfDate) : new Date();
+    const asOfDate = dto.AsOfDate ? new Date(dto.AsOfDate) : new Date();
 
     const where: any = { TotalReceivable: { gt: 0 } };
     if (dto.CustomerId) where.ID = dto.CustomerId;
@@ -493,7 +493,7 @@ export class ReportsService {
    * Get payable aging Report
    */
   async getPayableAgingReport(dto: PayableAgingReportDto) {
-    const asOfDate = dto.asOfDate ? new Date(dto.asOfDate) : new Date();
+    const asOfDate = dto.AsOfDate ? new Date(dto.AsOfDate) : new Date();
 
     const where: any = { TotalDebt: { gt: 0 } };
     if (dto.SupplierId) where.ID = dto.SupplierId;
@@ -685,7 +685,7 @@ export class ReportsService {
     const netProfit = grossProfit - TotalExpenses;
 
     // Expense breakdown
-    const expenseByCategory: Record<string, Number> = {};
+    const expenseByCategory: Record<string, number> = {};
     for (const expense of expenses) {
       const cat = expense.ExpenseCategory?.Name || 'Uncategorized';
       expenseByCategory[cat] = (expenseByCategory[cat] || 0) + Number(expense.Amount);
@@ -845,17 +845,17 @@ export class ReportsService {
         const Cost = Qty * Number(item.Product?.PurchasePrice || 0);
 
         ProductData[item.ProductID].Quantity += Qty;
-        ProductData[item.ProductID].revenue += Number(item.SubTotal);
+        ProductData[item.ProductID].revenue += Number(item.Subtotal);
         ProductData[item.ProductID].Cost += Cost;
-        ProductData[item.ProductID].profit += Number(item.SubTotal) - Cost;
+        ProductData[item.ProductID].profit += Number(item.Subtotal) - Cost;
       }
     }
 
     const Products = Object.values(ProductData);
-    const sortBy = dto.sortBy || 'revenue';
+    const sortBy = dto.SortBy || 'revenue';
     Products.sort((a: any, b: any) => b[sortBy] - a[sortBy]);
 
-    const limit = dto.limit || 10;
+    const limit = dto.Limit || 10;
     const topProducts = Products.slice(0, limit);
 
     return {
@@ -911,7 +911,7 @@ export class ReportsService {
         CustomerData[Sale.CustomerID].TotalQuantity += Number(item.Quantity);
         const Cost = Number(item.Quantity) * Number(item.Product?.PurchasePrice || 0);
         SaleCost += Cost;
-        CustomerData[Sale.CustomerID].profit += Number(item.SubTotal) - Cost;
+        CustomerData[Sale.CustomerID].profit += Number(item.Subtotal) - Cost;
       }
 
       CustomerData[Sale.CustomerID].revenue += Number(Sale.Total);
@@ -919,10 +919,10 @@ export class ReportsService {
     }
 
     const Customers = Object.values(CustomerData);
-    const sortBy = dto.sortBy || 'revenue';
+    const sortBy = dto.SortBy || 'revenue';
     Customers.sort((a: any, b: any) => b[sortBy] - a[sortBy]);
 
-    const limit = dto.limit || 20;
+    const limit = dto.Limit || 20;
     const topCustomers = Customers.slice(0, limit);
 
     return {
@@ -981,10 +981,10 @@ export class ReportsService {
     }
 
     const Suppliers = Object.values(SupplierData);
-    const sortBy = dto.sortBy || 'TotalPurchase';
+    const sortBy = dto.SortBy || 'TotalPurchase';
     Suppliers.sort((a: any, b: any) => b[sortBy] - a[sortBy]);
 
-    const limit = dto.limit || 20;
+    const limit = dto.Limit || 20;
     const topSuppliers = Suppliers.slice(0, limit);
 
     return {

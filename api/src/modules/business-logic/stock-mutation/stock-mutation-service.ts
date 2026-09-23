@@ -4,13 +4,13 @@ import { Prisma } from '@prisma/client'
 import { number } from '../../../common/utils/number';
 import {
   CreateMutationCategoryDto,
-  UpDateMutationCategoryDto,
+  UpdateMutationCategoryDto,
   CreateStockMutationDto,
-  UpDateStockMutationDto,
+  UpdateStockMutationDto,
   StockMutationFilterDto,
   MutationReportDto,
   MutationSummaryDto,
-} from './Stock-Mutation.dto';
+} from './stock-mutation.dto';
 
 @Injectable()
 export class StockMutationService {
@@ -39,7 +39,7 @@ export class StockMutationService {
         Code: dto.Code,
         Name: dto.Name,
         Description: dto.Description,
-        Color: dto.color,
+        Color: dto.Color,
         MutationType: dto.MutationType,
         IsActive: true,
       },
@@ -78,20 +78,20 @@ export class StockMutationService {
 
     const Categories = await this.prisma.mutationCategory.findMany({
       where,
-      include: { _Count: { select: { Mutations: true } } },
-      orderBy: { SortOrder: 'asc' },
+      include: { _count: { select: { Mutations: true } } },
+      orderBy: { Name: 'asc' },
     });
 
     return Categories.map((c) => ({
       ...this.formatCategory(c),
-      MutationCount: c._Count.Mutations,
+      MutationCount: c._count.Mutations,
     }));
   }
 
   /**
    * UpDate Mutation Category
    */
-  async updateMutationCategory(CategoryId: number, dto: UpDateMutationCategoryDto) {
+  async updateMutationCategory(CategoryId: number, dto: UpdateMutationCategoryDto) {
     const Category = await this.prisma.mutationCategory.findUnique({
       where: { ID: CategoryId },
     });
@@ -105,7 +105,7 @@ export class StockMutationService {
       data: {
         Name: dto.Name,
         Description: dto.Description,
-        Color: dto.color,
+        Color: dto.Color,
         IsActive: dto.IsActive,
       },
     });
@@ -122,14 +122,14 @@ export class StockMutationService {
   async deleteMutationCategory(CategoryId: number) {
     const Category = await this.prisma.mutationCategory.findUnique({
       where: { ID: CategoryId },
-      include: { _Count: { select: { Mutations: true } } },
+      include: { _count: { select: { Mutations: true } } },
     });
 
     if (!Category) {
       throw new NotFoundException('Mutation Category not found');
     }
 
-    if (Category._Count.Mutations > 0) {
+    if (Category._count.Mutations > 0) {
       throw new BadRequestException('Cannot delete Category with existing Mutations');
     }
 
@@ -234,7 +234,7 @@ export class StockMutationService {
             Quantity: new Prisma.Decimal(item.Quantity),
             UnitID: item.UnitId || Product?.UnitID || 1,
             UnitPrice: new Prisma.Decimal(UnitPrice),
-            SubTotal: new Prisma.Decimal(subTotal),
+            Subtotal: new Prisma.Decimal(subTotal),
             Notes: item.Notes,
           },
         });
@@ -357,7 +357,7 @@ export class StockMutationService {
         Quantity: number(item.Quantity),
         Unit: item.Unit?.Name,
         UnitPrice: number(item.UnitPrice),
-        subTotal: number(item.SubTotal),
+        subTotal: number(item.Subtotal),
         Notes: item.Notes,
       })),
     };
@@ -425,7 +425,7 @@ export class StockMutationService {
   /**
    * UpDate Stock Mutation
    */
-  async updateStockMutation(MutationId: number, dto: UpDateStockMutationDto) {
+  async updateStockMutation(MutationId: number, dto: UpdateStockMutationDto) {
     const Mutation = await this.prisma.stockMutation.findUnique({
       where: { ID: MutationId },
     });
@@ -522,7 +522,7 @@ export class StockMutationService {
             Quantity: item.Quantity,
             UnitID: item.UnitID,
             UnitPrice: item.UnitPrice,
-            SubTotal: item.SubTotal,
+            Subtotal: item.Subtotal,
             Notes: `Reversal: ${item.Notes || ''}`,
           },
         });
@@ -736,7 +736,7 @@ export class StockMutationService {
           referenceNumber: m.ReferenceNumber,
           Quantity,
           UnitPrice: number(item.UnitPrice),
-          subTotal: number(item.SubTotal),
+          subTotal: number(item.Subtotal),
         };
       });
 

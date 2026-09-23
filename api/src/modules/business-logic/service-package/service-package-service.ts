@@ -58,7 +58,7 @@ export class ServicePackageService {
   async getServiceCategory(CategoryId: number) {
     const Category = await this.prisma.serviceCategory.findUnique({
       where: { ID: CategoryId },
-      include: { _Count: { select: { Packages: true } } },
+      include: { _count: { select: { Packages: true } } },
     });
 
     if (!Category) {
@@ -67,7 +67,7 @@ export class ServicePackageService {
 
     return {
       ...this.formatCategory(Category),
-      PackageCount: Category._Count.Packages,
+      PackageCount: Category._count.Packages,
     };
   }
 
@@ -83,14 +83,14 @@ export class ServicePackageService {
     const Categories = await this.prisma.serviceCategory.findMany({
       where,
       include: {
-        _Count: { select: { Packages: true } },
+        _count: { select: { Packages: true } },
       },
       orderBy: { Name: 'asc' },
     });
 
     return Categories.map((c) => ({
       ...this.formatCategory(c),
-      PackageCount: c._Count.Packages,
+      PackageCount: c._count.Packages,
     }));
   }
 
@@ -130,14 +130,14 @@ export class ServicePackageService {
   async deleteServiceCategory(CategoryId: number) {
     const Category = await this.prisma.serviceCategory.findUnique({
       where: { ID: CategoryId },
-      include: { _Count: { select: { Packages: true } } },
+      include: { _count: { select: { Packages: true } } },
     });
 
     if (!Category) {
       throw new NotFoundException('Service Category not found');
     }
 
-    if (Category._Count.Packages > 0) {
+    if (Category._count.Packages > 0) {
       throw new BadRequestException('Cannot delete Category with existing Packages');
     }
 
@@ -224,12 +224,11 @@ export class ServicePackageService {
 
                   return {
                     ProductID: item.ProductId || null,
-                    ItemName: item.itemName,
+                    ItemName: item.ItemName,
                     Quantity: new Prisma.Decimal(item.Quantity),
                     UnitPrice: new Prisma.Decimal(UnitPrice),
-                    SubTotal: new Prisma.Decimal(UnitPrice * item.Quantity),
-                    SortOrder: index + 1,
-                  };
+                    Subtotal: new Prisma.Decimal(UnitPrice * item.Quantity),
+                          };
                 }),
               ),
             }
@@ -239,7 +238,7 @@ export class ServicePackageService {
         ServiceCategory: true,
         PackageItems: {
           include: { Product: true },
-          orderBy: { SortOrder: 'asc' },
+          orderBy: { ID: 'asc' }, // NOTE: PackageItem has no SortOrder column in schema.prisma; ordering by ID instead (needs schema addition if manual ordering is required)
         },
       },
     });
@@ -260,7 +259,7 @@ export class ServicePackageService {
         ServiceCategory: true,
         PackageItems: {
           include: { Product: true },
-          orderBy: { SortOrder: 'asc' },
+          orderBy: { ID: 'asc' }, // NOTE: PackageItem has no SortOrder column in schema.prisma; ordering by ID instead (needs schema addition if manual ordering is required)
         },
       },
     });
@@ -358,7 +357,7 @@ export class ServicePackageService {
         ServiceCategory: true,
         PackageItems: {
           include: { Product: true },
-          orderBy: { SortOrder: 'asc' },
+          orderBy: { ID: 'asc' }, // NOTE: PackageItem has no SortOrder column in schema.prisma; ordering by ID instead (needs schema addition if manual ordering is required)
         },
       },
     });
@@ -366,7 +365,7 @@ export class ServicePackageService {
     // UpDate items if provided
     if (dto.Items) {
       // Delete existing items
-      await this.prisma.PackageItem.deleteMany({
+      await this.prisma.packageItem.deleteMany({
         where: { ServicePackageID: PackageId },
       });
 
@@ -384,15 +383,14 @@ export class ServicePackageService {
           }
         }
 
-        await this.prisma.PackageItem.create({
+        await this.prisma.packageItem.create({
           data: {
             ServicePackageID: PackageId,
             ProductID: item.ProductId || null,
-            ItemName: item.itemName,
+            ItemName: item.ItemName,
             Quantity: new Prisma.Decimal(item.Quantity),
             UnitPrice: new Prisma.Decimal(UnitPrice),
-            SubTotal: new Prisma.Decimal(UnitPrice * item.Quantity),
-            SortOrder: i + 1,
+            Subtotal: new Prisma.Decimal(UnitPrice * item.Quantity),
           },
         });
       }
@@ -416,7 +414,7 @@ export class ServicePackageService {
       throw new NotFoundException('Service Package not found');
     }
 
-    await this.prisma.PackageItem.deleteMany({
+    await this.prisma.packageItem.deleteMany({
       where: { ServicePackageID: PackageId },
     });
 
@@ -468,8 +466,7 @@ export class ServicePackageService {
             ItemName: item.ItemName,
             Quantity: item.Quantity,
             UnitPrice: item.UnitPrice,
-            SubTotal: item.SubTotal,
-            SortOrder: index + 1,
+            Subtotal: item.Subtotal,
           })),
         },
       },
@@ -477,7 +474,7 @@ export class ServicePackageService {
         ServiceCategory: true,
         PackageItems: {
           include: { Product: true },
-          orderBy: { SortOrder: 'asc' },
+          orderBy: { ID: 'asc' }, // NOTE: PackageItem has no SortOrder column in schema.prisma; ordering by ID instead (needs schema addition if manual ordering is required)
         },
       },
     });
@@ -720,7 +717,7 @@ export class ServicePackageService {
         ProductCode: item.Product?.Code,
         Quantity: number(item.Quantity),
         UnitPrice: number(item.UnitPrice),
-        subTotal: number(item.SubTotal),
+        subTotal: number(item.Subtotal),
       })) || [],
     };
   }

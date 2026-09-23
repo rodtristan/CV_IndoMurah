@@ -8,14 +8,15 @@ import {
   Body,
   Query,
   Request,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ServicePackageService } from './service-package-service';
 import {
   CreateServiceCategoryDto,
-  UpdateServiceCategoryDto,
+  UpDateServiceCategoryDto,
   CreateServicePackageDto,
-  UpdateServicePackageDto,
+  UpDateServicePackageDto,
   ServicePackageFilterDto,
   CalculatePackageQuoteDto,
   ComparePackagesDto,
@@ -61,7 +62,7 @@ export class ServicePackageController {
   @ApiOperation({ summary: 'Update service category' })
   async updateServiceCategory(
     @Param('id') id: string,
-    @Body() dto: UpdateServiceCategoryDto,
+    @Body() dto: UpDateServiceCategoryDto,
   ) {
     const data = await this.servicePackageService.updateServiceCategory(parseInt(id), dto);
     return ApiResponse.ok(data, 'Service category updated successfully');
@@ -103,7 +104,7 @@ export class ServicePackageController {
   @ApiOperation({ summary: 'Update service package' })
   async updateServicePackage(
     @Param('id') id: string,
-    @Body() dto: UpdateServicePackageDto,
+    @Body() dto: UpDateServicePackageDto,
     @Request() req: any,
   ) {
     const data = await this.servicePackageService.updateServicePackage(parseInt(id), dto, req.user?.id || '1');

@@ -1,8 +1,17 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma-service';
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@prisma/client';
 import { number } from '../../../common/utils/number';
-import { CreatePurchaseOrderDto, PurchaseOrderFilterDto } from './Purchase-Order.dto';
+import { CreatePurchaseOrderDto, PurchaseOrderFilterDto } from './purchase-order.dto';
+
+// Maps the business-logic status vocabulary onto the real TransactionStatus codes
+// seeded in prisma/seed.ts (DRAFT, CONFIRMED, PROCESSING, COMPLETED, CANCELLED, REJECTED).
+const STATUS_CODE_MAP: Record<string, string> = {
+  PENDING: 'DRAFT',
+  APPROVED: 'CONFIRMED',
+  RECEIVED: 'COMPLETED',
+  CANCELLED: 'CANCELLED',
+};
 
 @Injectable()
 export class PurchaseOrderService {
@@ -14,7 +23,7 @@ export class PurchaseOrderService {
 
   /**
    * Create Purchase Order
-   * Flow: Purchaser buat PO → sistem hitung Total, diskon, pajak → simpan
+   * Flow: Purchaser buat PO -> sistem hitung Total, diskon, pajak -> simpan
    */
   async createPurchaseOrder(dto: CreatePurchaseOrderDto, UserId: string) {
     // Validate Supplier
@@ -26,14 +35,31 @@ export class PurchaseOrderService {
       throw new NotFoundException(`Supplier ${dto.SupplierId} not found`);
     }
 
-    // generate PO Number
-    const ponumber = await this.generatePONumber();
+    // generate PO Code
+    const code = await this.generatePONumber();
+
+    const draftStatus = await this.getStatusByCode('DRAFT');
+    const pendingPaymentStatus = await this.getPaymentStatusByCode('PENDING');
+    const paidPaymentStatus = await this.getPaymentStatusByCode('PAID');
 
     // Calculate Totals
     let subTotal = 0;
     let TotalDiscount = 0;
     let TotalTax = 0;
-    const itemsWithCalculations = [];
+    const itemsWithCalculations: Array<{
+      ProductId: number;
+      ProductName: string;
+      WarehouseId: number | undefined;
+      UnitId: number;
+      Quantity: number;
+      Price: number;
+      discountPercent: number;
+      discountAmount: number;
+      taxPercent: number;
+      taxAmount: number;
+      subTotal: number;
+      Notes: string | undefined;
+    }> = [];
 
     for (const item of dto.Items) {
       // Get Product info
@@ -46,9 +72,9 @@ export class PurchaseOrderService {
       }
 
       const itemSubTotal = item.Price * item.Quantity;
-      const discountAmount = (itemSubTotal * (item.discountPercent || 0)) / 100;
+      const discountAmount = (itemSubTotal * (item.DiscountPercent || 0)) / 100;
       const afterDiscount = itemSubTotal - discountAmount;
-      const taxAmount = (afterDiscount * (item.taxPercent || 0)) / 100;
+      const taxAmount = (afterDiscount * (item.TaxPercent || 0)) / 100;
       const itemTotal = afterDiscount + taxAmount;
 
       subTotal += itemSubTotal;
@@ -62,10 +88,13 @@ export class PurchaseOrderService {
         UnitId: item.UnitId || Product.UnitID,
         Quantity: item.Quantity,
         Price: item.Price,
-        discountPercent: item.discountPercent || 0,
+        discountPercent: item.DiscountPercent || 0,
         discountAmount,
-        taxPercent: item.taxPercent || 0,
+        taxPercent: item.TaxPercent || 0,
         taxAmount,
+        // Note: PurchaseOrderItem has no dedicated tax column in schema.prisma,
+        // so the tax amount is folded into the persisted Subtotal (matches the
+        // header-level Total which also includes TaxAmount).
         subTotal: itemTotal,
         Notes: item.Notes,
       });
@@ -79,39 +108,37 @@ export class PurchaseOrderService {
       // Create PO
       const newPO = await tx.purchaseOrder.create({
         data: {
+          Code: code,
           SupplierID: dto.SupplierId,
           WarehouseID: dto.WarehouseId,
-          OrderDate: dto.OrderDate ? new Date(dto.OrderDate) : new Date(),
-          ExpectedDate: dto.expectedDate ? new Date(dto.expectedDate) : null,
-          Status: 'PENDING',
-          SubTotal: new Prisma.Decimal(subTotal),
-          TotalDiscount: new Prisma.Decimal(TotalDiscount),
+          Date: dto.OrderDate ? new Date(dto.OrderDate) : new Date(),
+          // ExpectedDate does not exist on PurchaseOrder in schema.prisma; DueDate
+          // is the closest real column and is reused for the expected delivery date.
+          DueDate: dto.ExpectedDate ? new Date(dto.ExpectedDate) : null,
+          StatusID: draftStatus.ID,
+          Subtotal: new Prisma.Decimal(subTotal),
+          DiscountAmount: new Prisma.Decimal(TotalDiscount),
           TaxAmount: new Prisma.Decimal(TotalTax),
-          TotalAmount: new Prisma.Decimal(TotalAmount),
+          Total: new Prisma.Decimal(TotalAmount),
           DownPayment: new Prisma.Decimal(downPayment),
-          RemainingAmount: new Prisma.Decimal(remainingAmount),
-          DownPaymentStatus: downPayment > 0 ? 'PARTIAL' : 'NONE',
-          PaymentStatus: remainingAmount === 0 ? 'PAID' : 'UNPAID',
+          PaymentStatusID: remainingAmount <= 0 ? paidPaymentStatus.ID : pendingPaymentStatus.ID,
           Notes: dto.Notes,
-          CreatedBy: UserId,
+          CreatedByID: UserId,
         },
       });
 
-      // Create PO items
+      // Create PO items (only columns that exist on PurchaseOrderItem are persisted;
+      // WarehouseID/TaxPercent/TaxAmount/Notes are not columns on this model).
       await tx.purchaseOrderItem.createMany({
         data: itemsWithCalculations.map((item) => ({
           PurchaseOrderID: newPO.ID,
           ProductID: item.ProductId,
-          WarehouseID: item.WarehouseId,
           UnitID: item.UnitId,
           Quantity: new Prisma.Decimal(item.Quantity),
-          Price: new Prisma.Decimal(item.Price),
+          UnitPrice: new Prisma.Decimal(item.Price),
           DiscountPercent: new Prisma.Decimal(item.discountPercent || 0),
           DiscountAmount: new Prisma.Decimal(item.discountAmount),
-          TaxPercent: new Prisma.Decimal(item.taxPercent || 0),
-          TaxAmount: new Prisma.Decimal(item.taxAmount),
-          SubTotal: new Prisma.Decimal(item.subTotal),
-          Notes: item.Notes,
+          Subtotal: new Prisma.Decimal(item.subTotal),
         })),
       });
 
@@ -122,20 +149,20 @@ export class PurchaseOrderService {
       success: true,
       PurchaseOrder: {
         ID: PurchaseOrder.ID,
-        poNumber: PurchaseOrder.PurchaseOrderNumber,
+        poNumber: PurchaseOrder.Code,
         SupplierId: PurchaseOrder.SupplierID,
         SupplierName: Supplier.Name,
         WarehouseId: PurchaseOrder.WarehouseID,
-        OrderDate: PurchaseOrder.OrderDate,
-        expectedDate: PurchaseOrder.ExpectedDate,
-        Status: PurchaseOrder.Status,
+        OrderDate: PurchaseOrder.Date,
+        expectedDate: PurchaseOrder.DueDate,
+        Status: 'PENDING',
         subTotal,
         TotalDiscount,
         taxAmount: TotalTax,
         TotalAmount,
         downPayment,
         remainingAmount,
-        PaymentStatus: PurchaseOrder.PaymentStatus,
+        PaymentStatus: remainingAmount <= 0 ? 'PAID' : 'PENDING',
         itemCount: dto.Items.length,
         items: itemsWithCalculations,
       },
@@ -151,11 +178,12 @@ export class PurchaseOrderService {
       include: {
         Supplier: true,
         Warehouse: true,
-        Items: {
+        Status: true,
+        PaymentStatus: true,
+        PurchaseOrderItems: {
           include: {
             Product: true,
             Unit: true,
-            Warehouse: true,
           },
         },
       },
@@ -167,43 +195,38 @@ export class PurchaseOrderService {
 
     return {
       ID: po.ID,
-      poNumber: po.PurchaseOrderNumber,
+      poNumber: po.Code,
       SupplierId: po.SupplierID,
       SupplierName: po.Supplier?.Name,
       WarehouseId: po.WarehouseID,
       WarehouseName: po.Warehouse?.Name,
-      OrderDate: po.OrderDate,
-      expectedDate: po.ExpectedDate,
-      Status: po.Status,
-      subTotal: number(po.SubTotal),
-      TotalDiscount: number(po.TotalDiscount),
+      OrderDate: po.Date,
+      expectedDate: po.DueDate,
+      Status: po.Status?.Code,
+      subTotal: number(po.Subtotal),
+      TotalDiscount: number(po.DiscountAmount),
       taxAmount: number(po.TaxAmount),
-      TotalAmount: number(po.TotalAmount),
+      TotalAmount: number(po.Total),
       downPayment: number(po.DownPayment),
-      remainingAmount: number(po.RemainingAmount),
-      PaymentStatus: po.PaymentStatus,
-      PaymentDate: po.PaymentDate,
+      remainingAmount: number(po.Total) - number(po.DownPayment),
+      PaymentStatus: po.PaymentStatus?.Code,
       Notes: po.Notes,
-      createdBy: po.CreatedBy,
-      approvedBy: po.ApprovedBy,
+      createdBy: po.CreatedByID,
+      // ApprovedBy does not exist on PurchaseOrder in schema.prisma; stubbed as null.
+      approvedBy: null,
       createdAt: po.CreatedAt,
-      items: po.Items.map((item) => ({
+      items: po.PurchaseOrderItems.map((item) => ({
         ID: item.ID,
         ProductId: item.ProductID,
         ProductName: item.Product?.Name,
         ProductCode: item.Product?.Code,
-        WarehouseId: item.WarehouseID,
-        WarehouseName: item.Warehouse?.Name,
         UnitId: item.UnitID,
         UnitName: item.Unit?.Name,
         Quantity: number(item.Quantity),
-        Price: number(item.Price),
+        Price: number(item.UnitPrice),
         discountPercent: number(item.DiscountPercent),
         discountAmount: number(item.DiscountAmount),
-        taxPercent: number(item.TaxPercent),
-        taxAmount: number(item.TaxAmount),
-        subTotal: number(item.SubTotal),
-        Notes: item.Notes,
+        subTotal: number(item.Subtotal),
       })),
     };
   }
@@ -212,7 +235,7 @@ export class PurchaseOrderService {
    * List Purchase Orders
    */
   async listPurchaseOrders(dto: PurchaseOrderFilterDto) {
-    const where: any = {};
+    const where: Prisma.PurchaseOrderWhereInput = {};
 
     if (dto.SupplierId) {
       where.SupplierID = dto.SupplierId;
@@ -222,21 +245,26 @@ export class PurchaseOrderService {
       where.WarehouseID = dto.WarehouseId;
     }
 
-    if (dto.status) {
-      where.Status = dto.status.toUpperCase();
+    if (dto.Status) {
+      const mappedCode = STATUS_CODE_MAP[dto.Status.toUpperCase()] || dto.Status.toUpperCase();
+      const status = await this.prisma.transactionStatus.findUnique({ where: { Code: mappedCode } });
+      where.StatusID = status?.ID ?? -1;
     }
 
     if (dto.PaymentStatus) {
-      where.PaymentStatus = dto.PaymentStatus.toUpperCase();
+      const paymentStatus = await this.prisma.paymentStatus.findUnique({
+        where: { Code: dto.PaymentStatus.toUpperCase() },
+      });
+      where.PaymentStatusID = paymentStatus?.ID ?? -1;
     }
 
     if (dto.StartDate || dto.EndDate) {
-      where.OrderDate = {};
+      where.Date = {};
       if (dto.StartDate) {
-        where.OrderDate.gte = new Date(dto.StartDate);
+        where.Date.gte = new Date(dto.StartDate);
       }
       if (dto.EndDate) {
-        where.OrderDate.lte = new Date(dto.EndDate);
+        where.Date.lte = new Date(dto.EndDate);
       }
     }
 
@@ -245,26 +273,28 @@ export class PurchaseOrderService {
       include: {
         Supplier: { select: { ID: true, Name: true } },
         Warehouse: { select: { ID: true, Name: true } },
-        Items: true,
+        Status: true,
+        PaymentStatus: true,
+        PurchaseOrderItems: true,
       },
-      orderBy: { OrderDate: 'desc' },
+      orderBy: { Date: 'desc' },
     });
 
     return Orders.map((po) => ({
       ID: po.ID,
-      poNumber: po.PurchaseOrderNumber,
+      poNumber: po.Code,
       SupplierId: po.SupplierID,
       SupplierName: po.Supplier?.Name,
       WarehouseId: po.WarehouseID,
       WarehouseName: po.Warehouse?.Name,
-      OrderDate: po.OrderDate,
-      expectedDate: po.ExpectedDate,
-      Status: po.Status,
-      TotalAmount: number(po.TotalAmount),
+      OrderDate: po.Date,
+      expectedDate: po.DueDate,
+      Status: po.Status?.Code,
+      TotalAmount: number(po.Total),
       downPayment: number(po.DownPayment),
-      remainingAmount: number(po.RemainingAmount),
-      PaymentStatus: po.PaymentStatus,
-      itemCount: po.Items.length,
+      remainingAmount: number(po.Total) - number(po.DownPayment),
+      PaymentStatus: po.PaymentStatus?.Code,
+      itemCount: po.PurchaseOrderItems.length,
       createdAt: po.CreatedAt,
     }));
   }
@@ -272,31 +302,35 @@ export class PurchaseOrderService {
   /**
    * Approve PO
    */
-  async approvePurchaseOrder(ID: number, UserId: string) {
+  async approvePurchaseOrder(ID: number, _UserId: string) {
     const po = await this.prisma.purchaseOrder.findUnique({
       where: { ID: ID },
+      include: { Status: true },
     });
 
     if (!po) {
       throw new NotFoundException(`PO ${ID} not found`);
     }
 
-    if (po.Status !== 'PENDING') {
+    if (po.Status?.Code !== 'DRAFT') {
       throw new BadRequestException('Only pending Orders can be approved');
     }
+
+    const confirmedStatus = await this.getStatusByCode('CONFIRMED');
 
     const updated = await this.prisma.purchaseOrder.update({
       where: { ID: ID },
       data: {
-        Status: 'APPROVED',
-        ApprovedBy: UserId,
+        StatusID: confirmedStatus.ID,
+        // ApprovedBy does not exist on PurchaseOrder in schema.prisma; not persisted.
       },
+      include: { Status: true },
     });
 
     return {
       success: true,
-      poNumber: updated.PurchaseOrderNumber,
-      Status: updated.Status,
+      poNumber: updated.Code,
+      Status: updated.Status?.Code,
       message: 'Purchase Order approved',
     };
   }
@@ -304,31 +338,35 @@ export class PurchaseOrderService {
   /**
    * Cancel PO
    */
-  async cancelPurchaseOrder(ID: number, UserId: string, reason?: string) {
+  async cancelPurchaseOrder(ID: number, _UserId: string, reason?: string) {
     const po = await this.prisma.purchaseOrder.findUnique({
       where: { ID: ID },
+      include: { Status: true },
     });
 
     if (!po) {
       throw new NotFoundException(`PO ${ID} not found`);
     }
 
-    if (po.Status === 'RECEIVED' || po.Status === 'CANCELLED') {
+    if (po.Status?.Code === 'COMPLETED' || po.Status?.Code === 'CANCELLED') {
       throw new BadRequestException('Cannot cancel received or already cancelled Orders');
     }
+
+    const cancelledStatus = await this.getStatusByCode('CANCELLED');
 
     const updated = await this.prisma.purchaseOrder.update({
       where: { ID: ID },
       data: {
-        Status: 'CANCELLED',
+        StatusID: cancelledStatus.ID,
         Notes: reason ? `${po.Notes || ''}\nCancelled: ${reason}` : po.Notes,
       },
+      include: { Status: true },
     });
 
     return {
       success: true,
-      poNumber: updated.PurchaseOrderNumber,
-      Status: updated.Status,
+      poNumber: updated.Code,
+      Status: updated.Status?.Code,
       message: 'Purchase Order cancelled',
     };
   }
@@ -336,42 +374,38 @@ export class PurchaseOrderService {
   /**
    * Record partial delivery
    */
-  async RecordDelivery(ID: number, deliveredItems: { itemId: number; Quantity: number }[], UserId: string) {
+  async recordDelivery(
+    ID: number,
+    deliveredItems: { itemId: number; quantity: number }[],
+    _UserId: string,
+  ) {
     const po = await this.prisma.purchaseOrder.findUnique({
       where: { ID: ID },
-      include: { Items: true },
+      include: { PurchaseOrderItems: true, Status: true },
     });
 
     if (!po) {
       throw new NotFoundException(`PO ${ID} not found`);
     }
 
-    if (po.Status === 'CANCELLED') {
+    if (po.Status?.Code === 'CANCELLED') {
       throw new BadRequestException('Cannot deliver to cancelled Order');
     }
 
-    // UpDate items with delivered Quantity
-    await this.prisma.$transaction(async (tx) => {
-      for (const delivery of deliveredItems) {
-        await tx.purchaseOrderItem.update({
-          where: { ID: delivery.itemId },
-          data: {
-            ReceivedQuantity: new Prisma.Decimal(delivery.Quantity),
-          },
-        });
-      }
-    });
-
-    // Check if fully received
-    const allReceived = po.Items.every((item) => {
+    // Note: PurchaseOrderItem has no ReceivedQuantity column in schema.prisma, so
+    // delivered quantities cannot be persisted per item. Only the aggregate
+    // "fully received" check (against the requested items/quantities) drives the
+    // PO status transition below.
+    const allReceived = po.PurchaseOrderItems.every((item) => {
       const delivery = deliveredItems.find((d) => d.itemId === item.ID);
-      return delivery && delivery.Quantity >= Number(item.Quantity);
+      return delivery && delivery.quantity >= Number(item.Quantity);
     });
 
     if (allReceived) {
+      const completedStatus = await this.getStatusByCode('COMPLETED');
       await this.prisma.purchaseOrder.update({
         where: { ID: ID },
-        data: { Status: 'RECEIVED' },
+        data: { StatusID: completedStatus.ID },
       });
     }
 
@@ -386,6 +420,18 @@ export class PurchaseOrderService {
   // HELPER METHODS
   // ─────────────────────────────────────────────────────────────────────────────
 
+  private async getStatusByCode(code: string) {
+    const status = await this.prisma.transactionStatus.findUnique({ where: { Code: code } });
+    if (!status) throw new BadRequestException(`Status '${code}' tidak ditemukan`);
+    return status;
+  }
+
+  private async getPaymentStatusByCode(code: string) {
+    const status = await this.prisma.paymentStatus.findUnique({ where: { Code: code } });
+    if (!status) throw new BadRequestException(`Payment status '${code}' tidak ditemukan`);
+    return status;
+  }
+
   private async generatePONumber(): Promise<string> {
     const today = new Date();
     const year = today.getFullYear();
@@ -393,14 +439,14 @@ export class PurchaseOrderService {
     const prefix = `PO-${year}${month}`;
 
     const lastPO = await this.prisma.purchaseOrder.findFirst({
-      where: { PurchaseOrderNumber: { startsWith: prefix } },
-      orderBy: { PurchaseOrderNumber: 'desc' },
-      select: { PurchaseOrderNumber: true },
+      where: { Code: { startsWith: prefix } },
+      orderBy: { Code: 'desc' },
+      select: { Code: true },
     });
 
     let nextNumber = 1;
     if (lastPO) {
-      const lastSeq = parseInt(lastPO.PurchaseOrderNumber.split('-').pop() || '0', 10);
+      const lastSeq = parseInt(lastPO.Code.split('-').pop() || '0', 10);
       nextNumber = lastSeq + 1;
     }
 

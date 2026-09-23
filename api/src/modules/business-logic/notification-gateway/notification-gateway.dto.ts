@@ -39,7 +39,7 @@ export class SendSmsDto {
 export class BulkSmsDto {
   @ApiProperty({ description: 'Recipient phone numbers', type: [String] })
   @IsArray()
-  @IsString({}, { each: true })
+  @IsString({ each: true })
   PhoneNumbers: string[];
 
   @ApiProperty({ description: 'Message content' })
@@ -130,7 +130,7 @@ export class SendWhatsAppDto {
 export class BulkWhatsAppDto {
   @ApiProperty({ description: 'Recipient phone numbers', type: [String] })
   @IsArray()
-  @IsString({}, { each: true })
+  @IsString({ each: true })
   PhoneNumbers: string[];
 
   @ApiProperty({ description: 'Message content' })
@@ -193,7 +193,7 @@ export class StockAlertNotificationDto {
   @ApiPropertyOptional({ description: 'Recipient phone numbers', type: [String] })
   @IsOptional()
   @IsArray()
-  @IsString({}, { each: true })
+  @IsString({ each: true })
   Recipients?: string[];
 }
 

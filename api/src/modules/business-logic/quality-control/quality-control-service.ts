@@ -27,7 +27,7 @@ export class QualityControlService {
    */
   async createQCInspection(dto: CreateQCInspectionDto, UserId: string) {
     // generate Inspection Number
-    const Inspectionnumber = await this.generateInspectionNumber(dto.InspectionType);
+    const inspectionNumber = await this.generateInspectionNumber(dto.InspectionType);
 
     // Get pending Status
     const pendingStatus = await this.prisma.transactionStatus.findFirst({
@@ -37,7 +37,7 @@ export class QualityControlService {
     const Inspection = await this.prisma.$transaction(async (tx) => {
       const newInspection = await tx.qCInspection.create({
         data: {
-          InspectionNumber: InspectionNumber,
+          InspectionNumber: inspectionNumber,
           InspectionType: dto.InspectionType,
           InspectionDate: new Date(dto.InspectionDate),
           SupplierID: dto.SupplierId || null,
@@ -55,7 +55,7 @@ export class QualityControlService {
         data: dto.Items.map((item) => ({
           QCInspectionID: newInspection.ID,
           ProductID: item.ProductId,
-          BatchNumber: item.batchNumber,
+          BatchNumber: item.BatchNumber,
           Quantity: new Prisma.Decimal(item.Quantity),
           UnitID: item.UnitId,
         })),
@@ -81,7 +81,7 @@ export class QualityControlService {
    * Record QC Inspection Results
    * Flow: QC Staff input hasil Inspection → sistem update Status & stok
    */
-  async RecordQCResults(InspectionId: number, Results: RecordQCResultDto[], UserId: string) {
+  async recordQCResults(InspectionId: number, Results: RecordQCResultDto[], UserId: string) {
     const Inspection = await this.prisma.qCInspection.findUnique({
       where: { ID: InspectionId },
       include: { Items: true },
@@ -102,7 +102,13 @@ export class QualityControlService {
     let TotalRejected = 0;
 
     const updateResults = await this.prisma.$transaction(async (tx) => {
-      const itemResults = [];
+      const itemResults: {
+        itemId: number;
+        inspectedQuantity: number;
+        passedQuantity: number;
+        rejectedQuantity: number;
+        Result: string;
+      }[] = [];
 
       for (const Result of Results) {
         const item = Inspection.Items.find((i) => i.ID === Result.itemId);
@@ -110,30 +116,30 @@ export class QualityControlService {
           throw new BadRequestException(`Inspection item ${Result.itemId} not found`);
         }
 
-        const rejectedQty = Result.inspectedQuantity - Result.passedQuantity;
+        const rejectedQty = Result.InspectedQuantity - Result.PassedQuantity;
 
         await tx.qCInspectionItem.update({
           where: { ID: Result.itemId },
           data: {
-            InspectedQuantity: new Prisma.Decimal(Result.inspectedQuantity),
-            PassedQuantity: new Prisma.Decimal(Result.passedQuantity),
+            InspectedQuantity: new Prisma.Decimal(Result.InspectedQuantity),
+            PassedQuantity: new Prisma.Decimal(Result.PassedQuantity),
             RejectedQuantity: new Prisma.Decimal(rejectedQty),
             Result: Result.Result,
-            RejectionReason: Result.rejectionReason,
+            RejectionReason: Result.RejectionReason,
             Notes: Result.Notes,
             InspectedByID: UserId,
             InspectedAt: new Date(),
           },
         });
 
-        TotalInspected += Result.inspectedQuantity;
-        TotalPassed += Result.passedQuantity;
+        TotalInspected += Result.InspectedQuantity;
+        TotalPassed += Result.PassedQuantity;
         TotalRejected += rejectedQty;
 
         itemResults.push({
           itemId: Result.itemId,
-          inspectedQuantity: Result.inspectedQuantity,
-          passedQuantity: Result.passedQuantity,
+          inspectedQuantity: Result.InspectedQuantity,
+          passedQuantity: Result.PassedQuantity,
           rejectedQuantity: rejectedQty,
           Result: Result.Result,
         });
@@ -251,8 +257,8 @@ export class QualityControlService {
       }
     }
 
-    if (dto.InspectionType) {
-      where.InspectionType = dto.InspectionType;
+    if (dto.inspectionType) {
+      where.InspectionType = dto.inspectionType;
     }
 
     if (dto.SupplierId) {
@@ -309,7 +315,7 @@ export class QualityControlService {
    * Flow: Staff menemukan cacat → buat laporan → tracking ke root cause
    */
   async createDefectReport(dto: CreateDefectReportDto, UserId: string) {
-    const defectnumber = await this.generateDefectNumber();
+    const defectNumber = await this.generateDefectNumber();
 
     const defect = await this.prisma.defectReport.create({
       data: {
@@ -317,12 +323,12 @@ export class QualityControlService {
         ProductID: dto.ProductId,
         Quantity: new Prisma.Decimal(dto.Quantity),
         DefectType: dto.defectType,
-        Severity: dto.severity || 'MEDIUM',
+        Severity: dto.Severity || 'MEDIUM',
         ProductionID: dto.ProductionId || null,
         SaleID: dto.SaleId || null,
         Description: dto.Description,
-        RootCause: dto.rootCause,
-        CorrectiveAction: dto.correctiveAction,
+        RootCause: dto.RootCause,
+        CorrectiveAction: dto.CorrectiveAction,
         Status: 'OPEN',
         ReportedByID: UserId,
       },
@@ -396,16 +402,16 @@ export class QualityControlService {
       }
     }
 
-    if (dto.defectType) {
-      where.DefectType = dto.defectType;
+    if (dto.DefectType) {
+      where.DefectType = dto.DefectType;
     }
 
-    if (dto.severity) {
-      where.Severity = dto.severity;
+    if (dto.Severity) {
+      where.Severity = dto.Severity;
     }
 
-    if (dto.status) {
-      where.Status = dto.status;
+    if (dto.Status) {
+      where.Status = dto.Status;
     }
 
     if (dto.ProductId) {
@@ -475,10 +481,10 @@ export class QualityControlService {
     });
 
     // Group by defect Type
-    const byDefectType: Record<string, Number> = {};
-    const bySeverity: Record<string, Number> = {};
+    const byDefectType: Record<string, number> = {};
+    const bySeverity: Record<string, number> = {};
     const byProduct: Record<string, { ProductName: string; Count: number; TotalQuantity: number }> = {};
-    const byMonth: Record<string, Number> = {};
+    const byMonth: Record<string, number> = {};
 
     for (const defect of defects) {
       // By Type
@@ -535,21 +541,21 @@ export class QualityControlService {
       data: {
         ProductID: dto.ProductId,
         InspectionType: dto.InspectionType,
-        SampleSize: dto.sampleSize,
-        AQL: dto.acceptableQualityLevel,
-        MinimumPassingScore: dto.minimumPassingScore,
+        SampleSize: dto.SampleSize,
+        AQL: dto.AcceptableQualityLevel,
+        MinimumPassingScore: dto.MinimumPassingScore,
       },
     });
 
     // Create CheckPoints if provided
     if (dto.CheckPoints && dto.CheckPoints.length > 0) {
-      await this.prisma.qCCheckpoint.createMany({
+      await this.prisma.qCStandardCheckpoint.createMany({
         data: dto.CheckPoints.map((cp, index) => ({
           QCStandardID: Standard.ID,
           Name: cp.Name,
           Description: cp.Description,
-          IsMandatory: cp.isMandatory ?? true,
-          Weight: cp.weight || 1,
+          IsMandatory: cp.IsMandatory ?? true,
+          Weight: cp.Weight || 1,
           SortOrder: index + 1,
         })),
       });
@@ -574,7 +580,7 @@ export class QualityControlService {
   async getQCStandard(ProductId: number, InspectionType: string) {
     const Standard = await this.prisma.qCStandard.findFirst({
       where: { ProductID: ProductId, InspectionType: InspectionType },
-      include: { CheckPoints: { orderBy: { SortOrder: 'asc' } } },
+      include: { Checkpoints: { orderBy: { SortOrder: 'asc' } } },
     });
 
     if (!Standard) {
@@ -593,7 +599,7 @@ export class QualityControlService {
       sampleSize: Standard.SampleSize,
       aql: Standard.AQL,
       minimumPassingScore: Standard.MinimumPassingScore,
-      CheckPoints: Standard.CheckPoints.map((cp) => ({
+      CheckPoints: Standard.Checkpoints.map((cp) => ({
         ID: cp.ID,
         Name: cp.Name,
         Description: cp.Description,
@@ -611,18 +617,18 @@ export class QualityControlService {
    * Create Calibration Record
    */
   async createCalibration(dto: CreateCalibrationDto, UserId: string) {
-    const nextCalibrationDate = dto.nextCalibrationDate
-      ? new Date(dto.nextCalibrationDate)
+    const nextCalibrationDate = dto.NextCalibrationDate
+      ? new Date(dto.NextCalibrationDate)
       : dto.CalibrationInterval
       ? new Date(Date.now() + dto.CalibrationInterval * 24 * 60 * 60 * 1000)
       : null;
 
     const Calibration = await this.prisma.calibration.create({
       data: {
-        EquipmentName: dto.equipmentName,
-        EquipmentCode: dto.equipmentCode,
+        EquipmentName: dto.EquipmentName,
+        EquipmentCode: dto.EquipmentCode ?? '',
         CalibrationInterval: dto.CalibrationInterval,
-        LastCalibrationDate: dto.lastCalibrationDate ? new Date(dto.lastCalibrationDate) : new Date(),
+        LastCalibrationDate: dto.LastCalibrationDate ? new Date(dto.LastCalibrationDate) : new Date(),
         NextCalibrationDate: nextCalibrationDate,
         Status: 'OK',
         CreatedByID: UserId,
@@ -645,7 +651,7 @@ export class QualityControlService {
   /**
    * Record Calibration Result
    */
-  async RecordCalibrationResult(CalibrationId: number, Result: 'PASS' | 'FAIL', Notes: string, UserId: string) {
+  async recordCalibrationResult(CalibrationId: number, Result: 'PASS' | 'FAIL', Notes: string, UserId: string) {
     const Calibration = await this.prisma.calibration.findUnique({
       where: { ID: CalibrationId },
     });
@@ -688,13 +694,13 @@ export class QualityControlService {
   async listCalibrations(dto: CalibrationFilterDto) {
     const where: any = {};
 
-    if (dto.status === 'DUE') {
+    if (dto.Status === 'DUE') {
       where.NextCalibrationDate = {
         lte: new Date(),
         gte: new Date(new Date().setHours(0, 0, 0, 0)),
       };
       where.Status = { not: 'OVERDUE' };
-    } else if (dto.status === 'OVERDUE') {
+    } else if (dto.Status === 'OVERDUE') {
       where.NextCalibrationDate = { lt: new Date(new Date().setHours(0, 0, 0, 0)) };
     }
 

@@ -88,7 +88,7 @@ export class SaleReturnService {
         ID: Sale.SalesPerson.ID,
         Name: Sale.SalesPerson.Name,
       } : null,
-      subTotal: number(Sale.SubTotal),
+      subTotal: number(Sale.Subtotal),
       discountAmount: number(Sale.DiscountAmount),
       taxAmount: number(Sale.TaxAmount),
       Total: number(Sale.Total),
@@ -104,7 +104,7 @@ export class SaleReturnService {
         Unit: item.Unit?.Name || item.Product.Unit?.Name,
         Quantity: number(item.Quantity),
         UnitPrice: number(item.UnitPrice),
-        subTotal: number(item.SubTotal),
+        subTotal: number(item.Subtotal),
         // Calculate max returnable Quantity
         maxReturnable: number(item.Quantity), // Will be reduced by existing returns
       })),
@@ -129,7 +129,9 @@ export class SaleReturnService {
           },
         },
         SaleReturns: {
-          where: { IsReturn: false },
+          // SaleReturn has no IsReturn column in schema.prisma; excluding cancelled
+          // returns from the "already returned" calculation instead.
+          where: { Status: { Code: { not: 'CANCELLED' } } },
           include: {
             ReturnItems: true,
           },
@@ -177,7 +179,7 @@ export class SaleReturnService {
           alreadyReturned,
           maxReturnable,
           UnitPrice: number(item.UnitPrice),
-          subTotal: number(item.SubTotal),
+          subTotal: number(item.Subtotal),
         };
       }),
     };
@@ -216,7 +218,15 @@ export class SaleReturnService {
 
     // Validate and calculate return items
     let TotalReturn = 0;
-    const validatedItems = [];
+    const validatedItems: Array<{
+      ProductId: number;
+      SaleItemId: number;
+      Quantity: number;
+      UnitId: number | null;
+      UnitPrice: number;
+      subTotal: number;
+      reason: string | undefined;
+    }> = [];
 
     for (const returnItem of dto.Items) {
       const SaleItem = Sale.SaleItems.find((si) => si.ProductID === returnItem.ProductId);
@@ -245,7 +255,7 @@ export class SaleReturnService {
         UnitId: returnItem.UnitId || SaleItem.UnitID || null,
         UnitPrice,
         subTotal: itemSubTotal,
-        reason: returnItem.reason || dto.Reason,
+        reason: returnItem.Reason || dto.Reason,
       });
     }
 
@@ -267,18 +277,20 @@ export class SaleReturnService {
           CustomerID: dto.CustomerId,
           WarehouseID: dto.WarehouseId || null,
           TotalReturn: new Prisma.Decimal(TotalReturn),
+          // SaleReturn has no IsReturn/exchange-flag column in schema.prisma, so the
+          // exchange flag is not persisted; it is only echoed back in the response.
           Reason: dto.Reason,
           StatusID: pendingStatus?.ID || 1,
           CreatedByID: UserId,
-          IsReturn: dto.IsExchange || false,
           ReturnItems: {
+            // SaleReturnItem has no SaleItemID column in schema.prisma; the link to
+            // the original sale item is only used in-memory for validation above.
             create: validatedItems.map((item) => ({
               ProductID: item.ProductId,
-              SaleItemID: item.SaleItemId,
               Quantity: new Prisma.Decimal(item.Quantity),
-              UnitID: item.UnitId || 1,
+              UnitID: item.UnitId || undefined,
               UnitPrice: new Prisma.Decimal(item.UnitPrice),
-              SubTotal: new Prisma.Decimal(item.subTotal),
+              Subtotal: new Prisma.Decimal(item.subTotal),
             })),
           },
         },
@@ -309,7 +321,7 @@ export class SaleReturnService {
           Quantity: number(item.Quantity),
           Unit: item.Unit?.Name,
           UnitPrice: number(item.UnitPrice),
-          subTotal: number(item.SubTotal),
+          subTotal: number(item.Subtotal),
         })),
       },
     };
@@ -330,7 +342,6 @@ export class SaleReturnService {
           include: {
             Product: true,
             Unit: true,
-            SaleItem: true,
           },
         },
       },
@@ -356,8 +367,9 @@ export class SaleReturnService {
       TotalReturn: number(SaleReturn.TotalReturn),
       reason: SaleReturn.Reason,
       Status: SaleReturn.Status,
-      isExchange: SaleReturn.IsReturn,
-      Notes: SaleReturn.Notes,
+      // SaleReturn has no IsReturn (exchange flag) or Notes column in schema.prisma.
+      isExchange: false,
+      Notes: SaleReturn.Reason,
       items: SaleReturn.ReturnItems.map((item) => ({
         ID: item.ID,
         ProductId: item.ProductID,
@@ -366,8 +378,9 @@ export class SaleReturnService {
         Quantity: number(item.Quantity),
         Unit: item.Unit?.Name,
         UnitPrice: number(item.UnitPrice),
-        subTotal: number(item.SubTotal),
-        originalQuantity: item.SaleItem ? Number(item.SaleItem.Quantity) : null,
+        subTotal: number(item.Subtotal),
+        // SaleReturnItem has no SaleItemID/SaleItem relation in schema.prisma.
+        originalQuantity: null,
       })),
     };
   }
@@ -426,7 +439,8 @@ export class SaleReturnService {
       Status: r.Status.Name,
       StatusColor: r.Status.Color,
       itemCount: r.ReturnItems.length,
-      isExchange: r.IsReturn,
+      // SaleReturn has no IsReturn (exchange flag) column in schema.prisma.
+      isExchange: false,
     }));
   }
 
@@ -459,7 +473,9 @@ export class SaleReturnService {
         where: { ID: returnId },
         data: {
           StatusID: completedStatus?.ID || 2,
-          Notes: dto.Notes,
+          // SaleReturn has no Notes column in schema.prisma; approval notes are
+          // appended onto Reason instead.
+          Reason: dto.Notes ? `${SaleReturn.Reason || ''}\nApproved: ${dto.Notes}` : SaleReturn.Reason,
         },
       });
 
@@ -486,7 +502,10 @@ export class SaleReturnService {
       // Process refund based on original Payment Method
       const refundAmount = Number(SaleReturn.TotalReturn);
 
-      if (SaleReturn.IsReturn) {
+      // SaleReturn has no IsReturn (exchange flag) column in schema.prisma, so the
+      // exchange-vs-refund branch below is currently unreachable (always cash refund).
+      const isExchange = false;
+      if (isExchange) {
         // If exchange, reduce Customer receivable
         await tx.customer.update({
           where: { ID: SaleReturn.CustomerID },
@@ -539,7 +558,9 @@ export class SaleReturnService {
       where: { ID: returnId },
       data: {
         StatusID: rejectedStatus?.ID || 3,
-        Notes: `Rejected: ${dto.Reason}`,
+        // SaleReturn has no Notes column in schema.prisma; rejection reason is
+        // appended onto Reason instead.
+        Reason: `${SaleReturn.Reason || ''}\nRejected: ${dto.Reason}`,
       },
     });
 
@@ -629,7 +650,7 @@ export class SaleReturnService {
         }
         byProduct[ProductName].returnCount++;
         byProduct[ProductName].TotalQuantity += Number(item.Quantity);
-        byProduct[ProductName].TotalAmount += Number(item.SubTotal);
+        byProduct[ProductName].TotalAmount += Number(item.Subtotal);
       }
     }
 

@@ -2,6 +2,17 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsBoolean, IsDateString, IsNumber, IsOptional, IsString, Min, IsArray, ValidateNested } from 'class-validator';
 
+export class StockTransferItemDto {
+  @ApiProperty({ description: 'Product ID' })
+  @IsNumber()
+  ProductId: number;
+
+  @ApiProperty({ description: 'Quantity to transfer' })
+  @IsNumber()
+  @Min(0.001)
+  Quantity: number;
+}
+
 export class StockTransferDto {
   @ApiProperty({ description: 'From warehouse ID' })
   @IsNumber()
@@ -18,15 +29,19 @@ export class StockTransferDto {
   TransferItems: StockTransferItemDto[];
 }
 
-export class StockTransferItemDto {
+export class StockAdjustmentItemDto {
   @ApiProperty({ description: 'Product ID' })
   @IsNumber()
   ProductId: number;
 
-  @ApiProperty({ description: 'Quantity to transfer' })
+  @ApiProperty({ description: 'Quantity (positive for add, negative for reduce)' })
   @IsNumber()
-  @Min(0.001)
   Quantity: number;
+
+  @ApiPropertyOptional({ description: 'Unit price for valuation' })
+  @IsOptional()
+  @IsNumber()
+  UnitPrice?: number;
 }
 
 export class StockAdjustmentDto {
@@ -59,19 +74,23 @@ export class StockAdjustmentDto {
   AdjustmentItems: StockAdjustmentItemDto[];
 }
 
-export class StockAdjustmentItemDto {
+export class StockOpNameItemDto {
   @ApiProperty({ description: 'Product ID' })
   @IsNumber()
   ProductId: number;
 
-  @ApiProperty({ description: 'Quantity (positive for add, negative for reduce)' })
+  @ApiProperty({ description: 'System stock (expected)' })
   @IsNumber()
-  Quantity: number;
+  SystemStock: number;
 
-  @ApiPropertyOptional({ description: 'Unit price for valuation' })
-  @IsOptional()
+  @ApiProperty({ description: 'Actual stock counted' })
   @IsNumber()
-  UnitPrice?: number;
+  CountedStock: number;
+
+  @ApiPropertyOptional({ description: 'Notes' })
+  @IsOptional()
+  @IsString()
+  Notes?: string;
 }
 
 export class StockOpNameDto {
@@ -94,25 +113,6 @@ export class StockOpNameDto {
   @ValidateNested({ each: true })
   @Type(() => StockOpNameItemDto)
   OpNameItems: StockOpNameItemDto[];
-}
-
-export class StockOpNameItemDto {
-  @ApiProperty({ description: 'Product ID' })
-  @IsNumber()
-  ProductId: number;
-
-  @ApiProperty({ description: 'System stock (expected)' })
-  @IsNumber()
-  SystemStock: number;
-
-  @ApiProperty({ description: 'Actual stock counted' })
-  @IsNumber()
-  CountedStock: number;
-
-  @ApiPropertyOptional({ description: 'Notes' })
-  @IsOptional()
-  @IsString()
-  Notes?: string;
 }
 
 export class StockReportDto {

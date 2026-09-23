@@ -5,7 +5,7 @@ import { number } from '../../../common/utils/number';
 import {
   CreateVoucherDto,
   UpDateVoucherDto,
-  ValidateVoucherDto,
+  ValiDateVoucherDto,
   VoucherFilterDto,
 } from './Voucher.dto';
 
@@ -154,7 +154,7 @@ export class VoucherService {
       where.IsActive = true;
     }
 
-    if (dto.valIDOnly) {
+    if (dto.ValidOnly) {
       const now = new Date();
       where.StartDate = { lte: now };
       where.EndDate = { gte: now };
@@ -187,7 +187,7 @@ export class VoucherService {
    * Validate Voucher
    * Flow: Kasir input Voucher → sistem valIDasi
    */
-  async valIDateVoucher(dto: ValidateVoucherDto) {
+  async validateVoucher(dto: ValiDateVoucherDto) {
     const Voucher = await this.prisma.voucher.findFirst({
       where: { Code: dto.Code },
       include: { Type: true },

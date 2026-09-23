@@ -407,7 +407,7 @@ export class PurchaseService {
           PaymentStatusID: PaymentStatusId,
           PaymentMethodID: dto.PaymentMethodId || null,
           DueDate: dto.DueDate ? new Date(dto.DueDate) : null,
-          PurchaseOrderId: dto.PurchaseOrderId || null,
+          PurchaseOrderID: dto.PurchaseOrderId || null,
           StatusID: completedStatus?.ID || 2,
           Notes: dto.Notes,
           CreatedByID: UserId,

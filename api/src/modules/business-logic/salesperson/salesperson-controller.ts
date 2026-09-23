@@ -2,7 +2,7 @@ import { Controller, Get, Post, Patch, Delete, Body, Param, Query, ParseIntPipe 
 import { SalesPersonService } from './salesperson-service';
 import {
   CreateSalesPersonDto,
-  UpdateSalesPersonDto,
+  UpDateSalesPersonDto,
   SalesPersonFilterDto,
   SalesPersonPerformanceDto,
 } from './salesperson.dto';
@@ -37,7 +37,7 @@ export class SalesPersonController {
   @Patch(':id')
   async updateSalesPerson(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateSalesPersonDto,
+    @Body() dto: UpDateSalesPersonDto,
     @Query('userId') userId: string = 'system',
   ) {
     return this.salesPersonService.updateSalesPerson(id, dto, userId);

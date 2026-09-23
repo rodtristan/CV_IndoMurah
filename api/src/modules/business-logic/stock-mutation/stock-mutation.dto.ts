@@ -30,7 +30,7 @@ export class CreateMutationCategoryDto {
   MutationType?: 'IN' | 'OUT' | 'ADJUSTMENT' | 'TRANSFER';
 }
 
-export class UpDateMutationCategoryDto {
+export class UpdateMutationCategoryDto {
   @ApiPropertyOptional({ description: 'Category Name' })
   @IsOptional()
   @IsString()
@@ -110,7 +110,7 @@ export class CreateStockMutationDto {
   Items: StockMutationItemDto[];
 }
 
-export class UpDateStockMutationDto {
+export class UpdateStockMutationDto {
   @ApiPropertyOptional({ description: 'Reference number' })
   @IsOptional()
   @IsString()

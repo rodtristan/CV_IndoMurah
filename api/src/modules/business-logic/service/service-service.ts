@@ -40,7 +40,7 @@ export class ServiceService {
       }
     }
 
-    const laborCost = dto.laborCost || 0;
+    const laborCost = dto.LaborCost || 0;
     const TotalAmount = subTotal + laborCost;
 
     const service = await this.prisma.$transaction(async (tx) => {
@@ -76,13 +76,13 @@ export class ServiceService {
           CustomerPhone: dto.CustomerPhone,
           CustomerAddress: dto.CustomerAddress,
           ProductName: dto.ProductName,
-          SerialNumber: dto.serialNumber,
-          Problem: dto.problem,
-          Diagnosis: dto.diagnosis,
-          Technician: dto.technician,
-          WarrantyUntil: dto.warrantyUntil ? new Date(dto.warrantyUntil) : null,
+          SerialNumber: dto.SerialNumber,
+          Problem: dto.Problem,
+          Diagnosis: dto.Diagnosis,
+          Technician: dto.Technician,
+          WarrantyUntil: dto.WarrantyUntil ? new Date(dto.WarrantyUntil) : null,
           LaborCost: new Prisma.Decimal(laborCost),
-          SubTotal: new Prisma.Decimal(subTotal),
+          Subtotal: new Prisma.Decimal(subTotal),
           TotalAmount: new Prisma.Decimal(TotalAmount),
           RepairStatusID: intakeStatus?.ID || 1,
           Notes: dto.Notes,
@@ -98,7 +98,7 @@ export class ServiceService {
             ProductName: item.ProductName,
             Quantity: new Prisma.Decimal(item.Quantity),
             UnitPrice: new Prisma.Decimal(item.UnitPrice || 0),
-            SubTotal: new Prisma.Decimal((item.UnitPrice || 0) * item.Quantity),
+            Subtotal: new Prisma.Decimal((item.UnitPrice || 0) * item.Quantity),
           })),
         });
       }
@@ -154,7 +154,7 @@ export class ServiceService {
       diagnosis: service.Diagnosis,
       technician: service.Technician,
       warrantyUntil: service.WarrantyUntil,
-      subTotal: number(service.SubTotal),
+      subTotal: number(service.Subtotal),
       laborCost: number(service.LaborCost),
       TotalAmount: number(service.TotalAmount),
       Status: service.Status,
@@ -166,7 +166,7 @@ export class ServiceService {
         ProductCode: item.Product?.Code,
         Quantity: number(item.Quantity),
         UnitPrice: number(item.UnitPrice),
-        subTotal: number(item.SubTotal),
+        subTotal: number(item.Subtotal),
       })),
     };
   }
@@ -185,8 +185,8 @@ export class ServiceService {
       where.RepairStatusID = dto.StatusId;
     }
 
-    if (dto.technician) {
-      where.Technician = dto.technician;
+    if (dto.Technician) {
+      where.Technician = dto.Technician;
     }
 
     if (dto.PendingOnly) {
@@ -256,8 +256,8 @@ export class ServiceService {
       where: { ID: serviceId },
       data: {
         RepairStatusID: dto.StatusId,
-        Diagnosis: dto.diagnosis || service.Diagnosis,
-        Technician: dto.technician || service.Technician,
+        Diagnosis: dto.Diagnosis || service.Diagnosis,
+        Technician: dto.Technician || service.Technician,
         Notes: dto.Notes || service.Notes,
       },
     });
@@ -299,18 +299,18 @@ export class ServiceService {
           ProductName: dto.ProductName,
           Quantity: new Prisma.Decimal(dto.Quantity),
           UnitPrice: new Prisma.Decimal(dto.UnitPrice),
-          SubTotal: new Prisma.Decimal(subTotal),
+          Subtotal: new Prisma.Decimal(subTotal),
         },
       });
 
       // UpDate service Totals
-      const currentSubTotal = Number(service.SubTotal) + subTotal;
+      const currentSubTotal = Number(service.Subtotal) + subTotal;
       const newTotal = currentSubTotal + Number(service.LaborCost);
 
       await tx.service.update({
         where: { ID: serviceId },
         data: {
-          SubTotal: new Prisma.Decimal(currentSubTotal),
+          Subtotal: new Prisma.Decimal(currentSubTotal),
           TotalAmount: new Prisma.Decimal(newTotal),
         },
       });
@@ -359,15 +359,15 @@ export class ServiceService {
       where: { Code: 'COMPLETED' },
     });
 
-    const finalSubTotal = Number(service.SubTotal);
-    const finalLaborCost = dto.laborCost;
+    const finalSubTotal = Number(service.Subtotal);
+    const finalLaborCost = dto.LaborCost;
     const finalTotal = dto.TotalAmount || finalSubTotal + finalLaborCost;
 
     await this.prisma.service.update({
       where: { ID: serviceId },
       data: {
         RepairStatusID: completedStatus?.ID || 2,
-        Diagnosis: dto.diagnosis,
+        Diagnosis: dto.Diagnosis,
         LaborCost: new Prisma.Decimal(finalLaborCost),
         TotalAmount: new Prisma.Decimal(finalTotal),
         Notes: dto.Notes || service.Notes,
@@ -388,7 +388,7 @@ export class ServiceService {
   /**
    * Record service Payment
    */
-  async RecordPayment(serviceId: number, dto: RecordServicePaymentDto, UserId: string) {
+  async recordPayment(serviceId: number, dto: RecordServicePaymentDto, UserId: string) {
     const service = await this.prisma.service.findUnique({
       where: { ID: serviceId },
       include: { Status: true },

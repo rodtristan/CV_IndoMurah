@@ -55,7 +55,7 @@ export class CreateWorkOrderDto {
   Notes?: string;
 }
 
-export class UpDateWorkOrderDto {
+export class UpdateWorkOrderDto {
   @IsOptional()
   @IsDateString()
   DueDate?: string;

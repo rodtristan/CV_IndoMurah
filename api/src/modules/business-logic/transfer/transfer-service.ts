@@ -14,7 +14,7 @@ export class TransferService {
 
   async createTransfer(dto: CreateTransferDto, UserId: string) {
     // Validate based on Transfer Type
-    const isCashTransfer = dto.fromAccountId && dto.toAccountId;
+    const isCashTransfer = dto.FromAccountId && dto.ToAccountId;
     const isWarehouseTransfer = dto.FromWarehouseId && dto.ToWarehouseId;
 
     if (!isCashTransfer && !isWarehouseTransfer) {
@@ -26,8 +26,8 @@ export class TransferService {
     // Validate Accounts if Cash Transfer
     if (isCashTransfer) {
       const [fromAccount, toAccount] = await Promise.all([
-        this.prisma.account.findUnique({ where: { ID: dto.fromAccountId } }),
-        this.prisma.account.findUnique({ where: { ID: dto.toAccountId } }),
+        this.prisma.account.findUnique({ where: { ID: dto.FromAccountId } }),
+        this.prisma.account.findUnique({ where: { ID: dto.ToAccountId } }),
       ]);
 
       if (!fromAccount) {
@@ -68,8 +68,8 @@ export class TransferService {
       data: {
         Code: dto.Code,
         Date: new Date(dto.Date),
-        FromAccountID: dto.fromAccountId,
-        ToAccountID: dto.toAccountId,
+        FromAccountID: dto.FromAccountId,
+        ToAccountID: dto.ToAccountId,
         FromWarehouseID: dto.FromWarehouseId,
         ToWarehouseID: dto.ToWarehouseId,
         Amount: new Prisma.Decimal(dto.Amount),
@@ -131,16 +131,16 @@ export class TransferService {
       }
     }
 
-    if (dto.fromAccountId) {
-      where.FromAccountID = dto.fromAccountId;
+    if (dto.FromAccountId) {
+      where.FromAccountID = dto.FromAccountId;
     }
 
-    if (dto.toAccountId) {
-      where.ToAccountID = dto.toAccountId;
+    if (dto.ToAccountId) {
+      where.ToAccountID = dto.ToAccountId;
     }
 
-    const page = dto.page || 1;
-    const limit = dto.limit || 20;
+    const page = dto.Page || 1;
+    const limit = dto.Limit || 20;
     const skip = (page - 1) * limit;
 
     const [Transfers, Total] = await Promise.all([
@@ -157,7 +157,7 @@ export class TransferService {
         skip,
         take: limit,
       }),
-      this.prisma.transfer.Count({ where }),
+      this.prisma.transfer.count({ where }),
     ]);
 
     return {
@@ -252,7 +252,7 @@ export class TransferService {
             Status: true,
           },
         })
-      : Transfer;
+      : transfer;
 
     if (!fullTransfer) {
       throw new NotFoundException('Transfer not found');

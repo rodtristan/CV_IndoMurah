@@ -144,7 +144,7 @@ export class SupplierDebtService {
       IsReturn: false,
     };
 
-    if (!dto.includePaID) {
+    if (!dto.IncludePaid) {
       where.PaymentStatus = { Code: { in: ['PENDING', 'PARTIAL'] } };
     }
 
@@ -213,7 +213,7 @@ export class SupplierDebtService {
    * Record Payment for Supplier debt
    * Flow: Owner bayar hutang Supplier → sistem update saldo dan Purchase
    */
-  async RecordPayment(dto: RecordSupplierPaymentDto, UserId: string) {
+  async recordPayment(dto: RecordSupplierPaymentDto, UserId: string) {
     const Supplier = await this.prisma.supplier.findUnique({
       where: { ID: dto.SupplierId },
     });
@@ -350,13 +350,13 @@ export class SupplierDebtService {
    * Bulk Payment for Supplier
    */
   async bulkPayment(dto: BulkSupplierPaymentDto, UserId: string) {
-    return this.RecordPayment(
+    return this.recordPayment(
       {
         SupplierId: dto.SupplierId,
         Amount: dto.Amount,
         PaymentMethodId: dto.PaymentMethodId,
         PurchaseIds: undefined,
-        referenceNumber: dto.ReferenceNumber,
+        ReferenceNumber: dto.ReferenceNumber,
         PaymentDate: dto.PaymentDate,
         Notes: dto.Notes,
       },
@@ -577,7 +577,7 @@ export class SupplierDebtService {
    * Flow: Owner ingin laporan umur hutang Supplier
    */
   async getDebtAging(dto: SupplierDebtAgingDto) {
-    const asOfDate = dto.asOfDate ? new Date(dto.asOfDate) : new Date();
+    const asOfDate = dto.AsOfDate ? new Date(dto.AsOfDate) : new Date();
 
     const unpaidStatus = await this.prisma.paymentStatus.findFirst({
       where: { Code: { in: ['PENDING', 'PARTIAL'] } },
