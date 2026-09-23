@@ -63,16 +63,27 @@ export class JournalService extends BaseService<
           PostedAt: new Date(),
           CreatedByID: userId,
           JournalEntries: {
-            create: dto.entries.map((e) => ({
-              AccountID: e.accountId,
-              Debit: new Prisma.Decimal(e.debit || 0),
-              Credit: new Prisma.Decimal(e.credit || 0),
-              Memo: e.memo,
-              UserID: userId,
-            })),
+            create: {
+              JournalNumber: code,
+              Description: dto.description,
+              TotalDebit: new Prisma.Decimal(totalDebit),
+              TotalCredit: new Prisma.Decimal(totalCredit),
+              Status: 'POSTED',
+              CreatedByID: userId,
+              Lines: {
+                create: dto.entries.map((e, index) => ({
+                  AccountID: e.accountId,
+                  Debit: new Prisma.Decimal(e.debit || 0),
+                  Credit: new Prisma.Decimal(e.credit || 0),
+                  Description: e.memo,
+                  LineNumber: index + 1,
+                  CreatedByID: userId,
+                })),
+              },
+            },
           },
         },
-        include: { JournalEntries: { include: { Account: true } }, Creator: true },
+        include: { JournalEntries: { include: { Lines: { include: { Account: true } } } }, Creator: true },
       });
     });
 

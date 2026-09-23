@@ -60,15 +60,15 @@ export const journalList: ReportProvider = {
     if (posting === 'posted') journal.IsPosted = true;
     if (posting === 'draft') journal.IsPosted = false;
     const akun = str(p, 'akun');
-    const rows: any[] = await ctx.prisma.journalEntry.findMany({
-      where: { Journal: journal, ...(akun ? { Account: { Code: akun } } : {}) },
-      include: { Journal: true, Account: { select: { Code: true, Name: true } } },
-      orderBy: [{ Journal: { Date: 'asc' } }, { JournalID: 'asc' }, { ID: 'asc' }],
+    const rows: any[] = await ctx.prisma.journalEntryLine.findMany({
+      where: { JournalEntry: { Journal: journal }, ...(akun ? { Account: { Code: akun } } : {}) },
+      include: { JournalEntry: { include: { Journal: true } }, Account: { select: { Code: true, Name: true } } },
+      orderBy: [{ JournalEntry: { Journal: { Date: 'asc' } } }, { JournalEntryID: 'asc' }, { ID: 'asc' }],
       take: MAX_ROWS,
     });
     return rows.map((x) => ({
-      kode: x.Journal.Code, tanggal: ymd(x.Journal.Date), keterangan: x.Journal.Description ?? '', kodeakun: x.Account.Code,
-      akun: x.Account.Name, debit: n(x.Debit), kredit: n(x.Credit), memo: x.Memo ?? '', status: x.Journal.IsPosted ? 'Posted' : 'Draft',
+      kode: x.JournalEntry.Journal.Code, tanggal: ymd(x.JournalEntry.Journal.Date), keterangan: x.JournalEntry.Journal.Description ?? '', kodeakun: x.Account.Code,
+      akun: x.Account.Name, debit: n(x.Debit), kredit: n(x.Credit), memo: x.Description ?? '', status: x.JournalEntry.Journal.IsPosted ? 'Posted' : 'Draft',
     }));
   },
 };
@@ -110,8 +110,8 @@ export const trialBalance: ReportProvider = {
   async run(p, ctx) {
     const journal: any = { Date: dateFilter(p) };
     if (!bool(p, 'semuaJurnal')) journal.IsPosted = true;
-    const entries: any[] = await ctx.prisma.journalEntry.findMany({
-      where: { Journal: journal },
+    const entries: any[] = await ctx.prisma.journalEntryLine.findMany({
+      where: { JournalEntry: { Journal: journal } },
       include: { Account: { select: { ID: true, Code: true, Name: true, Type: { select: { Name: true } } } } },
       take: MAX_ROWS * 5,
     });

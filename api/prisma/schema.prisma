@@ -2605,7 +2605,6 @@ model Notification {
   @@map("Notifications")
 }
 
-<<<<<<< HEAD
 // ═══════════════════════════════════════════════════════════════════════════════
 // STOCK MUTATION MODULE
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -3547,7 +3546,8 @@ model ScheduleAssignment {
 
   @@unique([EmployeeID, ScheduleID])
   @@map("ScheduleAssignments")
-=======
+}
+
 // ─── ReportTemplate ────────────────────────────────────────
 // User-editable print templates for the dynamic report engine.
 model ReportTemplate {
@@ -3563,5 +3563,4 @@ model ReportTemplate {
 
   @@index([ReportKey])
   @@map("ReportTemplates")
->>>>>>> origin/main
 }

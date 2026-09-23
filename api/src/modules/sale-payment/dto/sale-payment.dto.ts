@@ -4,55 +4,55 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CreateSalePaymentDto {
   @ApiProperty({ description: 'Sale ID' })
   @IsInt()
-  saleId: number;
+  SaleID: number;
 
   @ApiProperty({ description: 'Payment method ID' })
   @IsInt()
-  methodId: number;
+  MethodID: number;
 
   @ApiProperty({ description: 'Payment amount' })
   @IsNumber()
-  amount: number;
+  Amount: number;
 
   @ApiPropertyOptional({ description: 'Reference number' })
   @IsOptional()
   @IsString()
-  referenceNumber?: string;
+  ReferenceNumber?: string;
 
   @ApiPropertyOptional({ description: 'Payment date', type: String })
   @IsOptional()
   @IsDateString()
-  date?: string;
+  Date?: string;
 
   @ApiPropertyOptional({ description: 'Notes' })
   @IsOptional()
   @IsString()
-  notes?: string;
+  Notes?: string;
 }
 
 export class UpdateSalePaymentDto {
   @ApiPropertyOptional({ description: 'Payment method ID' })
   @IsOptional()
   @IsInt()
-  methodId?: number;
+  MethodID?: number;
 
   @ApiPropertyOptional({ description: 'Payment amount' })
   @IsOptional()
   @IsNumber()
-  amount?: number;
+  Amount?: number;
 
   @ApiPropertyOptional({ description: 'Reference number' })
   @IsOptional()
   @IsString()
-  referenceNumber?: string;
+  ReferenceNumber?: string;
 
   @ApiPropertyOptional({ description: 'Payment date', type: String })
   @IsOptional()
   @IsDateString()
-  date?: string;
+  Date?: string;
 
   @ApiPropertyOptional({ description: 'Notes' })
   @IsOptional()
   @IsString()
-  notes?: string;
+  Notes?: string;
 }

@@ -10,27 +10,11 @@ export class SaleReturnService {
   private readonly CACHE_PREFIX = 'sale_returns';
   private readonly CACHE_TTL = 60;
 
-  // Default TransactionStatus IDs for SaleReturn
-  private readonly STATUS_DRAFT = 1;
-  private readonly STATUS_CONFIRMED = 2;
-  private readonly STATUS_COMPLETED = 3;
-  private readonly STATUS_CANCELLED = 4;
-
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
     private queryService: QueryService,
   ) {}
-
-  private async getStatusId(statusCode: string): Promise<number> {
-    const statusMap: Record<string, number> = {
-      'DRAFT': this.STATUS_DRAFT,
-      'CONFIRMED': this.STATUS_CONFIRMED,
-      'COMPLETED': this.STATUS_COMPLETED,
-      'CANCELLED': this.STATUS_CANCELLED,
-    };
-    return statusMap[statusCode.toUpperCase()] || this.STATUS_DRAFT;
-  }
 
   async findAll(query: Record<string, any>) {
     const cacheKey = this.queryService.generateCacheKey(this.CACHE_PREFIX, query);
@@ -103,17 +87,17 @@ export class SaleReturnService {
     if (!sale) throw new NotFoundException('Sale not found');
 
     const code = await this.generateCode();
-    const statusId = await this.getStatusId('DRAFT');
+    const status = await this.getStatusByCode('DRAFT');
 
     // Calculate total return
     const itemsData = dto.Items.map((item) => {
       const subtotal = item.UnitPrice * item.Quantity;
       return {
-        productId: item.productId,
-        unitId: item.unitId,
-        quantity: new Prisma.Decimal(item.quantity.toString()),
-        unitPrice: new Prisma.Decimal(item.unitPrice.toString()),
-        subtotal: new Prisma.Decimal(subtotal.toString()),
+        ProductID: item.ProductID,
+        UnitID: item.UnitID,
+        Quantity: new Prisma.Decimal(item.Quantity.toString()),
+        UnitPrice: new Prisma.Decimal(item.UnitPrice.toString()),
+        Subtotal: new Prisma.Decimal(subtotal.toString()),
       };
     });
 
@@ -121,25 +105,25 @@ export class SaleReturnService {
 
     const saleReturn = await this.prisma.saleReturn.create({
       data: {
-        code,
-        saleId: dto.saleId,
-        customerId: dto.customerId || sale.customerId,
-        warehouseId: dto.warehouseId,
-        date: dto.date ? new Date(dto.date) : new Date(),
-        totalReturn: new Prisma.Decimal(totalReturn.toString()),
-        reason: dto.reason,
-        statusId: statusId,
-        createdById: userId,
-        returnItems: {
+        Code: code,
+        SaleID: dto.SaleID,
+        CustomerID: dto.CustomerID || sale.CustomerID,
+        WarehouseID: dto.WarehouseID,
+        Date: dto.Date ? new Date(dto.Date) : new Date(),
+        TotalReturn: new Prisma.Decimal(totalReturn.toString()),
+        Reason: dto.Reason,
+        StatusID: status.ID,
+        CreatedByID: userId,
+        ReturnItems: {
           create: itemsData,
         },
       },
       include: {
-        sale: true,
-        customer: true,
-        warehouse: true,
-        status: true,
-        returnItems: { include: { product: true, unit: true } },
+        Sale: true,
+        Customer: true,
+        Warehouse: true,
+        Status: true,
+        ReturnItems: { include: { Product: true, Unit: true } },
       },
     });
 
@@ -150,12 +134,12 @@ export class SaleReturnService {
 
   async update(id: number, dto: UpdateSaleReturnDto) {
     const saleReturn = await this.prisma.saleReturn.findUnique({
-      where: { id },
-      include: { status: true }
+      where: { ID: id },
+      include: { Status: true },
     });
     if (!saleReturn) throw new NotFoundException('Sale return not found');
 
-    const statusCode = saleReturn.status?.code?.toUpperCase();
+    const statusCode = saleReturn.Status?.Code?.toUpperCase();
     if (statusCode && statusCode !== 'DRAFT') {
       throw new BadRequestException('Can only update draft sale returns');
     }
@@ -163,16 +147,16 @@ export class SaleReturnService {
     const updated = await this.prisma.saleReturn.update({
       where: { ID: id },
       data: {
-        warehouseId: dto.warehouseId,
-        date: dto.date ? new Date(dto.date) : undefined,
-        reason: dto.reason,
+        WarehouseID: dto.WarehouseID,
+        Date: dto.Date ? new Date(dto.Date) : undefined,
+        Reason: dto.Reason,
       },
       include: {
-        sale: true,
-        customer: true,
-        warehouse: true,
-        status: true,
-        returnItems: { include: { product: true, unit: true } },
+        Sale: true,
+        Customer: true,
+        Warehouse: true,
+        Status: true,
+        ReturnItems: { include: { Product: true, Unit: true } },
       },
     });
 
@@ -183,13 +167,13 @@ export class SaleReturnService {
 
   async updateStatus(id: number, dto: UpdateSaleReturnStatusDto) {
     const saleReturn = await this.prisma.saleReturn.findUnique({
-      where: { id },
-      include: { status: true, returnItems: true },
+      where: { ID: id },
+      include: { Status: true, ReturnItems: true },
     });
     if (!saleReturn) throw new NotFoundException('Sale return not found');
 
-    const currentStatus = saleReturn.status?.code?.toUpperCase() || 'DRAFT';
-    const newStatus = dto.status.toUpperCase();
+    const currentStatus = saleReturn.Status?.Code?.toUpperCase() || 'DRAFT';
+    const newStatus = dto.StatusCode.toUpperCase();
 
     const validTransitions: Record<string, string[]> = {
       DRAFT: ['CONFIRMED', 'CANCELLED'],
@@ -201,17 +185,17 @@ export class SaleReturnService {
       throw new BadRequestException(`Cannot transition from '${currentStatus}' to '${newStatus}'`);
     }
 
-    const newStatusId = await this.getStatusId(newStatus);
+    const newStatus_ = await this.getStatusByCode(newStatus);
 
     const updated = await this.prisma.saleReturn.update({
-      where: { id },
-      data: { statusId: newStatusId },
+      where: { ID: id },
+      data: { StatusID: newStatus_.ID },
       include: {
-        sale: true,
-        customer: true,
-        warehouse: true,
-        status: true,
-        returnItems: { include: { product: true, unit: true } },
+        Sale: true,
+        Customer: true,
+        Warehouse: true,
+        Status: true,
+        ReturnItems: { include: { Product: true, Unit: true } },
       },
     });
 
@@ -222,12 +206,12 @@ export class SaleReturnService {
 
   async delete(id: number) {
     const saleReturn = await this.prisma.saleReturn.findUnique({
-      where: { id },
-      include: { status: true }
+      where: { ID: id },
+      include: { Status: true },
     });
     if (!saleReturn) throw new NotFoundException('Sale return not found');
 
-    const statusCode = saleReturn.status?.code?.toUpperCase();
+    const statusCode = saleReturn.Status?.Code?.toUpperCase();
     if (statusCode && statusCode !== 'DRAFT') {
       throw new BadRequestException('Can only delete draft sale returns');
     }
@@ -238,16 +222,12 @@ export class SaleReturnService {
     return { id };
   }
 
-  // ─── TransactionStatus lookup helpers ───────────────────────────────────
+  // ─── TransactionStatus lookup helper ───────────────────────────────────
 
   private async getStatusByCode(code: string) {
     const status = await this.prisma.transactionStatus.findUnique({ where: { Code: code } });
     if (!status) throw new BadRequestException(`Status '${code}' tidak ditemukan`);
     return status;
-  }
-
-  private async getStatusById(id: number) {
-    return this.prisma.transactionStatus.findUnique({ where: { ID: id } });
   }
 
   private async generateCode(): Promise<string> {

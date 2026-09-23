@@ -307,17 +307,12 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     LeaveModule,
     LeaveBalanceModule,
     AppSettingModule,
-<<<<<<< HEAD
+    ReportEngineModule,
 
     // Business Logic Modules (Most disabled due to TypeScript errors)
     POSModule,  // Only POS is enabled
     ProductUnitModule, // Product Unit conversion management
     ProductionRecipeModule, // Production recipe/BOM management
-=======
-    ReportEngineModule,
-    POSModule,
-    ProductUnitModule,
-    ProductionRecipeModule,
   ],
   providers: [
     // ── [5] Guard & Interceptor Global ───────────────────────────────

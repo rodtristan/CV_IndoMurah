@@ -10,24 +10,16 @@ export class SalePaymentService {
   private readonly CACHE_PREFIX = 'sale_payments';
   private readonly CACHE_TTL = 60;
 
-  // Default PaymentStatus IDs
-  private readonly STATUS_PENDING = 1;
-  private readonly STATUS_PARTIAL = 2;
-  private readonly STATUS_PAID = 3;
-
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
     private queryService: QueryService,
   ) {}
 
-  private async getPaymentStatusId(statusCode: string): Promise<number> {
-    const statusMap: Record<string, number> = {
-      'PENDING': this.STATUS_PENDING,
-      'PARTIAL': this.STATUS_PARTIAL,
-      'PAID': this.STATUS_PAID,
-    };
-    return statusMap[statusCode.toUpperCase()] || this.STATUS_PENDING;
+  private async getPaymentStatusByCode(code: string) {
+    const status = await this.prisma.paymentStatus.findUnique({ where: { Code: code } });
+    if (!status) throw new BadRequestException(`Payment status '${code}' tidak ditemukan`);
+    return status;
   }
 
   async findAll(query: Record<string, any>) {
@@ -113,13 +105,13 @@ export class SalePaymentService {
 
     const payment = await this.prisma.salePayment.create({
       data: {
-        saleId: dto.saleId,
-        methodId: dto.methodId,
-        amount: new Prisma.Decimal(dto.amount.toString()),
-        referenceNumber: dto.referenceNumber,
-        date: dto.date ? new Date(dto.date) : new Date(),
-        notes: dto.notes,
-        createdById: userId,
+        SaleID: dto.SaleID,
+        MethodID: dto.MethodID,
+        Amount: new Prisma.Decimal(dto.Amount.toString()),
+        ReferenceNumber: dto.ReferenceNumber,
+        Date: dto.Date ? new Date(dto.Date) : new Date(),
+        Notes: dto.Notes,
+        CreatedByID: userId,
       },
       include: { Sale: true, Creator: true },
     });
@@ -139,11 +131,11 @@ export class SalePaymentService {
     if (!payment) throw new NotFoundException('Sale payment not found');
 
     const updateData: any = {};
-    if (dto.methodId) updateData.methodId = dto.methodId;
-    if (dto.amount) updateData.amount = new Prisma.Decimal(dto.amount.toString());
-    if (dto.referenceNumber !== undefined) updateData.referenceNumber = dto.referenceNumber;
-    if (dto.date) updateData.date = new Date(dto.date);
-    if (dto.notes !== undefined) updateData.notes = dto.notes;
+    if (dto.MethodID) updateData.MethodID = dto.MethodID;
+    if (dto.Amount) updateData.Amount = new Prisma.Decimal(dto.Amount.toString());
+    if (dto.ReferenceNumber !== undefined) updateData.ReferenceNumber = dto.ReferenceNumber;
+    if (dto.Date) updateData.Date = new Date(dto.Date);
+    if (dto.Notes !== undefined) updateData.Notes = dto.Notes;
 
     const updated = await this.prisma.salePayment.update({
       where: { ID: id },
@@ -217,11 +209,11 @@ export class SalePaymentService {
       paymentStatusCode = 'PAID';
     }
 
-    const paymentStatusId = await this.getPaymentStatusId(paymentStatusCode);
+    const status = await this.getPaymentStatusByCode(paymentStatusCode);
 
     await this.prisma.sale.update({
-      where: { id: saleId },
-      data: { paymentStatusId },
+      where: { ID: saleId },
+      data: { PaymentStatusID: status.ID },
     });
   }
 
