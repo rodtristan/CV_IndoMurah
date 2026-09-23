@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { CustomerService } from './customer-service';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
 import {
   CreateCustomerDto,
   UpdateCustomerDto,
@@ -14,6 +15,7 @@ import {
   AdjustPointsDto,
 } from './customer.dto';
 
+@UseGuards(JwtAuthGuard)
 @Controller('business-logic/customers')
 export class CustomerController {
   constructor(private readonly customerService: CustomerService) {}

@@ -1,11 +1,13 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { StockTransferService } from './stock-transfer-service';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
 import {
   CreateStockTransferDto,
   StockTransferFilterDto,
   StockTransferSummaryDto,
 } from './stock-transfer.dto';
 
+@UseGuards(JwtAuthGuard)
 @Controller('business-logic/stock-transfers')
 export class StockTransferController {
   constructor(private readonly stockTransferService: StockTransferService) {}

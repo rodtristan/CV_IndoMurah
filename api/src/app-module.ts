@@ -160,21 +160,66 @@ import { AppSettingModule } from './modules/app-setting/app-setting.module';
 import { ReportEngineModule } from './modules/report-engine/report-engine.module';
 
 // ── Business Logic Modules ──────────────────────────────────────────────
-// The entire `src/modules/business-logic/**` tree is excluded from the build
-// (tsconfig.build.json) — it's a large, disconnected, duplicate-feature tree
-// added by the "Business-logic" merge that doesn't match schema.prisma
-// (~565 TS errors) and was blocking `nest start --watch` from ever launching
-// the app. None of its modules were reachable from the frontend. Re-enable
-// individual submodules here once they're fixed to compile against the real
-// schema and un-excluded from tsconfig.build.json.
-// Previously-registered here (now disabled, none used by the frontend):
-// POSModule, ProductUnitModule, ProductionRecipeModule, ReceivableModule, StockAlertModule, AnalyticsModule, InventoryModule,
-// BLPurchaseModule, BLServiceModule, HRMModule, BLExpenseModule, BLVoucherModule,
-// LoyaltyModule, BLSaleReturnModule, AccountingModule, QualityControlModule,
-// WorkOrderModule, AssemblyModule, BLAssetModule, CashModule, SupplierDebtModule,
-// PriceModule, StockMutationModule, BLPurchaseReturnModule, BLCustomerDepositModule,
-// BLStockOpnameModule, BLJournalModule, ProductPriceModule, BLPurchaseOrderModule,
-// CashFlowModule, ServicePackageModule, QualityControlCategoryModule
+// The `src/modules/business-logic/**` tree (54 submodules from the
+// "Business-logic" merge) has been repaired to compile cleanly against the
+// real schema.prisma and is now registered below. Its controllers are all
+// mounted under the `business-logic/` route prefix, so none of them collide
+// with the already-live modules above; several class names do collide
+// though (e.g. PurchaseModule, SupplierModule), so those are imported under
+// a `BL`-prefixed alias.
+import { AccountingModule } from './modules/business-logic/accounting/accounting-module';
+import { AnalyticsModule } from './modules/business-logic/analytics/analytics-module';
+import { AssemblyModule } from './modules/business-logic/assembly/assembly-module';
+import { AssetModule as BLAssetModule } from './modules/business-logic/asset/asset-module';
+import { AttendanceIntegrationModule } from './modules/business-logic/attendance-integration/attendance-integration-module';
+import { AttendanceModule as BLAttendanceModule } from './modules/business-logic/attendance/attendance-module';
+import { BudgetingModule } from './modules/business-logic/budgeting/budgeting-module';
+import { CashFlowModule } from './modules/business-logic/cash-flow/cash-flow-module';
+import { CashModule } from './modules/business-logic/cash/cash-module';
+import { CategoryBrandModule } from './modules/business-logic/category-brand/category-brand-module';
+import { CustomerDepositModule as BLCustomerDepositModule } from './modules/business-logic/customer-deposit/customer-deposit-module';
+import { CustomerModule as BLCustomerModule } from './modules/business-logic/customer/customer-module';
+import { ExpenseModule as BLExpenseModule } from './modules/business-logic/expense/expense-module';
+import { HRMModule } from './modules/business-logic/hrm/hrm-module';
+import { InventoryModule } from './modules/business-logic/inventory/inventory-module';
+import { JournalModule as BLJournalModule } from './modules/business-logic/journal/journal-module';
+import { LeaveModule as BLLeaveModule } from './modules/business-logic/leave/leave-module';
+import { LoanModule as BLLoanModule } from './modules/business-logic/loan/loan-module';
+import { LoyaltyModule } from './modules/business-logic/loyalty/loyalty-module';
+import { MemberCardModule } from './modules/business-logic/member-card/member-card-module';
+import { NotificationGatewayModule } from './modules/business-logic/notification-gateway/notification-gateway-module';
+import { NotificationModule as BLNotificationModule } from './modules/business-logic/notification/notification-module';
+import { POSModule } from './modules/business-logic/pos/pos-module';
+import { PayrollModule as BLPayrollModule } from './modules/business-logic/payroll/payroll-module';
+import { PriceModule } from './modules/business-logic/price/price-module';
+import { ProductPriceModule } from './modules/business-logic/product-price/product-price-module';
+import { ProductUnitModule } from './modules/business-logic/product-unit/product-unit-module';
+import { ProductionMaterialModule } from './modules/business-logic/production-material/production-material-module';
+import { ProductionModule as BLProductionModule } from './modules/business-logic/production/production-module';
+import { ProductionRecipeModule } from './modules/business-logic/production-recipe/production-recipe-module';
+import { ProductionRequestModule } from './modules/business-logic/production-request/production-request-module';
+import { ProductionScheduleModule } from './modules/business-logic/production-schedule/production-schedule-module';
+import { PurchaseModule as BLPurchaseModule } from './modules/business-logic/purchase/purchase-module';
+import { PurchaseOrderModule as BLPurchaseOrderModule } from './modules/business-logic/purchase-order-bl/purchase-order-module';
+import { PurchaseReturnModule as BLPurchaseReturnModule } from './modules/business-logic/purchase-return/purchase-return-module';
+import { QualityControlCategoryModule } from './modules/business-logic/quality-control-category/quality-control-category-module';
+import { QualityControlModule } from './modules/business-logic/quality-control/quality-control-module';
+import { ReceivableModule } from './modules/business-logic/receivable/receivable-module';
+import { ReportsModule } from './modules/business-logic/reports/reports-module';
+import { SaleReturnModule as BLSaleReturnModule } from './modules/business-logic/sale-return/sale-return-module';
+import { SalesPersonModule as BLSalesPersonModule } from './modules/business-logic/salesperson/salesperson-module';
+import { ServiceModule as BLServiceModule } from './modules/business-logic/service/service-module';
+import { ServicePackageModule } from './modules/business-logic/service-package/service-package-module';
+import { StockAlertModule as BLStockAlertModule } from './modules/business-logic/stock-alert/stock-alert-module';
+import { StockMutationModule } from './modules/business-logic/stock-mutation/stock-mutation-module';
+import { StockOpnameModule as BLStockOpnameModule } from './modules/business-logic/stock-opname/stock-opname-module';
+import { StockTransferModule as BLStockTransferModule } from './modules/business-logic/stock-transfer/stock-transfer-module';
+import { SupplierDebtModule } from './modules/business-logic/supplier-debt/supplier-debt-module';
+import { SupplierModule as BLSupplierModule } from './modules/business-logic/supplier/supplier-module';
+import { TransferModule as BLTransferModule } from './modules/business-logic/transfer/transfer-module';
+import { VoucherModule as BLVoucherModule } from './modules/business-logic/voucher/voucher-module';
+import { WarehouseModule as BLWarehouseModule } from './modules/business-logic/warehouse/warehouse-module';
+import { WorkOrderModule } from './modules/business-logic/work-order/work-order-module';
 
 // ── Provider Global ────────────────────────────────────────────────────
 import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
@@ -313,8 +358,60 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     AppSettingModule,
     ReportEngineModule,
 
-    // Business Logic Modules: none registered. See the comment above the
-    // (removed) imports for why the whole tree is currently excluded.
+    // Business Logic Modules (see comment above the imports above)
+    AccountingModule,
+    AnalyticsModule,
+    AssemblyModule,
+    BLAssetModule,
+    AttendanceIntegrationModule,
+    BLAttendanceModule,
+    BudgetingModule,
+    CashFlowModule,
+    CashModule,
+    CategoryBrandModule,
+    BLCustomerDepositModule,
+    BLCustomerModule,
+    BLExpenseModule,
+    HRMModule,
+    InventoryModule,
+    BLJournalModule,
+    BLLeaveModule,
+    BLLoanModule,
+    LoyaltyModule,
+    MemberCardModule,
+    NotificationGatewayModule,
+    BLNotificationModule,
+    POSModule,
+    BLPayrollModule,
+    PriceModule,
+    ProductPriceModule,
+    ProductUnitModule,
+    ProductionMaterialModule,
+    BLProductionModule,
+    ProductionRecipeModule,
+    ProductionRequestModule,
+    ProductionScheduleModule,
+    BLPurchaseModule,
+    BLPurchaseOrderModule,
+    BLPurchaseReturnModule,
+    QualityControlCategoryModule,
+    QualityControlModule,
+    ReceivableModule,
+    ReportsModule,
+    BLSaleReturnModule,
+    BLSalesPersonModule,
+    BLServiceModule,
+    ServicePackageModule,
+    BLStockAlertModule,
+    StockMutationModule,
+    BLStockOpnameModule,
+    BLStockTransferModule,
+    SupplierDebtModule,
+    BLSupplierModule,
+    BLTransferModule,
+    BLVoucherModule,
+    BLWarehouseModule,
+    WorkOrderModule,
   ],
   providers: [
     // ── [5] Guard & Interceptor Global ───────────────────────────────

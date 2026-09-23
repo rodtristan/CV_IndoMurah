@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { NotificationService } from './notification-service';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
 import {
   CreateNotificationDto,
   NotificationFilterDto,
@@ -8,6 +9,7 @@ import {
   BulkNotificationDto,
 } from './notification.dto';
 
+@UseGuards(JwtAuthGuard)
 @Controller('business-logic/notifications')
 export class NotificationController {
   constructor(private readonly notificationService: NotificationService) {}

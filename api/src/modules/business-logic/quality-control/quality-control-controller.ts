@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Put, Param, Body, Query, Request } from '@nestjs/common';
+import { Controller, Get, Post, Put, Param, Body, Query, Request, UseGuards } from '@nestjs/common';
 import { QualityControlService } from './quality-control-service';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
 import {
   CreateQCInspectionDto,
   RecordQCResultDto,
@@ -11,6 +12,7 @@ import {
   CalibrationFilterDto,
 } from './quality-control.dto';
 
+@UseGuards(JwtAuthGuard)
 @Controller('business-logic/quality-control')
 export class QualityControlController {
   constructor(private readonly qualityControlService: QualityControlService) {}

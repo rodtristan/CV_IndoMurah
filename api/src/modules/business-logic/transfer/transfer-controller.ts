@@ -1,11 +1,13 @@
-import { Controller, Get, Post, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { TransferService } from './transfer-service';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
 import {
   CreateTransferDto,
   TransferFilterDto,
   TransferSummaryDto,
 } from './transfer.dto';
 
+@UseGuards(JwtAuthGuard)
 @Controller('business-logic/transfers')
 export class TransferController {
   constructor(private readonly transferService: TransferService) {}

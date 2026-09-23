@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { SalesPersonService } from './salesperson-service';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
 import {
   CreateSalesPersonDto,
   UpDateSalesPersonDto,
@@ -7,6 +8,7 @@ import {
   SalesPersonPerformanceDto,
 } from './salesperson.dto';
 
+@UseGuards(JwtAuthGuard)
 @Controller('business-logic/salespersons')
 export class SalesPersonController {
   constructor(private readonly salesPersonService: SalesPersonService) {}

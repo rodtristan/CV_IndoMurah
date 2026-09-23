@@ -1,14 +1,7 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Param,
-  Query,
-  ParseIntPipe,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CashService } from './cash-service';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
 import {
   RecordCashInDto,
   RecordCashOutDto,
@@ -20,6 +13,7 @@ import {
 
 @ApiTags('Business Logic - Cash Management')
 @ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('business-logic/cash')
 export class CashController {
   constructor(private cashService: CashService) {}

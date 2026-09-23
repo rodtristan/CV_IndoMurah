@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Patch, Put, Delete, Param, Body, Query, Request } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Put, Delete, Param, Body, Query, Request, UseGuards } from '@nestjs/common';
 import { AssemblyService } from './assembly-service';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
 import {
   CreateAssemblyDto,
   UpdateAssemblyDto,
@@ -11,6 +12,7 @@ import {
   CalculateBOMCostDto,
 } from './assembly.dto';
 
+@UseGuards(JwtAuthGuard)
 @Controller('business-logic/assembly')
 export class AssemblyController {
   constructor(private readonly assemblyService: AssemblyService) {}

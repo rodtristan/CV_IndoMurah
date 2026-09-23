@@ -1,16 +1,7 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
-  Body,
-  Param,
-  Query,
-  ParseIntPipe,
-} from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AssetService } from './asset-service';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
 import {
   CreateAssetDto,
   UpDateAssetDto,
@@ -24,6 +15,7 @@ import {
 
 @ApiTags('Business Logic - Asset Management')
 @ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('business-logic/asset')
 export class AssetController {
   constructor(private assetService: AssetService) {}

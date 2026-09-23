@@ -57,9 +57,9 @@ export class StockAlertController {
 
   @Put('read-multiple')
   @ApiOperation({ summary: 'Mark multiple alerts as read' })
-  async markMultipleAsRead(@Body() dto: { alertIds: number[] }) {
-    const data = await this.stockAlertService.markMultipleAsRead(dto.alertIds);
-    return ApiResponse.ok(data, `${dto.alertIds.length} alerts marked as read`);
+  async markMultipleAsRead(@Body() dto: { AlertIds: number[] }) {
+    const data = await this.stockAlertService.markMultipleAsRead(dto.AlertIds);
+    return ApiResponse.ok(data, `${dto.AlertIds.length} alerts marked as read`);
   }
 
   @Put(':alertId/resolve')
@@ -76,7 +76,7 @@ export class StockAlertController {
   @ApiOperation({ summary: 'Bulk resolve alerts' })
   async bulkResolveAlerts(@Body() dto: BulkResolveAlertDto) {
     const data = await this.stockAlertService.bulkResolveAlerts(dto);
-    return ApiResponse.ok(data, `${dto.alertIds.length} alerts resolved`);
+    return ApiResponse.ok(data, `${dto.AlertIds.length} alerts resolved`);
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -97,14 +97,14 @@ export class StockAlertController {
   @Get('reorder-suggestion/:productId')
   @ApiOperation({ summary: 'Get reorder suggestion for a product' })
   async getReorderSuggestion(@Param('productId', ParseIntPipe) productId: number) {
-    const data = await this.stockAlertService.createReorderSuggestion(productId);
+    const data = await this.stockAlertService.createReOrderSuggestion(productId);
     return ApiResponse.ok(data);
   }
 
   @Get('products-needing-reorder')
   @ApiOperation({ summary: 'Get list of products needing reorder' })
   async getProductsNeedingReorder(@Query('warehouseId') warehouseId?: string) {
-    const data = await this.stockAlertService.getProductsNeedingReorder(
+    const data = await this.stockAlertService.getProductsNeedingReOrder(
       warehouseId ? parseInt(warehouseId) : undefined,
     );
     return ApiResponse.ok(data);
@@ -113,7 +113,7 @@ export class StockAlertController {
   @Post('create-purchase-order')
   @ApiOperation({ summary: 'Create purchase order from reorder suggestion' })
   async createPurchaseOrder(@Body() dto: ReorderStockDto) {
-    const data = await this.stockAlertService.generateReorderPurchaseOrder(dto);
+    const data = await this.stockAlertService.generateReOrderPurchaseOrder(dto);
     return ApiResponse.ok(data, 'Purchase order created');
   }
 
@@ -124,7 +124,7 @@ export class StockAlertController {
   @Post('check-stock')
   @ApiOperation({ summary: 'Check all products and create alerts (for scheduler)' })
   async checkAndCreateAlerts(@Query('warehouseId') warehouseId?: string) {
-    const data = await this.stockAlertService.checkAndCreateAlerts(
+    const data = await this.stockAlertService.CheckAndCreateAlerts(
       warehouseId ? parseInt(warehouseId) : undefined,
     );
     return ApiResponse.ok(data);

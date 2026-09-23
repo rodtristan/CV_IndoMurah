@@ -6,9 +6,9 @@ import {
   StockAlertFilterDto,
   ResolveStockAlertDto,
   BulkResolveAlertDto,
-  ReOrderStockDto,
+  ReorderStockDto,
   StockLevelReportDto,
-} from './Stock-Alert.dto';
+} from './stock-alert.dto';
 
 @Injectable()
 export class StockAlertService {
@@ -29,7 +29,7 @@ export class StockAlertService {
       where.IsRead = false;
     }
 
-    if (dto.unresolvedOnly) {
+    if (dto.UnresolvedOnly) {
       where.IsResolved = false;
     }
 
@@ -72,7 +72,7 @@ export class StockAlertService {
       Total: filteredAlerts.length,
       unread: filteredAlerts.filter((a) => !a.IsRead).length,
       resolved: filteredAlerts.filter((a) => a.IsResolved).length,
-      byType: {} as Record<string, Number>,
+      byType: {} as Record<string, number>,
     };
 
     for (const Alert of filteredAlerts) {
@@ -143,11 +143,11 @@ export class StockAlertService {
         Unit: true,
       },
       take: 10,
-      orderBy: { UpDatedAt: 'desc' },
+      orderBy: { UpdatedAt: 'desc' },
     });
 
     // Get unread Alerts Count
-    const unreadCount = await this.prisma.stockAlert.Count({
+    const unreadCount = await this.prisma.stockAlert.count({
       where: { IsRead: false, IsResolved: false },
     });
 
@@ -338,10 +338,10 @@ export class StockAlertService {
 
     // Filter based on Status
     let filteredItems = items;
-    if (dto.lowStockOnly) {
+    if (dto.LowStockOnly) {
       filteredItems = items.filter((i) => i.Status === 'LOW');
     }
-    if (dto.outOfStockOnly) {
+    if (dto.OutOfStockOnly) {
       filteredItems = items.filter((i) => i.Status === 'OUT');
     }
 
@@ -395,7 +395,7 @@ export class StockAlertService {
         Sale: { Date: { gte: thirtyDaysAgo } },
       },
       _sum: { Quantity: true },
-      _Count: true,
+      _count: true,
     });
 
     const avgMonthlySales = SalesData._sum.Quantity
@@ -431,7 +431,7 @@ export class StockAlertService {
    * generate Purchase Order from reOrder suggestions
    * Flow: Owner approve suggestion → sistem buat Purchase Order
    */
-  async generateReOrderPurchaseOrder(dto: ReOrderStockDto) {
+  async generateReOrderPurchaseOrder(dto: ReorderStockDto) {
     const [Product, Supplier] = await Promise.all([
       this.prisma.product.findUnique({ where: { ID: dto.ProductId } }),
       this.prisma.supplier.findUnique({ where: { ID: dto.SupplierId } }),
@@ -446,7 +446,7 @@ export class StockAlertService {
     }
 
     const UnitPrice = Number(Product.PurchasePrice);
-    const subTotal = dto.reOrderQuantity * UnitPrice;
+    const subTotal = dto.ReorderQuantity * UnitPrice;
 
     // generate Purchase Order Code
     const Code = await this.generatePurchaseOrderCode();
@@ -458,7 +458,7 @@ export class StockAlertService {
           Code: Code,
           Date: new Date(),
           SupplierID: dto.SupplierId,
-          SubTotal: new Prisma.Decimal(subTotal),
+          Subtotal: new Prisma.Decimal(subTotal),
           DiscountAmount: new Prisma.Decimal(0),
           DiscountPercent: new Prisma.Decimal(0),
           TaxAmount: new Prisma.Decimal(0),
@@ -472,10 +472,10 @@ export class StockAlertService {
           PurchaseOrderItems: {
             create: {
               ProductID: dto.ProductId,
-              Quantity: new Prisma.Decimal(dto.reOrderQuantity),
+              Quantity: new Prisma.Decimal(dto.ReorderQuantity),
               UnitID: Product.UnitID,
               UnitPrice: new Prisma.Decimal(UnitPrice),
-              SubTotal: new Prisma.Decimal(subTotal),
+              Subtotal: new Prisma.Decimal(subTotal),
             },
           },
         },
@@ -490,7 +490,7 @@ export class StockAlertService {
         data: {
           Type: 'AUTO_REORDER',
           Title: 'Auto ReOrder Created',
-          Description: `ReOrder for ${Product.Name} (Qty: ${dto.reOrderQuantity}) from ${Supplier.Name}`,
+          Description: `ReOrder for ${Product.Name} (Qty: ${dto.ReorderQuantity}) from ${Supplier.Name}`,
           ReferenceType: 'PURCHASE_ORDER',
           ReferenceID: newOrder.ID,
           Amount: new Prisma.Decimal(subTotal),
@@ -514,7 +514,7 @@ export class StockAlertService {
           ProductName: item.Product.Name,
           Quantity: number(item.Quantity),
           UnitPrice: number(item.UnitPrice),
-          SubTotal: number(item.SubTotal),
+          Subtotal: number(item.Subtotal),
         })),
         Total: number(PurchaseOrder.Total),
       },

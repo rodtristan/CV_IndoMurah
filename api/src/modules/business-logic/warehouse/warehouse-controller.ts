@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Patch, Put, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Put, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { WarehouseService } from './warehouse-service';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
 import {
   CreateWarehouseDto,
   UpdateWarehouseDto,
@@ -9,6 +10,7 @@ import {
   UpdateShelfDto,
 } from './warehouse.dto';
 
+@UseGuards(JwtAuthGuard)
 @Controller('business-logic/warehouses')
 export class WarehouseController {
   constructor(private readonly warehouseService: WarehouseService) {}

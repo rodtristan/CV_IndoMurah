@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { AttendanceService } from './attendance-service';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
 import {
   RecordAttendanceDto,
   AttendanceFilterDto,
@@ -7,6 +8,7 @@ import {
   UpdateAttendanceDto,
 } from './attendance.dto';
 
+@UseGuards(JwtAuthGuard)
 @Controller('business-logic/attendance')
 export class AttendanceController {
   constructor(private readonly attendanceService: AttendanceService) {}

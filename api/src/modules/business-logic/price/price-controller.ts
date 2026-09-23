@@ -1,15 +1,7 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Body,
-  Param,
-  Query,
-  ParseIntPipe,
-} from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PriceService } from './price-service';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
 import {
   UpdateProductPriceDto,
   BulkUpdatePriceDto,
@@ -20,6 +12,7 @@ import {
 
 @ApiTags('Business Logic - Price Management')
 @ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('business-logic/price')
 export class PriceController {
   constructor(private priceService: PriceService) {}

@@ -13,7 +13,7 @@ import {
   AssetValuationDto,
 } from './asset.dto';
 
-interface DepreciationResult {
+export interface DepreciationResult {
   assetId: number;
   assetCode: string;
   assetName: string;
