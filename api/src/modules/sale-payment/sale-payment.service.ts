@@ -10,11 +10,25 @@ export class SalePaymentService {
   private readonly CACHE_PREFIX = 'sale_payments';
   private readonly CACHE_TTL = 60;
 
+  // Default PaymentStatus IDs
+  private readonly STATUS_PENDING = 1;
+  private readonly STATUS_PARTIAL = 2;
+  private readonly STATUS_PAID = 3;
+
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
     private queryService: QueryService,
   ) {}
+
+  private async getPaymentStatusId(statusCode: string): Promise<number> {
+    const statusMap: Record<string, number> = {
+      'PENDING': this.STATUS_PENDING,
+      'PARTIAL': this.STATUS_PARTIAL,
+      'PAID': this.STATUS_PAID,
+    };
+    return statusMap[statusCode.toUpperCase()] || this.STATUS_PENDING;
+  }
 
   async findAll(query: Record<string, any>) {
     const cacheKey = this.queryService.generateCacheKey(this.CACHE_PREFIX, query);
@@ -97,7 +111,7 @@ export class SalePaymentService {
     const payment = await this.prisma.salePayment.create({
       data: {
         saleId: dto.saleId,
-        method: dto.method,
+        methodId: dto.methodId,
         amount: new Prisma.Decimal(dto.amount.toString()),
         referenceNumber: dto.referenceNumber,
         date: dto.date ? new Date(dto.date) : new Date(),
@@ -121,7 +135,7 @@ export class SalePaymentService {
     if (!payment) throw new NotFoundException('Sale payment not found');
 
     const updateData: any = {};
-    if (dto.method) updateData.method = dto.method;
+    if (dto.methodId) updateData.methodId = dto.methodId;
     if (dto.amount) updateData.amount = new Prisma.Decimal(dto.amount.toString());
     if (dto.referenceNumber !== undefined) updateData.referenceNumber = dto.referenceNumber;
     if (dto.date) updateData.date = new Date(dto.date);
@@ -190,16 +204,18 @@ export class SalePaymentService {
     const paidAmount = sale.salePayments.reduce((sum, p) => sum + Number(p.amount), 0);
     const totalAmount = Number(sale.total);
 
-    let paymentStatus: 'PENDING' | 'PARTIAL' | 'PAID' = 'PENDING';
+    let paymentStatusCode: 'PENDING' | 'PARTIAL' | 'PAID' = 'PENDING';
     if (paidAmount > 0 && paidAmount < totalAmount) {
-      paymentStatus = 'PARTIAL';
+      paymentStatusCode = 'PARTIAL';
     } else if (paidAmount >= totalAmount) {
-      paymentStatus = 'PAID';
+      paymentStatusCode = 'PAID';
     }
+
+    const paymentStatusId = await this.getPaymentStatusId(paymentStatusCode);
 
     await this.prisma.sale.update({
       where: { id: saleId },
-      data: { paymentStatus },
+      data: { paymentStatusId },
     });
   }
 

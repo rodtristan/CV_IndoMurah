@@ -15,11 +15,27 @@ export class SaleOrderService {
   private readonly CACHE_PREFIX = 'sale_orders';
   private readonly CACHE_TTL = 60;
 
+  // Default PaymentStatus IDs (assuming these exist in the database)
+  private readonly STATUS_PENDING = 1;
+  private readonly STATUS_PARTIAL = 2;
+  private readonly STATUS_PAID = 3;
+  private readonly STATUS_CANCELLED = 4;
+
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
     private queryService: QueryService,
   ) {}
+
+  private async getPaymentStatusId(statusCode: string): Promise<number> {
+    const statusMap: Record<string, number> = {
+      'PENDING': this.STATUS_PENDING,
+      'PARTIAL': this.STATUS_PARTIAL,
+      'PAID': this.STATUS_PAID,
+      'CANCELLED': this.STATUS_CANCELLED,
+    };
+    return statusMap[statusCode.toUpperCase()] || this.STATUS_PENDING;
+  }
 
   async findAll(query: Record<string, any>) {
     const cacheKey = this.queryService.generateCacheKey(this.CACHE_PREFIX, query);
@@ -129,9 +145,14 @@ export class SaleOrderService {
   }
 
   async update(id: number, dto: UpdateSaleOrderDto) {
-    const sale = await this.prisma.sale.findUnique({ where: { id } });
+    const sale = await this.prisma.sale.findUnique({
+      where: { id },
+      include: { paymentStatus: true }
+    });
     if (!sale) throw new NotFoundException('Sale not found');
-    if (sale.paymentStatus !== 'PENDING') {
+
+    const statusCode = sale.paymentStatus?.code?.toUpperCase();
+    if (statusCode && statusCode !== 'PENDING') {
       throw new BadRequestException('Can only update pending sales');
     }
 
@@ -156,9 +177,14 @@ export class SaleOrderService {
   }
 
   async addItem(id: number, dto: AddSaleOrderItemDto) {
-    const sale = await this.prisma.sale.findUnique({ where: { id } });
+    const sale = await this.prisma.sale.findUnique({
+      where: { id },
+      include: { paymentStatus: true }
+    });
     if (!sale) throw new NotFoundException('Sale not found');
-    if (sale.paymentStatus !== 'PENDING') {
+
+    const statusCode = sale.paymentStatus?.code?.toUpperCase();
+    if (statusCode && statusCode !== 'PENDING') {
       throw new BadRequestException('Can only add items to pending sales');
     }
 
@@ -183,9 +209,14 @@ export class SaleOrderService {
   }
 
   async removeItem(id: number, itemId: number) {
-    const sale = await this.prisma.sale.findUnique({ where: { id } });
+    const sale = await this.prisma.sale.findUnique({
+      where: { id },
+      include: { paymentStatus: true }
+    });
     if (!sale) throw new NotFoundException('Sale not found');
-    if (sale.paymentStatus !== 'PENDING') {
+
+    const statusCode = sale.paymentStatus?.code?.toUpperCase();
+    if (statusCode && statusCode !== 'PENDING') {
       throw new BadRequestException('Can only remove items from pending sales');
     }
 
@@ -209,16 +240,18 @@ export class SaleOrderService {
     return this.updatePaymentStatus(id, 'PAID');
   }
 
-  async updatePaymentStatus(id: number, paymentStatus: 'PENDING' | 'PARTIAL' | 'PAID' | 'CANCELLED' | 'INSTALMENT') {
+  async updatePaymentStatus(id: number, paymentStatusCode: 'PENDING' | 'PARTIAL' | 'PAID' | 'CANCELLED' | 'INSTALMENT') {
     const sale = await this.prisma.sale.findUnique({
       where: { id },
       include: { saleItems: true },
     });
     if (!sale) throw new NotFoundException('Sale not found');
 
+    const paymentStatusId = await this.getPaymentStatusId(paymentStatusCode);
+
     const updated = await this.prisma.sale.update({
       where: { id },
-      data: { paymentStatus },
+      data: { paymentStatusId },
       include: {
         customer: true,
         salesPerson: true,
@@ -232,9 +265,14 @@ export class SaleOrderService {
   }
 
   async delete(id: number) {
-    const sale = await this.prisma.sale.findUnique({ where: { id } });
+    const sale = await this.prisma.sale.findUnique({
+      where: { id },
+      include: { paymentStatus: true }
+    });
     if (!sale) throw new NotFoundException('Sale not found');
-    if (sale.paymentStatus !== 'PENDING') {
+
+    const statusCode = sale.paymentStatus?.code?.toUpperCase();
+    if (statusCode && statusCode !== 'PENDING') {
       throw new BadRequestException('Can only delete pending sales');
     }
 

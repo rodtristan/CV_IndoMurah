@@ -93,9 +93,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         : ['error'],
       // `password` di-omit secara global supaya tidak pernah bocor lewat
       // select/include/query polos. AuthService.login meng-override ini
-      // secara eksplisit (`omit: { password: false }`) karena login butuh
+      // secara eksplisit (`omit: { Password: false }`) karena login butuh
       // hash-nya untuk verifikasi.
-      omit: { user: { password: true } },
+      omit: { user: { Password: true } },
     });
   }
 

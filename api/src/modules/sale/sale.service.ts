@@ -9,10 +9,26 @@ export class SaleService {
   private readonly CACHE_PREFIX = 'sales';
   private readonly CACHE_TTL = 60;
 
+  // Default PaymentStatus IDs (assuming these exist in the database)
+  private readonly STATUS_PENDING = 1; // Adjust based on actual data
+  private readonly STATUS_PARTIAL = 2;
+  private readonly STATUS_PAID = 3;
+  private readonly STATUS_CANCELLED = 4;
+
   constructor(
     private prisma: PrismaService,
     private queryService: QueryService,
   ) {}
+
+  private async getPaymentStatusId(statusCode: string): Promise<number> {
+    const statusMap: Record<string, number> = {
+      'PENDING': this.STATUS_PENDING,
+      'PARTIAL': this.STATUS_PARTIAL,
+      'PAID': this.STATUS_PAID,
+      'CANCELLED': this.STATUS_CANCELLED,
+    };
+    return statusMap[statusCode.toUpperCase()] || this.STATUS_PENDING;
+  }
 
   async findAll(query: Record<string, unknown>) {
     const prismaQuery = this.queryService.buildPrismaQuery(query, {
@@ -82,9 +98,10 @@ export class SaleService {
     const cashAmount = dto.cashAmount || 0;
     const changeAmount = cashAmount > total ? cashAmount - total : 0;
     const paid = cashAmount >= total ? total : cashAmount;
-    const remaining = total - paid;
 
-    const paymentStatus = paid >= total ? 'PAID' : paid > 0 ? 'PARTIAL' : 'PENDING';
+    // Determine payment status based on paid amount
+    const paymentStatusCode = paid >= total ? 'PAID' : paid > 0 ? 'PARTIAL' : 'PENDING';
+    const paymentStatusId = await this.getPaymentStatusId(paymentStatusCode);
 
     const saleItemsData = dto.items.map((item) => {
       const itemDiscount = item.discountAmount || 0;
@@ -118,8 +135,8 @@ export class SaleService {
           total: new Prisma.Decimal(total),
           cashAmount: new Prisma.Decimal(cashAmount),
           changeAmount: new Prisma.Decimal(changeAmount),
-          paymentStatus: paymentStatus as any,
-          paymentMethod: dto.paymentMethod,
+          paymentStatusId: paymentStatusId,
+          paymentMethodId: dto.paymentMethodId,
           notes: dto.notes,
           createdById: userId,
           saleItems: { create: saleItemsData },
@@ -142,11 +159,11 @@ export class SaleService {
       }
 
       // Record payment if cash received
-      if (paid > 0) {
+      if (paid > 0 && dto.paymentMethodId) {
         await tx.salePayment.create({
           data: {
             saleId: newSale.id,
-            method: dto.paymentMethod || 'CASH',
+            methodId: dto.paymentMethodId,
             amount: new Prisma.Decimal(paid),
             referenceNumber: null,
             createdById: userId,
@@ -164,9 +181,14 @@ export class SaleService {
   }
 
   async update(id: number, dto: UpdateSaleDto) {
-    const sale = await this.prisma.sale.findUnique({ where: { id } });
+    const sale = await this.prisma.sale.findUnique({
+      where: { id },
+      include: { paymentStatus: true }
+    });
     if (!sale) throw new NotFoundException('Sale not found');
-    if (sale.paymentStatus === 'PAID' || sale.paymentStatus === 'CANCELLED') {
+
+    const statusCode = sale.paymentStatus?.code?.toUpperCase();
+    if (statusCode === 'PAID' || statusCode === 'CANCELLED') {
       throw new BadRequestException('Cannot update paid or cancelled sales');
     }
 
@@ -179,7 +201,7 @@ export class SaleService {
     if (dto.discountPercent !== undefined) updateData.discountPercent = new Prisma.Decimal(dto.discountPercent);
     if (dto.discountAmount !== undefined) updateData.discountAmount = new Prisma.Decimal(dto.discountAmount);
     if (dto.taxPercent !== undefined) updateData.taxPercent = new Prisma.Decimal(dto.taxPercent);
-    if (dto.paymentMethod !== undefined) updateData.paymentMethod = dto.paymentMethod;
+    if (dto.paymentMethodId !== undefined) updateData.paymentMethodId = dto.paymentMethodId;
     if (dto.notes !== undefined) updateData.notes = dto.notes;
 
     const updated = await this.prisma.sale.update({
@@ -218,10 +240,12 @@ export class SaleService {
   async payment(id: number, dto: PaymentDto, userId: string) {
     const sale = await this.prisma.sale.findUnique({
       where: { id },
-      include: { salePayments: true },
+      include: { salePayments: true, paymentStatus: true },
     });
     if (!sale) throw new NotFoundException('Sale not found');
-    if (sale.paymentStatus === 'CANCELLED') {
+
+    const statusCode = sale.paymentStatus?.code?.toUpperCase();
+    if (statusCode === 'CANCELLED') {
       throw new BadRequestException('Cannot add payment to cancelled sale');
     }
 
@@ -230,32 +254,33 @@ export class SaleService {
     const newPaid = currentPaid + paymentAmount;
     const totalAmount = Number(sale.total);
 
-    let newStatus: 'PARTIAL' | 'PAID' = 'PARTIAL';
-    const actualPaid = newPaid >= totalAmount ? totalAmount : newPaid;
-    if (newPaid >= totalAmount) newStatus = 'PAID';
+    const newStatusCode = newPaid >= totalAmount ? 'PAID' : 'PARTIAL';
+    const newStatusId = await this.getPaymentStatusId(newStatusCode);
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.salePayment.create({
-        data: {
-          saleId: id,
-          method: dto.paymentMethod || 'CASH',
-          amount: new Prisma.Decimal(paymentAmount),
-          referenceNumber: dto.referenceNumber,
-          notes: dto.notes,
-          createdById: userId,
-        },
-      });
+      if (dto.paymentMethodId) {
+        await tx.salePayment.create({
+          data: {
+            saleId: id,
+            methodId: dto.paymentMethodId,
+            amount: new Prisma.Decimal(paymentAmount),
+            referenceNumber: dto.referenceNumber,
+            notes: dto.notes,
+            createdById: userId,
+          },
+        });
+      }
 
       await tx.sale.update({
         where: { id },
         data: {
-          paymentStatus: newStatus,
-          paymentMethod: dto.paymentMethod || sale.paymentMethod,
+          paymentStatusId: newStatusId,
+          paymentMethodId: dto.paymentMethodId || sale.paymentMethodId,
         },
       });
 
       // Award points on first full payment
-      if (newStatus === 'PAID' && currentPaid === 0) {
+      if (newStatusCode === 'PAID' && currentPaid === 0) {
         await this.addPoints(tx, sale.customerId, id, totalAmount);
       }
     });
@@ -264,8 +289,14 @@ export class SaleService {
   }
 
   async updateStatus(id: number, dto: UpdateStatusDto) {
-    const sale = await this.prisma.sale.findUnique({ where: { id } });
+    const sale = await this.prisma.sale.findUnique({
+      where: { id },
+      include: { paymentStatus: true }
+    });
     if (!sale) throw new NotFoundException('Sale not found');
+
+    const currentStatus = sale.paymentStatus?.code?.toUpperCase() || 'PENDING';
+    const newStatus = dto.paymentStatusCode.toUpperCase();
 
     const validTransitions: Record<string, string[]> = {
       PENDING: ['PARTIAL', 'PAID', 'CANCELLED'],
@@ -273,16 +304,18 @@ export class SaleService {
       INSTALMENT: ['PARTIAL', 'PAID', 'CANCELLED'],
     };
 
-    const allowed = validTransitions[sale.paymentStatus] || [];
-    if (!allowed.includes(dto.paymentStatus)) {
+    const allowed = validTransitions[currentStatus] || [];
+    if (!allowed.includes(newStatus)) {
       throw new BadRequestException(
-        `Cannot transition from '${sale.paymentStatus}' to '${dto.paymentStatus}'`,
+        `Cannot transition from '${currentStatus}' to '${newStatus}'`,
       );
     }
 
+    const newStatusId = await this.getPaymentStatusId(newStatus);
+
     const updated = await this.prisma.sale.update({
       where: { id },
-      data: { paymentStatus: dto.paymentStatus },
+      data: { paymentStatusId: newStatusId },
       include: {
         customer: true,
         salesPerson: true,
@@ -294,13 +327,13 @@ export class SaleService {
   }
 
   async cancel(id: number) {
-    return this.updateStatus(id, { paymentStatus: 'CANCELLED' });
+    return this.updateStatus(id, { paymentStatusCode: 'CANCELLED' });
   }
 
   async delete(id: number) {
     const sale = await this.prisma.sale.findUnique({
       where: { id },
-      include: { salePayments: true, saleReturns: true, saleItems: true },
+      include: { salePayments: true, saleReturns: true, saleItems: true, paymentStatus: true },
     });
     if (!sale) throw new NotFoundException('Sale not found');
     if (sale.salePayments && sale.salePayments.length > 0) {
@@ -309,7 +342,9 @@ export class SaleService {
     if (sale.saleReturns && sale.saleReturns.length > 0) {
       throw new BadRequestException('Cannot delete sale with returns');
     }
-    if (sale.paymentStatus !== 'PENDING') {
+
+    const statusCode = sale.paymentStatus?.code?.toUpperCase();
+    if (statusCode && statusCode !== 'PENDING') {
       throw new BadRequestException('Can only delete pending sales');
     }
 

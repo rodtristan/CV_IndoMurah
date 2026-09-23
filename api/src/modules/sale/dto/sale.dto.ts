@@ -5,180 +5,180 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CreateSaleItemDto {
   @ApiProperty({ description: 'Product ID' })
   @IsInt()
-  ProductID: number;
+  productId: number;
 
   @ApiProperty({ description: 'Quantity' })
   @IsNumber()
-  Quantity: number;
+  quantity: number;
 
   @ApiProperty({ description: 'Unit ID' })
   @IsInt()
-  UnitID: number;
+  unitId: number;
 
   @ApiProperty({ description: 'Unit price' })
   @IsNumber()
-  UnitPrice: number;
+  unitPrice: number;
 
   @ApiPropertyOptional({ description: 'Discount percent' })
   @IsOptional()
   @IsNumber()
-  DiscountPercent?: number;
+  discountPercent?: number;
 
   @ApiPropertyOptional({ description: 'Discount amount' })
   @IsOptional()
   @IsNumber()
-  DiscountAmount?: number;
+  discountAmount?: number;
 }
 
 export class CreateSaleDto {
   @ApiProperty({ description: 'Customer ID' })
   @IsInt()
-  CustomerID: number;
+  customerId: number;
 
   @ApiPropertyOptional({ description: 'Sales person ID' })
   @IsOptional()
   @IsInt()
-  SalesPersonID?: number;
+  salesPersonId?: number;
 
   @ApiPropertyOptional({ description: 'Sale point ID' })
   @IsOptional()
   @IsInt()
-  SalePointID?: number;
+  salePointId?: number;
 
   @ApiPropertyOptional({ description: 'Warehouse ID' })
   @IsOptional()
   @IsInt()
-  WarehouseID?: number;
+  warehouseId?: number;
 
   @ApiPropertyOptional({ description: 'Sale date', type: String })
   @IsOptional()
   @IsString()
-  Date?: string;
+  date?: string;
 
   @ApiPropertyOptional({ description: 'Due date for credit sales', type: String })
   @IsOptional()
   @IsString()
-  DueDate?: string;
+  dueDate?: string;
 
   @ApiPropertyOptional({ description: 'Discount percent' })
   @IsOptional()
   @IsNumber()
-  DiscountPercent?: number;
+  discountPercent?: number;
 
   @ApiPropertyOptional({ description: 'Discount amount' })
   @IsOptional()
   @IsNumber()
-  DiscountAmount?: number;
+  discountAmount?: number;
 
   @ApiPropertyOptional({ description: 'Tax percent' })
   @IsOptional()
   @IsNumber()
-  TaxPercent?: number;
+  taxPercent?: number;
 
   @ApiPropertyOptional({ description: 'Payment method ID' })
   @IsOptional()
   @IsInt()
-  PaymentMethodID?: number;
+  paymentMethodId?: number;
 
   @ApiPropertyOptional({ description: 'Cash amount received (for cash payments)' })
   @IsOptional()
   @IsNumber()
-  CashAmount?: number;
+  cashAmount?: number;
 
   @ApiPropertyOptional({ description: 'Notes' })
   @IsOptional()
   @IsString()
-  Notes?: string;
+  notes?: string;
 
   @ApiProperty({ description: 'Sale items', type: [CreateSaleItemDto] })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateSaleItemDto)
-  Items: CreateSaleItemDto[];
+  items: CreateSaleItemDto[];
 }
 
 export class UpdateSaleDto {
   @ApiPropertyOptional({ description: 'Customer ID' })
   @IsOptional()
   @IsInt()
-  CustomerID?: number;
+  customerId?: number;
 
   @ApiPropertyOptional({ description: 'Sales person ID' })
   @IsOptional()
   @IsInt()
-  SalesPersonID?: number;
+  salesPersonId?: number;
 
   @ApiPropertyOptional({ description: 'Sale point ID' })
   @IsOptional()
   @IsInt()
-  SalePointID?: number;
+  salePointId?: number;
 
   @ApiPropertyOptional({ description: 'Warehouse ID' })
   @IsOptional()
   @IsInt()
-  WarehouseID?: number;
+  warehouseId?: number;
 
   @ApiPropertyOptional({ description: 'Sale date', type: String })
   @IsOptional()
   @IsString()
-  Date?: string;
+  date?: string;
 
   @ApiPropertyOptional({ description: 'Due date', type: String })
   @IsOptional()
   @IsString()
-  DueDate?: string;
+  dueDate?: string;
 
   @ApiPropertyOptional({ description: 'Discount percent' })
   @IsOptional()
   @IsNumber()
-  DiscountPercent?: number;
+  discountPercent?: number;
 
   @ApiPropertyOptional({ description: 'Discount amount' })
   @IsOptional()
   @IsNumber()
-  DiscountAmount?: number;
+  discountAmount?: number;
 
   @ApiPropertyOptional({ description: 'Tax percent' })
   @IsOptional()
   @IsNumber()
-  TaxPercent?: number;
+  taxPercent?: number;
 
   @ApiPropertyOptional({ description: 'Payment method ID' })
   @IsOptional()
   @IsInt()
-  PaymentMethodID?: number;
+  paymentMethodId?: number;
 
   @ApiPropertyOptional({ description: 'Notes' })
   @IsOptional()
   @IsString()
-  Notes?: string;
+  notes?: string;
 }
 
 export class PaymentDto {
   @ApiProperty({ description: 'Payment amount' })
   @IsNumber()
-  Amount: number;
+  amount: number;
 
   @ApiPropertyOptional({ description: 'Payment method ID' })
   @IsOptional()
   @IsInt()
-  PaymentMethodID?: number;
+  paymentMethodId?: number;
 
   @ApiPropertyOptional({ description: 'Reference number' })
   @IsOptional()
   @IsString()
-  ReferenceNumber?: string;
+  referenceNumber?: string;
 
   @ApiPropertyOptional({ description: 'Notes' })
   @IsOptional()
   @IsString()
-  Notes?: string;
+  notes?: string;
 }
 
 export class UpdateStatusDto {
   @ApiProperty({ description: 'Payment status code (e.g., PENDING, PARTIAL, PAID, CANCELLED)' })
   @IsString()
-  PaymentStatusCode: string;
+  paymentStatusCode: string;
 }
 
 export class UpdateShippingDto {

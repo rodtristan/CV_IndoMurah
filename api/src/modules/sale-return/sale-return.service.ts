@@ -10,11 +10,27 @@ export class SaleReturnService {
   private readonly CACHE_PREFIX = 'sale_returns';
   private readonly CACHE_TTL = 60;
 
+  // Default TransactionStatus IDs for SaleReturn
+  private readonly STATUS_DRAFT = 1;
+  private readonly STATUS_CONFIRMED = 2;
+  private readonly STATUS_COMPLETED = 3;
+  private readonly STATUS_CANCELLED = 4;
+
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
     private queryService: QueryService,
   ) {}
+
+  private async getStatusId(statusCode: string): Promise<number> {
+    const statusMap: Record<string, number> = {
+      'DRAFT': this.STATUS_DRAFT,
+      'CONFIRMED': this.STATUS_CONFIRMED,
+      'COMPLETED': this.STATUS_COMPLETED,
+      'CANCELLED': this.STATUS_CANCELLED,
+    };
+    return statusMap[statusCode.toUpperCase()] || this.STATUS_DRAFT;
+  }
 
   async findAll(query: Record<string, any>) {
     const cacheKey = this.queryService.generateCacheKey(this.CACHE_PREFIX, query);
@@ -84,12 +100,14 @@ export class SaleReturnService {
     if (!sale) throw new NotFoundException('Sale not found');
 
     const code = await this.generateCode();
+    const statusId = await this.getStatusId('DRAFT');
 
     // Calculate total return
     const itemsData = dto.items.map((item) => {
       const subtotal = item.unitPrice * item.quantity;
       return {
         productId: item.productId,
+        unitId: item.unitId,
         quantity: new Prisma.Decimal(item.quantity.toString()),
         unitPrice: new Prisma.Decimal(item.unitPrice.toString()),
         subtotal: new Prisma.Decimal(subtotal.toString()),
@@ -107,7 +125,7 @@ export class SaleReturnService {
         date: dto.date ? new Date(dto.date) : new Date(),
         totalReturn: new Prisma.Decimal(totalReturn.toString()),
         reason: dto.reason,
-        status: 'DRAFT',
+        statusId: statusId,
         createdById: userId,
         returnItems: {
           create: itemsData,
@@ -117,6 +135,7 @@ export class SaleReturnService {
         sale: true,
         customer: true,
         warehouse: true,
+        status: true,
         returnItems: { include: { product: true, unit: true } },
       },
     });
@@ -127,9 +146,14 @@ export class SaleReturnService {
   }
 
   async update(id: number, dto: UpdateSaleReturnDto) {
-    const saleReturn = await this.prisma.saleReturn.findUnique({ where: { id } });
+    const saleReturn = await this.prisma.saleReturn.findUnique({
+      where: { id },
+      include: { status: true }
+    });
     if (!saleReturn) throw new NotFoundException('Sale return not found');
-    if (saleReturn.status !== 'DRAFT') {
+
+    const statusCode = saleReturn.status?.code?.toUpperCase();
+    if (statusCode && statusCode !== 'DRAFT') {
       throw new BadRequestException('Can only update draft sale returns');
     }
 
@@ -144,6 +168,7 @@ export class SaleReturnService {
         sale: true,
         customer: true,
         warehouse: true,
+        status: true,
         returnItems: { include: { product: true, unit: true } },
       },
     });
@@ -156,27 +181,33 @@ export class SaleReturnService {
   async updateStatus(id: number, dto: UpdateStatusDto) {
     const saleReturn = await this.prisma.saleReturn.findUnique({
       where: { id },
-      include: { returnItems: true },
+      include: { status: true, returnItems: true },
     });
     if (!saleReturn) throw new NotFoundException('Sale return not found');
+
+    const currentStatus = saleReturn.status?.code?.toUpperCase() || 'DRAFT';
+    const newStatus = dto.status.toUpperCase();
 
     const validTransitions: Record<string, string[]> = {
       DRAFT: ['CONFIRMED', 'CANCELLED'],
       CONFIRMED: ['COMPLETED', 'CANCELLED'],
     };
 
-    const allowed = validTransitions[saleReturn.status] || [];
-    if (!allowed.includes(dto.status)) {
-      throw new BadRequestException(`Cannot transition from '${saleReturn.status}' to '${dto.status}'`);
+    const allowed = validTransitions[currentStatus] || [];
+    if (!allowed.includes(newStatus)) {
+      throw new BadRequestException(`Cannot transition from '${currentStatus}' to '${newStatus}'`);
     }
+
+    const newStatusId = await this.getStatusId(newStatus);
 
     const updated = await this.prisma.saleReturn.update({
       where: { id },
-      data: { status: dto.status as any },
+      data: { statusId: newStatusId },
       include: {
         sale: true,
         customer: true,
         warehouse: true,
+        status: true,
         returnItems: { include: { product: true, unit: true } },
       },
     });
@@ -187,9 +218,14 @@ export class SaleReturnService {
   }
 
   async delete(id: number) {
-    const saleReturn = await this.prisma.saleReturn.findUnique({ where: { id } });
+    const saleReturn = await this.prisma.saleReturn.findUnique({
+      where: { id },
+      include: { status: true }
+    });
     if (!saleReturn) throw new NotFoundException('Sale return not found');
-    if (saleReturn.status !== 'DRAFT') {
+
+    const statusCode = saleReturn.status?.code?.toUpperCase();
+    if (statusCode && statusCode !== 'DRAFT') {
       throw new BadRequestException('Can only delete draft sale returns');
     }
 

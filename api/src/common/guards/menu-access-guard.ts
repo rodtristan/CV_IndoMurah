@@ -40,8 +40,8 @@ export class MenuAccessGuard implements CanActivate {
     const roleId = user.roleId;
 
     const menu = await this.prisma.menu.findFirst({
-      where: { menuName: menuKey, isActive: true },
-      select: { id: true },
+      where: { MenuName: menuKey, IsActive: true },
+      select: { ID: true },
     });
 
     // Menu belum dikonfigurasi → izinkan agar developer tidak lockout
@@ -49,21 +49,21 @@ export class MenuAccessGuard implements CanActivate {
 
     // Akses personal (UserMenu) — override, prioritas tertinggi
     const userMenu = await this.prisma.userMenu.findFirst({
-      where: { userId: userId, menuId: menu.id, isActive: true },
+      where: { UserID: userId, MenuID: menu.ID, IsActive: true },
     });
     if (userMenu) return true;
 
     // Akses berdasarkan role
     const extraRoles = await this.prisma.userRole.findMany({
-      where: { userId: userId, isActive: true },
-      select: { roleId: true },
+      where: { UserID: userId, IsActive: true },
+      select: { RoleID: true },
     });
-    const roleIds = new Set<number>(extraRoles.map((r) => r.roleId));
+    const roleIds = new Set<number>(extraRoles.map((r) => r.RoleID));
     if (roleId) roleIds.add(roleId);
 
     if (roleIds.size) {
       const roleMenu = await this.prisma.roleMenu.findFirst({
-        where: { roleId: { in: [...roleIds] }, menuId: menu.id, isActive: true },
+        where: { RoleID: { in: [...roleIds] }, MenuID: menu.ID, IsActive: true },
       });
       if (roleMenu) return true;
     }

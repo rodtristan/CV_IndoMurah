@@ -3,138 +3,103 @@ import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateSaleItemDto {
-  @ApiProperty({ description: 'saleId' })
+  @ApiProperty({ description: 'Sale ID' })
   @IsNumber()
   saleId: number;
 
-  @ApiProperty({ description: 'productId' })
+  @ApiProperty({ description: 'Product ID' })
   @IsNumber()
   productId: number;
 
-  @ApiProperty({ description: 'quantity' })
+  @ApiProperty({ description: 'Quantity' })
   @IsNumber()
   quantity: number;
 
-  @ApiProperty({ description: 'unitPrice' })
-  @IsNumber()
-  unitPrice: number;
-
-  @ApiProperty({ description: 'discountPercent' })
-  @IsNumber()
-  discountPercent: number;
-
-  @ApiProperty({ description: 'discountAmount' })
-  @IsNumber()
-  discountAmount: number;
-
-  @ApiProperty({ description: 'subtotal' })
-  @IsNumber()
-  subtotal: number;
-
-  @ApiProperty({ description: 'sale' })
-  sale: any;
-
-  @ApiProperty({ description: 'product' })
-  product: any;
-
-  @ApiProperty({ description: 'unit' })
-  unit: any;
-
-  @ApiProperty({ description: 'unitId' })
+  @ApiProperty({ description: 'Unit ID' })
   @IsNumber()
   unitId: number;
 
-}
-
-export class UpdateSaleItemDto {
-  @ApiPropertyOptional({ description: 'saleId' })
-  @IsOptional()
+  @ApiProperty({ description: 'Unit price' })
   @IsNumber()
-  saleId?: number;
+  unitPrice: number;
 
-  @ApiPropertyOptional({ description: 'productId' })
-  @IsOptional()
-  @IsNumber()
-  productId?: number;
-
-  @ApiPropertyOptional({ description: 'quantity' })
-  @IsOptional()
-  @IsNumber()
-  quantity?: number;
-
-  @ApiPropertyOptional({ description: 'unitPrice' })
-  @IsOptional()
-  @IsNumber()
-  unitPrice?: number;
-
-  @ApiPropertyOptional({ description: 'discountPercent' })
+  @ApiPropertyOptional({ description: 'Discount percent' })
   @IsOptional()
   @IsNumber()
   discountPercent?: number;
 
-  @ApiPropertyOptional({ description: 'discountAmount' })
+  @ApiPropertyOptional({ description: 'Discount amount' })
   @IsOptional()
   @IsNumber()
   discountAmount?: number;
 
-  @ApiPropertyOptional({ description: 'subtotal' })
+  @ApiPropertyOptional({ description: 'Subtotal (calculated)' })
   @IsOptional()
   @IsNumber()
   subtotal?: number;
+}
 
-  @ApiPropertyOptional({ description: 'sale' })
+export class UpdateSaleItemDto {
+  @ApiPropertyOptional({ description: 'Product ID' })
   @IsOptional()
-  sale?: any;
+  @IsNumber()
+  productId?: number;
 
-  @ApiPropertyOptional({ description: 'product' })
+  @ApiPropertyOptional({ description: 'Quantity' })
   @IsOptional()
-  product?: any;
+  @IsNumber()
+  quantity?: number;
 
-  @ApiPropertyOptional({ description: 'unit' })
-  @IsOptional()
-  unit?: any;
-
-  @ApiPropertyOptional({ description: 'unitId' })
+  @ApiPropertyOptional({ description: 'Unit ID' })
   @IsOptional()
   @IsNumber()
   unitId?: number;
 
+  @ApiPropertyOptional({ description: 'Unit price' })
+  @IsOptional()
+  @IsNumber()
+  unitPrice?: number;
+
+  @ApiPropertyOptional({ description: 'Discount percent' })
+  @IsOptional()
+  @IsNumber()
+  discountPercent?: number;
+
+  @ApiPropertyOptional({ description: 'Discount amount' })
+  @IsOptional()
+  @IsNumber()
+  discountAmount?: number;
+
+  @ApiPropertyOptional({ description: 'Subtotal (calculated)' })
+  @IsOptional()
+  @IsNumber()
+  subtotal?: number;
 }
 
 export class SaleItemResponseDto {
-  @ApiProperty({ description: 'saleId' })
+  @ApiProperty({ description: 'Sale ID' })
   saleId: number;
 
-  @ApiProperty({ description: 'productId' })
+  @ApiProperty({ description: 'Product ID' })
   productId: number;
 
-  @ApiProperty({ description: 'quantity' })
+  @ApiProperty({ description: 'Quantity' })
   quantity: number;
 
-  @ApiProperty({ description: 'unitPrice' })
-  unitPrice: number;
-
-  @ApiProperty({ description: 'discountPercent' })
-  discountPercent: number;
-
-  @ApiProperty({ description: 'discountAmount' })
-  discountAmount: number;
-
-  @ApiProperty({ description: 'subtotal' })
-  subtotal: number;
-
-  @ApiProperty({ description: 'sale' })
-  sale: any;
-
-  @ApiProperty({ description: 'product' })
-  product: any;
-
-  @ApiProperty({ description: 'unit' })
-  unit: any;
-
-  @ApiProperty({ description: 'unitId' })
+  @ApiProperty({ description: 'Unit ID' })
   unitId: number;
 
+  @ApiProperty({ description: 'Unit price' })
+  unitPrice: number;
+
+  @ApiProperty({ description: 'Discount percent' })
+  discountPercent: number;
+
+  @ApiProperty({ description: 'Discount amount' })
+  discountAmount: number;
+
+  @ApiProperty({ description: 'Subtotal' })
+  subtotal: number;
 }
 
 export class QuerySaleItemDto {

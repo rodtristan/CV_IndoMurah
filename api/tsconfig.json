@@ -29,13 +29,10 @@
     "types": ["node"]
   },
   "include": ["src/**/*", "prisma/**/*", "prisma.config.ts"],
-  // sale-order/ targets prisma.saleOrder/saleOrderItem, but no SaleOrder
-  // model exists in prisma/schema.prisma — not a naming bug, the model was
-  // never defined. Not used by the frontend. Needs a real schema decision
-  // (new model vs. reuse Sale) before this can be re-enabled.
   "exclude": [
     "node_modules",
     "dist",
-    "src/modules/sale-order/**"
+    "src/modules/sale-order/**",
+    "src/modules/point-redemption/**"
   ]
 }

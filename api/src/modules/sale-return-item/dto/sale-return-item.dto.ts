@@ -3,114 +3,77 @@ import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateSaleReturnItemDto {
-  @ApiProperty({ description: 'saleReturnId' })
+  @ApiProperty({ description: 'Sale Return ID' })
   @IsNumber()
   saleReturnId: number;
 
-  @ApiProperty({ description: 'productId' })
+  @ApiProperty({ description: 'Product ID' })
   @IsNumber()
   productId: number;
 
-  @ApiProperty({ description: 'quantity' })
-  @IsNumber()
-  quantity: number;
-
-  @ApiProperty({ description: 'unitPrice' })
-  @IsNumber()
-  unitPrice: number;
-
-  @ApiProperty({ description: 'subtotal' })
-  @IsNumber()
-  subtotal: number;
-
-  @ApiProperty({ description: 'saleReturn' })
-  saleReturn: any;
-
-  @ApiProperty({ description: 'product' })
-  product: any;
-
-  @ApiProperty({ description: 'unit' })
-  unit: any;
-
-  @ApiProperty({ description: 'unitId' })
+  @ApiProperty({ description: 'Unit ID' })
   @IsNumber()
   unitId: number;
 
+  @ApiProperty({ description: 'Quantity' })
+  @IsNumber()
+  quantity: number;
+
+  @ApiProperty({ description: 'Unit price' })
+  @IsNumber()
+  unitPrice: number;
+
+  @ApiPropertyOptional({ description: 'Subtotal (calculated)' })
+  @IsOptional()
+  @IsNumber()
+  subtotal?: number;
 }
 
 export class UpdateSaleReturnItemDto {
-  @ApiPropertyOptional({ description: 'saleReturnId' })
-  @IsOptional()
-  @IsNumber()
-  saleReturnId?: number;
-
-  @ApiPropertyOptional({ description: 'productId' })
+  @ApiPropertyOptional({ description: 'Product ID' })
   @IsOptional()
   @IsNumber()
   productId?: number;
 
-  @ApiPropertyOptional({ description: 'quantity' })
-  @IsOptional()
-  @IsNumber()
-  quantity?: number;
-
-  @ApiPropertyOptional({ description: 'unitPrice' })
-  @IsOptional()
-  @IsNumber()
-  unitPrice?: number;
-
-  @ApiPropertyOptional({ description: 'subtotal' })
-  @IsOptional()
-  @IsNumber()
-  subtotal?: number;
-
-  @ApiPropertyOptional({ description: 'saleReturn' })
-  @IsOptional()
-  saleReturn?: any;
-
-  @ApiPropertyOptional({ description: 'product' })
-  @IsOptional()
-  product?: any;
-
-  @ApiPropertyOptional({ description: 'unit' })
-  @IsOptional()
-  unit?: any;
-
-  @ApiPropertyOptional({ description: 'unitId' })
+  @ApiPropertyOptional({ description: 'Unit ID' })
   @IsOptional()
   @IsNumber()
   unitId?: number;
 
+  @ApiPropertyOptional({ description: 'Quantity' })
+  @IsOptional()
+  @IsNumber()
+  quantity?: number;
+
+  @ApiPropertyOptional({ description: 'Unit price' })
+  @IsOptional()
+  @IsNumber()
+  unitPrice?: number;
+
+  @ApiPropertyOptional({ description: 'Subtotal (calculated)' })
+  @IsOptional()
+  @IsNumber()
+  subtotal?: number;
 }
 
 export class SaleReturnItemResponseDto {
-  @ApiProperty({ description: 'saleReturnId' })
+  @ApiProperty({ description: 'Sale Return ID' })
   saleReturnId: number;
 
-  @ApiProperty({ description: 'productId' })
+  @ApiProperty({ description: 'Product ID' })
   productId: number;
 
-  @ApiProperty({ description: 'quantity' })
-  quantity: number;
-
-  @ApiProperty({ description: 'unitPrice' })
-  unitPrice: number;
-
-  @ApiProperty({ description: 'subtotal' })
-  subtotal: number;
-
-  @ApiProperty({ description: 'saleReturn' })
-  saleReturn: any;
-
-  @ApiProperty({ description: 'product' })
-  product: any;
-
-  @ApiProperty({ description: 'unit' })
-  unit: any;
-
-  @ApiProperty({ description: 'unitId' })
+  @ApiProperty({ description: 'Unit ID' })
   unitId: number;
 
+  @ApiProperty({ description: 'Quantity' })
+  quantity: number;
+
+  @ApiProperty({ description: 'Unit price' })
+  unitPrice: number;
+
+  @ApiProperty({ description: 'Subtotal' })
+  subtotal: number;
 }
 
 export class QuerySaleReturnItemDto {

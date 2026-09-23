@@ -25,10 +25,10 @@ export class AuthService {
   async login(dto: LoginDto) {
     // Find company by companyCode
     const company = await this.prisma.company.findUnique({
-      where: { companyCode: dto.companyCode },
+      where: { CompanyCode: dto.companyCode },
     });
 
-    if (!company || !company.isActive) {
+    if (!company || !company.IsActive) {
       throw new UnauthorizedException('Kode perusahaan tidak valid');
     }
 
@@ -37,47 +37,47 @@ export class AuthService {
     // sini karena login butuh hash-nya untuk verifikasi.
     const user = await this.prisma.user.findFirst({
       where: {
-        companyId: company.id,
-        username: dto.username,
+        CompanyID: company.ID,
+        Username: dto.username,
       },
-      omit: { password: false },
+      omit: { Password: false },
     });
 
-    if (!user || !user.isActive) {
+    if (!user || !user.IsActive) {
       throw new UnauthorizedException('Username atau password salah');
     }
 
-    const isValid = await argon2.verify(user.password, dto.password);
+    const isValid = await argon2.verify(user.Password, dto.password);
     if (!isValid) {
       throw new UnauthorizedException('Username atau password salah');
     }
 
     // Determine main role from UserRole
     const mainRole = await this.prisma.userRole.findFirst({
-      where: { userId: user.id, isActive: true },
-      select: { roleId: true },
+      where: { UserID: user.ID, IsActive: true },
+      select: { RoleID: true },
     });
 
     const token = this.jwtService.sign({
-      id: user.id,
-      companyId: company.id,
-      username: user.username,
-      roleId: mainRole?.roleId ?? 1,
+      id: user.ID,
+      companyId: company.ID,
+      username: user.Username,
+      roleId: mainRole?.RoleID ?? 1,
     });
 
-    const menus = await this.menuService.getAccessibleMenus(user.id, mainRole?.roleId ?? null);
+    const menus = await this.menuService.getAccessibleMenus(user.ID, mainRole?.RoleID ?? null);
 
     return {
       token,
       user: {
-        id: user.id,
-        username: user.username,
-        name: user.name,
-        role: user.role,
+        id: user.ID,
+        username: user.Username,
+        name: user.Name,
+        role: user.Role,
         company: {
-          id: company.id,
-          companyCode: company.companyCode,
-          name: company.name,
+          id: company.ID,
+          companyCode: company.CompanyCode,
+          name: company.Name,
         },
       },
       menus,
@@ -88,7 +88,7 @@ export class AuthService {
   async register(dto: RegisterDto) {
     // Find company by companyCode
     const company = await this.prisma.company.findUnique({
-      where: { companyCode: dto.companyCode },
+      where: { CompanyCode: dto.companyCode },
     });
 
     if (!company) {
@@ -98,8 +98,8 @@ export class AuthService {
     // Check if username already exists in this company
     const exists = await this.prisma.user.count({
       where: {
-        companyId: company.id,
-        username: dto.username,
+        CompanyID: company.ID,
+        Username: dto.username,
       },
     });
     if (exists > 0) {
@@ -117,33 +117,33 @@ export class AuthService {
 
     const user = await this.prisma.user.create({
       data: {
-        companyId: company.id,
-        username: dto.username,
-        email: dto.email,
-        password: hashedPassword,
-        name: dto.name,
-        role: 'cashier',
-        isActive: true,
+        CompanyID: company.ID,
+        Username: dto.username,
+        Email: dto.email,
+        Password: hashedPassword,
+        Name: dto.name,
+        Role: 'cashier',
+        IsActive: true,
       },
       select: {
-        id: true,
-        name: true,
-        username: true,
-        email: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        company: {
+        ID: true,
+        Name: true,
+        Username: true,
+        Email: true,
+        Role: true,
+        IsActive: true,
+        CreatedAt: true,
+        Company: {
           select: {
-            id: true,
-            companyCode: true,
-            name: true,
+            ID: true,
+            CompanyCode: true,
+            Name: true,
           },
         },
       },
     });
 
-    await this.menuService.provisionUserMenusFromRole(user.id, roleId);
+    await this.menuService.provisionUserMenusFromRole(user.ID, roleId);
 
     await this.redis.invalidatePattern('users:*');
 
@@ -157,20 +157,20 @@ export class AuthService {
       cacheKey,
       async () => {
         const user = await this.prisma.user.findUnique({
-          where: { id: userId },
+          where: { ID: userId },
           include: {
-            company: {
+            Company: {
               select: {
-                id: true,
-                companyCode: true,
-                name: true,
+                ID: true,
+                CompanyCode: true,
+                Name: true,
               },
             },
-            userRoles: {
-              where: { isActive: true },
+            UserRoles: {
+              where: { IsActive: true },
               include: {
-                role: {
-                  select: { id: true, roleName: true },
+                Role: {
+                  select: { ID: true, RoleName: true },
                 },
               },
             },
@@ -182,16 +182,16 @@ export class AuthService {
         const menus = await this.menuService.getAccessibleMenus(userId);
 
         return {
-          id: user.id,
-          username: user.username,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          isActive: user.isActive,
-          createdAt: user.createdAt,
-          updatedAt: user.updatedAt,
-          company: user.company,
-          extraRoles: user.userRoles.map((ur) => ur.role),
+          id: user.ID,
+          username: user.Username,
+          name: user.Name,
+          email: user.Email,
+          role: user.Role,
+          isActive: user.IsActive,
+          createdAt: user.CreatedAt,
+          updatedAt: user.UpdatedAt,
+          company: user.Company,
+          extraRoles: user.UserRoles.map((ur) => ur.Role),
           menus,
         };
       },

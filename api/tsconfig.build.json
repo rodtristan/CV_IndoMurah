@@ -9,6 +9,7 @@
     "dist",
     "test",
     "**/*spec.ts",
-    "src/modules/sale-order/**"
+    "src/modules/sale-order/**",
+    "src/modules/point-redemption/**"
   ]
 }

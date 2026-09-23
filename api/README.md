@@ -7,13 +7,14 @@ Backend API untuk sistem Point of Sale (POS) Toko CV IndoMurah berbasis NestJS d
 1. [Overview](#1-overview)
 2. [Database Schema](#2-database-schema)
 3. [Module Categories](#3-module-categories)
-4. [All Modules Reference](#4-all-modules-reference)
-5. [OData Query Support](#5-odata-query-support)
-6. [Status & Type Reference](#6-status--type-reference)
-7. [Technology Stack](#7-technology-stack)
-8. [Getting Started](#8-getting-started)
-9. [API Examples](#9-api-examples)
-10. [Project Structure](#10-project-structure)
+4. [Business Logic API](#4-business-logic-api)
+5. [All Modules Reference](#5-all-modules-reference)
+6. [OData Query Support](#6-odata-query-support)
+7. [Status & Type Reference](#7-status--type-reference)
+8. [Technology Stack](#8-technology-stack)
+9. [Getting Started](#9-getting-started)
+10. [API Examples](#10-api-examples)
+11. [Project Structure](#11-project-structure)
 
 ---
 
@@ -130,7 +131,119 @@ Semua model memiliki field standar berikut:
 
 ---
 
-## 4. All Modules Reference
+## 4. Business Logic API
+
+Dokumentasi lengkap tersedia di [BusinessLogic.md](./BusinessLogic.md)
+
+### 4.1 Module Categories
+
+Business Logic API terdiri dari 5 modul utama yang menangani alur bisnis kompleks:
+
+| Module | Description | Endpoint Prefix |
+|--------|-------------|----------------|
+| **POS** | Point of Sale transactions, cart management, hold/resume | `/api/business-logic/pos` |
+| **Receivable** | Customer piutang management, payment recording, aging | `/api/business-logic/receivable` |
+| **Stock Alert** | Inventory alerts, reorder suggestions, stock monitoring | `/api/business-logic/stock-alert` |
+| **Analytics** | Dashboard, sales reports, profit analysis, trends | `/api/business-logic/analytics` |
+| **Inventory** | Stock transfer, adjustment, opname, valuation | `/api/business-logic/inventory` |
+
+### 4.2 Quick Reference
+
+#### POS Endpoints
+
+```
+POST   /business-logic/pos/cart/open           - Open cart session
+POST   /business-logic/pos/cart/add            - Add product to cart
+PUT    /business-logic/pos/cart/item/:id       - Update cart item
+DELETE /business-logic/pos/cart/item/:id        - Remove from cart
+POST   /business-logic/pos/cart/hold            - Hold transaction
+POST   /business-logic/pos/cart/resume          - Resume held transaction
+POST   /business-logic/pos/voucher/apply       - Apply voucher
+POST   /business-logic/pos/transaction/complete - Complete transaction
+GET    /business-logic/pos/products/search      - Search products
+GET    /business-logic/pos/products/barcode     - Barcode lookup
+```
+
+#### Receivable Endpoints
+
+```
+GET    /business-logic/receivable/overview              - Get all receivables
+GET    /business-logic/receivable/customer/:id          - Customer receivable history
+GET    /business-logic/receivable/aging-report          - Aging analysis
+POST   /business-logic/receivable/sale/:id/payment      - Record payment
+POST   /business-logic/receivable/bulk-payment          - Bulk payment
+POST   /business-logic/receivable/customer/:id/deposit  - Add customer deposit
+GET    /business-logic/receivable/customer/:id/credit-check - Check credit
+PUT    /business-logic/receivable/customer/:id/credit-limit - Update credit limit
+```
+
+#### Stock Alert Endpoints
+
+```
+GET    /business-logic/stock-alert                   - List all alerts
+GET    /business-logic/stock-alert/summary           - Alert summary
+PUT    /business-logic/stock-alert/:id/read          - Mark as read
+PUT    /business-logic/stock-alert/:id/resolve       - Resolve alert
+GET    /business-logic/stock-alert/reorder-suggestion/:productId - Reorder suggestion
+GET    /business-logic/stock-alert/products-needing-reorder - Products to reorder
+POST   /business-logic/stock-alert/create-purchase-order - Create PO from suggestion
+```
+
+#### Analytics Endpoints
+
+```
+GET    /business-logic/analytics/dashboard         - Dashboard summary
+GET    /business-logic/analytics/sales-report      - Sales report
+GET    /business-logic/analytics/sales-by-category  - Sales by category
+GET    /business-logic/analytics/profit-report      - Profit analysis
+GET    /business-logic/analytics/top-products      - Top selling products
+GET    /business-logic/analytics/top-customers     - Top customers
+GET    /business-logic/analytics/cash-flow         - Cash flow report
+GET    /business-logic/analytics/tax-report        - Tax report
+GET    /business-logic/analytics/sales-trend        - Sales trend analysis
+```
+
+#### Inventory Endpoints
+
+```
+POST   /business-logic/inventory/transfer           - Transfer between warehouses
+POST   /business-logic/inventory/adjustment        - Stock adjustment
+POST   /business-logic/inventory/opname             - Stock opname
+GET    /business-logic/inventory/stock-report       - Movement report
+GET    /business-logic/inventory/valuation-report  - Valuation report
+```
+
+### 4.3 Common Flow Examples
+
+#### POS Transaction Flow
+
+```
+1. GET  /pos/products/search → Search products
+2. POST /pos/cart/open → Open cart with customer
+3. POST /pos/cart/add → Add items to cart
+4. POST /pos/voucher/apply → Apply discount (optional)
+5. POST /pos/transaction/complete → Finalize sale
+```
+
+#### Receivable Payment Flow
+
+```
+1. GET  /receivable/customer/:id → Check outstanding
+2. POST /receivable/sale/:id/payment → Record payment
+3. GET  /receivable/aging-report → View aging
+```
+
+#### Reorder Flow
+
+```
+1. GET  /stock-alert/products-needing-reorder → View suggestions
+2. GET  /stock-alert/reorder-suggestion/:id → Get details
+3. POST /stock-alert/create-purchase-order → Create PO
+```
+
+---
+
+## 5. All Modules Reference
 
 ### 4.1 Authentication & User Management
 
@@ -1675,7 +1788,7 @@ Endpoint untuk health check:
 
 ---
 
-## 5. OData Query Support
+## 6. OData Query Support
 
 Semua endpoint mendukung OData query untuk filtering, sorting, dan pagination.
 
@@ -1731,7 +1844,7 @@ GET /api/employees?$filter=status eq 'ACTIVE'
 
 ---
 
-## 6. Status & Type Reference
+## 7. Status & Type Reference
 
 ### 6.1 PaymentStatus Enum
 ```
@@ -1888,7 +2001,7 @@ SUCCESS     - Berhasil
 
 ---
 
-## 7. Technology Stack
+## 8. Technology Stack
 
 ### 7.1 Core Technologies
 
@@ -1916,7 +2029,7 @@ SUCCESS     - Berhasil
 
 ---
 
-## 8. Getting Started
+## 9. Getting Started
 
 ### 8.1 Prerequisites
 ```bash
@@ -1961,7 +2074,7 @@ JWT_EXPIRES_IN=15m
 
 ---
 
-## 9. API Examples
+## 10. API Examples
 
 ### 9.1 Authentication
 
@@ -2091,7 +2204,7 @@ Content-Type: application/json
 
 ---
 
-## 10. Project Structure
+## 11. Project Structure
 
 ```
 api/

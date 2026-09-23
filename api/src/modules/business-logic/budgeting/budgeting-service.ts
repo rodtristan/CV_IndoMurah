@@ -1,0 +1,762 @@
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { PrismaService } from '../../../common/prisma/prisma-service';
+import { Prisma } from '@prisma/client'
+import { number } from '../../../common/utils/number';
+import {
+  CreateBudgetDto,
+  UpdateBudgetDto,
+  BudgetFilterDto,
+  CreateSalesTargetDto,
+  UpdateSalesTargetDto,
+  SalesTargetFilterDto,
+  BudgetComparisonDto,
+  SalesTargetReportDto,
+  BudgetAlertDto,
+  CopyBudgetDto,
+} from './Budgeting.dto';
+
+@Injectable()
+export class BudgetingService {
+  constructor(private prisma: PrismaService) {}
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // BUDGET MANAGEMENT
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Create Budget
+   * Flow: Owner/Manager buat anggaran untuk periode tertentu
+   */
+  async createBudget(dto: CreateBudgetDto, UserId: string) {
+    // Check for overlapping Budget
+    const existing = await this.prisma.budget.findFirst({
+      where: {
+        Type: dto.Type,
+        CategoryID: dto.CategoryId,
+        WarehouseID: dto.WarehouseId,
+        DepartmentID: dto.DepartmentId,
+        OR: [
+          {
+            AND: [
+              { StartDate: { lte: new Date(dto.StartDate) } },
+              { EndDate: { gte: new Date(dto.StartDate) } },
+            ],
+          },
+          {
+            AND: [
+              { StartDate: { lte: new Date(dto.EndDate) } },
+              { EndDate: { gte: new Date(dto.EndDate) } },
+            ],
+          },
+        ],
+      },
+    });
+
+    if (existing) {
+      throw new BadRequestException('Budget already exists for this period and scope');
+    }
+
+    const Budget = await this.prisma.budget.create({
+      data: {
+        Name: dto.Name,
+        Type: dto.Type,
+        StartDate: new Date(dto.StartDate),
+        EndDate: new Date(dto.EndDate),
+        CategoryID: dto.CategoryId,
+        WarehouseID: dto.WarehouseId,
+        DepartmentID: dto.DepartmentId,
+        BudgetedAmount: new Prisma.Decimal(dto.BudgetedAmount),
+        // SpentAmount: new Prisma.Decimal(0),
+        // Description: dto.Description,
+        IsActive: true,
+      },
+    });
+
+    return {
+      success: true,
+      Budget: this.formatBudget(Budget),
+    };
+  }
+
+  /**
+   * Get Budget by ID
+   */
+  async getBudget(BudgetId: number) {
+    const Budget = await this.prisma.budget.findUnique({
+      where: { ID: BudgetId },
+    });
+
+    if (!Budget) {
+      throw new NotFoundException('Budget not found');
+    }
+
+    const Category = Budget.CategoryID
+      ? await this.prisma.category.findUnique({ where: { ID: Budget.CategoryID } })
+      : null;
+
+    const Warehouse = Budget.WarehouseID
+      ? await this.prisma.warehouse.findUnique({ where: { ID: Budget.WarehouseID } })
+      : null;
+
+    const Department = Budget.DepartmentID
+      ? await this.prisma.department.findUnique({ where: { ID: Budget.DepartmentID } })
+      : null;
+
+    return {
+      ...this.formatBudget(Budget),
+      Category: Category?.Name,
+      Warehouse: Warehouse?.Name,
+      Department: Department?.Name,
+    };
+  }
+
+  /**
+   * List Budgets
+   */
+  async listBudgets(dto: BudgetFilterDto) {
+    const where: any = {};
+
+    if (dto.Type) where.Type = dto.Type;
+    if (dto.CategoryId) where.CategoryID = dto.CategoryId;
+    if (dto.WarehouseId) where.WarehouseID = dto.WarehouseId;
+    if (dto.DepartmentId) where.DepartmentID = dto.DepartmentId;
+    if (dto.ActiveOnly !== false) where.IsActive = true;
+
+    if (dto.Year) {
+      where.StartDate = {
+        gte: new Date(`${dto.Year}-01-01`),
+        lte: new Date(`${dto.Year}-12-31`),
+      };
+    }
+
+    const Budgets = await this.prisma.budget.findMany({
+      where,
+      orderBy: { StartDate: 'desc' },
+    });
+
+    const enrichedBudgets = await Promise.all(
+      Budgets.map(async (b) => {
+        const Category = b.CategoryID
+          ? await this.prisma.category.findUnique({ where: { ID: b.CategoryID } })
+          : null;
+        const Warehouse = b.WarehouseID
+          ? await this.prisma.warehouse.findUnique({ where: { ID: b.WarehouseID } })
+          : null;
+        const Department = b.DepartmentID
+          ? await this.prisma.department.findUnique({ where: { ID: b.DepartmentID } })
+          : null;
+
+        return {
+          ...this.formatBudget(b),
+          Category: Category?.Name,
+          Warehouse: Warehouse?.Name,
+          Department: Department?.Name,
+        };
+      })
+    );
+
+    return enrichedBudgets;
+  }
+
+  /**
+   * Update Budget
+   */
+  async updateBudget(BudgetId: number, dto: UpdateBudgetDto, UserId: string) {
+    const Budget = await this.prisma.budget.findUnique({
+      where: { ID: BudgetId },
+    });
+
+    if (!Budget) {
+      throw new NotFoundException('Budget not found');
+    }
+
+    const updateData: any = {};
+
+    if (dto.Name) updateData.Name = dto.Name;
+    if (dto.BudgetedAmount !== undefined) updateData.BudgetedAmount = new Prisma.Decimal(dto.BudgetedAmount);
+    if (dto.IsActive !== undefined) updateData.IsActive = dto.IsActive;
+    if (dto.Description !== undefined) updateData.Description = dto.Description;
+
+    const updated = await this.prisma.budget.update({
+      where: { ID: BudgetId },
+      data: updateData,
+    });
+
+    return {
+      success: true,
+      Budget: this.formatBudget(updated),
+    };
+  }
+
+  /**
+   * Delete Budget (soft delete)
+   */
+  async deleteBudget(BudgetId: number, UserId: string) {
+    const Budget = await this.prisma.budget.findUnique({
+      where: { ID: BudgetId },
+    });
+
+    if (!Budget) {
+      throw new NotFoundException('Budget not found');
+    }
+
+    await this.prisma.budget.update({
+      where: { ID: BudgetId },
+      data: { IsActive: false },
+    });
+
+    return {
+      success: true,
+      message: 'Budget deleted successfully',
+    };
+  }
+
+  /**
+   * Copy Budget to new period
+   */
+  async copyBudget(dto: CopyBudgetDto, UserId: string) {
+    const sourceBudget = await this.prisma.budget.findUnique({
+      where: { ID: dto.SourceBudgetId },
+    });
+
+    if (!sourceBudget) {
+      throw new NotFoundException('Source Budget not found');
+    }
+
+    const newAmount = dto.AdjustmentPercent
+      ? Number(sourceBudget.BudgetedAmount) * (1 + dto.AdjustmentPercent / 100)
+      : Number(sourceBudget.BudgetedAmount);
+
+    const newBudget = await this.prisma.budget.create({
+      data: {
+        Name: sourceBudget.Name,
+        Type: sourceBudget.Type,
+        StartDate: new Date(dto.NewStartDate),
+        EndDate: new Date(dto.NewEndDate),
+        CategoryID: sourceBudget.CategoryID,
+        WarehouseID: sourceBudget.WarehouseID,
+        DepartmentID: sourceBudget.DepartmentID,
+        BudgetedAmount: new Prisma.Decimal(newAmount),
+        // SpentAmount: new Prisma.Decimal(0),
+        // Description: `Copied from ${sourceBudget.Name} (${sourceBudget.StartDate.toISOString().split('T')[0]} to ${sourceBudget.EndDate.toISOString().split('T')[0]})`,
+        IsActive: true,
+      },
+    });
+
+    return {
+      success: true,
+      Budget: this.formatBudget(newBudget),
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // SALES TARGET MANAGEMENT
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Create Sales Target
+   */
+  async createSalesTarget(dto: CreateSalesTargetDto, UserId: string) {
+    const Target = await this.prisma.salesTarget.create({
+      data: {
+        Name: dto.Name,
+        Type: dto.Type,
+        StartDate: new Date(dto.StartDate),
+        EndDate: new Date(dto.EndDate),
+        EmployeeID: dto.EmployeeId,
+        WarehouseID: dto.WarehouseId,
+        CategoryID: dto.CategoryId,
+        TargetRevenue: new Prisma.Decimal(dto.TargetRevenue),
+        TargetQuantity: dto.TargetQuantity ? new Prisma.Decimal(dto.TargetQuantity) : undefined,
+        // Description: dto.Description,
+        IsActive: true,
+      },
+    });
+
+    return {
+      success: true,
+      Target: this.formatSalesTarget(Target),
+    };
+  }
+
+  /**
+   * Get Sales Target by ID
+   */
+  async getSalesTarget(TargetId: number) {
+    const Target = await this.prisma.salesTarget.findUnique({
+      where: { ID: TargetId },
+    });
+
+    if (!Target) {
+      throw new NotFoundException('Sales Target not found');
+    }
+
+    const Employee = Target.EmployeeID
+      ? await this.prisma.employee.findUnique({ where: { ID: Target.EmployeeID } })
+      : null;
+    const Warehouse = Target.WarehouseID
+      ? await this.prisma.warehouse.findUnique({ where: { ID: Target.WarehouseID } })
+      : null;
+    const Category = Target.CategoryID
+      ? await this.prisma.category.findUnique({ where: { ID: Target.CategoryID } })
+      : null;
+
+    return {
+      ...this.formatSalesTarget(Target),
+      EmployeeName: Employee?.Name,
+      Warehouse: Warehouse?.Name,
+      Category: Category?.Name,
+    };
+  }
+
+  /**
+   * List Sales Targets
+   */
+  async listSalesTargets(dto: SalesTargetFilterDto) {
+    const where: any = {};
+
+    if (dto.EmployeeId) where.EmployeeID = dto.EmployeeId;
+    if (dto.WarehouseId) where.WarehouseID = dto.WarehouseId;
+    if (dto.ActiveOnly !== false) where.IsActive = true;
+
+    if (dto.Year) {
+      where.StartDate = {
+        gte: new Date(`${dto.Year}-01-01`),
+        lte: dto.Month
+          ? new Date(`${dto.Year}-${String(dto.Month).padStart(2, '0')}-31`)
+          : new Date(`${dto.Year}-12-31`),
+      };
+    }
+
+    const Targets = await this.prisma.salesTarget.findMany({
+      where,
+      orderBy: { StartDate: 'desc' },
+    });
+
+    const enrichedTargets = await Promise.all(
+      Targets.map(async (t) => {
+        const Employee = t.EmployeeID
+          ? await this.prisma.employee.findUnique({ where: { ID: t.EmployeeID } })
+          : null;
+        const Warehouse = t.WarehouseID
+          ? await this.prisma.warehouse.findUnique({ where: { ID: t.WarehouseID } })
+          : null;
+        const Category = t.CategoryID
+          ? await this.prisma.category.findUnique({ where: { ID: t.CategoryID } })
+          : null;
+
+        return {
+          ...this.formatSalesTarget(t),
+          EmployeeName: Employee?.Name,
+          Warehouse: Warehouse?.Name,
+          Category: Category?.Name,
+        };
+      })
+    );
+
+    return enrichedTargets;
+  }
+
+  /**
+   * UpDate Sales Target
+   */
+  async updateSalesTarget(TargetId: number, dto: UpdateSalesTargetDto, UserId: string) {
+    const Target = await this.prisma.salesTarget.findUnique({
+      where: { ID: TargetId },
+    });
+
+    if (!Target) {
+      throw new NotFoundException('Sales Target not found');
+    }
+
+    const updateData: any = {};
+
+    if (dto.Name) updateData.Name = dto.Name;
+    if (dto.TargetRevenue !== undefined) updateData.TargetRevenue = new Prisma.Decimal(dto.TargetRevenue);
+    if (dto.TargetQuantity !== undefined) updateData.TargetQuantity = new Prisma.Decimal(dto.TargetQuantity);
+    if (dto.IsActive !== undefined) updateData.IsActive = dto.IsActive;
+
+    const updated = await this.prisma.salesTarget.update({
+      where: { ID: TargetId },
+      data: updateData,
+    });
+
+    return {
+      success: true,
+      Target: this.formatSalesTarget(updated),
+    };
+  }
+
+  /**
+   * Recalculate actual Values for Targets (read-only)
+   */
+  async recalculateTargets(TargetId: number) {
+    const Target = await this.prisma.salesTarget.findUnique({
+      where: { ID: TargetId },
+    });
+
+    if (!Target) {
+      throw new NotFoundException('Target not found');
+    }
+
+    // Build Sales query
+    const SalesWhere: any = {
+      Date: {
+        gte: Target.StartDate,
+        lte: Target.EndDate,
+      },
+      IsReturn: false,
+    };
+
+    if (Target.EmployeeID) SalesWhere.SalesPersonID = Target.EmployeeID;
+    if (Target.WarehouseID) SalesWhere.WarehouseID = Target.WarehouseID;
+
+    // Get actual Sales data
+    const Sales = await this.prisma.sale.findMany({
+      where: SalesWhere,
+      include: {
+        SaleItems: {
+          include: { Product: true },
+        },
+      },
+    });
+
+    let actualRevenue = 0;
+    let actualQuantity = 0;
+
+    for (const Sale of Sales) {
+      actualRevenue += Number(Sale.Total);
+
+      for (const item of Sale.SaleItems) {
+        if (Target.CategoryID && item.Product?.CategoryID !== Target.CategoryID) continue;
+        actualQuantity += Number(item.Quantity);
+      }
+    }
+
+    // Return calculated values (schema doesn't have ActualRevenue/ActualQuantity fields)
+    return {
+      success: true,
+      TargetId: Target.ID,
+      actualRevenue,
+      actualQuantity,
+      revenueAchievement: Number(Target.TargetRevenue) > 0
+        ? Math.round((actualRevenue / Number(Target.TargetRevenue)) * 10000) / 100
+        : 0,
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // BUDGET COMPARISON REPORT
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Get Budget vs actual comparison
+   */
+  async getBudgetComparison(dto: BudgetComparisonDto) {
+    const startDate = dto.StartDate ? new Date(dto.StartDate) : new Date();
+    const endDate = dto.EndDate ? new Date(dto.EndDate) : new Date();
+    endDate.setHours(23, 59, 59, 999);
+
+    const where: any = {
+      IsActive: true,
+      StartDate: { lte: endDate },
+      EndDate: { gte: startDate },
+    };
+
+    if (dto.BudgetId) where.ID = dto.BudgetId;
+    if (dto.CategoryId) where.CategoryID = dto.CategoryId;
+    if (dto.DepartmentId) where.DepartmentID = dto.DepartmentId;
+
+    const Budgets = await this.prisma.budget.findMany({
+      where,
+    });
+
+    // Calculate actual expenses for each Budget
+    const comparison: any[] = [];
+
+    for (const Budget of Budgets) {
+      // Fetch related entities
+      const Category = Budget.CategoryID
+        ? await this.prisma.category.findUnique({ where: { ID: Budget.CategoryID } })
+        : null;
+      const Department = Budget.DepartmentID
+        ? await this.prisma.department.findUnique({ where: { ID: Budget.DepartmentID } })
+        : null;
+
+      // Get expenses in the Budget period
+      const expenses = await this.prisma.expense.findMany({
+        where: {
+          Date: {
+            gte: new Date(Math.max(new Date(Budget.StartDate).getTime(), startDate.getTime())),
+            lte: new Date(Math.min(new Date(Budget.EndDate).getTime(), endDate.getTime())),
+          },
+          IsActive: true,
+          ...(Budget.CategoryID ? { ExpenseCategoryID: Budget.CategoryID } : {}),
+        },
+      });
+
+      const actualSpent = expenses.reduce((sum, e) => sum + Number(e.Amount), 0);
+      const Budgeted = Number(Budget.BudgetedAmount);
+      const variance = actualSpent - Budgeted;
+      const variancePercent = Budgeted > 0 ? (variance / Budgeted) * 100 : 0;
+
+      comparison.push({
+        BudgetId: Budget.ID,
+        Name: Budget.Name,
+        Type: Budget.Type,
+        Category: Category?.Name,
+        Department: Department?.Name,
+        BudgetedAmount: Budgeted,
+        actualSpent,
+        variance,
+        variancePercent: Math.round(variancePercent * 100) / 100,
+        remainingBudget: Budgeted - actualSpent,
+        utilizationPercent: Budgeted > 0 ? Math.round((actualSpent / Budgeted) * 10000) / 100 : 0,
+        Status:
+          actualSpent > Budgeted ? 'OVER_BUDGET' : actualSpent >= Budgeted * 0.9 ? 'WARNING' : 'ON_TRACK',
+      });
+    }
+
+    const Summary = {
+      TotalBudgeted: comparison.reduce((sum, c) => sum + c.BudgetedAmount, 0),
+      TotalSpent: comparison.reduce((sum, c) => sum + c.actualSpent, 0),
+      TotalVariance: comparison.reduce((sum, c) => sum + c.variance, 0),
+      overBudgetCount: comparison.filter((c) => c.Status === 'OVER_BUDGET').length,
+      onTrackCount: comparison.filter((c) => c.Status === 'ON_TRACK').length,
+      warningCount: comparison.filter((c) => c.Status === 'WARNING').length,
+    };
+
+    return {
+      period: { startDate: dto.StartDate, endDate: dto.EndDate },
+      Summary,
+      comparison,
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // SALES TARGET REPORT
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Get Sales Target Report
+   */
+  async getSalesTargetReport(dto: SalesTargetReportDto) {
+    const where: any = { IsActive: true };
+
+    if (dto.Year) {
+      where.StartDate = {
+        gte: new Date(`${dto.Year}-01-01`),
+        lte: dto.Month
+          ? new Date(`${dto.Year}-${String(dto.Month).padStart(2, '0')}-31`)
+          : new Date(`${dto.Year}-12-31`),
+      };
+    }
+
+    if (dto.EmployeeId) where.EmployeeID = dto.EmployeeId;
+    if (dto.WarehouseId) where.WarehouseID = dto.WarehouseId;
+
+    const Targets = await this.prisma.salesTarget.findMany({
+      where,
+    });
+
+    // Recalculate actual Values
+    const Report: any[] = [];
+
+    for (const Target of Targets) {
+      // Fetch related entities
+      const Employee = Target.EmployeeID
+        ? await this.prisma.employee.findUnique({ where: { ID: Target.EmployeeID } })
+        : null;
+      const Warehouse = Target.WarehouseID
+        ? await this.prisma.warehouse.findUnique({ where: { ID: Target.WarehouseID } })
+        : null;
+      const Category = Target.CategoryID
+        ? await this.prisma.category.findUnique({ where: { ID: Target.CategoryID } })
+        : null;
+
+      const SalesWhere: any = {
+        Date: { gte: Target.StartDate, lte: Target.EndDate },
+        IsReturn: false,
+      };
+
+      if (Target.EmployeeID) SalesWhere.SalesPersonID = Target.EmployeeID;
+      if (Target.WarehouseID) SalesWhere.WarehouseID = Target.WarehouseID;
+
+      const Sales = await this.prisma.sale.findMany({
+        where: SalesWhere,
+        include: { SaleItems: { include: { Product: true } } },
+      });
+
+      let actualRevenue = 0;
+      let actualQuantity = 0;
+
+      for (const Sale of Sales) {
+        actualRevenue += Number(Sale.Total);
+        for (const item of Sale.SaleItems) {
+          if (Target.CategoryID && item.Product?.CategoryID !== Target.CategoryID) continue;
+          actualQuantity += Number(item.Quantity);
+        }
+      }
+
+      const TargetRevenue = Number(Target.TargetRevenue);
+      const TargetQuantity = Target.TargetQuantity ? Number(Target.TargetQuantity) : 0;
+      const revenueAchievement = TargetRevenue > 0 ? (actualRevenue / TargetRevenue) * 100 : 0;
+      const QuantityAchievement = TargetQuantity > 0 ? (actualQuantity / TargetQuantity) * 100 : 0;
+
+      const item = {
+        TargetId: Target.ID,
+        Name: Target.Name,
+        Type: Target.Type,
+        EmployeeName: Employee?.Name,
+        Warehouse: Warehouse?.Name,
+        Category: Category?.Name,
+        period: `${Target.StartDate.toISOString().split('T')[0]} to ${Target.EndDate.toISOString().split('T')[0]}`,
+        TargetRevenue,
+        actualRevenue,
+        revenueAchievement: Math.round(revenueAchievement * 100) / 100,
+        TargetQuantity,
+        actualQuantity,
+        QuantityAchievement: Math.round(QuantityAchievement * 100) / 100,
+        Status:
+          revenueAchievement >= 100
+            ? 'ACHIEVED'
+            : revenueAchievement >= 80
+              ? 'ON_TRACK'
+              : revenueAchievement >= 50
+                ? 'BEHIND'
+                : 'CRITICAL',
+      };
+
+      if (dto.UnderperformingOnly && item.Status !== 'CRITICAL' && item.Status !== 'BEHIND') {
+        continue;
+      }
+
+      Report.push(item);
+    }
+
+    const Summary = {
+      TotalTargets: Report.length,
+      achievedCount: Report.filter((r) => r.Status === 'ACHIEVED').length,
+      onTrackCount: Report.filter((r) => r.Status === 'ON_TRACK').length,
+      behindCount: Report.filter((r) => r.Status === 'BEHIND').length,
+      criticalCount: Report.filter((r) => r.Status === 'CRITICAL').length,
+      averageAchievement:
+        Report.length > 0
+          ? Report.reduce((sum, r) => sum + r.revenueAchievement, 0) / Report.length
+          : 0,
+    };
+
+    return {
+      period: dto.Year ? { year: dto.Year, month: dto.Month } : null,
+      Summary,
+      Report,
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // BUDGET ALERTS
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Get Budget Alerts
+   */
+  async getBudgetAlerts(dto: BudgetAlertDto) {
+    const threshold = dto.Threshold || 80;
+    const today = new Date();
+
+    const where: any = {
+      IsActive: true,
+      EndDate: { gte: today },
+    };
+
+    if (dto.BudgetId) where.ID = dto.BudgetId;
+
+    const Budgets = await this.prisma.budget.findMany({ where });
+
+    const Alerts: any[] = [];
+
+    for (const Budget of Budgets) {
+      // Calculate spent Amount
+      const expenses = await this.prisma.expense.findMany({
+        where: {
+          Date: { gte: Budget.StartDate, lte: Budget.EndDate },
+          IsActive: true,
+        },
+      });
+
+      const actualSpent = expenses.reduce((sum, e) => sum + Number(e.Amount), 0);
+      const Budgeted = Number(Budget.BudgetedAmount);
+      const utilization = Budgeted > 0 ? (actualSpent / Budgeted) * 100 : 0;
+
+      if (utilization >= threshold) {
+        Alerts.push({
+          BudgetId: Budget.ID,
+          Name: Budget.Name,
+          Category: Budget.CategoryID,
+          Department: Budget.DepartmentID,
+          BudgetedAmount: Budgeted,
+          spentAmount: actualSpent,
+          remainingAmount: Budgeted - actualSpent,
+          utilizationPercent: Math.round(utilization * 100) / 100,
+          AlertLevel: utilization >= 100 ? 'CRITICAL' : utilization >= 90 ? 'WARNING' : 'INFO',
+          message:
+            utilization >= 100
+              ? `Budget ${Budget.Name} has exceeded the limit!`
+              : `Budget ${Budget.Name} has used ${Math.round(utilization)}% of allocated Amount`,
+        });
+      }
+    }
+
+    return {
+      threshold,
+      AlertCount: Alerts.length,
+      Alerts: Alerts.sort((a, b) => b.utilizationPercent - a.utilizationPercent),
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // HELPER METHODS
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  private formatBudget(Budget: any) {
+    return {
+      ID: Budget.ID,
+      Name: Budget.Name,
+      Type: Budget.Type,
+      startDate: Budget.StartDate,
+      endDate: Budget.EndDate,
+      BudgetedAmount: number(Budget.BudgetedAmount),
+      spentAmount: number(Budget.SpentAmount),
+      remainingAmount: number(Budget.BudgetedAmount) - Number(Budget.SpentAmount),
+      utilizationPercent:
+        Number(Budget.BudgetedAmount) > 0
+          ? Math.round((Number(Budget.SpentAmount) / Number(Budget.BudgetedAmount)) * 10000) / 100
+          : 0,
+      IsActive: Budget.IsActive,
+      Description: Budget.Description,
+      createdAt: Budget.CreatedAt,
+    };
+  }
+
+  private formatSalesTarget(Target: any) {
+    const TargetRevenue = Number(Target.TargetRevenue);
+    const actualRevenue = Number(Target.ActualRevenue);
+    const revenueAchievement = TargetRevenue > 0 ? (actualRevenue / TargetRevenue) * 100 : 0;
+
+    return {
+      ID: Target.ID,
+      Name: Target.Name,
+      Type: Target.Type,
+      startDate: Target.StartDate,
+      endDate: Target.EndDate,
+      TargetRevenue,
+      actualRevenue,
+      TargetQuantity: Target.TargetQuantity ? Number(Target.TargetQuantity) : null,
+      actualQuantity: Target.ActualQuantity ? Number(Target.ActualQuantity) : null,
+      revenueAchievement: Math.round(revenueAchievement * 100) / 100,
+      IsActive: Target.IsActive,
+      Description: Target.Description,
+      createdAt: Target.CreatedAt,
+    };
+  }
+}
