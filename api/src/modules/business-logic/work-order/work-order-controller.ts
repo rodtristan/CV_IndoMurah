@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Patch, Param, Body, Query, Request } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, Request, UseGuards } from '@nestjs/common';
 import { WorkOrderService } from './work-order-service';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
 import {
   CreateWorkOrderDto,
   UpdateWorkOrderDto,
@@ -12,6 +13,7 @@ import {
   WorkStationFilterDto,
 } from './work-order.dto';
 
+@UseGuards(JwtAuthGuard)
 @Controller('business-logic/work-order')
 export class WorkOrderController {
   constructor(private readonly workOrderService: WorkOrderService) {}

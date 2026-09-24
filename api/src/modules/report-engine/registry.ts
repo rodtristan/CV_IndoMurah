@@ -18,6 +18,7 @@ export const REPORT_PROVIDERS: ReportProvider[] = [
   ...byGroup('Kas'),
   ...profitProviders,
   ...byGroup('Jurnal'),
+  ...byGroup('Buku Besar'),
   ...byGroup('Keuangan'),
   ...byGroup('Daftar Perkiraan'),
 ];

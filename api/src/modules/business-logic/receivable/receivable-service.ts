@@ -12,7 +12,7 @@ import {
   WriteOffReceivableDto,
 } from './receivable.dto';
 
-interface ReceivableSummary {
+export interface ReceivableSummary {
   CustomerId: number;
   CustomerName: string;
   CustomerCode: string;

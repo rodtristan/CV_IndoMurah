@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { LeaveService } from './leave-service';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
 import {
   CreateLeaveDto,
   UpdateLeaveDto,
@@ -10,6 +11,7 @@ import {
   InitializeLeaveBalanceDto,
 } from './leave.dto';
 
+@UseGuards(JwtAuthGuard)
 @Controller('business-logic/leaves')
 export class LeaveController {
   constructor(private readonly leaveService: LeaveService) {}

@@ -88,21 +88,20 @@ export class SalePaymentService {
   }
 
   async create(dto: CreateSalePaymentDto, userId: string) {
-    // Verify sale exists
-    const sale = await this.prisma.sale.findUnique({ where: { ID: dto.SaleID } });
-    if (!sale) throw new NotFoundException('Sale not found');
+    const parent = await this.prisma.sale.findUnique({ where: { ID: dto.SaleID } });
+    if (!parent) throw new NotFoundException('Sale not found');
 
-    // Check if payment would exceed sale total
-    const existingPayments = await this.prisma.salePayment.findMany({
-      where: { SaleID: dto.SaleID },
-    });
-    const paidAmount = existingPayments.reduce((sum, p) => sum + Number(p.Amount), 0);
-    const newTotal = paidAmount + dto.Amount;
-
-    if (newTotal > Number(sale.Total)) {
-      throw new BadRequestException('Payment amount exceeds sale total');
+    // Overpayment guard counts every payment, including cek/bg not yet cleared.
+    const existing = await this.prisma.salePayment.findMany({ where: { SaleID: dto.SaleID } });
+    const committed = existing.reduce((sum, p) => sum + Number(p.Amount), 0);
+    const remaining = Number(parent.Total) - committed;
+    if (dto.Amount <= 0) throw new BadRequestException('Jumlah pembayaran harus lebih dari 0');
+    if (dto.Amount > remaining + 0.005) {
+      throw new BadRequestException(`Payment amount (${dto.Amount}) exceeds remaining amount (${remaining})`);
     }
 
+    const instrument = dto.InstrumentType ?? 'CASH';
+    const cleared = instrument === 'CASH';
     const payment = await this.prisma.salePayment.create({
       data: {
         SaleID: dto.SaleID,
@@ -111,18 +110,17 @@ export class SalePaymentService {
         ReferenceNumber: dto.ReferenceNumber,
         Date: dto.Date ? new Date(dto.Date) : new Date(),
         Notes: dto.Notes,
+        InstrumentType: instrument,
+        DueDate: dto.DueDate ? new Date(dto.DueDate) : null,
+        IsCleared: cleared,
+        ClearedAt: cleared ? new Date() : null,
         CreatedByID: userId,
       },
       include: { Sale: true, Creator: true },
     });
 
-    // Update sale payment status
     await this.updateSalePaymentStatus(dto.SaleID);
-
-    await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
-    await this.redis.invalidatePattern(`sales:${dto.SaleID}*`);
-    await this.redis.invalidatePattern('reports:*');
-
+    await this.invalidate(dto.SaleID);
     return this.serialize(payment);
   }
 
@@ -130,12 +128,33 @@ export class SalePaymentService {
     const payment = await this.prisma.salePayment.findUnique({ where: { ID: id } });
     if (!payment) throw new NotFoundException('Sale payment not found');
 
+    if (dto.Amount !== undefined) {
+      const parent = await this.prisma.sale.findUnique({ where: { ID: payment.SaleID } });
+      const others = await this.prisma.salePayment.findMany({ where: { SaleID: payment.SaleID, NOT: { ID: id } } });
+      const committed = others.reduce((sum, p) => sum + Number(p.Amount), 0);
+      if (dto.Amount <= 0) throw new BadRequestException('Jumlah pembayaran harus lebih dari 0');
+      if (parent && dto.Amount + committed > Number(parent.Total) + 0.005) {
+        throw new BadRequestException('Payment amount exceeds remaining amount');
+      }
+    }
+
     const updateData: any = {};
     if (dto.MethodID) updateData.MethodID = dto.MethodID;
-    if (dto.Amount) updateData.Amount = new Prisma.Decimal(dto.Amount.toString());
+    if (dto.Amount !== undefined) updateData.Amount = new Prisma.Decimal(dto.Amount.toString());
     if (dto.ReferenceNumber !== undefined) updateData.ReferenceNumber = dto.ReferenceNumber;
     if (dto.Date) updateData.Date = new Date(dto.Date);
     if (dto.Notes !== undefined) updateData.Notes = dto.Notes;
+    if (dto.DueDate !== undefined) updateData.DueDate = dto.DueDate ? new Date(dto.DueDate) : null;
+    if (dto.InstrumentType) {
+      updateData.InstrumentType = dto.InstrumentType;
+      if (dto.InstrumentType === 'CASH') {
+        updateData.IsCleared = true;
+        updateData.ClearedAt = payment.ClearedAt ?? new Date();
+      } else if (payment.InstrumentType === 'CASH') {
+        updateData.IsCleared = false;
+        updateData.ClearedAt = null;
+      }
+    }
 
     const updated = await this.prisma.salePayment.update({
       where: { ID: id },
@@ -144,10 +163,21 @@ export class SalePaymentService {
     });
 
     await this.updateSalePaymentStatus(payment.SaleID);
-    await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
-    await this.redis.invalidatePattern(`sales:${payment.SaleID}*`);
-    await this.redis.invalidatePattern('reports:*');
+    await this.invalidate(payment.SaleID);
+    return this.serialize(updated);
+  }
 
+  async clear(id: number) {
+    const payment = await this.prisma.salePayment.findUnique({ where: { ID: id } });
+    if (!payment) throw new NotFoundException('Sale payment not found');
+    if (payment.IsCleared) throw new BadRequestException('Pembayaran sudah lunas/cair');
+
+    const updated = await this.prisma.salePayment.update({
+      where: { ID: id },
+      data: { IsCleared: true, ClearedAt: new Date() },
+    });
+    await this.updateSalePaymentStatus(payment.SaleID);
+    await this.invalidate(payment.SaleID);
     return this.serialize(updated);
   }
 
@@ -157,12 +187,65 @@ export class SalePaymentService {
 
     await this.prisma.salePayment.delete({ where: { ID: id } });
     await this.updateSalePaymentStatus(payment.SaleID);
-
-    await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
-    await this.redis.invalidatePattern(`sales:${payment.SaleID}*`);
-    await this.redis.invalidatePattern('reports:*');
-
+    await this.invalidate(payment.SaleID);
     return { id };
+  }
+
+  async list(query: Record<string, any>) {
+    const where: any = {};
+    if (query.from || query.to) {
+      where.Date = {};
+      if (query.from) where.Date.gte = new Date(query.from);
+      if (query.to) {
+        const to = new Date(query.to);
+        to.setHours(23, 59, 59, 999);
+        where.Date.lte = to;
+      }
+    }
+    if (query.methodId) where.MethodID = Number(query.methodId);
+    if (query.instrumentType) where.InstrumentType = String(query.instrumentType);
+    else if (query.chequeOnly === 'true') where.InstrumentType = { in: ['CEK', 'BG'] };
+    if (query.cleared === 'true') where.IsCleared = true;
+    if (query.cleared === 'false') where.IsCleared = false;
+    if (query.search) {
+      const s = String(query.search);
+      where.OR = [
+        { ReferenceNumber: { contains: s, mode: 'insensitive' } },
+        { Sale: { Code: { contains: s, mode: 'insensitive' } } },
+        { Sale: { Customer: { Name: { contains: s, mode: 'insensitive' } } } },
+      ];
+    }
+    const skip = Number(query.skip) || 0;
+    const take = Math.min(Number(query.take) || 50, 500);
+    const [data, total] = await Promise.all([
+      this.prisma.salePayment.findMany({
+        where,
+        include: { Sale: { include: { Customer: true } }, Method: true },
+        orderBy: [{ Date: 'desc' }, { ID: 'desc' }],
+        skip,
+        take,
+      }),
+      this.prisma.salePayment.count({ where }),
+    ]);
+    return { data: data.map((d) => this.serializeDeep(d)), total, skip, take };
+  }
+
+  private async invalidate(parentId: number) {
+    await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
+    await this.redis.invalidatePattern(`sales:${parentId}*`);
+    await this.redis.invalidatePattern('reports:*');
+  }
+
+  private serializeDeep(v: any): any {
+    if (v instanceof Prisma.Decimal) return Number(v);
+    if (v instanceof Date) return v.toISOString();
+    if (Array.isArray(v)) return v.map((x) => this.serializeDeep(x));
+    if (v && typeof v === 'object') {
+      const r: any = {};
+      for (const [k, x] of Object.entries(v)) r[k] = this.serializeDeep(x);
+      return r;
+    }
+    return v;
   }
 
   async findBySale(saleId: number, query: Record<string, any> = {}) {
@@ -196,25 +279,18 @@ export class SalePaymentService {
       where: { ID: saleId },
       include: { SalePayments: true },
     });
-
     if (!sale) return;
 
-    const paidAmount = sale.SalePayments.reduce((sum, p) => sum + Number(p.Amount), 0);
+    // Only cleared payments (cash, or cek/bg marked lunas) count as paid.
+    const paidAmount = sale.SalePayments.filter((p) => p.IsCleared).reduce((sum, p) => sum + Number(p.Amount), 0);
     const totalAmount = Number(sale.Total);
 
-    let paymentStatusCode: 'PENDING' | 'PARTIAL' | 'PAID' = 'PENDING';
-    if (paidAmount > 0 && paidAmount < totalAmount) {
-      paymentStatusCode = 'PARTIAL';
-    } else if (paidAmount >= totalAmount) {
-      paymentStatusCode = 'PAID';
-    }
+    let code: 'PENDING' | 'PARTIAL' | 'PAID' = 'PENDING';
+    if (paidAmount > 0 && paidAmount < totalAmount) code = 'PARTIAL';
+    else if (paidAmount >= totalAmount && totalAmount > 0) code = 'PAID';
 
-    const status = await this.getPaymentStatusByCode(paymentStatusCode);
-
-    await this.prisma.sale.update({
-      where: { ID: saleId },
-      data: { PaymentStatusID: status.ID },
-    });
+    const status = await this.getPaymentStatusByCode(code);
+    await this.prisma.sale.update({ where: { ID: saleId }, data: { PaymentStatusID: status.ID } });
   }
 
   private serialize(data: any): any {

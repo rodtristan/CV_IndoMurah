@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Put, Param, Body, Query, UseGuards, Request } from '@nestjs/common';
 import { AccountingService } from './accounting-service';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
 import {
   CreateAccountDto,
   UpdateAccountDto,
@@ -18,6 +19,7 @@ import {
   OpeningEntryDto,
 } from './accounting.dto';
 
+@UseGuards(JwtAuthGuard)
 @Controller('business-logic/accounting')
 export class AccountingController {
   constructor(private readonly accountingService: AccountingService) {}

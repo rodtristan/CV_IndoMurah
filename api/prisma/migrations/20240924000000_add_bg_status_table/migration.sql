@@ -1,0 +1,2 @@
+-- This migration is retained for history compatibility.
+-- The background status model was removed before the current PascalCase schema.

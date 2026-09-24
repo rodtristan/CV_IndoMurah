@@ -9,7 +9,6 @@
     "dist",
     "test",
     "**/*spec.ts",
-    "src/modules/sale-order/**",
-    "src/modules/business-logic/**"
+    "src/modules/sale-order/**"
   ]
 }

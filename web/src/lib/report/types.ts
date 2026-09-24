@@ -25,6 +25,12 @@ export interface ReportParamDef {
   rangeWith?: string;
 }
 
+export interface ReportChartHint {
+  type: "bar" | "line";
+  labelField: string;
+  valueFields: { key: string; label: string }[];
+}
+
 export interface ReportCatalogItem {
   key: string;
   group: string; // tab: Master, Pembelian, Penjualan, Hutang, Piutang, Persediaan, Kas, Laba/Jual, Jurnal, Keuangan, ...
@@ -34,6 +40,8 @@ export interface ReportCatalogItem {
   fields: ReportFieldDef[];
   /** variants listed in the "Pilih Laporan" box on the filter page (e.g. "Laporan Hutang Beredar", "... Sudah Jatuh Tempo") */
   variants?: { key: string; title: string }[];
+  /** when set, the viewer renders the rows as a chart above the table */
+  chart?: ReportChartHint;
 }
 
 export interface ReportInfo {

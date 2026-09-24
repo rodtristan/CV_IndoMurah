@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { PayrollService } from './payroll-service';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
 import {
   CreatePayrollDto,
   UpdatePayrollDto,
@@ -8,6 +9,7 @@ import {
   PayrollSummaryDto,
 } from './payroll.dto';
 
+@UseGuards(JwtAuthGuard)
 @Controller('business-logic/payroll')
 export class PayrollController {
   constructor(private readonly payrollService: PayrollService) {}

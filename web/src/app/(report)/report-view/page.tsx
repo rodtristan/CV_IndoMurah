@@ -4,17 +4,60 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Minus, Plus, Printer, Maximize2, X } from "lucide-react";
 import { api } from "@/lib/api-client";
+import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { EllipsisLoader } from "@/components/ui/Loader";
 import { ReportPaper, paginate } from "@/components/report/ReportPaper";
 import { buildDefaultTemplate, decodeParams, pageDimensions } from "@/lib/report/template";
 import type {
   ReportCatalogItem,
+  ReportChartHint,
   ReportDataResponse,
   ReportTemplateDef,
   ReportTemplateRecord,
 } from "@/lib/report/types";
 
 const MM_TO_PX = 96 / 25.4;
+
+const CHART_COLORS = ["#7c3aed", "#0ea5e9", "#f59e0b", "#10b981"];
+
+function ReportChart({ hint, rows }: { hint: ReportChartHint; rows: Record<string, unknown>[] }) {
+  const data = rows.map((r) => {
+    const o: Record<string, unknown> = { [hint.labelField]: String(r[hint.labelField] ?? "") };
+    for (const v of hint.valueFields) o[v.key] = Number(r[v.key] ?? 0);
+    return o;
+  });
+  const common = { data, margin: { top: 8, right: 16, left: 8, bottom: 8 } };
+  const axes = (
+    <>
+      <CartesianGrid strokeDasharray="3 3" />
+      <XAxis dataKey={hint.labelField} tick={{ fontSize: 11 }} interval="preserveStartEnd" />
+      <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => v.toLocaleString("id-ID")} width={80} />
+      <Tooltip formatter={(v: number) => v.toLocaleString("id-ID")} />
+      <Legend />
+    </>
+  );
+  return (
+    <div className="mx-auto mb-6 rounded bg-white p-4" style={{ width: 900, maxWidth: "100%", height: 340 }}>
+      <ResponsiveContainer width="100%" height="100%">
+        {hint.type === "line" ? (
+          <LineChart {...common}>
+            {axes}
+            {hint.valueFields.map((v, i) => (
+              <Line key={v.key} type="monotone" dataKey={v.key} name={v.label} stroke={CHART_COLORS[i % 4]} strokeWidth={2} dot={false} />
+            ))}
+          </LineChart>
+        ) : (
+          <BarChart {...common}>
+            {axes}
+            {hint.valueFields.map((v, i) => (
+              <Bar key={v.key} dataKey={v.key} name={v.label} fill={CHART_COLORS[i % 4]} />
+            ))}
+          </BarChart>
+        )}
+      </ResponsiveContainer>
+    </div>
+  );
+}
 
 function Viewer() {
   const sp = useSearchParams();
@@ -26,6 +69,7 @@ function Viewer() {
 
   const [def, setDef] = useState<ReportTemplateDef | null>(null);
   const [data, setData] = useState<ReportDataResponse | null>(null);
+  const [chart, setChart] = useState<ReportChartHint | null>(null);
   const [error, setError] = useState("");
   const [scale, setScale] = useState(1);
   const [page, setPage] = useState(1);
@@ -57,6 +101,7 @@ function Viewer() {
         if (!res.data) throw new Error("Data laporan kosong");
         if (cancelled) return;
         document.title = res.data.info?.InfoFilter?.NamaLaporan || item.title;
+        setChart(item.chart ?? null);
         setDef(d);
         setData(res.data);
       } catch (e) {
@@ -130,6 +175,7 @@ function Viewer() {
           <div className="flex justify-center pt-20 text-white"><EllipsisLoader /></div>
         ) : (
           <div style={{ width: "fit-content", margin: "0 auto" }}>
+            {chart && (data.rows ?? []).length > 0 && <ReportChart hint={chart} rows={data.rows ?? []} />}
             <ReportPaper def={def} info={data.info} rows={data.rows ?? []} scale={scale} />
           </div>
         )}

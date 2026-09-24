@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Param,
   Body,
@@ -39,6 +40,13 @@ export class SalePaymentController {
     return ApiResponse.paginated(data, total, skip, take);
   }
 
+  @Get('list')
+  @ApiOperation({ summary: 'List payments with Sale+party+method, filters: from,to,methodId,instrumentType,cleared,search,skip,take' })
+  async list(@Query() query: Record<string, any>) {
+    const { data, total, skip, take } = await this.salePaymentService.list(query);
+    return ApiResponse.paginated(data, total, skip, take);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get sale payment by ID' })
   async findOne(@Param('id', ParseIntPipe) id: number, @Query() query: any) {
@@ -66,6 +74,13 @@ export class SalePaymentController {
   async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateSalePaymentDto) {
     const data = await this.salePaymentService.update(id, dto);
     return ApiResponse.ok(data, 'Sale payment updated successfully');
+  }
+
+  @Patch(':id/clear')
+  @ApiOperation({ summary: 'Mark cek/bg payment as cleared (lunas)' })
+  async clear(@Param('id', ParseIntPipe) id: number) {
+    const data = await this.salePaymentService.clear(id);
+    return ApiResponse.ok(data, 'Payment cleared');
   }
 
   @Delete(':id')

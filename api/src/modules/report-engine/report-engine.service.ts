@@ -22,7 +22,7 @@ export class ReportEngineService {
 
   // ─── Catalog ───────────────────────────────────────────────
   catalog(): ReportCatalogItem[] {
-    return REPORT_PROVIDERS.map(({ key, group, title, description, params, fields, variants }) => ({
+    return REPORT_PROVIDERS.map(({ key, group, title, description, params, fields, variants, chart }) => ({
       key,
       group,
       title,
@@ -30,6 +30,7 @@ export class ReportEngineService {
       params,
       fields,
       ...(variants ? { variants } : {}),
+      ...(chart ? { chart } : {}),
     }));
   }
 

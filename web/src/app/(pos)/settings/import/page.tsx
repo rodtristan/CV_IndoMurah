@@ -25,6 +25,7 @@ interface EntityConfig {
   required: string[];
   /** null = no import endpoint on the server yet (template + reference only). */
   endpoint: string | null;
+  variant?: Variant;
   columns: string[];
   template: string;
   mapRow?: (cells: string[], lookups: Lookups) => Row;
@@ -77,26 +78,58 @@ const ENTITIES: Record<EntityKey, EntityConfig> = {
     }),
   },
   unit: {
+    variant: "unit",
     label: "Import Item Berdasarkan Satuan", desc: "Item multi satuan (sampai 4 satuan)",
     docColumns: ["Kode Item", "Nama Item", "Jenis", "Merek", ...unitCols("Satuan"), ...unitCols("Barcode"), ...unitCols("Konversi Satuan"), ...unitCols("Harga Pokok"), ...unitCols("Harga Jual"), ...unitCols("Point"), ...unitCols("Komisi Sales"), "Stok Awal", "Stok Minimum", "Tipe Item", "Rak", "Kantor", "Supplier", "Keterangan"],
     required: ["Kode Item", "Nama Item", "Satuan 1"],
-    endpoint: null, columns: [], template: "",
+    endpoint: "product-import", columns: ["code", "name", "units", "stock"], template: "",
   },
   level: {
+    variant: "level",
     label: "Import Item Berdasarkan Level", desc: "Item dengan harga jual bertingkat (level 1-4)",
     docColumns: ["Kode Item", "Nama Item", "Jenis", "Merek", ...unitCols("Satuan"), ...perUnit("Barcode"), ...perUnit("Konversi"), ...perUnit("Harga Pokok"),
       ...[1, 2, 3, 4].flatMap((lv) => [1, 2, 3, 4].map((u) => `Harga Jual Satuan ${u} (level ${lv})`)), ...itemTail],
     required: ["Kode Item", "Nama Item", "Satuan 1"],
-    endpoint: null, columns: [], template: "",
+    endpoint: "product-import", columns: ["code", "name", "units", "stock"], template: "",
   },
   qty: {
+    variant: "qty",
     label: "Import Item Berdasarkan Jumlah", desc: "Item dengan harga bertingkat berdasarkan jumlah",
     docColumns: ["Kode Item", "Nama Item", "Jenis", "Merek", ...unitCols("Satuan"), ...perUnit("Barcode"), ...perUnit("Konversi"), ...perUnit("Harga Pokok"),
       ...[1, 2, 3, 4].flatMap((u) => [1, 2, 3, 4].flatMap((n) => [`Jumlah Sampai ${n} Satuan ${u}`, `Harga Sampai ${n} Satuan ${u}`])), ...itemTail],
     required: ["Kode Item", "Nama Item", "Satuan 1"],
-    endpoint: null, columns: [], template: "",
+    endpoint: "product-import", columns: ["code", "name", "units", "stock"], template: "",
   },
 };
+
+
+type Variant = "unit" | "level" | "qty";
+
+/** Header-based parse of the multi-unit / level / quantity-tier item sheets into the product-import payload. */
+function mapVariantRows(header: string[], dataRows: string[][], variant: Variant): Row[] {
+  const idx = new Map<string, number>();
+  header.forEach((h, i) => { const k = h.trim().toLowerCase(); if (!idx.has(k)) idx.set(k, i); });
+  return dataRows.map((cells) => {
+    const get = (name: string) => { const i = idx.get(name.toLowerCase()); return i === undefined ? "" : (cells[i] ?? "").trim(); };
+    const n = (name: string) => Number(get(name).replace(/[^0-9.\-]/g, "")) || 0;
+    const units = [1, 2, 3, 4].map((u) => {
+      const unit = get(`Satuan ${u}`);
+      if (!unit) return null;
+      if (variant === "unit") {
+        return { unit, barcode: get(`Barcode ${u}`) || undefined, conversion: n(`Konversi Satuan ${u}`) || 1, purchasePrice: n(`Harga Pokok ${u}`), sellingPrice: n(`Harga Jual ${u}`) };
+      }
+      const base = { unit, barcode: get(`Barcode Satuan ${u}`) || undefined, conversion: n(`Konversi Satuan ${u}`) || 1, purchasePrice: n(`Harga Pokok Satuan ${u}`) };
+      if (variant === "level") return { ...base, levelPrices: [1, 2, 3, 4].map((lv) => n(`Harga Jual Satuan ${u} (level ${lv})`)) };
+      return { ...base, qtyTiers: [1, 2, 3, 4].map((t) => ({ upTo: n(`Jumlah Sampai ${t} Satuan ${u}`), price: n(`Harga Sampai ${t} Satuan ${u}`) })) };
+    }).filter(Boolean);
+    const item = {
+      code: get("Kode Item"), name: get("Nama Item"), category: get("Jenis") || undefined, brand: get("Merek") || get("Merk") || undefined,
+      warehouse: get("Kode Gudang") || get("Kantor") || undefined,
+      stock: n("Stok Awal Satuan Dasar") || n("Stok Awal"), minStock: n("Stok Minimum"), description: get("Keterangan") || undefined, units,
+    };
+    return { code: item.code, name: item.name, units: units.map((u) => (u as { unit: string }).unit).join(" / "), stock: item.stock, _item: item };
+  });
+}
 
 function parseCsv(text: string): string[][] {
   return text.split(/\r?\n/).filter((line) => line.trim().length > 0).map((line) => line.split(",").map((cell) => cell.trim()));
@@ -117,11 +150,13 @@ export default function ImportDataPage() {
   const choose = (k: EntityKey) => { setEntity(k); setRows([]); setResult(null); setFileName(""); };
 
   const handleFile = async (file: File) => {
-    if (!config.mapRow) return;
+    if (!config.mapRow && !config.variant) return;
     setFileName(file.name);
     setResult(null);
     const text = await file.text();
-    const dataRows = parseCsv(text).slice(1);
+    const parsed = parseCsv(text);
+    if (config.variant) { setRows(mapVariantRows(parsed[0] ?? [], parsed.slice(1), config.variant)); return; }
+    const dataRows = parsed.slice(1);
     const lookups: Lookups = { category: new Map(), unit: new Map() };
     if (entity === "product") {
       const [catRes, unitRes] = await Promise.all([
@@ -138,7 +173,9 @@ export default function ImportDataPage() {
     if (rows.length === 0 || !config.endpoint) return;
     setImporting(true);
     try {
-      const res = await api.post<{ successCount: number; failedCount: number; failed?: { data: unknown; error: string }[] }>(`${config.endpoint}/bulk`, rows);
+      const res = await api.post<{ successCount: number; failedCount: number; failed?: { data: unknown; error: string }[] }>(
+        config.variant ? config.endpoint : `${config.endpoint}/bulk`,
+        config.variant ? { variant: config.variant, items: rows.map((r) => r._item) } : rows);
       if (res.success && res.data) setResult({ successCount: res.data.successCount, failedCount: res.data.failedCount, failed: res.data.failed ?? [] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Import gagal");

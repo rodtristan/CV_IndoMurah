@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { CategoryBrandService } from './category-brand-service';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
 import {
   CreateCategoryDto,
   UpdateCategoryDto,
@@ -13,6 +14,7 @@ import {
   UpdateProductGroupDto,
 } from './category-brand.dto';
 
+@UseGuards(JwtAuthGuard)
 @Controller('business-logic/master-data')
 export class CategoryBrandController {
   constructor(private readonly categoryBrandService: CategoryBrandService) {}

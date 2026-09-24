@@ -1,14 +1,7 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Param,
-  Query,
-  ParseIntPipe,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { SupplierDebtService } from './supplier-debt-service';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
 import {
   SupplierDebtOverviewDto,
   SupplierDebtDetailDto,
@@ -22,6 +15,7 @@ import {
 
 @ApiTags('Business Logic - Supplier Debt')
 @ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('business-logic/supplier-debt')
 export class SupplierDebtController {
   constructor(private supplierDebtService: SupplierDebtService) {}
