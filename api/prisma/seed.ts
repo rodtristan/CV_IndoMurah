@@ -3,6 +3,7 @@ import { PrismaClient } from '.prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import * as argon2 from 'argon2';
+import { seedAccounting } from './seed-accounting';
 
 async function main() {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -519,6 +520,8 @@ async function main() {
   console.log(`  Menus  : ${menus.map((m) => m.MenuName).join(', ')}`);
   console.log(`  Customer walk-in: ${walkInCustomer.Code} (ID=${walkInCustomer.ID})`);
   console.log(`  Admin  : ${company.CompanyCode} / ${adminUsername} / admin123 (GANTI password ini setelah login pertama!)`);
+
+  await seedAccounting(prisma);
 
   await prisma.$disconnect();
 }

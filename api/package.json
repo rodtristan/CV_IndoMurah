@@ -22,7 +22,8 @@
     "prisma:migrate:deploy": "npx prisma migrate deploy",
     "prisma:studio": "npx prisma studio",
     "prisma:push": "npx prisma db push",
-    "prisma:seed": "ts-node -r tsconfig-paths/register prisma/seed.ts"
+    "prisma:seed": "ts-node -r tsconfig-paths/register prisma/seed.ts",
+    "prisma:seed:accounting": "ts-node -r tsconfig-paths/register prisma/seed-accounting.ts"
   },
   "dependencies": {
     "@fastify/helmet": "^12.0.1",
