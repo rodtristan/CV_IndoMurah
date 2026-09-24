@@ -107,6 +107,8 @@ const MENU_GROUPS: MenuGroup[] = [
       { label: "Pesanan Pembelian", href: "/purchase/order", disabled: true },
       { label: "Daftar Pembelian", href: "/purchase/list" },
       { label: "Retur Pembelian", href: "/purchase/returns" },
+      { label: "Daftar Pembayaran", href: "/purchase/payments" },
+      { label: "Status Lunas Bg/Cek", href: "/purchase/payments/cheque" },
     ],
   },
   {
@@ -118,6 +120,8 @@ const MENU_GROUPS: MenuGroup[] = [
       { label: "Kasir (POS)", href: "/sale/pos", badge: "baru" },
       { label: "Daftar Penjualan", href: "/sale/list" },
       { label: "Retur Penjualan", href: "/sale/returns" },
+      { label: "Daftar Pembayaran", href: "/sale/payments" },
+      { label: "Status Lunas Cek/Bg", href: "/sale/payments/cheque" },
       { label: "History Harga Jual", href: "/sale/price-history" },
       { label: "Point Penjualan", href: "/sale/points" },
       { label: "Data Pengiriman", href: "/sale/shipping" },

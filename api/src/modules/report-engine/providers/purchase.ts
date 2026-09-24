@@ -116,4 +116,82 @@ export const purchaseBySupplier: ReportProvider = {
   },
 };
 
-export const purchaseProviders = [purchaseList, purchaseDetail, purchaseBySupplier];
+
+// ─── Retur Pembelian ────────────────────────────────────────
+const returnWhere = (p: Record<string, any>) => {
+  const where: any = { Status: { Code: { notIn: ['CANCELLED', 'REJECTED'] } } };
+  const d = dateFilter(p);
+  if (d) where.Date = d;
+  const sr = codeRange(p, 'supplierDari', 'supplierSampai');
+  if (sr) where.Supplier = { Code: sr };
+  const g = int(p, 'gudang');
+  if (g) where.WarehouseID = g;
+  return where;
+};
+const returnParams = () => [
+  ...dateRangeParams(),
+  lookupParam('supplierDari', 'Supplier Dari', 'supplier'),
+  lookupParam('supplierSampai', 'Supplier Sampai', 'supplier'),
+  warehouseParam(),
+];
+
+export const purchaseReturnReport: ReportProvider = {
+  key: 'purchase-return',
+  group: 'Pembelian',
+  title: 'Laporan Retur Pembelian',
+  description: 'Daftar transaksi retur pembelian pada periode.',
+  required: ['tanggalDari', 'tanggalSampai'],
+  params: returnParams(),
+  fields: [
+    f('kode', 'Kode Retur'), f('tanggal', 'Tanggal', 'date'), f('kodebeli', 'No Pembelian'), f('supplier', 'Supplier'),
+    f('gudang', 'Gudang'), f('alasan', 'Alasan'), f('total', 'Total Retur', 'currency'),
+  ],
+  async run(p, ctx) {
+    const rows: any[] = await ctx.prisma.purchaseReturn.findMany({
+      where: returnWhere(p),
+      include: { Supplier: { select: { Name: true } }, Purchase: { select: { Code: true } }, Warehouse: { select: { Name: true } } },
+      orderBy: [{ Date: 'asc' }, { ID: 'asc' }],
+      take: MAX_ROWS,
+    });
+    return rows.map((x) => ({
+      kode: x.Code, tanggal: ymd(x.Date), kodebeli: x.Purchase?.Code ?? '', supplier: x.Supplier.Name,
+      gudang: x.Warehouse?.Name ?? '', alasan: x.Reason ?? '', total: n(x.TotalReturn),
+    }));
+  },
+};
+
+// ─── Pembelian per Item ─────────────────────────────────────
+export const purchaseByProduct: ReportProvider = {
+  key: 'purchase-by-product',
+  group: 'Pembelian',
+  title: 'Laporan Pembelian per Item',
+  description: 'Qty dan nilai pembelian dikelompokkan per item.',
+  required: ['tanggalDari', 'tanggalSampai'],
+  params: params(),
+  fields: [
+    f('kodeitem', 'Kode Item'), f('namaitem', 'Nama Item'), f('satuan', 'Satuan'), f('jmltransaksi', 'Jml Transaksi', 'number'),
+    f('qty', 'Qty', 'number'), f('total', 'Total Pembelian', 'currency'), f('hargarata', 'Harga Rata-rata', 'currency'),
+  ],
+  async run(p, ctx) {
+    const rows: any[] = await ctx.prisma.purchaseItem.findMany({
+      where: { Purchase: purchaseWhere(p) },
+      include: { Product: { select: { Code: true, Name: true } }, Unit: { select: { Name: true, Abbreviation: true } } },
+      take: MAX_ROWS,
+    });
+    const map = new Map<string, any>();
+    for (const x of rows) {
+      const g = map.get(x.Product.Code) ?? {
+        kodeitem: x.Product.Code, namaitem: x.Product.Name, satuan: x.Unit?.Abbreviation || x.Unit?.Name || '',
+        jmltransaksi: 0, qty: 0, total: 0, hargarata: 0,
+      };
+      g.jmltransaksi += 1;
+      g.qty += n(x.Quantity);
+      g.total += n(x.Subtotal);
+      g.hargarata = g.qty ? g.total / g.qty : 0;
+      map.set(x.Product.Code, g);
+    }
+    return [...map.values()].sort((a, b) => b.total - a.total);
+  },
+};
+
+export const purchaseProviders = [purchaseList, purchaseDetail, purchaseBySupplier, purchaseReturnReport, purchaseByProduct];

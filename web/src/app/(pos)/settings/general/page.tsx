@@ -8,7 +8,7 @@ import {
 } from "@/components/kform";
 import { api } from "@/lib/api-client";
 import { usePageTitle } from "@/lib/page-title";
-import { Loading, NoServerNote, apiError, useLocalDraft } from "../_lib/local";
+import { Loading, apiError } from "../_lib/local";
 
 // Fields the API (AppSetting) persists.
 interface ServerSettings {
@@ -31,7 +31,7 @@ interface ServerSettings {
   decimalDiscount: string;
 }
 
-// Ketoko options that have no server column yet (marked * in the UI).
+// Options stored server-side under namespaced "general.*" keys (marked * in the UI).
 interface LocalSettings {
   inventoryAccountFromDept: boolean;
   dateFormat: string;
@@ -92,7 +92,7 @@ export default function GeneralSettingsPage() {
   const [tab, setTab] = useState("umum");
   const [id, setId] = useState<number | null>(null);
   const [s, setS] = useState<ServerSettings>(SERVER_DEFAULTS);
-  const { value: l, setValue: setL, persist, ready } = useLocalDraft<LocalSettings>("general", LOCAL_DEFAULTS);
+  const [l, setL] = useState<LocalSettings>(LOCAL_DEFAULTS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -102,6 +102,16 @@ export default function GeneralSettingsPage() {
       const res = await api.get<Record<string, unknown>[]>("app-setting", { $take: 1 }, { skipCache: true });
       const row = res.data?.[0];
       if (row) { setId(Number(row.ID)); setS(toServer(row)); }
+      const g = await api.get<Record<string, unknown>>("general-settings", undefined, { skipCache: true });
+      const d = (g.data ?? {}) as Record<string, unknown>;
+      setL((prev) => {
+        const next = { ...prev } as Record<string, unknown>;
+        for (const k of Object.keys(LOCAL_DEFAULTS)) {
+          const v = d[`general.${k}`];
+          if (v !== undefined && v !== null) next[k] = typeof (LOCAL_DEFAULTS as unknown as Record<string, unknown>)[k] === "string" ? String(v) : v;
+        }
+        return next as unknown as LocalSettings;
+      });
     } catch (e) { toast.error(apiError(e)); } finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
@@ -119,13 +129,15 @@ export default function GeneralSettingsPage() {
     setSaving(true);
     try {
       if (id) await api.patch("app-setting", id, payload); else await api.post("app-setting", payload);
-      persist(l);
+      const extra: Record<string, string | number | boolean> = {};
+      for (const [k, v] of Object.entries(l)) extra[`general.${k}`] = v as string | number | boolean;
+      await api.put("general-settings", "all", extra);
       toast.success("Pengaturan berhasil disimpan");
       await load();
     } catch (e) { toast.error(apiError(e)); } finally { setSaving(false); }
   };
 
-  if (loading || !ready) return <PageWrapper><Loading /></PageWrapper>;
+  if (loading) return <PageWrapper><Loading /></PageWrapper>;
 
   return (
     <PageWrapper>
@@ -205,7 +217,6 @@ export default function GeneralSettingsPage() {
             </KColumns>
           )}
         </div>
-        {tab !== "desimal" && <NoServerNote />}
         {tab === "desimal" && <KInfoBox title="Keterangan" items={["Digit desimal mengatur jumlah angka di belakang koma pada tampilan harga, jumlah, pajak dan potongan di semua transaksi."]} />}
         <KSaveBar onSave={save} saving={saving} />
       </Card>

@@ -96,6 +96,9 @@ import { CashTransferModule } from './modules/cash-transfer/cash-transfer.module
 import { CustomerDepositModule } from './modules/customer-deposit/customer-deposit.module';
 import { SupplierDepositModule } from './modules/supplier-deposit/supplier-deposit.module';
 import { JournalModule } from './modules/journal/journal.module';
+import { OpeningBalanceModule } from './modules/opening-balance/opening-balance.module';
+import { AccountSettingModule } from './modules/account-setting/account-setting.module';
+import { FiscalYearModule } from './modules/fiscal-year/fiscal-year.module';
 import { JournalEntryModule } from './modules/journal-entry/journal-entry.module';
 
 // Point & Settings Modules
@@ -154,6 +157,8 @@ import { ProductTypeModule } from './modules/business-logic/product-type/product
 import { UserRoleModule } from './modules/user-role/user-role.module';
 import { RoleMenuModule } from './modules/role-menu/role-menu.module';
 import { UserMenuModule } from './modules/user-menu/user-menu.module';
+import { StockBalanceModule } from './modules/stock-balance/stock-balance.module';
+import { ProductImportModule } from './modules/product-import/product-import.module';
 import { LeaveModule } from './modules/leave/leave.module';
 import { LeaveBalanceModule } from './modules/leave-balance/leave-balance.module';
 import { AppSettingModule } from './modules/app-setting/app-setting.module';
@@ -295,6 +300,9 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     CustomerDepositModule, // Deposito Pelanggan
     SupplierDepositModule, // Deposito Supplier
     JournalModule,        // Jurnal Umum
+    OpeningBalanceModule,
+    AccountSettingModule,
+    FiscalYearModule,
     JournalEntryModule,   // Jurnal Entry
 
     // Reports
@@ -356,6 +364,8 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     LeaveModule,
     LeaveBalanceModule,
     AppSettingModule,
+    StockBalanceModule,
+    ProductImportModule,
     ReportEngineModule,
 
     // Business Logic Modules (see comment above the imports above)

@@ -13,6 +13,11 @@ export interface ReportParamDef {
   defaultValue?: string | boolean;
   rangeWith?: string;
 }
+export interface ReportChartHint {
+  type: 'bar' | 'line';
+  labelField: string;
+  valueFields: { key: string; label: string }[];
+}
 export interface ReportCatalogItem {
   key: string;
   group: string;
@@ -21,6 +26,8 @@ export interface ReportCatalogItem {
   params: ReportParamDef[];
   fields: ReportFieldDef[];
   variants?: { key: string; title: string }[];
+  /** render the result rows as a chart above the table */
+  chart?: ReportChartHint;
 }
 
 export interface ReportContext {

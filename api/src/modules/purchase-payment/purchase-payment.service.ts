@@ -82,21 +82,20 @@ export class PurchasePaymentService {
   }
 
   async create(dto: CreatePurchasePaymentDto, userId: string) {
-    // Verify purchase exists
-    const purchase = await this.prisma.purchase.findUnique({ where: { ID: dto.PurchaseID } });
-    if (!purchase) throw new NotFoundException('Purchase not found');
+    const parent = await this.prisma.purchase.findUnique({ where: { ID: dto.PurchaseID } });
+    if (!parent) throw new NotFoundException('Purchase not found');
 
-    // Check if payment would exceed remaining amount
-    const existingPayments = await this.prisma.purchasePayment.findMany({
-      where: { PurchaseID: dto.PurchaseID },
-    });
-    const paidAmount = existingPayments.reduce((sum, p) => sum + Number(p.Amount), 0);
-    const remaining = Number(purchase.Total) - paidAmount;
-
-    if (dto.Amount > remaining) {
+    // Overpayment guard counts every payment, including cek/bg not yet cleared.
+    const existing = await this.prisma.purchasePayment.findMany({ where: { PurchaseID: dto.PurchaseID } });
+    const committed = existing.reduce((sum, p) => sum + Number(p.Amount), 0);
+    const remaining = Number(parent.Total) - committed;
+    if (dto.Amount <= 0) throw new BadRequestException('Jumlah pembayaran harus lebih dari 0');
+    if (dto.Amount > remaining + 0.005) {
       throw new BadRequestException(`Payment amount (${dto.Amount}) exceeds remaining amount (${remaining})`);
     }
 
+    const instrument = dto.InstrumentType ?? 'CASH';
+    const cleared = instrument === 'CASH';
     const payment = await this.prisma.purchasePayment.create({
       data: {
         PurchaseID: dto.PurchaseID,
@@ -105,18 +104,17 @@ export class PurchasePaymentService {
         ReferenceNumber: dto.ReferenceNumber,
         Date: dto.Date ? new Date(dto.Date) : new Date(),
         Notes: dto.Notes,
+        InstrumentType: instrument,
+        DueDate: dto.DueDate ? new Date(dto.DueDate) : null,
+        IsCleared: cleared,
+        ClearedAt: cleared ? new Date() : null,
         CreatedByID: userId,
       },
       include: { Purchase: true, Creator: true },
     });
 
-    // Update purchase payment status
     await this.updatePurchasePaymentStatus(dto.PurchaseID);
-
-    await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
-    await this.redis.invalidatePattern(`purchases:${dto.PurchaseID}*`);
-    await this.redis.invalidatePattern('reports:*');
-
+    await this.invalidate(dto.PurchaseID);
     return this.serialize(payment);
   }
 
@@ -124,12 +122,33 @@ export class PurchasePaymentService {
     const payment = await this.prisma.purchasePayment.findUnique({ where: { ID: id } });
     if (!payment) throw new NotFoundException('Purchase payment not found');
 
+    if (dto.Amount !== undefined) {
+      const parent = await this.prisma.purchase.findUnique({ where: { ID: payment.PurchaseID } });
+      const others = await this.prisma.purchasePayment.findMany({ where: { PurchaseID: payment.PurchaseID, NOT: { ID: id } } });
+      const committed = others.reduce((sum, p) => sum + Number(p.Amount), 0);
+      if (dto.Amount <= 0) throw new BadRequestException('Jumlah pembayaran harus lebih dari 0');
+      if (parent && dto.Amount + committed > Number(parent.Total) + 0.005) {
+        throw new BadRequestException('Payment amount exceeds remaining amount');
+      }
+    }
+
     const updateData: any = {};
     if (dto.MethodID) updateData.MethodID = dto.MethodID;
-    if (dto.Amount) updateData.Amount = new Prisma.Decimal(dto.Amount.toString());
+    if (dto.Amount !== undefined) updateData.Amount = new Prisma.Decimal(dto.Amount.toString());
     if (dto.ReferenceNumber !== undefined) updateData.ReferenceNumber = dto.ReferenceNumber;
     if (dto.Date) updateData.Date = new Date(dto.Date);
     if (dto.Notes !== undefined) updateData.Notes = dto.Notes;
+    if (dto.DueDate !== undefined) updateData.DueDate = dto.DueDate ? new Date(dto.DueDate) : null;
+    if (dto.InstrumentType) {
+      updateData.InstrumentType = dto.InstrumentType;
+      if (dto.InstrumentType === 'CASH') {
+        updateData.IsCleared = true;
+        updateData.ClearedAt = payment.ClearedAt ?? new Date();
+      } else if (payment.InstrumentType === 'CASH') {
+        updateData.IsCleared = false;
+        updateData.ClearedAt = null;
+      }
+    }
 
     const updated = await this.prisma.purchasePayment.update({
       where: { ID: id },
@@ -138,10 +157,21 @@ export class PurchasePaymentService {
     });
 
     await this.updatePurchasePaymentStatus(payment.PurchaseID);
-    await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
-    await this.redis.invalidatePattern(`purchases:${payment.PurchaseID}*`);
-    await this.redis.invalidatePattern('reports:*');
+    await this.invalidate(payment.PurchaseID);
+    return this.serialize(updated);
+  }
 
+  async clear(id: number) {
+    const payment = await this.prisma.purchasePayment.findUnique({ where: { ID: id } });
+    if (!payment) throw new NotFoundException('Purchase payment not found');
+    if (payment.IsCleared) throw new BadRequestException('Pembayaran sudah lunas/cair');
+
+    const updated = await this.prisma.purchasePayment.update({
+      where: { ID: id },
+      data: { IsCleared: true, ClearedAt: new Date() },
+    });
+    await this.updatePurchasePaymentStatus(payment.PurchaseID);
+    await this.invalidate(payment.PurchaseID);
     return this.serialize(updated);
   }
 
@@ -151,12 +181,65 @@ export class PurchasePaymentService {
 
     await this.prisma.purchasePayment.delete({ where: { ID: id } });
     await this.updatePurchasePaymentStatus(payment.PurchaseID);
-
-    await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
-    await this.redis.invalidatePattern(`purchases:${payment.PurchaseID}*`);
-    await this.redis.invalidatePattern('reports:*');
-
+    await this.invalidate(payment.PurchaseID);
     return { id };
+  }
+
+  async list(query: Record<string, any>) {
+    const where: any = {};
+    if (query.from || query.to) {
+      where.Date = {};
+      if (query.from) where.Date.gte = new Date(query.from);
+      if (query.to) {
+        const to = new Date(query.to);
+        to.setHours(23, 59, 59, 999);
+        where.Date.lte = to;
+      }
+    }
+    if (query.methodId) where.MethodID = Number(query.methodId);
+    if (query.instrumentType) where.InstrumentType = String(query.instrumentType);
+    else if (query.chequeOnly === 'true') where.InstrumentType = { in: ['CEK', 'BG'] };
+    if (query.cleared === 'true') where.IsCleared = true;
+    if (query.cleared === 'false') where.IsCleared = false;
+    if (query.search) {
+      const s = String(query.search);
+      where.OR = [
+        { ReferenceNumber: { contains: s, mode: 'insensitive' } },
+        { Purchase: { Code: { contains: s, mode: 'insensitive' } } },
+        { Purchase: { Supplier: { Name: { contains: s, mode: 'insensitive' } } } },
+      ];
+    }
+    const skip = Number(query.skip) || 0;
+    const take = Math.min(Number(query.take) || 50, 500);
+    const [data, total] = await Promise.all([
+      this.prisma.purchasePayment.findMany({
+        where,
+        include: { Purchase: { include: { Supplier: true } }, Method: true },
+        orderBy: [{ Date: 'desc' }, { ID: 'desc' }],
+        skip,
+        take,
+      }),
+      this.prisma.purchasePayment.count({ where }),
+    ]);
+    return { data: data.map((d) => this.serializeDeep(d)), total, skip, take };
+  }
+
+  private async invalidate(parentId: number) {
+    await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
+    await this.redis.invalidatePattern(`purchases:${parentId}*`);
+    await this.redis.invalidatePattern('reports:*');
+  }
+
+  private serializeDeep(v: any): any {
+    if (v instanceof Prisma.Decimal) return Number(v);
+    if (v instanceof Date) return v.toISOString();
+    if (Array.isArray(v)) return v.map((x) => this.serializeDeep(x));
+    if (v && typeof v === 'object') {
+      const r: any = {};
+      for (const [k, x] of Object.entries(v)) r[k] = this.serializeDeep(x);
+      return r;
+    }
+    return v;
   }
 
   async findByPurchase(purchaseId: number, query: Record<string, any> = {}) {
@@ -190,29 +273,23 @@ export class PurchasePaymentService {
       where: { ID: purchaseId },
       include: { PurchasePayments: true },
     });
-
     if (!purchase) return;
 
-    const paidAmount = purchase.PurchasePayments.reduce((sum, p) => sum + Number(p.Amount), 0);
+    // Only cleared payments (cash, or cek/bg marked lunas) count as paid.
+    const paidAmount = purchase.PurchasePayments.filter((p) => p.IsCleared).reduce((sum, p) => sum + Number(p.Amount), 0);
     const totalAmount = Number(purchase.Total);
 
-    let paymentStatusCode: 'PENDING' | 'PARTIAL' | 'PAID' = 'PENDING';
-    if (paidAmount > 0 && paidAmount < totalAmount) {
-      paymentStatusCode = 'PARTIAL';
-    } else if (paidAmount >= totalAmount) {
-      paymentStatusCode = 'PAID';
-    }
+    let code: 'PENDING' | 'PARTIAL' | 'PAID' = 'PENDING';
+    if (paidAmount > 0 && paidAmount < totalAmount) code = 'PARTIAL';
+    else if (paidAmount >= totalAmount && totalAmount > 0) code = 'PAID';
 
-    const paymentStatus = await this.prisma.paymentStatus.findUnique({ where: { Code: paymentStatusCode } });
-
-    const remainingAmount = totalAmount - paidAmount;
-
+    const paymentStatus = await this.prisma.paymentStatus.findUnique({ where: { Code: code } });
     await this.prisma.purchase.update({
       where: { ID: purchaseId },
       data: {
         PaymentStatusID: paymentStatus?.ID ?? purchase.PaymentStatusID,
         Paid: new Prisma.Decimal(paidAmount.toString()),
-        Remaining: new Prisma.Decimal(remainingAmount.toString()),
+        Remaining: new Prisma.Decimal(Math.max(totalAmount - paidAmount, 0).toString()),
       },
     });
   }
