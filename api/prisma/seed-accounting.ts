@@ -48,6 +48,9 @@ const SETTINGS: Record<string, string> = {
 };
 
 export async function seedAccounting(prisma: any) {
+  const [{ ok }] = await prisma.$queryRaw`SELECT to_regclass('public."AccountSettings"') IS NOT NULL AS ok`;
+  if (!ok) throw new Error('Tabel AccountSettings belum ada. Jalankan dulu: npx prisma migrate deploy');
+
   const types = await prisma.accountType.findMany();
   const typeId = new Map<string, number>(types.map((t: any) => [t.Code, t.ID]));
   if (typeId.size === 0) throw new Error('AccountTypes belum ada — jalankan prisma/seed.ts dulu');
