@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 const FOLDER_NAME = 'IndoMurah Report Assets';
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
 
-/** Storage gambar Report Design di Google Drive (OAuth refresh token, scope drive.file). */
+/** Storage gambar Report Design di Google Drive (OAuth refresh token; scope drive.file bila folder dibuat otomatis, scope drive bila memakai GDRIVE_FOLDER_ID). */
 @Injectable()
 export class GDriveService {
   private readonly log = new Logger(GDriveService.name);
