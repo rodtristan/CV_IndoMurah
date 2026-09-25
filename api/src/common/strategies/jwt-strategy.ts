@@ -26,7 +26,7 @@
 //   Controller menerima request dengan req.user sudah terisi
 // ================================================================
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
@@ -54,7 +54,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   // validate() dipanggil setelah token BERHASIL diverifikasi
   // payload = isi token yang sudah didecode (data yang kita simpan saat login)
   // Response dari method ini akan OTOMATIS disimpan ke req.user
-  async validate(payload: { id: string; companyId: number; username: string; roleId?: number }) {
+  async validate(payload: { id: string; companyId: number; username: string; roleId?: number; typ?: string }) {
+    // Token aplikasi absensi karyawan (typ 'employee') tidak boleh dipakai untuk API back office.
+    if (!payload?.id || payload.typ === 'employee') throw new UnauthorizedException('Token tidak valid');
     // Kembalikan data yang kita mau ada di req.user
     // Di controller, kita bisa akses dengan: @CurrentUser() user
     return {

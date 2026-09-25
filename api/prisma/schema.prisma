@@ -2448,6 +2448,12 @@ model Employee {
   CreatedAt        DateTime  @default(now())
   UpdatedAt        DateTime  @updatedAt
 
+  // Akun aplikasi mobile absensi (diatur HRD di web; terpisah dari akun User back office)
+  Username             String? @unique @db.VarChar(100)
+  PasswordHash         String? @db.VarChar(255)
+  AttendanceLocationID Int?
+
+  AttendanceLocation  AttendanceLocation?     @relation(fields: [AttendanceLocationID], references: [ID])
   Department          Department?             @relation(fields: [DepartmentID], references: [ID])
   Position            Position?               @relation(fields: [PositionID], references: [ID])
   Status              EmployeeStatus          @relation(fields: [StatusID], references: [ID])
@@ -2480,8 +2486,23 @@ model Attendance {
   CreatedAt         DateTime  @default(now())
   UpdatedAt         DateTime  @updatedAt
 
-  Employee Employee         @relation(fields: [EmployeeID], references: [ID])
-  Status   AttendanceStatus @relation(fields: [StatusID], references: [ID])
+  // Absensi mobile: foto selfie (ref "gdrive:<id>" / "db:<id>"), jarak ke kantor, mode offline
+  LocationID       Int?
+  CheckInPhoto     String?   @db.VarChar(200)
+  CheckOutPhoto    String?   @db.VarChar(200)
+  CheckInDistance  Decimal?  @db.Decimal(10, 2)
+  CheckOutDistance Decimal?  @db.Decimal(10, 2)
+  CheckInAccuracy  Decimal?  @db.Decimal(10, 2)
+  CheckOutAccuracy Decimal?  @db.Decimal(10, 2)
+  CheckInOffline   Boolean   @default(false)
+  CheckOutOffline  Boolean   @default(false)
+  CheckInSyncedAt  DateTime?
+  CheckOutSyncedAt DateTime?
+  Source           String    @default("WEB") @db.VarChar(20)
+
+  Employee Employee            @relation(fields: [EmployeeID], references: [ID])
+  Status   AttendanceStatus    @relation(fields: [StatusID], references: [ID])
+  Location AttendanceLocation? @relation(fields: [LocationID], references: [ID])
 
   @@unique([EmployeeID, Date])
   @@map("Attendances")
@@ -3640,4 +3661,35 @@ model FiscalYearClose {
   ClosedBy User @relation(fields: [ClosedByID], references: [ID])
 
   @@map("FiscalYearCloses")
+}
+
+// ─── AttendanceLocation (lokasi kantor untuk geofence absensi mobile) ───────
+model AttendanceLocation {
+  ID                   Int      @id @default(autoincrement())
+  Name                 String   @db.VarChar(150)
+  Address              String?  @db.VarChar(500)
+  Latitude             Decimal  @db.Decimal(10, 7)
+  Longitude            Decimal  @db.Decimal(10, 7)
+  RadiusMeters         Int      @default(100)
+  WorkStart            String   @default("08:00") @db.VarChar(5)
+  WorkEnd              String   @default("17:00") @db.VarChar(5)
+  LateToleranceMinutes Int      @default(0)
+  IsActive             Boolean  @default(true)
+  CreatedAt            DateTime @default(now())
+  UpdatedAt            DateTime @updatedAt
+
+  Employees   Employee[]
+  Attendances Attendance[]
+
+  @@map("AttendanceLocations")
+}
+
+// ─── AttendancePhoto (penyimpanan foto absensi bila Google Drive belum dikonfigurasi)
+model AttendancePhoto {
+  ID        Int      @id @default(autoincrement())
+  MimeType  String   @db.VarChar(50)
+  Data      Bytes
+  CreatedAt DateTime @default(now())
+
+  @@map("AttendancePhotos")
 }

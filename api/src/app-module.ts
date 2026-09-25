@@ -97,6 +97,7 @@ import { CustomerDepositModule } from './modules/customer-deposit/customer-depos
 import { SupplierDepositModule } from './modules/supplier-deposit/supplier-deposit.module';
 import { JournalModule } from './modules/journal/journal.module';
 import { FileStorageModule } from './modules/file-storage/file-storage.module';
+import { AttendanceMobileModule } from './modules/attendance-mobile/attendance-mobile.module';
 import { OpeningBalanceModule } from './modules/opening-balance/opening-balance.module';
 import { AccountSettingModule } from './modules/account-setting/account-setting.module';
 import { FiscalYearModule } from './modules/fiscal-year/fiscal-year.module';
@@ -372,6 +373,7 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     ProductImportModule,
     ReportEngineModule,
     FileStorageModule,
+    AttendanceMobileModule,
     BackupModule,
     ImportModule,
     BalanceRepairModule,

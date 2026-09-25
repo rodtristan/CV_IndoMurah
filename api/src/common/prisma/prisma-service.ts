@@ -95,7 +95,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       // select/include/query polos. AuthService.login meng-override ini
       // secara eksplisit (`omit: { Password: false }`) karena login butuh
       // hash-nya untuk verifikasi.
-      omit: { user: { Password: true } },
+      omit: { user: { Password: true }, employee: { PasswordHash: true } },
     });
   }
 
