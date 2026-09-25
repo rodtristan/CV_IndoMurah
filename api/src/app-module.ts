@@ -96,6 +96,7 @@ import { CashTransferModule } from './modules/cash-transfer/cash-transfer.module
 import { CustomerDepositModule } from './modules/customer-deposit/customer-deposit.module';
 import { SupplierDepositModule } from './modules/supplier-deposit/supplier-deposit.module';
 import { JournalModule } from './modules/journal/journal.module';
+import { FileStorageModule } from './modules/file-storage/file-storage.module';
 import { OpeningBalanceModule } from './modules/opening-balance/opening-balance.module';
 import { AccountSettingModule } from './modules/account-setting/account-setting.module';
 import { FiscalYearModule } from './modules/fiscal-year/fiscal-year.module';
@@ -370,6 +371,7 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     StockBalanceModule,
     ProductImportModule,
     ReportEngineModule,
+    FileStorageModule,
     BackupModule,
     ImportModule,
     BalanceRepairModule,

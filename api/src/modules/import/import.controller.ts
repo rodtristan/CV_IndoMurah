@@ -1,22 +1,23 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Query,
-  UseGuards,
-  UseInterceptors,
-  UploadedFile,
-} from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { BadRequestException, Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { ImportService } from './import.service';
-import {
-  ImportItemSatuanDto,
-  ImportItemLevelDto,
-  ImportItemJumlahDto,
-  ValidateImportDto,
-} from './import.dto';
+import { ImportItemSatuanDto, ImportItemLevelDto, ImportItemJumlahDto, ValidateImportDto } from './import.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
+import { CurrentUser } from '../../common/decorators/current-user-decorator';
+
+/**
+ * Body dapat berupa multipart (field "file" = CSV) atau JSON `{ data: [...] }`.
+ * Upload memakai @fastify/multipart (terdaftar di main.ts), bukan Multer/Express.
+ */
+async function readRows<T>(req: any, service: ImportService, body: any): Promise<T[]> {
+  if (req.isMultipart?.()) {
+    const file = await req.file();
+    if (!file) throw new BadRequestException('File CSV tidak ditemukan');
+    return (await service.parseCSV(await file.toBuffer())) as T[];
+  }
+  const data = typeof body?.data === 'string' ? JSON.parse(body.data) : body?.data;
+  if (!Array.isArray(data)) throw new BadRequestException('Kirim file CSV (multipart) atau JSON { data: [...] }');
+  return data as T[];
+}
 
 @Controller('import')
 @UseGuards(JwtAuthGuard)
@@ -29,71 +30,24 @@ export class ImportController {
   }
 
   @Post('items-satuan')
-  @UseInterceptors(FileInterceptor('file'))
-  async importItemsSatuan(
-    @UploadedFile() file: Express.Multer.File,
-    @Body('data') dataJson: string,
-    @Body('userId') userId: string,
-  ) {
-    let data: ImportItemSatuanDto[];
-
-    if (file) {
-      data = await this.importService.parseCSV(file.buffer);
-    } else if (dataJson) {
-      data = JSON.parse(dataJson);
-    } else {
-      throw new Error('No file or data provided');
-    }
-
-    return this.importService.importSatuan(data, userId);
+  async importItemsSatuan(@Req() req: any, @Body() body: any, @CurrentUser() user: any) {
+    return this.importService.importSatuan(await readRows<ImportItemSatuanDto>(req, this.importService, body), String(user.id));
   }
 
   @Post('items-level')
-  @UseInterceptors(FileInterceptor('file'))
-  async importItemsLevel(
-    @UploadedFile() file: Express.Multer.File,
-    @Body('data') dataJson: string,
-    @Body('userId') userId: string,
-  ) {
-    let data: ImportItemLevelDto[];
-
-    if (file) {
-      data = await this.importService.parseCSV(file.buffer);
-    } else if (dataJson) {
-      data = JSON.parse(dataJson);
-    } else {
-      throw new Error('No file or data provided');
-    }
-
-    return this.importService.importLevel(data, userId);
+  async importItemsLevel(@Req() req: any, @Body() body: any, @CurrentUser() user: any) {
+    return this.importService.importLevel(await readRows<ImportItemLevelDto>(req, this.importService, body), String(user.id));
   }
 
   @Post('items-jumlah')
-  @UseInterceptors(FileInterceptor('file'))
-  async importItemsJumlah(
-    @UploadedFile() file: Express.Multer.File,
-    @Body('data') dataJson: string,
-    @Body('userId') userId: string,
-  ) {
-    let data: ImportItemJumlahDto[];
-
-    if (file) {
-      data = await this.importService.parseCSV(file.buffer);
-    } else if (dataJson) {
-      data = JSON.parse(dataJson);
-    } else {
-      throw new Error('No file or data provided');
-    }
-
-    return this.importService.importJumlah(data, userId);
+  async importItemsJumlah(@Req() req: any, @Body() body: any, @CurrentUser() user: any) {
+    return this.importService.importJumlah(await readRows<ImportItemJumlahDto>(req, this.importService, body), String(user.id));
   }
 
   @Get('progress/:importId')
-  async getProgress(@Query('importId') importId: string) {
+  async getProgress(@Param('importId') importId: string) {
     const progress = this.importService.getProgress(importId);
-    if (!progress) {
-      return { status: 'not_found', message: 'Import job not found' };
-    }
+    if (!progress) return { status: 'not_found', message: 'Import job not found' };
     return progress;
   }
 }

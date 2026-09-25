@@ -5,6 +5,7 @@ import { AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, Italic, Striket
 import type { ReportColumn, ReportFieldDef, TextStyle } from "@/lib/report/types";
 import { findElement, type DesignerApi } from "./useDesignerState";
 import { FONT_FAMILIES, FONT_SIZES, LINE_SPACINGS, Field, NumInput, PAGE_SIZE_LABEL, PAGE_SIZE_OPTIONS, inputCls } from "./ui";
+import { ImageUpload } from "./ImageUpload";
 import { pageDimensions } from "@/lib/report/template";
 import { setOrientation } from "./ribbon/PageTab";
 
@@ -99,8 +100,18 @@ export function PropertiesPanel({ d, fields }: { d: DesignerApi; fields: ReportF
             </Field>
           )}
           {el.type === "image" && (
-            <Field label="URL gambar / {InfoReport.LogoUrl}">
-              <input className={inputCls} value={el.text ?? ""} onChange={(e) => set((t) => { t.text = e.target.value; }, `text${id}`)} />
+            <Field label="Gambar">
+              <div className="mb-1 truncate text-[11px] text-gray-500" title={el.text ?? ""}>
+                {(el.text ?? "").startsWith("{") ? "Logo perusahaan" : el.text ? "Gambar terunggah" : "Belum ada gambar"}
+              </div>
+              <ImageUpload onUploaded={(url) => set((t) => { t.text = url; }, `text${id}`)}>Ganti Gambar (Unggah File)</ImageUpload>
+              <button
+                type="button"
+                onClick={() => set((t) => { t.text = "{InfoReport.LogoUrl}"; }, `text${id}`)}
+                className="mt-1 w-full rounded border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50"
+              >
+                Pakai Logo Perusahaan
+              </button>
             </Field>
           )}
           <div className="grid grid-cols-2 gap-2">
