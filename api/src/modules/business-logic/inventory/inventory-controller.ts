@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { InventoryService } from './inventory-service';
-import { StockTransferDto, StockAdjustmentDto, StockOpNameDto, StockReportDto, ValuationReportDto } from './inventory.dto';
+import { StockTransferDto, StockAdjustmentDto, StockOpNameDto, StockReportDto, ValuationReportDto, CreateOpeningStockDto, FixBalanceDto } from './inventory.dto';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
 import { CurrentUser } from '../../../common/decorators/current-user-decorator';
 import { ApiResponse } from '../../../common/dto/api-response-dto';
@@ -20,6 +20,17 @@ import { ApiResponse } from '../../../common/dto/api-response-dto';
 @Controller('business-logic/inventory')
 export class InventoryController {
   constructor(private inventoryService: InventoryService) {}
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // OPENING STOCK
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  @Post('opening-stock')
+  @ApiOperation({ summary: 'Initialize opening stock for products in a warehouse' })
+  async createOpeningStock(@Body() dto: CreateOpeningStockDto, @CurrentUser() user: any) {
+    const data = await this.inventoryService.createOpeningStock(dto, user.ID);
+    return ApiResponse.ok(data, 'Opening stock created successfully');
+  }
 
   // ─────────────────────────────────────────────────────────────────────────────
   // STOCK TRANSFER
@@ -70,5 +81,16 @@ export class InventoryController {
   async getStockValuation(@Query() dto: ValuationReportDto) {
     const data = await this.inventoryService.getStockValuation(dto);
     return ApiResponse.ok(data);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // FIX BALANCE
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  @Post('fix-balance')
+  @ApiOperation({ summary: 'Fix stock balance discrepancies' })
+  async fixBalance(@Body() dto: FixBalanceDto, @CurrentUser() user: any) {
+    const data = await this.inventoryService.fixBalance(dto, user.ID);
+    return ApiResponse.ok(data, 'Stock balance fixed successfully');
   }
 }

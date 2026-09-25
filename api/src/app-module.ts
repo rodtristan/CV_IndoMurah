@@ -78,6 +78,13 @@ import { UnitModule } from './modules/unit/unit.module';
 import { BrandModule } from './modules/brand/brand.module';
 import { SupplierModule } from './modules/supplier/supplier.module';
 import { CustomerModule } from './modules/customer/customer.module';
+import { CustomerGroupModule } from './modules/customer-group/customer-group.module';
+import { BankModule } from './modules/bank/bank.module';
+import { EMoneyModule } from './modules/e-money/e-money.module';
+import { RegionModule } from './modules/region/region.module';
+import { SubRegionModule } from './modules/sub-region/sub-region.module';
+import { ShippingCostModule } from './modules/shipping-cost/shipping-cost.module';
+import { PromotionModule } from './modules/promotion/promotion.module';
 import { SalesPersonModule } from './modules/sales-person/sales-person.module';
 import { WarehouseModule } from './modules/warehouse/warehouse.module';
 import { ProductModule } from './modules/product/product.module';
@@ -132,6 +139,7 @@ import { LoanModule } from './modules/loan/loan.module';
 import { LoanInstallmentModule } from './modules/loan-installment/loan-installment.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { PaymentMethodModule } from './modules/payment-method/payment-method.module';
+import { ChequePaymentModule } from './modules/cheque-payment/cheque-payment.module';
 import { ProductStockModule } from './modules/product-stock/product-stock.module';
 import { StockInItemModule } from './modules/stock-in-item/stock-in-item.module';
 import { StockOutItemModule } from './modules/stock-out-item/stock-out-item.module';
@@ -229,6 +237,8 @@ import { TransferModule as BLTransferModule } from './modules/business-logic/tra
 import { VoucherModule as BLVoucherModule } from './modules/business-logic/voucher/voucher-module';
 import { WarehouseModule as BLWarehouseModule } from './modules/business-logic/warehouse/warehouse-module';
 import { WorkOrderModule } from './modules/business-logic/work-order/work-order-module';
+import { YearCloseModule } from './modules/year-close/year-close.module';
+import { ChequePaymentModule } from './modules/cheque-payment/cheque-payment.module';
 
 // ── Provider Global ────────────────────────────────────────────────────
 import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
@@ -274,6 +284,13 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     BrandModule,   // Merek produk
     SupplierModule,// Supplier/pemasok
     CustomerModule,// Pelanggan
+    CustomerGroupModule, // Grup Pelanggan
+    BankModule, // Bank
+    EMoneyModule, // E-Money
+    RegionModule, // Region/Wilayah
+    SubRegionModule, // Sub-Region
+    ShippingCostModule, // Ongkos Kirim
+    PromotionModule, // Promosi
     SalesPersonModule, // Sales person
     WarehouseModule, // Gudang
     ProductModule, // Produk dengan stock management
@@ -339,6 +356,7 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     LoanInstallmentModule,
     NotificationModule,
     PaymentMethodModule,
+    ChequePaymentModule,
     ProductStockModule,
     StockInItemModule,
     StockOutItemModule,
@@ -430,6 +448,8 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     BLVoucherModule,
     BLWarehouseModule,
     WorkOrderModule,
+    YearCloseModule,
+    ChequePaymentModule,
   ],
   providers: [
     // ── [5] Guard & Interceptor Global ───────────────────────────────

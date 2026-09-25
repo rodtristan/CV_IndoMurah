@@ -17,6 +17,7 @@ import {
   SupplierPurchaseReportDto,
   ExpenseReportDto,
   DashboardSummaryDto,
+  DepositBalanceReportDto,
 } from './reports.dto';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
 import { ApiResponse } from '../../../common/dto/api-response-dto';
@@ -150,6 +151,17 @@ export class ReportsController {
   @ApiOperation({ summary: 'Get supplier purchase report' })
   async getSupplierPurchaseReport(@Query() dto: SupplierPurchaseReportDto) {
     const data = await this.reportsService.getSupplierPurchaseReport(dto);
+    return ApiResponse.ok(data);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // DEPOSIT BALANCE REPORT
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  @Get('deposit-balance')
+  @ApiOperation({ summary: 'Get deposit balance report (customer & supplier deposits)' })
+  async getDepositBalanceReport(@Query() dto: DepositBalanceReportDto) {
+    const data = await this.reportsService.getDepositBalanceReport(dto);
     return ApiResponse.ok(data);
   }
 }

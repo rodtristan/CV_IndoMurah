@@ -153,3 +153,105 @@ export class ValuationReportDto {
   @IsString()
   ValuationMethod?: string;
 }
+
+// ─── Opening Stock ───────────────────────────────────────────────
+
+export class OpeningStockItemDto {
+  @ApiProperty({ description: 'Product ID' })
+  @IsNumber()
+  ProductId: number;
+
+  @ApiProperty({ description: 'Quantity' })
+  @IsNumber()
+  @Min(0.001)
+  Quantity: number;
+
+  @ApiProperty({ description: 'Unit Cost' })
+  @IsNumber()
+  @Min(0)
+  UnitCost: number;
+
+  @ApiPropertyOptional({ description: 'Expiry Date (YYYY-MM-DD)' })
+  @IsOptional()
+  @IsDateString()
+  ExpiryDate?: string;
+
+  @ApiPropertyOptional({ description: 'Batch Number' })
+  @IsOptional()
+  @IsString()
+  BatchNumber?: string;
+}
+
+export class CreateOpeningStockDto {
+  @ApiProperty({ description: 'Warehouse ID' })
+  @IsNumber()
+  WarehouseId: number;
+
+  @ApiProperty({ description: 'Items to initialize', type: [OpeningStockItemDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => OpeningStockItemDto)
+  Items: OpeningStockItemDto[];
+
+  @ApiPropertyOptional({ description: 'Reference/Notes' })
+  @IsOptional()
+  @IsString()
+  Notes?: string;
+}
+
+// ─── Deposit Balance Report ───────────────────────────────────────
+
+export class DepositBalanceReportDto {
+  @ApiPropertyOptional({ description: 'As of date (YYYY-MM-DD)' })
+  @IsOptional()
+  @IsDateString()
+  AsOfDate?: string;
+
+  @ApiPropertyOptional({ description: 'Customer ID filter' })
+  @IsOptional()
+  @IsNumber()
+  CustomerId?: number;
+
+  @ApiPropertyOptional({ description: 'Supplier ID filter' })
+  @IsOptional()
+  @IsNumber()
+  SupplierId?: number;
+}
+
+// ─── Stock Fix Balance ─────────────────────────────────────────
+
+export class FixBalanceItemDto {
+  @ApiProperty({ description: 'Product ID' })
+  @IsNumber()
+  ProductId: number;
+
+  @ApiProperty({ description: 'Current system stock' })
+  @IsNumber()
+  CurrentStock: number;
+
+  @ApiProperty({ description: 'Actual/real stock' })
+  @IsNumber()
+  ActualStock: number;
+
+  @ApiPropertyOptional({ description: 'Notes/Reason' })
+  @IsOptional()
+  @IsString()
+  Notes?: string;
+}
+
+export class FixBalanceDto {
+  @ApiProperty({ description: 'Warehouse ID' })
+  @IsNumber()
+  WarehouseId: number;
+
+  @ApiProperty({ description: 'Items to fix', type: [FixBalanceItemDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => FixBalanceItemDto)
+  Items: FixBalanceItemDto[];
+
+  @ApiPropertyOptional({ description: 'Reference/Notes' })
+  @IsOptional()
+  @IsString()
+  Notes?: string;
+}

@@ -17,6 +17,7 @@ import {
   SupplierPurchaseReportDto,
   ExpenseReportDto,
   DashboardSummaryDto,
+  DepositBalanceReportDto,
 } from './Reports.dto';
 
 @Injectable()
@@ -1053,6 +1054,114 @@ export class ReportsService {
         referenceNumber: e.ReferenceNumber,
         IsApproved: e.IsApproved,
       })),
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // DEPOSIT BALANCE REPORT
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Get Deposit Balance Report (Customer & Supplier Deposits)
+   * Shows total deposits, usage, and remaining balance
+   */
+  async getDepositBalanceReport(dto: DepositBalanceReportDto) {
+    const asOfDate = dto.AsOfDate ? new Date(dto.AsOfDate) : new Date();
+
+    // Build customer filter
+    const customerWhere: any = { IsActive: true };
+    if (dto.CustomerId) customerWhere.ID = dto.CustomerId;
+
+    // Build supplier filter
+    const supplierWhere: any = { IsActive: true };
+    if (dto.SupplierId) supplierWhere.ID = dto.SupplierId;
+
+    // Get all customers with their deposits
+    const customers = await this.prisma.customer.findMany({
+      where: customerWhere,
+      include: {
+        CustomerDeposits: {
+          where: {
+            Date: { lte: asOfDate },
+          },
+        },
+      },
+      orderBy: { Name: 'asc' },
+    });
+
+    // Get all suppliers with their deposits
+    const suppliers = await this.prisma.supplier.findMany({
+      where: supplierWhere,
+      include: {
+        SupplierDeposits: {
+          where: {
+            Date: { lte: asOfDate },
+          },
+        },
+      },
+      orderBy: { Name: 'asc' },
+    });
+
+    // Calculate customer deposit balances
+    const customerDeposits = customers.map((c) => {
+      const totalDeposit = c.CustomerDeposits
+        .filter((d) => d.Type === 'DEPOSIT')
+        .reduce((sum, d) => sum + Number(d.Amount), 0);
+      const totalUsed = c.CustomerDeposits
+        .filter((d) => d.Type === 'USAGE')
+        .reduce((sum, d) => sum + Number(d.Amount), 0);
+
+      return {
+        customerId: c.ID,
+        customerCode: c.Code,
+        customerName: c.Name,
+        totalDeposit,
+        used: totalUsed,
+        remaining: totalDeposit - totalUsed,
+      };
+    }).filter((c) => c.totalDeposit > 0 || c.used > 0);
+
+    // Calculate supplier deposit balances (RemainingAmount tracks usage)
+    const supplierDeposits = suppliers.map((s) => {
+      const totalDeposit = s.SupplierDeposits
+        .reduce((sum, d) => sum + Number(d.Amount), 0);
+      const totalRemaining = s.SupplierDeposits
+        .reduce((sum, d) => sum + Number(d.RemainingAmount), 0);
+      const totalUsed = totalDeposit - totalRemaining;
+
+      return {
+        supplierId: s.ID,
+        supplierCode: s.Code,
+        supplierName: s.Name,
+        totalDeposit,
+        used: totalUsed,
+        remaining: totalRemaining,
+      };
+    }).filter((s) => s.totalDeposit > 0 || s.used > 0);
+
+    // Calculate grand totals
+    const totalCustomerDeposits = customerDeposits.reduce((sum, c) => sum + c.totalDeposit, 0);
+    const totalCustomerUsed = customerDeposits.reduce((sum, c) => sum + c.used, 0);
+    const totalCustomerRemaining = customerDeposits.reduce((sum, c) => sum + c.remaining, 0);
+
+    const totalSupplierDeposits = supplierDeposits.reduce((sum, s) => sum + s.totalDeposit, 0);
+    const totalSupplierUsed = supplierDeposits.reduce((sum, s) => sum + s.used, 0);
+    const totalSupplierRemaining = supplierDeposits.reduce((sum, s) => sum + s.remaining, 0);
+
+    return {
+      asOfDate: dto.AsOfDate || new Date().toISOString().split('T')[0],
+      customerDeposits,
+      supplierDeposits,
+      summary: {
+        totalCustomerDeposits,
+        totalCustomerUsed,
+        totalCustomerRemaining,
+        totalSupplierDeposits,
+        totalSupplierUsed,
+        totalSupplierRemaining,
+        grandTotalDeposit: totalCustomerDeposits + totalSupplierDeposits,
+        grandTotalRemaining: totalCustomerRemaining + totalSupplierRemaining,
+      },
     };
   }
 }

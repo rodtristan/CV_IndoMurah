@@ -23,6 +23,7 @@ model PaymentMethod {
   ID          Int      @id @default(autoincrement())
   Code        String   @unique @db.VarChar(50)
   Name        String   @db.VarChar(100)
+  Type        String?  @db.VarChar(50) // CASH, BANK, E_MONEY, CHEQUE
   Description String?  @db.VarChar(255)
   IsActive    Boolean  @default(true)
   SortOrder   Int      @default(0)
@@ -3640,4 +3641,157 @@ model FiscalYearClose {
   ClosedBy User @relation(fields: [ClosedByID], references: [ID])
 
   @@map("FiscalYearCloses")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// NEW MASTER DATA MODULES (Plan 1)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Bank (Bank untuk pembayaran cheque/giro) ───────────────────────────────
+model Bank {
+  ID            Int      @id @default(autoincrement())
+  Code          String   @unique @db.VarChar(50)
+  Name          String   @db.VarChar(255)
+  Branch        String?  @db.VarChar(255)
+  AccountNumber String?  @db.VarChar(50)
+  AccountName   String?  @db.VarChar(255)
+  Description   String?  @db.VarChar(500)
+  IsActive      Boolean  @default(true)
+  SortOrder     Int      @default(0)
+  CreatedAt     DateTime @default(now())
+  UpdatedAt     DateTime @updatedAt
+
+  // Relations
+  ChequePayments ChequePayment[]
+
+  @@map("Banks")
+}
+
+// ─── EMoney (Provider E-Money) ─────────────────────────────────────────────
+model EMoney {
+  ID            Int      @id @default(autoincrement())
+  Code          String   @unique @db.VarChar(50)
+  Name          String   @db.VarChar(255)
+  AccountNumber String?  @db.VarChar(50)
+  AccountName   String?  @db.VarChar(255)
+  Description   String?  @db.VarChar(500)
+  IsActive      Boolean  @default(true)
+  SortOrder     Int      @default(0)
+  CreatedAt     DateTime @default(now())
+  UpdatedAt     DateTime @updatedAt
+
+  @@map("EMoneys")
+}
+
+// ─── Region (Wilayah/Provinsi) ──────────────────────────────────────────────
+model Region {
+  ID          Int      @id @default(autoincrement())
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(255)
+  Description String?  @db.VarChar(500)
+  IsActive    Boolean  @default(true)
+  SortOrder   Int      @default(0)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
+
+  // Relations
+  SubRegions    SubRegion[]
+  ShippingCosts ShippingCost[]
+
+  @@map("Regions")
+}
+
+// ─── SubRegion (Kota/Kabupaten) ────────────────────────────────────────────
+model SubRegion {
+  ID          Int      @id @default(autoincrement())
+  Code        String   @unique @db.VarChar(50)
+  Name        String   @db.VarChar(255)
+  RegionID    Int
+  Description String?  @db.VarChar(500)
+  IsActive    Boolean  @default(true)
+  SortOrder   Int      @default(0)
+  CreatedAt   DateTime @default(now())
+  UpdatedAt   DateTime @updatedAt
+
+  Region       Region        @relation(fields: [RegionID], references: [ID])
+  ShippingCosts ShippingCost[]
+
+  @@map("SubRegions")
+}
+
+// ─── ShippingCost (Ongkos Kirim per Wilayah) ────────────────────────────────
+model ShippingCost {
+  ID            Int      @id @default(autoincrement())
+  Code          String   @unique @db.VarChar(50)
+  Name          String   @db.VarChar(255)
+  RegionID      Int?
+  SubRegionID   Int?
+  Cost          Decimal  @db.Decimal(15, 2)
+  EstimatedDays Int?
+  Description   String?  @db.VarChar(500)
+  IsActive      Boolean  @default(true)
+  SortOrder     Int      @default(0)
+  CreatedAt     DateTime @default(now())
+  UpdatedAt     DateTime @updatedAt
+
+  Region     Region?     @relation(fields: [RegionID], references: [ID])
+  SubRegion  SubRegion? @relation(fields: [SubRegionID], references: [ID])
+
+  @@index([RegionID])
+  @@index([SubRegionID])
+  @@map("ShippingCosts")
+}
+
+// ─── Promotion (Promosi/Diskon) ─────────────────────────────────────────────
+model Promotion {
+  ID                Int       @id @default(autoincrement())
+  Code              String    @unique @db.VarChar(50)
+  Name              String    @db.VarChar(255)
+  Type              String    @db.VarChar(50) // DISCOUNT, BOGO, GIFT, BUY_GET
+  DiscountType      String    @db.VarChar(50) // PERCENTAGE, FIXED
+  DiscountValue     Decimal?  @db.Decimal(15, 2)
+  MinPurchase       Decimal?  @db.Decimal(15, 2)
+  MaxDiscountAmount Decimal? @db.Decimal(15, 2)
+  StartDate         DateTime
+  EndDate           DateTime
+  UsageLimit        Int?
+  UsedCount         Int       @default(0)
+  Description       String?   @db.VarChar(1000)
+  IsActive          Boolean   @default(true)
+  CreatedAt         DateTime  @default(now())
+  UpdatedAt         DateTime  @updatedAt
+
+  @@index([StartDate, EndDate])
+  @@index([Type])
+  @@map("Promotions")
+}
+
+// ─── ChequePayment (Cek/Giro) ─────────────────────────────────────────────
+model ChequePayment {
+  ID              Int       @id @default(autoincrement())
+  Code            String    @unique @db.VarChar(50)
+  Type            String    @db.VarChar(50) // SALE, PURCHASE
+  ReferenceType   String?   @db.VarChar(50) // SALE_PAYMENT, PURCHASE_PAYMENT
+  ReferenceID     Int?
+  BankID          Int?
+  ChequeNumber    String    @db.VarChar(100)
+  ChequeDate      DateTime
+  DueDate         DateTime?
+  Amount          Decimal   @db.Decimal(15, 2)
+  Status          String    @default("PENDING") @db.VarChar(50) // PENDING, CLEARED, BOUNCED, CANCELLED
+  ClearedDate     DateTime?
+  BouncedDate     DateTime?
+  Notes           String?   @db.VarChar(1000)
+  IsActive        Boolean   @default(true)
+  CreatedAt       DateTime  @default(now())
+  UpdatedAt       DateTime  @updatedAt
+
+  // Relations
+  Bank            Bank?     @relation(fields: [BankID], references: [ID])
+
+  @@index([Type])
+  @@index([Status])
+  @@index([ChequeDate])
+  @@index([DueDate])
+  @@map("ChequePayments")
 }
