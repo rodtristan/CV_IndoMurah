@@ -21,7 +21,7 @@ export class FileStorageController {
     if (!file) throw new BadRequestException('File tidak ditemukan');
     if (!ALLOWED.has(file.mimetype)) throw new BadRequestException('Hanya gambar PNG, JPG, GIF, atau WEBP');
     const buf: Buffer = await file.toBuffer();
-    if (file.file.truncated) throw new BadRequestException('Ukuran gambar maksimal 2 MB');
+    if (file.file.truncated || buf.length > 2 * 1024 * 1024) throw new BadRequestException('Ukuran gambar maksimal 2 MB');
     const id = await this.drive.upload(`report-${Date.now()}.${EXT[file.mimetype]}`, file.mimetype, buf);
     return { success: true, data: { id, path: `files/${id}/content` } };
   }

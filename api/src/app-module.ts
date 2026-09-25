@@ -164,6 +164,9 @@ import { LeaveModule } from './modules/leave/leave.module';
 import { LeaveBalanceModule } from './modules/leave-balance/leave-balance.module';
 import { AppSettingModule } from './modules/app-setting/app-setting.module';
 import { ReportEngineModule } from './modules/report-engine/report-engine.module';
+import { BackupModule } from './modules/backup/backup.module';
+import { ImportModule } from './modules/import/import.module';
+import { BalanceRepairModule } from './modules/balance-repair/balance-repair.module';
 
 // ── Business Logic Modules ──────────────────────────────────────────────
 // The `src/modules/business-logic/**` tree (54 submodules from the
@@ -369,6 +372,9 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     ProductImportModule,
     ReportEngineModule,
     FileStorageModule,
+    BackupModule,
+    ImportModule,
+    BalanceRepairModule,
 
     // Business Logic Modules (see comment above the imports above)
     AccountingModule,
