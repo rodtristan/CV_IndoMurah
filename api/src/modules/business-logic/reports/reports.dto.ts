@@ -332,3 +332,24 @@ export class DashboardSummaryDto {
   @IsNumber()
   WarehouseId?: number;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DEPOSIT BALANCE REPORT DTO
+// ─────────────────────────────────────────────────────────────────────────────
+
+export class DepositBalanceReportDto {
+  @ApiPropertyOptional({ description: 'As of date (YYYY-MM-DD)' })
+  @IsOptional()
+  @IsDateString()
+  AsOfDate?: string;
+
+  @ApiPropertyOptional({ description: 'Customer ID filter' })
+  @IsOptional()
+  @IsNumber()
+  CustomerId?: number;
+
+  @ApiPropertyOptional({ description: 'Supplier ID filter' })
+  @IsOptional()
+  @IsNumber()
+  SupplierId?: number;
+}

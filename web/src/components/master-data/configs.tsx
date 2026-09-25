@@ -196,33 +196,22 @@ export const salePointConfig: EntityConfig = {
   toPayload: (v) => ({ name: v.name.trim(), description: v.description || undefined, isActive: !!v.isActive }),
 };
 
-// ─── Grup Pelanggan (no backend module yet) ──────────────────────────
-
-const levelOptions = [1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: `Level ${n}${n === 1 ? " (Umum)" : ""}` }));
+// ─── Grup Pelanggan ────────────────────────────────────────────────
 
 export const customerGroupConfig: EntityConfig = {
   singular: "Grup Pelanggan", plural: "Daftar Grup Pelanggan", basePath: "/master/customer-groups",
-  backendGap: ["seluruh modul Grup Pelanggan (level, potongan, tipe potongan, pengali point)"],
-  codePrefix: "GRP", searchFields: ["code", "name"],
+  endpoint: "customer-group", codePrefix: "GRP", searchFields: ["code", "name"],
   columns: [
-    codeCol, { key: "Name", label: "Nama Grup" }, { key: "Level", label: "Level", align: "right", width: 80 },
-    { key: "DiscountPercent", label: "Potongan (%)", align: "right", width: 110 }, descCol(), statusCol,
+    codeCol, { key: "Name", label: "Nama Grup" },
+    { key: "DiscountPercent", label: "Potongan (%)", align: "right", width: 110, render: (v) => num(v).toFixed(2) },
+    { key: "PointMultiplier", label: "Pengali Point", align: "right", width: 100, render: (v) => num(v).toFixed(2) },
+    descCol(), statusCol,
   ],
   intro: null,
   sections: [{
     title: "Data Grup",
     fields: [
       { key: "name", label: "Nama Grup", required: true, hint: "Contoh: General / Umum, Bronze, Silver, Gold." },
-      { key: "level", label: "Level Harga Jual", type: "select", options: levelOptions, required: true, hint: "Menentukan harga jual level mana yang dipakai pelanggan grup ini (Level 1 = umum)." },
-      {
-        key: "discountType", label: "Tipe Potongan", type: "select",
-        options: [
-          { value: "group_item", label: "Potongan Grup Per Item" },
-          { value: "group_invoice", label: "Potongan Grup Per Faktur" },
-          { value: "item_list", label: "Potongan Daftar Item" },
-        ],
-        hint: "Per Item / Per Faktur: potongan diambil dari grup. Daftar Item: diambil dari master item.",
-      },
       { key: "discountPercent", label: "Potongan (%)", type: "number", hint: "Potongan otomatis untuk anggota grup." },
       { key: "pointMultiplier", label: "Pengali Point", type: "number", hint: "1 = normal, 2 = point dobel." },
       { key: "sortOrder", label: "Urutan", type: "number" },
@@ -230,18 +219,31 @@ export const customerGroupConfig: EntityConfig = {
       activeField,
     ],
   }],
-  defaults: { name: "", level: "1", discountType: "group_item", discountPercent: "0", pointMultiplier: "1", sortOrder: "0", description: "", isActive: true },
-  fromRow: () => ({}),
-  toPayload: () => ({}),
+  defaults: { name: "", discountPercent: "0", pointMultiplier: "1", sortOrder: "0", description: "", isActive: true },
+  fromRow: (r) => ({
+    name: str(r.Name),
+    discountPercent: str(r.DiscountPercent ?? 0),
+    pointMultiplier: str(r.PointMultiplier ?? 1),
+    sortOrder: str(r.SortOrder ?? 0),
+    description: str(r.Description),
+    isActive: r.IsActive !== false,
+  }),
+  toPayload: (v) => ({
+    name: v.name.trim(),
+    discountPercent: num(v.discountPercent),
+    pointMultiplier: num(v.pointMultiplier),
+    sortOrder: num(v.sortOrder),
+    description: v.description || undefined,
+    isActive: !!v.isActive,
+  }),
   validate: (v): Record<string, string> => (num(v.discountPercent) < 0 || num(v.discountPercent) > 100 ? { discountPercent: "Potongan harus 0 - 100" } : {}),
 };
 
-// ─── Wilayah & Sub Wilayah (no backend) ──────────────────────────────
+// ─── Wilayah & Sub Wilayah ─────────────────────────────────────────
 
 export const regionConfig: EntityConfig = {
   singular: "Wilayah", plural: "Daftar Wilayah", basePath: "/master/regions",
-  backendGap: ["seluruh modul Wilayah (kode, nama, keterangan)"],
-  codePrefix: "WIL", searchFields: ["code", "name"],
+  endpoint: "region", codePrefix: "WIL", searchFields: ["code", "name"],
   columns: [codeCol, { key: "Name", label: "Nama Wilayah" }, descCol(), statusCol],
   sections: [{
     title: "Data Wilayah",
@@ -252,36 +254,45 @@ export const regionConfig: EntityConfig = {
     ],
   }],
   defaults: { name: "", description: "", isActive: true },
-  fromRow: () => ({}), toPayload: () => ({}),
+  fromRow: (r) => ({ name: str(r.Name), description: str(r.Description), isActive: r.IsActive !== false }),
+  toPayload: (v) => ({ name: v.name.trim(), description: v.description || undefined, isActive: !!v.isActive }),
 };
 
 export const subRegionConfig: EntityConfig = {
   singular: "Sub Wilayah", plural: "Daftar Sub Wilayah", basePath: "/master/sub-regions",
-  backendGap: ["seluruh modul Sub Wilayah (kode, nama, wilayah induk, keterangan)"],
-  codePrefix: "SWL", searchFields: ["code", "name"],
-  columns: [codeCol, { key: "Name", label: "Nama Sub Wilayah" }, { key: "Region", label: "Wilayah", render: () => "-" }, descCol(), statusCol],
+  endpoint: "sub-region", codePrefix: "SWL", searchFields: ["code", "name"],
+  columns: [codeCol, { key: "Name", label: "Nama Sub Wilayah" }, { key: "Region", label: "Wilayah", render: (_v, r) => r.Region?.Name ?? "-" }, descCol(), statusCol],
   sections: [{
     title: "Data Sub Wilayah",
     fields: [
       { key: "name", label: "Nama Sub Wilayah", required: true },
-      { key: "regionId", label: "Wilayah", type: "select", options: [], placeholder: "Belum ada data wilayah", hint: "Wilayah induk dari sub wilayah ini." },
+      {
+        key: "regionId", label: "Wilayah", type: "select", required: true,
+        optionsFrom: { endpoint: "region", label: (r) => `${r.Code} - ${r.Name}` },
+        hint: "Wilayah induk dari sub wilayah ini.",
+      },
       { key: "description", label: "Keterangan", type: "textarea", rows: 3 },
       activeField,
     ],
   }],
   defaults: { name: "", regionId: "", description: "", isActive: true },
-  fromRow: () => ({}), toPayload: () => ({}),
+  fromRow: (r) => ({ name: str(r.Name), regionId: str(r.RegionID ?? ""), description: str(r.Description), isActive: r.IsActive !== false }),
+  toPayload: (v) => ({ name: v.name.trim(), regionId: Number(v.regionId), description: v.description || undefined, isActive: !!v.isActive }),
 };
 
-// ─── Diskon & Promosi (no backend) ───────────────────────────────────
+// ─── Promo ────────────────────────────────────────────────────────────
 
 export const promoConfig: EntityConfig = {
   singular: "Promo", plural: "Promo Periode", basePath: "/master/promotions",
-  backendGap: ["seluruh modul Promo (nama, jenis, nilai, target, grup pelanggan, periode)"],
-  codePrefix: "PRM", searchFields: ["code", "name"],
+  endpoint: "promotion", codePrefix: "PRM", searchFields: ["code", "name"],
   columns: [
-    codeCol, { key: "Name", label: "Nama Promo" }, { key: "Type", label: "Jenis" }, { key: "Value", label: "Nilai", align: "right" },
-    { key: "StartDate", label: "Dari" }, { key: "EndDate", label: "Sampai" }, statusCol,
+    codeCol, { key: "Name", label: "Nama Promo" },
+    { key: "Type", label: "Jenis" },
+    { key: "DiscountType", label: "Tipe Diskon" },
+    { key: "DiscountValue", label: "Nilai", align: "right", render: (v) => num(v).toLocaleString("id-ID") },
+    { key: "StartDate", label: "Dari", render: (v) => v ? new Date(v).toLocaleDateString("id-ID") : "-" },
+    { key: "EndDate", label: "Sampai", render: (v) => v ? new Date(v).toLocaleDateString("id-ID") : "-" },
+    statusCol,
   ],
   sections: [
     {
@@ -289,151 +300,251 @@ export const promoConfig: EntityConfig = {
       fields: [
         { key: "name", label: "Nama Promo", required: true },
         {
-          key: "type", label: "Jenis Potongan", type: "radio", inline: true,
-          options: [{ value: "percent", label: "Persen (%)" }, { value: "amount", label: "Nominal (Rp)" }, { value: "price", label: "Harga Khusus" }],
+          key: "type", label: "Jenis Promo", type: "select", required: true,
+          options: [
+            { value: "DISCOUNT", label: "Diskon" },
+            { value: "BOGO", label: "Beli 1 Gratis 1" },
+            { value: "GIFT", label: "Hadiah" },
+            { value: "BUY_GET", label: "Beli X Gratis Y" },
+          ],
         },
-        { key: "value", label: "Nilai", type: "number", required: true },
-        { key: "maxDiscount", label: "Maksimum Potongan (Rp)", type: "number", hint: "0 = tanpa batas." },
+        {
+          key: "discountType", label: "Tipe Diskon", type: "select", required: true,
+          options: [
+            { value: "PERCENTAGE", label: "Persen (%)" },
+            { value: "FIXED", label: "Nominal (Rp)" },
+          ],
+        },
+        { key: "discountValue", label: "Nilai Diskon", type: "number", required: true },
+        { key: "maxDiscountAmount", label: "Maksimum Potongan (Rp)", type: "number", hint: "0 = tanpa batas." },
         { key: "minPurchase", label: "Minimum Belanja (Rp)", type: "number", hint: "0 = tanpa minimum." },
-        { key: "customerGroup", label: "Grup Pelanggan", type: "select", options: [], placeholder: "Semua grup" },
+        { key: "usageLimit", label: "Batas Penggunaan", type: "number", hint: "0 = tanpa batas." },
         { key: "description", label: "Keterangan", type: "textarea", rows: 3, full: true },
         activeField,
       ],
     },
     {
-      title: "Periode & Target",
+      title: "Periode Promo",
       fields: [
         { key: "startDate", label: "Berlaku Dari", type: "date", required: true },
         { key: "endDate", label: "Berlaku Sampai", type: "date", required: true },
-        {
-          key: "days", label: "Hari Berlaku", type: "select",
-          options: [{ value: "all", label: "Setiap Hari" }, { value: "weekday", label: "Senin - Jumat" }, { value: "weekend", label: "Sabtu - Minggu" }],
-        },
-        {
-          key: "scope", label: "Berlaku Untuk", type: "radio", inline: true, full: true,
-          options: [{ value: "all", label: "Semua Item" }, { value: "category", label: "Jenis Tertentu" }, { value: "brand", label: "Merek Tertentu" }, { value: "item", label: "Item Tertentu" }],
-        },
-        { key: "target", label: "Target (kode jenis / merek / item)", placeholder: "Pisahkan dengan koma", full: true },
       ],
     },
   ],
   defaults: {
-    name: "", type: "percent", value: "0", maxDiscount: "0", minPurchase: "0", customerGroup: "", description: "", isActive: true,
-    startDate: "", endDate: "", days: "all", scope: "all", target: "",
+    name: "", type: "DISCOUNT", discountType: "PERCENTAGE", discountValue: "0", maxDiscountAmount: "0", minPurchase: "0",
+    usageLimit: "0", description: "", startDate: "", endDate: "", isActive: true,
   },
-  fromRow: () => ({}), toPayload: () => ({}),
+  fromRow: (r) => ({
+    name: str(r.Name),
+    type: str(r.Type),
+    discountType: str(r.DiscountType),
+    discountValue: str(r.DiscountValue ?? 0),
+    maxDiscountAmount: str(r.MaxDiscountAmount ?? 0),
+    minPurchase: str(r.MinPurchase ?? 0),
+    usageLimit: str(r.UsageLimit ?? 0),
+    description: str(r.Description),
+    startDate: r.StartDate ? new Date(r.StartDate).toISOString().split("T")[0] : "",
+    endDate: r.EndDate ? new Date(r.EndDate).toISOString().split("T")[0] : "",
+    isActive: r.IsActive !== false,
+  }),
+  toPayload: (v) => ({
+    name: v.name.trim(),
+    type: v.type,
+    discountType: v.discountType,
+    discountValue: num(v.discountValue),
+    maxDiscountAmount: num(v.maxDiscountAmount) || undefined,
+    minPurchase: num(v.minPurchase) || undefined,
+    usageLimit: v.usageLimit ? parseInt(v.usageLimit) : undefined,
+    description: v.description || undefined,
+    startDate: v.startDate,
+    endDate: v.endDate,
+    isActive: !!v.isActive,
+  }),
   validate: (v): Record<string, string> => (v.startDate && v.endDate && v.endDate < v.startDate ? { endDate: "Tanggal akhir tidak boleh sebelum tanggal awal" } : {}),
 };
 
 export const voucherConfig: EntityConfig = {
   singular: "Voucher", plural: "Voucher", basePath: "/master/vouchers",
-  backendGap: ["tanggal mulai / berakhir dan jenis voucher belum diterima API voucher"],
-  codePrefix: "VCR", searchFields: ["code", "name"],
+  endpoint: "voucher", codePrefix: "VCR", searchFields: ["code", "name"],
   columns: [
-    codeCol, { key: "Name", label: "Nama Voucher" }, { key: "Value", label: "Nilai", align: "right" },
-    { key: "EndDate", label: "Berakhir" }, { key: "UsedCount", label: "Terpakai", align: "right" }, statusCol,
+    codeCol, { key: "Name", label: "Nama Voucher" },
+    { key: "Type", label: "Tipe" },
+    { key: "Value", label: "Nilai", align: "right", render: (v) => num(v).toLocaleString("id-ID") },
+    { key: "MinPurchaseAmount", label: "Min. Belanja", align: "right", render: (v) => num(v).toLocaleString("id-ID") },
+    { key: "EndDate", label: "Berakhir", render: (v) => v ? new Date(v).toLocaleDateString("id-ID") : "-" },
+    { key: "UsedCount", label: "Terpakai", align: "right" },
+    statusCol,
   ],
   sections: [{
     title: "Data Voucher",
     fields: [
       { key: "name", label: "Nama Voucher", required: true },
-      { key: "type", label: "Jenis", type: "radio", inline: true, options: [{ value: "percent", label: "Persen (%)" }, { value: "amount", label: "Nominal (Rp)" }] },
+      {
+        key: "typeId", label: "Jenis", type: "select", required: true,
+        options: [{ value: "1", label: "Persen (%)" }, { value: "2", label: "Nominal (Rp)" }],
+      },
       { key: "value", label: "Nilai", type: "number", required: true },
-      { key: "minPurchase", label: "Minimum Belanja (Rp)", type: "number" },
-      { key: "maxDiscount", label: "Maksimum Potongan (Rp)", type: "number" },
+      { key: "minPurchaseAmount", label: "Minimum Belanja (Rp)", type: "number" },
+      { key: "maxDiscountAmount", label: "Maksimum Potongan (Rp)", type: "number" },
       { key: "usageLimit", label: "Batas Pemakaian", type: "number", hint: "0 = tanpa batas." },
       { key: "startDate", label: "Berlaku Dari", type: "date", required: true },
       { key: "endDate", label: "Berlaku Sampai", type: "date", required: true },
       activeField,
     ],
   }],
-  defaults: { name: "", type: "percent", value: "0", minPurchase: "0", maxDiscount: "0", usageLimit: "0", startDate: "", endDate: "", isActive: true },
-  fromRow: () => ({}), toPayload: () => ({}),
+  defaults: { name: "", typeId: "1", value: "0", minPurchaseAmount: "0", maxDiscountAmount: "0", usageLimit: "0", startDate: "", endDate: "", isActive: true },
+  fromRow: (r: any) => ({
+    name: str(r.Name),
+    typeId: str(r.TypeID ?? "1"),
+    value: str(r.Value ?? 0),
+    minPurchaseAmount: str(r.MinPurchaseAmount ?? 0),
+    maxDiscountAmount: str(r.MaxDiscountAmount ?? 0),
+    usageLimit: str(r.UsageLimit ?? 0),
+    startDate: r.StartDate ? new Date(r.StartDate).toISOString().split("T")[0] : "",
+    endDate: r.EndDate ? new Date(r.EndDate).toISOString().split("T")[0] : "",
+    isActive: r.IsActive !== false,
+  }),
+  toPayload: (v) => ({
+    name: v.name.trim(),
+    typeId: Number(v.typeId),
+    value: num(v.value),
+    minPurchaseAmount: num(v.minPurchaseAmount) || undefined,
+    maxDiscountAmount: num(v.maxDiscountAmount) || undefined,
+    usageLimit: v.usageLimit ? parseInt(v.usageLimit) : undefined,
+    startDate: v.startDate,
+    endDate: v.endDate,
+    isActive: !!v.isActive,
+  }),
   validate: (v): Record<string, string> => (v.startDate && v.endDate && v.endDate < v.startDate ? { endDate: "Tanggal akhir tidak boleh sebelum tanggal awal" } : {}),
 };
 
-// ─── Bank / E-Money / Ongkir (no backend) ────────────────────────────
+// ─── Bank ─────────────────────────────────────────────────────────────
 
 export const bankConfig: EntityConfig = {
   singular: "Bank", plural: "Daftar Bank", basePath: "/master/banks",
-  backendGap: ["seluruh modul Bank (nama, kartu debit / kredit, akun perkiraan, biaya)"],
-  codePrefix: "BNK", searchFields: ["code", "name"],
+  endpoint: "bank", codePrefix: "BNK", searchFields: ["code", "name"],
   columns: [
     codeCol, { key: "Name", label: "Nama Bank" },
-    { key: "Debit", label: "Kartu Debit", width: 110, render: (v) => (v ? "Ya" : "-") },
-    { key: "Credit", label: "Kartu Kredit", width: 110, render: (v) => (v ? "Ya" : "-") }, statusCol,
+    { key: "AccountNumber", label: "No. Rekening", width: 150, render: (v) => str(v) || "-" },
+    { key: "AccountName", label: "Atas Nama", render: (v) => str(v) || "-" },
+    { key: "Branch", label: "Cabang", render: (v) => str(v) || "-" },
+    statusCol,
   ],
   sections: [{
     title: "Data Bank",
     fields: [
       { key: "name", label: "Nama Bank", required: true },
-      { key: "account", label: "Akun Perkiraan", placeholder: "Kode akun kas / bank", hint: "Agar transaksi kartu otomatis memutasi akun ini." },
-      { key: "debit", label: "Bayar Kartu Debit", type: "checkbox", caption: "Bank ini dapat dipakai untuk kartu debit" },
-      { key: "credit", label: "Bayar Kartu Kredit", type: "checkbox", caption: "Bank ini dapat dipakai untuk kartu kredit" },
-      { key: "debitFee", label: "Biaya Debit (%)", type: "number" },
-      { key: "creditFee", label: "Biaya Kredit (%)", type: "number" },
-      activeField,
-    ],
-  }],
-  defaults: { name: "", account: "", debit: true, credit: false, debitFee: "0", creditFee: "0", isActive: true },
-  fromRow: () => ({}), toPayload: () => ({}),
-  validate: (v): Record<string, string> => (!v.debit && !v.credit ? { debit: "Pilih minimal satu jenis kartu (debit / kredit)" } : {}),
-};
-
-export const eMoneyConfig: EntityConfig = {
-  singular: "E-Money", plural: "Daftar E-Money", basePath: "/master/e-money",
-  backendGap: ["seluruh modul E-Money (nama, akun perkiraan, biaya)"],
-  codePrefix: "EMN", searchFields: ["code", "name"],
-  columns: [codeCol, { key: "Name", label: "Nama E-Money" }, { key: "Fee", label: "Biaya (%)", align: "right" }, statusCol],
-  sections: [{
-    title: "Data E-Money",
-    fields: [
-      { key: "name", label: "Nama E-Money", required: true, hint: "Contoh: GoPay, OVO, DANA, QRIS." },
-      { key: "account", label: "Akun Perkiraan", placeholder: "Kode akun kas / bank" },
-      { key: "fee", label: "Biaya (%)", type: "number" },
+      { key: "branch", label: "Cabang" },
+      { key: "accountNumber", label: "Nomor Rekening" },
+      { key: "accountName", label: "Atas Nama Rekening" },
       { key: "description", label: "Keterangan", type: "textarea", rows: 3 },
       activeField,
     ],
   }],
-  defaults: { name: "", account: "", fee: "0", description: "", isActive: true },
-  fromRow: () => ({}), toPayload: () => ({}),
+  defaults: { name: "", branch: "", accountNumber: "", accountName: "", description: "", isActive: true },
+  fromRow: (r) => ({
+    name: str(r.Name),
+    branch: str(r.Branch),
+    accountNumber: str(r.AccountNumber),
+    accountName: str(r.AccountName),
+    description: str(r.Description),
+    isActive: r.IsActive !== false,
+  }),
+  toPayload: (v) => ({
+    name: v.name.trim(),
+    branch: v.branch || undefined,
+    accountNumber: v.accountNumber || undefined,
+    accountName: v.accountName || undefined,
+    description: v.description || undefined,
+    isActive: !!v.isActive,
+  }),
+};
+
+export const eMoneyConfig: EntityConfig = {
+  singular: "E-Money", plural: "Daftar E-Money", basePath: "/master/e-money",
+  endpoint: "e-money", codePrefix: "EMN", searchFields: ["code", "name"],
+  columns: [
+    codeCol, { key: "Name", label: "Nama E-Money" },
+    { key: "AccountNumber", label: "No. Akun", width: 150, render: (v) => str(v) || "-" },
+    { key: "AccountName", label: "Atas Nama", render: (v) => str(v) || "-" },
+    statusCol,
+  ],
+  sections: [{
+    title: "Data E-Money",
+    fields: [
+      { key: "name", label: "Nama E-Money", required: true, hint: "Contoh: GoPay, OVO, DANA, QRIS." },
+      { key: "accountNumber", label: "Nomor Akun" },
+      { key: "accountName", label: "Atas Nama Akun" },
+      { key: "description", label: "Keterangan", type: "textarea", rows: 3 },
+      activeField,
+    ],
+  }],
+  defaults: { name: "", accountNumber: "", accountName: "", description: "", isActive: true },
+  fromRow: (r) => ({
+    name: str(r.Name),
+    accountNumber: str(r.AccountNumber),
+    accountName: str(r.AccountName),
+    description: str(r.Description),
+    isActive: r.IsActive !== false,
+  }),
+  toPayload: (v) => ({
+    name: v.name.trim(),
+    accountNumber: v.accountNumber || undefined,
+    accountName: v.accountName || undefined,
+    description: v.description || undefined,
+    isActive: !!v.isActive,
+  }),
 };
 
 export const shippingConfig: EntityConfig = {
-  singular: "Ongkir", plural: "Daftar Ongkir", basePath: "/master/shipping-costs", hasCode: false,
-  backendGap: ["seluruh modul Ongkir (expedisi, kota asal / tujuan, paket 1-3)"],
-  codePrefix: "ONG", searchFields: ["expedition", "destination"], searchPlaceholder: "Cari expedisi / kota tujuan",
+  singular: "Ongkir", plural: "Daftar Ongkir", basePath: "/master/shipping-costs",
+  endpoint: "shipping-cost", codePrefix: "ONG", searchFields: ["code", "name"],
   columns: [
-    { key: "Expedition", label: "Expedisi" }, { key: "Origin", label: "Dari Kota" }, { key: "Destination", label: "Kota Tujuan" },
-    { key: "Package1", label: "Paket 1", align: "right" }, { key: "Package2", label: "Paket 2", align: "right" }, { key: "Package3", label: "Paket 3", align: "right" },
+    codeCol, { key: "Name", label: "Nama Expedisi" },
+    { key: "Region", label: "Region", render: (_v, r) => r.Region?.Name ?? "-" },
+    { key: "SubRegion", label: "Sub Region", render: (_v, r) => r.SubRegion?.Name ?? "-" },
+    { key: "Cost", label: "Tarif (Rp)", align: "right", render: (v) => num(v).toLocaleString("id-ID") },
+    { key: "EstimatedDays", label: "Estimasi (Hari)", align: "right", render: (v) => v ? `${v} hari` : "-" },
+    statusCol,
   ],
-  sections: [
-    {
-      title: "Data Ongkir",
-      fields: [
-        { key: "expedition", label: "Expedisi", required: true, placeholder: "mis. JNE, J&T, SiCepat" },
-        { key: "origin", label: "Dari Kota" },
-        { key: "destination", label: "Kota Tujuan", required: true },
-        { key: "estimate", label: "Estimasi (hari)", type: "number" },
-        { key: "description", label: "Keterangan", type: "textarea", rows: 2, full: true },
-      ],
-    },
-    {
-      title: "Paket & Tarif",
-      note: null,
-      fields: [
-        { key: "package1Name", label: "Nama Paket 1", placeholder: "REG", hint: "Paket paling murah, mis. REG (Reguler)." },
-        { key: "package1", label: "Tarif Paket 1 (Rp / kg)", type: "number" },
-        { key: "package2Name", label: "Nama Paket 2", placeholder: "YES", hint: "Paket lebih cepat sampai, mis. YES." },
-        { key: "package2", label: "Tarif Paket 2 (Rp / kg)", type: "number" },
-        { key: "package3Name", label: "Nama Paket 3", placeholder: "Express", hint: "Paket paling cepat. Tidak semua paket harus diisi." },
-        { key: "package3", label: "Tarif Paket 3 (Rp / kg)", type: "number" },
-      ],
-    },
-  ],
-  defaults: {
-    expedition: "", origin: "", destination: "", estimate: "", description: "",
-    package1Name: "", package1: "0", package2Name: "", package2: "0", package3Name: "", package3: "0",
-  },
-  fromRow: () => ({}), toPayload: () => ({}),
+  sections: [{
+    title: "Data Ongkir",
+    fields: [
+      { key: "name", label: "Nama Expedisi", required: true, hint: "Contoh: JNE, J&T, SiCepat, Pos Indonesia" },
+      {
+        key: "regionId", label: "Region/Wilayah", type: "select",
+        optionsFrom: { endpoint: "region", label: (r: any) => `${r.Code} - ${r.Name}` },
+        hint: "Wilayah tujuan expedisi",
+      },
+      {
+        key: "subRegionId", label: "Sub Region", type: "select",
+        optionsFrom: { endpoint: "sub-region", label: (r: any) => `${r.Code} - ${r.Name}` },
+        hint: "Sub wilayah tujuan expedisi",
+      },
+      { key: "cost", label: "Tarif (Rp)", type: "number", required: true },
+      { key: "estimatedDays", label: "Estimasi Pengiriman (Hari)", type: "number" },
+      { key: "description", label: "Keterangan", type: "textarea", rows: 3 },
+      activeField,
+    ],
+  }],
+  defaults: { name: "", regionId: "", subRegionId: "", cost: "0", estimatedDays: "0", description: "", isActive: true },
+  fromRow: (r) => ({
+    name: str(r.Name),
+    regionId: str(r.RegionID ?? ""),
+    subRegionId: str(r.SubRegionID ?? ""),
+    cost: str(r.Cost ?? 0),
+    estimatedDays: str(r.EstimatedDays ?? 0),
+    description: str(r.Description),
+    isActive: r.IsActive !== false,
+  }),
+  toPayload: (v) => ({
+    name: v.name.trim(),
+    regionId: v.regionId ? Number(v.regionId) : undefined,
+    subRegionId: v.subRegionId ? Number(v.subRegionId) : undefined,
+    cost: num(v.cost),
+    estimatedDays: v.estimatedDays ? parseInt(v.estimatedDays) : undefined,
+    description: v.description || undefined,
+    isActive: !!v.isActive,
+  }),
 };

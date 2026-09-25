@@ -1,79 +1,180 @@
 "use client";
 
-// Proses Tutup Tahun: menutup akun pendapatan/biaya ke Laba Ditahan lewat jurnal penutup.
+// Year Close - Tutup Tahun Buku
 
-import { useCallback, useEffect, useState } from "react";
-import { KCard, KInfoBox, KSelect } from "@/components/kform";
-import { fmt, fmtDate } from "@/components/kform/erp";
-import { ConfirmModal } from "@/components/ui/Modal";
+import { useEffect, useState } from "react";
+import { Lock, Unlock, AlertTriangle } from "lucide-react";
+import { KCard, KInfoBox, KRow, KSelect } from "@/components/kform";
+import { KReadOnly, fmt, nowLocal } from "@/components/kform/erp";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { api } from "@/lib/api-client";
+import { cn } from "@/lib/utils";
 
-interface YearRow { year: number; finished: boolean; closed: boolean; closedAt: string | null; journalCode: string | null; netIncome: number }
-interface Status { currentYear: number; retainedAccountID: number | null; years: YearRow[] }
+interface FiscalYear {
+  year: number;
+  startDate: string;
+  endDate: string;
+  isLocked: boolean;
+  totalRevenue: number;
+  totalExpenses: number;
+  netIncome: number;
+}
 
 export default function YearClosePage() {
-  const [status, setStatus] = useState<Status | null>(null);
-  const [year, setYear] = useState("");
-  const [confirm, setConfirm] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [years, setYears] = useState<FiscalYear[]>([]);
+  const [selectedYear, setSelectedYear] = useState("");
+  const [closingDate, setClosingDate] = useState(nowLocal().split("T")[0]);
+  const [createOpening, setCreateOpening] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  const load = useCallback(async () => {
-    try {
-      const r = await api.request<Status>("GET", "fiscal-year");
-      if (r.success && r.data) setStatus(r.data);
-    } catch (e) { setMsg({ ok: false, text: (e as Error).message || "Gagal memuat status" }); }
+  useEffect(() => {
+    loadYears();
   }, []);
-  useEffect(() => { load(); }, [load]);
 
-  const open = (status?.years ?? []).filter((y) => y.finished && !y.closed);
-  const sel = status?.years.find((y) => String(y.year) === year);
-
-  const run = async () => {
-    setConfirm(false); setBusy(true); setMsg(null);
+  const loadYears = async () => {
+    setLoading(true);
     try {
-      const r = await api.post<{ year: number; netIncome: number }>("fiscal-year/close", { year: Number(year) });
-      if (r.success) { setMsg({ ok: true, text: `Tutup tahun ${year} selesai. Laba/rugi bersih ${fmt(r.data?.netIncome ?? 0)} dipindahkan ke Laba Ditahan.` }); setYear(""); await load(); }
-      else setMsg({ ok: false, text: r.message || "Gagal menutup tahun" });
-    } catch (e) { setMsg({ ok: false, text: (e as Error).message || "Gagal menutup tahun" }); } finally { setBusy(false); }
+      const r = await api.get<FiscalYear[]>("business-logic/accounting/fiscal-years");
+      setYears(r.data || []);
+      if (r.data && r.data.length > 0) {
+        // Find first unlocked year
+        const unlocked = r.data.find(y => !y.isLocked);
+        if (unlocked) setSelectedYear(String(unlocked.year));
+        else if (r.data.length > 0) setSelectedYear(String(r.data[0].year));
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleClose = async () => {
+    if (!selectedYear) return;
+    if (!confirm(`Tutup tahun ${selectedYear}? Actions cannot be undone.`)) return;
+
+    setProcessing(true);
+    setMessage(null);
+    try {
+      const r = await api.post("business-logic/accounting/year-close", {
+        fiscalYear: parseInt(selectedYear),
+        closingDate: closingDate,
+        createOpeningEntries: createOpening,
+      });
+      if (r.success) {
+        setMessage({ type: "success", text: r.message || `Tahun ${selectedYear} berhasil ditutup` });
+        await loadYears();
+      } else {
+        setMessage({ type: "error", text: r.message || "Gagal menutup tahun" });
+      }
+    } catch (e: any) {
+      setMessage({ type: "error", text: e.message || "Terjadi kesalahan" });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const selectedYearData = years.find(y => y.year === parseInt(selectedYear));
+  const yearOpts = years.map(y => ({
+    value: String(y.year),
+    label: `${y.year} ${y.isLocked ? "(Tertutup)" : ""}`,
+  }));
 
   return (
     <PageWrapper>
       <KCard>
-        <KInfoBox variant="warning" title="Penting" items={[
-          "Proses ini dilakukan hanya satu kali pada akhir tahun akuntansi. Jangan tutup tahun bila belum akhir tahun.",
-          "Bila tahun sudah berganti tetapi belum tutup tahun, proses untuk tahun yang lalu tetap dapat dilakukan.",
-          "Proses membuat jurnal penutup yang menolkan akun pendapatan dan biaya, lalu memindahkan laba/rugi ke akun Laba Ditahan (Setting Perkiraan).",
+        {message && (
+          <div className={cn("mb-4 rounded px-4 py-3 text-sm", message.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700")}>
+            {message.text}
+          </div>
+        )}
+
+        <KInfoBox variant="warning" title="Peringatan" items={[
+          "Tutup tahun akan mengunci semua transaksi untuk tahun yang dipilih.",
+          "Data yang sudah dikunci TIDAK DAPAT diedit atau dihapus.",
+          "Pastikan semua jurnal dan transaksi sudah benar sebelum menutup tahun.",
+          "Net income akan dipindahkan ke saldo laba ditahan (retained earnings).",
         ]} />
-        {status && !status.retainedAccountID && <p className="mb-3 text-sm text-danger">Akun &quot;Laba Ditahan&quot; belum diatur di Setting Perkiraan.</p>}
-        <div className="max-w-[360px]">
-          <KSelect label="Tahun yang ditutup" value={year} onChange={setYear} placeholder="Pilih tahun..." options={open.map((y) => ({ value: y.year, label: String(y.year) }))} />
-          {sel && <p className="mb-3 text-sm text-[#3a4654]">Laba/rugi bersih tahun {sel.year}: <b>{fmt(sel.netIncome)}</b></p>}
-          <button type="button" disabled={!year || busy || !status?.retainedAccountID} onClick={() => setConfirm(true)} className="h-10 rounded bg-[#4caf50] px-6 text-white hover:bg-[#43a047] disabled:opacity-60">{busy ? "Memproses..." : "Proses"}</button>
-          {msg && <p className={`mt-3 text-sm ${msg.ok ? "text-[#2e7d32]" : "text-danger"}`}>{msg.text}</p>}
-        </div>
-        <h3 className="mb-2 mt-6 font-semibold">Status Tahun Buku</h3>
-        <div className="border border-[#c9d0d8]">
-          <table className="w-full text-[13px]">
-            <thead><tr className="border-b border-[#c9d0d8] bg-[#f5f6f8]"><th className="px-2 py-2 text-left font-medium">Tahun</th><th className="px-2 py-2 text-left font-medium">Status</th><th className="px-2 py-2 text-right font-medium">Laba/Rugi Bersih</th><th className="px-2 py-2 text-left font-medium">Ditutup</th><th className="px-2 py-2 text-left font-medium">Jurnal</th></tr></thead>
-            <tbody>
-              {(status?.years ?? []).map((y) => (
-                <tr key={y.year} className="border-b border-[#eceff2]">
-                  <td className="px-2 py-1">{y.year}</td>
-                  <td className="px-2 py-1">{y.closed ? "Sudah ditutup" : y.finished ? "Belum ditutup" : "Berjalan"}</td>
-                  <td className="px-2 py-1 text-right">{fmt(y.netIncome)}</td>
-                  <td className="px-2 py-1">{y.closedAt ? fmtDate(y.closedAt) : "-"}</td>
-                  <td className="px-2 py-1 font-mono text-xs">{y.journalCode ?? "-"}</td>
-                </tr>
-              ))}
-              {!status?.years.length && <tr><td colSpan={5} className="py-6 text-center text-[#9aa3ad]">No data</td></tr>}
-            </tbody>
-          </table>
-        </div>
+
+        {loading ? (
+          <div className="py-8 text-center text-gray-500">Memuat data...</div>
+        ) : years.length === 0 ? (
+          <div className="py-8 text-center text-gray-500">Tidak ada data tahun fiskal</div>
+        ) : (
+          <>
+            <KRow cols={3}>
+              <KSelect label="Tahun Fiskal" value={selectedYear} onChange={setSelectedYear} options={yearOpts} />
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Tanggal Penutupan</label>
+                <input type="date" className="h-9 w-full rounded border border-[#cfd4da] px-3"
+                  value={closingDate} onChange={e => setClosingDate(e.target.value)} />
+              </div>
+              <div className="flex items-center gap-2 pt-6">
+                <input type="checkbox" id="createOpening" checked={createOpening}
+                  onChange={e => setCreateOpening(e.target.checked)} className="size-4" />
+                <label htmlFor="createOpening" className="text-sm">Buat saldo awal tahun baru</label>
+              </div>
+            </KRow>
+
+            {selectedYearData && (
+              <div className="mt-6 overflow-hidden rounded-lg border border-[#c9d0d8]">
+                <table className="w-full text-[13px]">
+                  <thead>
+                    <tr className="border-b border-[#c9d0d8] bg-[#f5f6f8]">
+                      <th colSpan={2} className="px-4 py-3 text-left font-semibold">Ringkasan Tahun {selectedYearData.year}</th>
+                      <th className="px-4 py-3 text-right font-semibold">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#eceff2]">
+                    <tr>
+                      <td className="px-4 py-2 text-gray-600">Total Pendapatan</td>
+                      <td className="px-4 py-2 text-right font-medium text-green-600">{fmt(selectedYearData.totalRevenue)}</td>
+                      <td rowSpan={4} className="px-4 py-2 text-center align-middle">
+                        {selectedYearData.isLocked ? (
+                          <span className="inline-flex items-center gap-1 rounded bg-red-100 px-3 py-1 text-sm font-medium text-red-700">
+                            <Lock className="size-4" /> Tertutup
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded bg-green-100 px-3 py-1 text-sm font-medium text-green-700">
+                            <Unlock className="size-4" /> Terbuka
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-2 text-gray-600">Total Beban</td>
+                      <td className="px-4 py-2 text-right font-medium text-red-600">{fmt(selectedYearData.totalExpenses)}</td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-2 text-gray-600">Laba/Rugi Bersih</td>
+                      <td className={cn("px-4 py-2 text-right font-bold text-lg", selectedYearData.netIncome >= 0 ? "text-green-600" : "text-red-600")}>
+                        {fmt(selectedYearData.netIncome)}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-2 text-gray-600">Periode</td>
+                      <td className="px-4 py-2 text-right">
+                        {new Date(selectedYearData.startDate).toLocaleDateString("id-ID")} - {new Date(selectedYearData.endDate).toLocaleDateString("id-ID")}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {!selectedYearData?.isLocked && selectedYearData && (
+              <div className="mt-6 flex items-center justify-end gap-3">
+                <button type="button" onClick={() => void handleClose()} disabled={processing}
+                  className="inline-flex h-10 items-center gap-2 rounded bg-[#f44336] px-6 text-white hover:bg-[#e53935] disabled:opacity-60">
+                  {processing ? "Memproses..." : "Tutup Tahun"}
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </KCard>
-      <ConfirmModal open={confirm} onClose={() => setConfirm(false)} onConfirm={run} title="Proses Tutup Tahun" message={`Tutup tahun akuntansi ${year}? Proses ini tidak dapat dibatalkan.`} confirmText="Proses" variant="danger" />
     </PageWrapper>
   );
 }

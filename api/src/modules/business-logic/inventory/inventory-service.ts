@@ -8,11 +8,158 @@ import {
   StockOpNameDto,
   StockReportDto,
   ValuationReportDto,
+  CreateOpeningStockDto,
+  FixBalanceDto,
 } from './inventory.dto';
 
 @Injectable()
 export class InventoryService {
   constructor(private prisma: PrismaService) {}
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // OPENING STOCK
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Initialize Opening Stock for products in a warehouse
+   * Flow: Owner input stok awal barang saat pertama kali menggunakan sistem
+   */
+  async createOpeningStock(dto: CreateOpeningStockDto, UserId: string) {
+    // Validate Warehouse
+    const warehouse = await this.prisma.warehouse.findUnique({
+      where: { ID: dto.WarehouseId },
+    });
+
+    if (!warehouse) throw new NotFoundException('Warehouse not found');
+
+    // Generate opening stock code
+    const code = await this.generateOpeningStockCode();
+
+    // Calculate totals
+    const totalValue = dto.Items.reduce((sum, item) => sum + (item.Quantity * item.UnitCost), 0);
+
+    // Get or create inventory account for journal entry
+    const inventoryAccountSetting = await this.prisma.accountSetting.findUnique({
+      where: { Key: 'inventory' },
+    });
+
+    if (!inventoryAccountSetting?.AccountID) {
+      throw new BadRequestException('Account Setting "inventory" belum dikonfigurasi. Silakan setup di Pengaturan Akun.');
+    }
+
+    // Get stock-in account for journal
+    const stockInAccountSetting = await this.prisma.accountSetting.findUnique({
+      where: { Key: 'stockIn' },
+    });
+
+    // Execute in transaction
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Create Stock In record
+      const stockIn = await tx.stockIn.create({
+        data: {
+          Code: code,
+          Date: new Date(),
+          WarehouseID: dto.WarehouseId,
+          SupplierID: null,
+          TotalItems: new Prisma.Decimal(totalValue),
+          Description: dto.Notes || `Opening Stock - ${warehouse.Name}`,
+          StatusID: 1,
+          CreatedByID: UserId,
+          StockInItems: {
+            create: dto.Items.map((item, index) => ({
+              ProductID: item.ProductId,
+              Quantity: new Prisma.Decimal(item.Quantity),
+              UnitID: 1,
+              UnitPrice: new Prisma.Decimal(item.UnitCost),
+              Subtotal: new Prisma.Decimal(item.Quantity * item.UnitCost),
+            })),
+          },
+        },
+        include: {
+          StockInItems: { include: { Product: true } },
+        },
+      });
+
+      // Create or update product stocks
+      for (const item of dto.Items) {
+        await tx.productStock.upsert({
+          where: {
+            ProductID_WarehouseID: {
+              ProductID: item.ProductId,
+              WarehouseID: dto.WarehouseId,
+            },
+          },
+          update: {
+            Quantity: { increment: new Prisma.Decimal(item.Quantity) },
+          },
+          create: {
+            ProductID: item.ProductId,
+            WarehouseID: dto.WarehouseId,
+            Quantity: new Prisma.Decimal(item.Quantity),
+            MinimumStock: new Prisma.Decimal(0),
+          },
+        });
+      }
+
+      // Create journal entry for opening stock (if accounts are configured)
+      let journalCode: string | null = null;
+      if (inventoryAccountSetting?.AccountID && stockInAccountSetting?.AccountID) {
+        const journalNumber = await this.generateJournalCode(tx);
+        const journalEntry = await tx.journalEntry.create({
+          data: {
+            JournalNumber: journalNumber,
+            Date: new Date(),
+            Reference: code,
+            Description: dto.Notes || `Opening Stock - ${warehouse.Name}`,
+            SourceDocumentID: stockIn.ID,
+            SourceDocumentType: 'STOCK_IN',
+            TotalDebit: new Prisma.Decimal(totalValue),
+            TotalCredit: new Prisma.Decimal(totalValue),
+            CreatedByID: UserId,
+            Lines: {
+              create: [
+                {
+                  AccountID: inventoryAccountSetting.AccountID,
+                  DebitCredit: 'DEBIT',
+                  Amount: new Prisma.Decimal(totalValue),
+                  Description: `Persediaan Barang - ${warehouse.Name}`,
+                  LineNumber: 1,
+                },
+                {
+                  AccountID: stockInAccountSetting.AccountID,
+                  DebitCredit: 'KREDIT',
+                  Amount: new Prisma.Decimal(totalValue),
+                  Description: `Opening Stock - ${warehouse.Name}`,
+                  LineNumber: 2,
+                },
+              ],
+            },
+          },
+        });
+        journalCode = journalNumber;
+      }
+
+      return { stockIn, journalCode };
+    });
+
+    return {
+      success: true,
+      openingStock: {
+        code: code,
+        warehouse: warehouse.Name,
+        itemCount: dto.Items.length,
+        totalValue: totalValue,
+        journalCode: result.journalCode,
+        items: result.stockIn.StockInItems.map((item) => ({
+          productCode: item.Product.Code,
+          productName: item.Product.Name,
+          quantity: Number(item.Quantity),
+          unitCost: Number(item.UnitPrice),
+          subtotal: Number(item.Subtotal),
+        })),
+      },
+    };
+  }
 
   // ─────────────────────────────────────────────────────────────────────────────
   // STOCK TRANSFER
@@ -502,6 +649,116 @@ export class InventoryService {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
+  // FIX BALANCE
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Fix Stock Balance - Correct discrepancies between system and actual stock
+   * Flow: Owner/kasir perbaiki saldo stok yang tidak sesuai
+   */
+  async fixBalance(dto: FixBalanceDto, UserId: string) {
+    // Validate Warehouse
+    const warehouse = await this.prisma.warehouse.findUnique({
+      where: { ID: dto.WarehouseId },
+    });
+
+    if (!warehouse) throw new NotFoundException('Warehouse not found');
+
+    const Code = await this.generateFixBalanceCode();
+    const fixedItems: any[] = [];
+    const totalAdjustment = { positive: 0, negative: 0 };
+
+    await this.prisma.$transaction(async (tx) => {
+      // Create Stock Adjustment record for audit trail
+      const stockOut = await tx.stockOut.create({
+        data: {
+          Code: Code,
+          Date: new Date(),
+          WarehouseID: dto.WarehouseId,
+          TotalItems: new Prisma.Decimal(0),
+          Description: dto.Notes || 'Stock Balance Correction',
+          StatusID: 1,
+          CreatedByID: UserId,
+        },
+      });
+
+      for (const item of dto.Items) {
+        const difference = item.ActualStock - item.CurrentStock;
+
+        if (difference === 0) continue; // No change needed
+
+        // Get product info
+        const product = await tx.product.findUnique({
+          where: { ID: item.ProductId },
+        });
+
+        if (!product) continue;
+
+        // Update stock to actual value
+        await tx.productStock.update({
+          where: {
+            ProductID_WarehouseID: {
+              ProductID: item.ProductId,
+              WarehouseID: dto.WarehouseId,
+            },
+          },
+          data: { Quantity: new Prisma.Decimal(item.ActualStock) },
+        }).catch(() => {
+          return tx.productStock.create({
+            data: {
+              ProductID: item.ProductId,
+              WarehouseID: dto.WarehouseId,
+              Quantity: new Prisma.Decimal(item.ActualStock),
+              MinimumStock: new Prisma.Decimal(product.MinimumStock || 0),
+            },
+          });
+        });
+
+        // Create stock out item for adjustment (negative = reduce, positive = add)
+        if (difference !== 0) {
+          await tx.stockOutItem.create({
+            data: {
+              StockOutID: stockOut.ID,
+              ProductID: item.ProductId,
+              Quantity: new Prisma.Decimal(Math.abs(difference)),
+              UnitID: 1,
+              UnitPrice: new Prisma.Decimal(product.PurchasePrice || 0),
+              Subtotal: new Prisma.Decimal(Math.abs(difference) * Number(product.PurchasePrice || 0)),
+            },
+          });
+        }
+
+        // Track adjustments
+        if (difference > 0) totalAdjustment.positive += difference;
+        else totalAdjustment.negative += Math.abs(difference);
+
+        fixedItems.push({
+          productId: item.ProductId,
+          productCode: product.Code,
+          productName: product.Name,
+          previousStock: item.CurrentStock,
+          newStock: item.ActualStock,
+          adjustment: difference,
+          notes: item.Notes,
+        });
+      }
+    });
+
+    return {
+      success: true,
+      fixBalance: {
+        code: Code,
+        warehouse: warehouse.Name,
+        itemCount: fixedItems.length,
+        totalPositive: totalAdjustment.positive,
+        totalNegative: totalAdjustment.negative,
+        notes: dto.Notes,
+        items: fixedItems,
+      },
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
   // HELPER METHODS
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -569,6 +826,75 @@ export class InventoryService {
     let nextNumber = 1;
     if (lastOpName) {
       const lastSeq = parseInt(lastOpName.Code.split('-').pop() || '0', 10);
+      nextNumber = lastSeq + 1;
+    }
+
+    return `${prefix}-${String(nextNumber).padStart(4, '0')}`;
+  }
+
+  private async generateOpeningStockCode(): Promise<string> {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const prefix = `OPS-${year}${month}`;
+
+    const lastRecord = await this.prisma.stockIn.findFirst({
+      where: {
+        Code: { startsWith: prefix },
+        Description: { contains: 'Opening Stock' },
+      },
+      orderBy: { Code: 'desc' },
+      select: { Code: true },
+    });
+
+    let nextNumber = 1;
+    if (lastRecord) {
+      const lastSeq = parseInt(lastRecord.Code.split('-').pop() || '0', 10);
+      nextNumber = lastSeq + 1;
+    }
+
+    return `${prefix}-${String(nextNumber).padStart(4, '0')}`;
+  }
+
+  private async generateJournalCode(tx: any): Promise<string> {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const prefix = `JE-${year}${month}`;
+
+    const lastEntry = await tx.journalEntry.findFirst({
+      where: { JournalNumber: { startsWith: prefix } },
+      orderBy: { JournalNumber: 'desc' },
+      select: { JournalNumber: true },
+    });
+
+    let nextNumber = 1;
+    if (lastEntry) {
+      const lastSeq = parseInt(lastEntry.JournalNumber.split('-').pop() || '0', 10);
+      nextNumber = lastSeq + 1;
+    }
+
+    return `${prefix}-${String(nextNumber).padStart(4, '0')}`;
+  }
+
+  private async generateFixBalanceCode(): Promise<string> {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const prefix = `FIX-${year}${month}`;
+
+    const lastRecord = await this.prisma.stockOut.findFirst({
+      where: {
+        Code: { startsWith: prefix },
+        Description: { contains: 'Stock Balance Correction' },
+      },
+      orderBy: { Code: 'desc' },
+      select: { Code: true },
+    });
+
+    let nextNumber = 1;
+    if (lastRecord) {
+      const lastSeq = parseInt(lastRecord.Code.split('-').pop() || '0', 10);
       nextNumber = lastSeq + 1;
     }
 
