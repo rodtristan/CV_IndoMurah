@@ -36,3 +36,6 @@ dist/
 build/
 *.tsbuildinfo
 *.dump
+
+# build uji lokal
+/dist-*
