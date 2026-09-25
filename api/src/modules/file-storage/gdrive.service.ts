@@ -78,7 +78,7 @@ export class GDriveService {
       data,
       Buffer.from(`\r\n--${boundary}--`),
     ]);
-    const res = await this.api('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+    const res = await this.api('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id&supportsAllDrives=true', {
       method: 'POST',
       headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
       body,
@@ -94,13 +94,13 @@ export class GDriveService {
   /** Ambil isi file; hanya file di dalam folder aset kita yang boleh dibaca. */
   async download(id: string): Promise<{ mimeType: string; data: Buffer }> {
     const parent = await this.folder();
-    const metaRes = await this.api(`https://www.googleapis.com/drive/v3/files/${id}?fields=mimeType,parents,trashed`);
+    const metaRes = await this.api(`https://www.googleapis.com/drive/v3/files/${id}?fields=mimeType,parents,trashed&supportsAllDrives=true`);
     if (!metaRes.ok) throw new NotFoundException('File tidak ditemukan');
     const meta: any = await metaRes.json();
     if (meta.trashed || !meta.parents?.includes(parent) || !String(meta.mimeType).startsWith('image/')) {
       throw new NotFoundException('File tidak ditemukan');
     }
-    const res = await this.api(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`);
+    const res = await this.api(`https://www.googleapis.com/drive/v3/files/${id}?alt=media&supportsAllDrives=true`);
     if (!res.ok) throw new NotFoundException('File tidak ditemukan');
     return { mimeType: meta.mimeType, data: Buffer.from(await res.arrayBuffer()) };
   }
