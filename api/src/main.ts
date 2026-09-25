@@ -80,6 +80,10 @@ async function bootstrap() {
     credentials: true,
   });
 
+  // Upload file (Report Design: gambar/logo → Google Drive), maks 2 MB
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  await app.register(require('@fastify/multipart'), { limits: { fileSize: 2 * 1024 * 1024, files: 1 } });
+
   // ── Langkah 5: Security headers via Helmet ────────────────────────
   await app.register(
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-require-imports

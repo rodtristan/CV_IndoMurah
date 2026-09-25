@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarClock, Columns, Hash, Image as ImageIcon, Link2, Minus, RectangleHorizontal, Sigma, SquareDashedBottom, Type } from "lucide-react";
+import { CalendarClock, Columns, Hash, Image as ImageIcon, Minus, RectangleHorizontal, Sigma, SquareDashedBottom, Type } from "lucide-react";
 import type { ReportElement, ReportFieldDef } from "@/lib/report/types";
 import { findElement, type BandKey, type DesignerApi } from "../useDesignerState";
 import { inputCls } from "../ui";
+import { ImageUpload } from "../ImageUpload";
 import { BigBtn, Group, Menu, MenuItem, MenuLabel, RBtn } from "./parts";
 
 const sm = { size: 16 } as const;
@@ -66,7 +67,6 @@ export function DateMenu({ d, big }: { d: DesignerApi; big?: boolean }) {
 
 export function InsertTab({ d, fields }: { d: DesignerApi; fields: ReportFieldDef[] }) {
   const [fieldKey, setFieldKey] = useState("");
-  const [imgUrl, setImgUrl] = useState("");
   const band = activeBand(d);
   const bandLabel = band === "footer" ? "Footer" : band === "pageHeader" ? "Header Halaman" : "Title";
 
@@ -94,19 +94,11 @@ export function InsertTab({ d, fields }: { d: DesignerApi; fields: ReportFieldDe
           title="Sisipkan text box berborder"
         />
         <BigBtn icon={<ImageIcon {...lg} />} label="Logo" onClick={() => d.addElement("image")} title="Sisipkan gambar logo perusahaan ({InfoReport.LogoUrl})" />
-        <Menu icon={<Link2 {...lg} />} label="Gambar URL" title="Sisipkan gambar dari URL" big width={260}>
+        <Menu icon={<ImageIcon {...lg} />} label="Unggah Gambar" title="Sisipkan gambar dari file" big width={240}>
           {(close) => (
             <div className="p-1">
-              <div className="mb-1 text-[11px] text-gray-500">URL gambar atau {"{InfoReport.LogoUrl}"}</div>
-              <input className={inputCls} placeholder="https://..." value={imgUrl} onChange={(e) => setImgUrl(e.target.value)} />
-              <button
-                type="button"
-                disabled={!imgUrl.trim()}
-                onClick={() => { d.addElement("image", { text: imgUrl.trim() }); close(); }}
-                className="mt-1.5 w-full rounded bg-[#1e4d8f] px-2 py-1 text-xs text-white disabled:opacity-40"
-              >
-                Sisipkan
-              </button>
+              <div className="mb-1 text-[11px] text-gray-500">PNG, JPG, GIF, atau WEBP (maks 2 MB)</div>
+              <ImageUpload onUploaded={(url) => { d.addElement("image", { text: url }); close(); }} />
             </div>
           )}
         </Menu>
