@@ -9,7 +9,7 @@ import { PageWrapper } from "@/components/layout/PageWrapper";
 import { api } from "@/lib/api-client";
 
 const ITEMS: [string, string][] = [
-  ["cash", "Kas Default"], ["inventory", "Persediaan Barang"], ["receivable", "Piutang Dagang"], ["payable", "Hutang Dagang"],
+  ["cash", "Kas Default"], ["bank", "Bank Default (transfer/EDC/cek/BG; opsional, kosong = Kas)"], ["inventory", "Persediaan Barang"], ["receivable", "Piutang Dagang"], ["payable", "Hutang Dagang"],
   ["sales", "Pendapatan Penjualan"], ["salesDiscount", "Potongan Penjualan"], ["cogs", "Harga Pokok Penjualan (HPP)"],
   ["salesReturn", "Retur Penjualan"], ["purchaseReturn", "Retur Pembelian"], ["vatOut", "PPN Keluaran"], ["vatIn", "PPN Masukan"],
   ["custDeposit", "Deposit Pelanggan"], ["suppDeposit", "Deposit Supplier"], ["shipping", "Biaya Kirim"], ["stockDiff", "Selisih Stok (Opname)"],
@@ -32,7 +32,7 @@ export default function AccountSettingsPage() {
   }, []);
 
   const opts = useMemo(() => accounts.map((a: Row) => ({ value: a.ID, label: `${a.Code} - ${a.Name}` })), [accounts]);
-  const missing = ITEMS.filter(([k]) => !vals[k]).length;
+  const missing = ITEMS.filter(([k]) => k !== "bank" && !vals[k]).length;
 
   const save = async () => {
     setSaving(true); setMsg(null);
@@ -47,7 +47,7 @@ export default function AccountSettingsPage() {
   return (
     <PageWrapper>
       <KCard>
-        <KInfoBox variant="warning" title="Penting"><span>Kode perkiraan menentukan jurnal otomatis dari transaksi. Ubah hanya bila Anda memahami akuntansi.{missing > 0 && ` Setting belum lengkap: ${missing} kode belum diisi.`}</span></KInfoBox>
+        <KInfoBox variant="warning" title="Penting"><span>Kode perkiraan menentukan jurnal otomatis dari transaksi (penjualan, pembelian, retur, pembayaran, kas, deposit). Transaksi ditolak bila kode yang dibutuhkan belum diisi. Ubah hanya bila Anda memahami akuntansi.{missing > 0 && ` Setting belum lengkap: ${missing} kode belum diisi.`}</span></KInfoBox>
         <div className="grid gap-x-8 lg:grid-cols-2">
           {ITEMS.map(([k, label]) => (
             <KSelect key={k} label={label} value={vals[k] ?? ""} onChange={(v) => { setVals((p) => ({ ...p, [k]: v })); setMsg(null); }} options={opts} />

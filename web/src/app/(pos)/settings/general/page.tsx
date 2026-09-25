@@ -193,7 +193,8 @@ export default function GeneralSettingsPage() {
                   options={[{ value: "hpp", label: "Pajak menjadi HPP" }, { value: "ppn", label: "Pajak masuk Akun PPN Masukan" }]} />
                 <KRadioGroup label="Opsi Biaya pada Transaksi (*)" value={l.transactionCostMode} onChange={(v) => setLc("transactionCostMode", v)} inline
                   options={[{ value: "add", label: "Ditambahkan ke total" }, { value: "none", label: "Tidak ditambahkan" }]} />
-                <KCheckbox label="Bisa Jual Stok Habis (*)" caption="Boleh menjual walau stok habis" checked={l.allowSellOutOfStock} onChange={(v) => setLc("allowSellOutOfStock", v)} />
+                <KInput label="Bisa Jual Stok Habis" value="Tidak" readOnly
+                  hint="Server selalu menolak penjualan yang melebihi stok gudang (stok tidak boleh minus)." />
                 <KCheckbox label="Transaksi Bisa input angka nol (*)" caption="Mis. jumlah item bernilai 0" checked={l.allowZeroInput} onChange={(v) => setLc("allowZeroInput", v)} />
                 <KCheckbox label="Tampil Konfirmasi ganti pelanggan pada penjualan (*)" caption="Ganti pelanggan dengan group potongan mengubah harga jual" checked={l.confirmChangeCustomer} onChange={(v) => setLc("confirmChangeCustomer", v)} />
                 <KNumber label="Jumlah Hari Jatuh Tempo (*)" value={l.dueDays} onChange={(v) => setLc("dueDays", v)} min={0} hint="Default jatuh tempo kredit Pembelian/Penjualan." />
@@ -217,6 +218,7 @@ export default function GeneralSettingsPage() {
             </KColumns>
           )}
         </div>
+        {tab !== "desimal" && <KInfoBox title="Keterangan" items={["Opsi bertanda (*) tersimpan di server sebagai preferensi, tetapi belum semuanya dipakai otomatis oleh proses transaksi."]} />}
         {tab === "desimal" && <KInfoBox title="Keterangan" items={["Digit desimal mengatur jumlah angka di belakang koma pada tampilan harga, jumlah, pajak dan potongan di semua transaksi."]} />}
         <KSaveBar onSave={save} saving={saving} />
       </Card>

@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { SalesPersonService } from './salesperson-service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
+import { CurrentUser } from '../../../common/decorators/current-user-decorator';
 import {
   CreateSalesPersonDto,
   UpDateSalesPersonDto,
@@ -16,7 +17,7 @@ export class SalesPersonController {
   @Post()
   async createSalesPerson(
     @Body() dto: CreateSalesPersonDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.salesPersonService.createSalesPerson(dto, userId);
   }
@@ -40,7 +41,7 @@ export class SalesPersonController {
   async updateSalesPerson(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpDateSalesPersonDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.salesPersonService.updateSalesPerson(id, dto, userId);
   }

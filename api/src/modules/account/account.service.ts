@@ -3,6 +3,7 @@ import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
 import { BaseService } from '../../common/templates/base.service';
+import { accountBalances } from '../../common/accounting/ledger';
 import { CreateAccountDto, UpdateAccountDto } from './dto/account.dto';
 
 @Injectable()
@@ -35,4 +36,24 @@ export class AccountService extends BaseService<
   // ═══════════════════════════════════════════════════════════════════
   // BUSINESS LOGIC METHODS
   // ═══════════════════════════════════════════════════════════════════
+
+  /**
+   * Account.Balance is NOT maintained on posting. The balance is always computed from the ledger
+   * (posted journal lines + opening balances — same definition as the finance reports) and overlaid
+   * on API responses, so every screen that shows Balance shows the ledger value.
+   */
+  async balances(asOf?: Date) {
+    const map = await accountBalances(this.prisma, asOf);
+    return [...map.values()];
+  }
+
+  async overlayBalance<T>(rows: T): Promise<T> {
+    const list: any[] = Array.isArray(rows) ? rows : rows ? [rows] : [];
+    if (!list.some((r) => r && typeof r === 'object' && 'ID' in r)) return rows;
+    const map = await accountBalances(this.prisma);
+    for (const r of list) {
+      if (r && typeof r === 'object' && 'ID' in r) r.Balance = map.get(r.ID)?.balance ?? 0;
+    }
+    return rows;
+  }
 }

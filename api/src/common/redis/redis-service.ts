@@ -53,6 +53,16 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return this.client;
   }
 
+  /** Untuk health check: true bila Redis siap & menjawab PING. */
+  async ping(): Promise<boolean> {
+    try {
+      if (!this.client || this.client.status !== 'ready') return false;
+      return (await this.client.ping()) === 'PONG';
+    } catch {
+      return false;
+    }
+  }
+
   /**
    * Get cached value by key
    */

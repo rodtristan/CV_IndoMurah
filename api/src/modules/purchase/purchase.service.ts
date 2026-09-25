@@ -3,9 +3,22 @@ import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
 import { NotificationService } from '../notification/notification.service';
+import { StockLedgerService } from '../../common/stock/stock-ledger.service';
+import { PartyBalanceService } from '../../common/stock/party-balance.service';
+import { AutoJournalService } from '../../common/accounting/auto-journal.service';
 import { Prisma } from '@prisma/client';
-import { CreatePurchaseDto, UpdatePurchaseDto, UpdateStatusDto } from './dto/purchase.dto';
+import { CreatePurchaseDto, CreatePurchaseItemDto, UpdatePurchaseDto, UpdateStatusDto } from './dto/purchase.dto';
 
+type Tx = Prisma.TransactionClient;
+const r2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
+
+/**
+ * Pembelian (faktur pembelian = barang diterima).
+ * Stok MASUK saat faktur disimpan (status DRAFT pun sudah final secara stok, sama seperti
+ * Ketoko: pembayaran/DP langsung dicatat pada faktur baru), dibalik saat CANCELLED atau dihapus.
+ * HPP produk (Product.PurchasePrice) = rata-rata tertimbang; harga masuk per satuan dasar =
+ * subtotal baris setelah diskon baris & pro-rata diskon faktur (tanpa PPN) / qty satuan dasar.
+ */
 @Injectable()
 export class PurchaseService {
   private readonly CACHE_PREFIX = 'purchases';
@@ -16,6 +29,9 @@ export class PurchaseService {
     private redis: RedisService,
     private queryService: QueryService,
     private notificationService: NotificationService,
+    private ledger: StockLedgerService,
+    private party: PartyBalanceService,
+    private journal: AutoJournalService,
   ) {}
 
   async findAll(query: Record<string, any>) {
@@ -84,111 +100,64 @@ export class PurchaseService {
   }
 
   async create(dto: CreatePurchaseDto, userId: string) {
-    // Verify supplier exists
     const supplier = await this.prisma.supplier.findUnique({ where: { ID: dto.SupplierID } });
-    if (!supplier) throw new NotFoundException('Supplier not found');
+    if (!supplier) throw new NotFoundException('Supplier tidak ditemukan');
+    if (dto.Items?.some((i) => !(Number(i.Quantity) > 0))) throw new BadRequestException('Jumlah item harus lebih dari 0');
 
     const code = await this.generateCode();
     const draftStatus = await this.getStatusByCode('DRAFT');
     const paymentStatus = await this.getPaymentStatusByCode('PENDING');
+    const purchaseDate = dto.Date ? new Date(dto.Date) : new Date();
 
-    // Calculate totals
-    let subtotal = dto.Subtotal || 0;
-    let discountAmount = dto.DiscountAmount || 0;
-    let taxAmount = 0;
+    const purchase = await this.prisma.$transaction(
+      async (tx) => {
+        const warehouseId = await this.ledger.resolveWarehouseId(tx, dto.WarehouseID);
+        const hasItems = !!dto.Items && dto.Items.length > 0;
+        const items = hasItems ? await this.buildItems(tx, dto.Items!) : [];
+        const t = this.totals(hasItems ? items.reduce((s, i) => s + Number(i.Subtotal), 0) : dto.Subtotal || 0, dto.DiscountAmount || 0, dto.TaxPercent || 0);
 
-    if (dto.Items && dto.Items.length > 0) {
-      const itemsData = dto.Items.map((item) => {
-        const itemSubtotal = item.UnitPrice * item.Quantity;
-        const itemDiscount = item.DiscountAmount || (itemSubtotal * (item.DiscountPercent || 0) / 100);
-        return {
-          ProductID: item.ProductID,
-          Quantity: new Prisma.Decimal(item.Quantity.toString()),
-          UnitID: item.UnitID,
-          UnitPrice: new Prisma.Decimal(item.UnitPrice.toString()),
-          DiscountPercent: new Prisma.Decimal((item.DiscountPercent || 0).toString()),
-          DiscountAmount: new Prisma.Decimal(itemDiscount.toString()),
-          Subtotal: new Prisma.Decimal((itemSubtotal - itemDiscount).toString()),
-        };
-      });
-
-      subtotal = itemsData.reduce((sum, item) => sum + Number(item.Subtotal), 0);
-
-      // Create purchase with items
-      const purchase = await this.prisma.purchase.create({
-        data: {
-          Code: code,
-          SupplierID: dto.SupplierID,
-          WarehouseID: dto.WarehouseID,
-          Date: dto.Date ? new Date(dto.Date) : new Date(),
-          DueDate: dto.DueDate ? new Date(dto.DueDate) : null,
-          PaymentMethodID: dto.PaymentMethodID,
-          Subtotal: new Prisma.Decimal(subtotal.toString()),
-          DiscountPercent: new Prisma.Decimal((dto.DiscountPercent || 0).toString()),
-          DiscountAmount: new Prisma.Decimal(discountAmount.toString()),
-          TaxPercent: new Prisma.Decimal((dto.TaxPercent || 0).toString()),
-          TaxAmount: new Prisma.Decimal(taxAmount.toString()),
-          Total: new Prisma.Decimal((subtotal - discountAmount + taxAmount).toString()),
-          Paid: new Prisma.Decimal('0'),
-          Remaining: new Prisma.Decimal((subtotal - discountAmount + taxAmount).toString()),
-          PaymentStatusID: paymentStatus.ID,
-          StatusID: draftStatus.ID,
-          Notes: dto.Notes,
-          CreatedByID: userId,
-          PurchaseItems: {
-            create: itemsData,
+        const created = await tx.purchase.create({
+          data: {
+            Code: code,
+            SupplierID: dto.SupplierID,
+            WarehouseID: warehouseId,
+            PurchaseOrderID: dto.PurchaseOrderID,
+            Date: purchaseDate,
+            DueDate: dto.DueDate
+              ? new Date(dto.DueDate)
+              : supplier.DueDays > 0
+                ? new Date(purchaseDate.getTime() + supplier.DueDays * 86400000)
+                : null,
+            PaymentMethodID: dto.PaymentMethodID,
+            Subtotal: new Prisma.Decimal(t.subtotal),
+            DiscountPercent: new Prisma.Decimal(dto.DiscountPercent || 0),
+            DiscountAmount: new Prisma.Decimal(t.discount),
+            TaxPercent: new Prisma.Decimal(dto.TaxPercent || 0),
+            TaxAmount: new Prisma.Decimal(t.tax),
+            Total: new Prisma.Decimal(t.total),
+            Paid: new Prisma.Decimal(0),
+            Remaining: new Prisma.Decimal(t.total),
+            PaymentStatusID: paymentStatus.ID,
+            StatusID: draftStatus.ID,
+            Notes: dto.Notes,
+            CreatedByID: userId,
+            ...(hasItems ? { PurchaseItems: { create: items } } : {}),
           },
-        },
-        include: {
-          Supplier: true,
-          Warehouse: true,
-          PurchaseItems: { include: { Product: true, Unit: true } },
-        },
-      });
+        });
 
-      await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
-      await this.notificationService.notify({
-        title: 'Pembelian Baru',
-        message: `Transaksi ${purchase.Code} dari ${supplier.Name} sebesar Rp ${Number(purchase.Total).toLocaleString('id-ID')}`,
-        typeCode: 'PURCHASE',
-        referenceType: 'Purchase',
-        referenceId: purchase.ID,
-      });
-      return this.serialize(purchase);
-    }
+        await this.applyStock(tx, created.ID, userId);
+        await this.journal.postPurchase(tx, created.ID, userId);
+        await this.party.recalcSupplier(tx, supplier.ID);
 
-    // Create purchase without items
-    taxAmount = (subtotal - discountAmount) * ((dto.TaxPercent || 0) / 100);
-    const total = subtotal - discountAmount + taxAmount;
-
-    const purchase = await this.prisma.purchase.create({
-      data: {
-        Code: code,
-        SupplierID: dto.SupplierID,
-        WarehouseID: dto.WarehouseID,
-        Date: dto.Date ? new Date(dto.Date) : new Date(),
-        DueDate: dto.DueDate ? new Date(dto.DueDate) : null,
-        PaymentMethodID: dto.PaymentMethodID,
-        Subtotal: new Prisma.Decimal(subtotal.toString()),
-        DiscountPercent: new Prisma.Decimal((dto.DiscountPercent || 0).toString()),
-        DiscountAmount: new Prisma.Decimal(discountAmount.toString()),
-        TaxPercent: new Prisma.Decimal((dto.TaxPercent || 0).toString()),
-        TaxAmount: new Prisma.Decimal(taxAmount.toString()),
-        Total: new Prisma.Decimal(total.toString()),
-        Paid: new Prisma.Decimal('0'),
-        Remaining: new Prisma.Decimal(total.toString()),
-        PaymentStatusID: paymentStatus.ID,
-        StatusID: draftStatus.ID,
-        Notes: dto.Notes,
-        CreatedByID: userId,
+        return tx.purchase.findUniqueOrThrow({
+          where: { ID: created.ID },
+          include: { Supplier: true, Warehouse: true, PurchaseItems: { include: { Product: true, Unit: true } } },
+        });
       },
-      include: {
-        Supplier: true,
-        Warehouse: true,
-      },
-    });
+      { timeout: 30000 },
+    );
 
-    await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
+    await this.afterWrite();
     await this.notificationService.notify({
       title: 'Pembelian Baru',
       message: `Transaksi ${purchase.Code} dari ${supplier.Name} sebesar Rp ${Number(purchase.Total).toLocaleString('id-ID')}`,
@@ -199,42 +168,77 @@ export class PurchaseService {
     return this.serialize(purchase);
   }
 
-  async update(id: number, dto: UpdatePurchaseDto) {
-    const purchase = await this.prisma.purchase.findUnique({ where: { ID: id } });
+  async update(id: number, dto: UpdatePurchaseDto, userId?: string) {
+    const purchase = await this.prisma.purchase.findUnique({ where: { ID: id }, include: { PurchaseItems: true } });
     if (!purchase) throw new NotFoundException('Purchase not found');
     const status = await this.getStatusById(purchase.StatusID);
     if (status?.Code !== 'DRAFT') {
-      throw new BadRequestException('Can only update draft purchases');
+      throw new BadRequestException('Hanya pembelian berstatus DRAFT yang dapat diubah');
     }
+    if (dto.Items?.some((i) => !(Number(i.Quantity) > 0))) throw new BadRequestException('Jumlah item harus lebih dari 0');
 
-    const updateData: any = {};
-    if (dto.WarehouseID !== undefined) updateData.WarehouseID = dto.WarehouseID;
-    if (dto.Date) updateData.Date = new Date(dto.Date);
-    if (dto.DueDate !== undefined) updateData.DueDate = dto.DueDate ? new Date(dto.DueDate) : null;
-    if (dto.PaymentMethodID !== undefined) updateData.PaymentMethodID = dto.PaymentMethodID;
-    if (dto.DiscountPercent !== undefined) updateData.DiscountPercent = new Prisma.Decimal(dto.DiscountPercent.toString());
-    if (dto.DiscountAmount !== undefined) updateData.DiscountAmount = new Prisma.Decimal(dto.DiscountAmount.toString());
-    if (dto.TaxPercent !== undefined) updateData.TaxPercent = new Prisma.Decimal(dto.TaxPercent.toString());
-    if (dto.Notes !== undefined) updateData.Notes = dto.Notes;
+    const updated = await this.prisma.$transaction(
+      async (tx) => {
+        const newWh = dto.WarehouseID ? await this.ledger.resolveWarehouseId(tx, dto.WarehouseID) : purchase.WarehouseID;
+        const discount = dto.DiscountAmount !== undefined ? dto.DiscountAmount : Number(purchase.DiscountAmount);
+        const taxPercent = dto.TaxPercent !== undefined ? dto.TaxPercent : Number(purchase.TaxPercent);
+        const stockChanged =
+          !!dto.Items ||
+          newWh !== purchase.WarehouseID ||
+          Math.abs(discount - Number(purchase.DiscountAmount)) > 0.004;
+        const hadLedger = (await tx.stockLedger.count({ where: { RefType: 'PURCHASE', RefID: id } })) > 0;
 
-    const updated = await this.prisma.purchase.update({
-      where: { ID: id },
-      data: updateData,
-      include: {
-        Supplier: true,
-        Warehouse: true,
-        PurchaseItems: { include: { Product: true, Unit: true } },
+        // 1) balik stok & HPP lama
+        if (stockChanged && hadLedger) await this.reverseStock(tx, id, userId, `Ubah pembelian ${purchase.Code}`);
+
+        // 2) header + (opsional) item baru
+        const data: Prisma.PurchaseUncheckedUpdateInput = {};
+        if (newWh !== purchase.WarehouseID) data.WarehouseID = newWh;
+        if (dto.Date) data.Date = new Date(dto.Date);
+        if (dto.DueDate !== undefined) data.DueDate = dto.DueDate ? new Date(dto.DueDate) : null;
+        if (dto.PaymentMethodID !== undefined) data.PaymentMethodID = dto.PaymentMethodID;
+        if (dto.DiscountPercent !== undefined) data.DiscountPercent = new Prisma.Decimal(dto.DiscountPercent);
+        if (dto.TaxPercent !== undefined) data.TaxPercent = new Prisma.Decimal(dto.TaxPercent);
+        if (dto.Notes !== undefined) data.Notes = dto.Notes;
+        let subtotal = Number(purchase.Subtotal);
+        if (dto.Items) {
+          const items = await this.buildItems(tx, dto.Items);
+          await tx.purchaseItem.deleteMany({ where: { PurchaseID: id } });
+          data.PurchaseItems = { create: items } as any;
+          subtotal = items.reduce((s, i) => s + Number(i.Subtotal), 0);
+        }
+        const t = this.totals(subtotal, discount, taxPercent);
+        Object.assign(data, {
+          Subtotal: new Prisma.Decimal(t.subtotal),
+          DiscountAmount: new Prisma.Decimal(t.discount),
+          TaxAmount: new Prisma.Decimal(t.tax),
+          Total: new Prisma.Decimal(t.total),
+        });
+        await tx.purchase.update({ where: { ID: id }, data });
+
+        // 3) terapkan stok & HPP baru (dokumen lama tanpa ledger tidak disentuh stoknya)
+        if (stockChanged && (hadLedger || !!dto.Items)) await this.applyStock(tx, id, userId);
+
+        await this.party.recalcPurchase(tx, id);
+        await this.journal.postPurchase(tx, id, userId);
+        await this.party.recalcSupplier(tx, purchase.SupplierID);
+
+        return tx.purchase.findUniqueOrThrow({
+          where: { ID: id },
+          include: { Supplier: true, Warehouse: true, PurchaseItems: { include: { Product: true, Unit: true } } },
+        });
       },
-    });
+      { timeout: 30000 },
+    );
 
-    await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
+    await this.afterWrite();
     return this.serialize(updated);
   }
 
-  async updateStatus(id: number, dto: UpdateStatusDto) {
+  async updateStatus(id: number, dto: UpdateStatusDto, userId?: string) {
     const purchase = await this.prisma.purchase.findUnique({
       where: { ID: id },
-      include: { PurchaseItems: true },
+      include: { PurchaseItems: true, PurchaseReturns: { include: { Status: true } } },
     });
     if (!purchase) throw new NotFoundException('Purchase not found');
 
@@ -248,31 +252,40 @@ export class PurchaseService {
 
     const allowed = validTransitions[currentCode] || [];
     if (!allowed.includes(dto.StatusCode)) {
-      throw new BadRequestException(`Cannot transition from '${currentCode}' to '${dto.StatusCode}'`);
+      throw new BadRequestException(`Status tidak dapat diubah dari '${currentCode}' ke '${dto.StatusCode}'`);
+    }
+    if (dto.StatusCode === 'CANCELLED' && purchase.PurchaseReturns.some((r) => r.Status?.Code !== 'CANCELLED')) {
+      throw new BadRequestException('Pembelian memiliki retur aktif. Batalkan returnya terlebih dahulu.');
     }
 
     const newStatus = await this.getStatusByCode(dto.StatusCode);
 
-    const updated = await this.prisma.purchase.update({
-      where: { ID: id },
-      data: { StatusID: newStatus.ID },
-      include: {
-        Supplier: true,
-        Warehouse: true,
-        PurchaseItems: { include: { Product: true, Unit: true } },
+    const updated = await this.prisma.$transaction(
+      async (tx) => {
+        if (dto.StatusCode === 'CANCELLED') {
+          await this.reverseStock(tx, id, userId, `Pembatalan pembelian ${purchase.Code}`);
+          await this.journal.reversePurchase(tx, id);
+        }
+        await tx.purchase.update({ where: { ID: id }, data: { StatusID: newStatus.ID } });
+        await this.party.recalcSupplier(tx, purchase.SupplierID);
+        return tx.purchase.findUniqueOrThrow({
+          where: { ID: id },
+          include: { Supplier: true, Warehouse: true, PurchaseItems: { include: { Product: true, Unit: true } } },
+        });
       },
-    });
+      { timeout: 30000 },
+    );
 
-    await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
+    await this.afterWrite();
     return this.serialize(updated);
   }
 
-  async delete(id: number) {
+  async delete(id: number, userId?: string) {
     const purchase = await this.prisma.purchase.findUnique({ where: { ID: id } });
     if (!purchase) throw new NotFoundException('Purchase not found');
     const status = await this.getStatusById(purchase.StatusID);
-    if (status?.Code !== 'DRAFT') {
-      throw new BadRequestException('Can only delete draft purchases');
+    if (status?.Code !== 'DRAFT' && status?.Code !== 'CANCELLED') {
+      throw new BadRequestException('Hanya pembelian berstatus DRAFT atau CANCELLED yang dapat dihapus');
     }
 
     const [returns, payments] = await Promise.all([
@@ -282,9 +295,114 @@ export class PurchaseService {
     if (returns > 0) throw new BadRequestException('Pembelian tidak dapat dihapus karena sudah memiliki retur pembelian');
     if (payments > 0) throw new BadRequestException('Pembelian tidak dapat dihapus karena sudah memiliki pembayaran');
 
-    await this.prisma.purchase.delete({ where: { ID: id } });
-    await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
+    await this.prisma.$transaction(
+      async (tx) => {
+        // idempoten: pembelian yang sudah dibatalkan tidak dibalik dua kali
+        await this.reverseStock(tx, id, userId, `Hapus pembelian ${purchase.Code}`);
+        await this.journal.reversePurchase(tx, id);
+        await tx.purchase.delete({ where: { ID: id } });
+        await this.party.recalcSupplier(tx, purchase.SupplierID);
+      },
+      { timeout: 30000 },
+    );
+    await this.afterWrite();
     return { id };
+  }
+
+  // ─── Stok & HPP ────────────────────────────────────────────────────────
+
+  private totals(subtotal: number, discount: number, taxPercent: number) {
+    const sub = r2(subtotal);
+    const disc = r2(Math.min(Math.max(discount, 0), sub));
+    const tax = r2((sub - disc) * (taxPercent / 100));
+    return { subtotal: sub, discount: disc, tax, total: r2(sub - disc + tax) };
+  }
+
+  private async buildItems(tx: Tx, items: CreatePurchaseItemDto[]) {
+    const out: Prisma.PurchaseItemCreateManyPurchaseInput[] = [];
+    for (const item of items) {
+      const product = await tx.product.findUnique({ where: { ID: item.ProductID }, select: { ID: true } });
+      if (!product) throw new BadRequestException(`Produk dengan ID ${item.ProductID} tidak ditemukan`);
+      const gross = item.UnitPrice * item.Quantity;
+      const disc = item.DiscountAmount || (gross * (item.DiscountPercent || 0)) / 100;
+      out.push({
+        ProductID: item.ProductID,
+        Quantity: new Prisma.Decimal(item.Quantity),
+        BaseQuantity: await this.ledger.toBaseQty(tx, item.ProductID, item.UnitID, item.Quantity),
+        UnitID: item.UnitID,
+        UnitPrice: new Prisma.Decimal(item.UnitPrice),
+        DiscountPercent: new Prisma.Decimal(item.DiscountPercent || 0),
+        DiscountAmount: new Prisma.Decimal(r2(disc)),
+        Subtotal: new Prisma.Decimal(r2(gross - disc)),
+      });
+    }
+    return out;
+  }
+
+  /** Harga pokok per satuan dasar per produk (rata-rata bila produk muncul di beberapa baris). */
+  private async lineCosts(tx: Tx, purchaseId: number) {
+    const p = await tx.purchase.findUniqueOrThrow({ where: { ID: purchaseId }, include: { PurchaseItems: true } });
+    const sub = Number(p.Subtotal);
+    const factor = sub > 0 ? Math.max(sub - Number(p.DiscountAmount), 0) / sub : 1;
+    const agg = new Map<number, { qty: number; value: number }>();
+    for (const it of p.PurchaseItems) {
+      const base = Number(it.BaseQuantity) > 0 ? Number(it.BaseQuantity) : Number(it.Quantity);
+      const cur = agg.get(it.ProductID) ?? { qty: 0, value: 0 };
+      cur.qty += base;
+      cur.value += Number(it.Subtotal) * factor;
+      agg.set(it.ProductID, cur);
+    }
+    return { purchase: p, agg };
+  }
+
+  private async applyStock(tx: Tx, purchaseId: number, userId?: string) {
+    const { purchase, agg } = await this.lineCosts(tx, purchaseId);
+    for (const [productId, a] of agg) {
+      if (a.qty <= 0) continue;
+      const unitCost = a.value / a.qty;
+      await this.ledger.applyAverageCostIn(tx, productId, a.qty, unitCost);
+      await this.ledger.move(tx, {
+        productId,
+        warehouseId: purchase.WarehouseID,
+        qty: a.qty,
+        refType: 'PURCHASE',
+        refId: purchase.ID,
+        refCode: purchase.Code,
+        unitCost,
+        userId,
+        date: purchase.Date,
+      });
+    }
+  }
+
+  /** Balik stok & HPP semua mutasi PURCHASE dokumen ini (idempoten). */
+  private async reverseStock(tx: Tx, purchaseId: number, userId: string | undefined, notes: string) {
+    const { purchase, agg } = await this.lineCosts(tx, purchaseId);
+    const nets = await this.ledger.netByRef(tx, ['PURCHASE'], purchaseId);
+    for (const n of nets) {
+      const a = agg.get(n.productId);
+      const unitCost = a && a.qty > 0 ? a.value / a.qty : undefined;
+      if (n.net.gt(0) && unitCost !== undefined) await this.ledger.applyAverageCostOut(tx, n.productId, n.net, unitCost);
+      await this.ledger.move(tx, {
+        productId: n.productId,
+        warehouseId: n.warehouseId,
+        qty: n.net.neg(),
+        refType: 'PURCHASE',
+        refId: purchaseId,
+        refCode: purchase.Code,
+        unitCost,
+        userId,
+        notes,
+      });
+    }
+  }
+
+  private async afterWrite() {
+    await Promise.all([
+      this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`),
+      this.redis.invalidatePattern('supplier:*'),
+      this.ledger.invalidateCaches(),
+    ]);
   }
 
   async getReport(query: Record<string, any>) {

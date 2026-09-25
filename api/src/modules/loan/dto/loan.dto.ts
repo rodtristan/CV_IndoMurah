@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString, IsInt, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -11,9 +11,9 @@ export class CreateLoanDto {
   @IsNumber()
   employeeId: number;
 
-  @ApiProperty({ description: 'loanType' })
-  @IsString()
-  loanType: string;
+  @ApiProperty({ description: 'LoanType ID' })
+  @IsInt()
+  loanTypeId: number;
 
   @ApiProperty({ description: 'principalAmount' })
   @IsNumber()
@@ -41,12 +41,16 @@ export class CreateLoanDto {
   @IsNumber()
   remainingAmount: number;
 
-  @ApiPropertyOptional({ description: 'startDate' })
+  @ApiPropertyOptional({ description: 'startDate', type: String, format: 'date-time' })
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
   startDate?: Date;
 
-  @ApiProperty({ description: 'status' })
-  status: any;
+  @ApiPropertyOptional({ description: 'LoanStatus ID (default 1)' })
+  @IsOptional()
+  @IsInt()
+  statusId?: number;
 
   @ApiPropertyOptional({ description: 'notes' })
   @IsOptional()
@@ -72,10 +76,10 @@ export class UpdateLoanDto {
   @IsNumber()
   employeeId?: number;
 
-  @ApiPropertyOptional({ description: 'loanType' })
+  @ApiPropertyOptional({ description: 'LoanType ID' })
   @IsOptional()
-  @IsString()
-  loanType?: string;
+  @IsInt()
+  loanTypeId?: number;
 
   @ApiPropertyOptional({ description: 'principalAmount' })
   @IsOptional()
@@ -107,13 +111,16 @@ export class UpdateLoanDto {
   @IsNumber()
   remainingAmount?: number;
 
-  @ApiPropertyOptional({ description: 'startDate' })
+  @ApiPropertyOptional({ description: 'startDate', type: String, format: 'date-time' })
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
   startDate?: Date;
 
-  @ApiPropertyOptional({ description: 'status' })
+  @ApiPropertyOptional({ description: 'LoanStatus ID (default 1)' })
   @IsOptional()
-  status?: any;
+  @IsInt()
+  statusId?: number;
 
   @ApiPropertyOptional({ description: 'notes' })
   @IsOptional()

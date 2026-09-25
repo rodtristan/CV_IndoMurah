@@ -4,6 +4,7 @@ import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
 import { MenuService } from '../menu/menu-service';
+import { AuthzService } from '../../common/auth/authz-service';
 import { CreateUserDto, UpdateUserDto } from './dto/user-dto';
 
 @Injectable()
@@ -16,6 +17,7 @@ export class UserService {
     private redis: RedisService,
     private queryService: QueryService,
     private menuService: MenuService,
+    private authz: AuthzService,
   ) {}
 
   async findAll(query: Record<string, any>) {
@@ -119,6 +121,7 @@ export class UserService {
 
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
     await this.redis.del(`user:me:${id}`);
+    await this.authz.invalidate(id);
 
     return updated;
   }
@@ -134,6 +137,7 @@ export class UserService {
 
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
     await this.redis.del(`user:me:${id}`);
+    await this.authz.invalidate(id);
 
     return updated;
   }
@@ -175,6 +179,7 @@ export class UserService {
     await this.menuService.provisionUserMenusFromRole(userId, roleId);
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
     await this.redis.del(`user:me:${userId}`);
+    await this.authz.invalidate(userId);
 
     return userRole;
   }
@@ -192,6 +197,7 @@ export class UserService {
 
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
     await this.redis.del(`user:me:${userId}`);
+    await this.authz.invalidate(userId);
 
     return userRole;
   }

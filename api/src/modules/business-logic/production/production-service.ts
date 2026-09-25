@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { resolveDateRange } from '../shared/date-range';
 import { PrismaService } from '../../../common/prisma/prisma-service';
 import { Prisma } from '@prisma/client'
 import { number } from '../../../common/utils/number';
@@ -256,16 +257,17 @@ export class ProductionService {
   /**
    * Get Production Cost Report
    */
-  async getProductionCostReport(startDate: string, endDate: string, WarehouseId?: number) {
+  async getProductionCostReport(startDate?: string, endDate?: string, WarehouseId?: number) {
+    const { start, end } = resolveDateRange(startDate, endDate);
     const where: any = {
       Date: {
-        gte: new Date(startDate),
-        lte: new Date(endDate),
+        gte: start,
+        lte: end,
       },
     };
 
     if (WarehouseId) {
-      where.WarehouseID = WarehouseId;
+      where.WarehouseID = Number(WarehouseId);
     }
 
     const Productions = await this.prisma.production.findMany({

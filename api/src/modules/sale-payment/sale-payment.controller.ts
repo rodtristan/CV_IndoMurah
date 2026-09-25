@@ -71,15 +71,15 @@ export class SalePaymentController {
 
   @Put(':id')
   @ApiOperation({ summary: 'Update sale payment' })
-  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateSalePaymentDto) {
-    const data = await this.salePaymentService.update(id, dto);
+  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateSalePaymentDto, @CurrentUser() user: any) {
+    const data = await this.salePaymentService.update(id, dto, user?.id);
     return ApiResponse.ok(data, 'Sale payment updated successfully');
   }
 
   @Patch(':id/clear')
   @ApiOperation({ summary: 'Mark cek/bg payment as cleared (lunas)' })
-  async clear(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.salePaymentService.clear(id);
+  async clear(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    const data = await this.salePaymentService.clear(id, user?.id);
     return ApiResponse.ok(data, 'Payment cleared');
   }
 

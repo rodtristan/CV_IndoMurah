@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString, IsInt, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -11,13 +11,18 @@ export class CreateLeaveDto {
   @IsNumber()
   employeeId: number;
 
-  @ApiProperty({ description: 'type' })
-  type: any;
+  @ApiProperty({ description: 'LeaveType ID' })
+  @IsInt()
+  typeId: number;
 
-  @ApiProperty({ description: 'startDate' })
+  @ApiProperty({ description: 'startDate', type: String, format: 'date-time' })
+  @Type(() => Date)
+  @IsDate()
   startDate: Date;
 
-  @ApiProperty({ description: 'endDate' })
+  @ApiProperty({ description: 'endDate', type: String, format: 'date-time' })
+  @Type(() => Date)
+  @IsDate()
   endDate: Date;
 
   @ApiPropertyOptional({ description: 'totalDays' })
@@ -30,16 +35,20 @@ export class CreateLeaveDto {
   @IsString()
   reason?: string;
 
-  @ApiProperty({ description: 'status' })
-  status: any;
+  @ApiPropertyOptional({ description: 'LeaveStatus ID (default 1)' })
+  @IsOptional()
+  @IsInt()
+  statusId?: number;
 
   @ApiPropertyOptional({ description: 'approvedById' })
   @IsOptional()
   @IsString()
   approvedById?: string;
 
-  @ApiPropertyOptional({ description: 'approvedAt' })
+  @ApiPropertyOptional({ description: 'approvedAt', type: String, format: 'date-time' })
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
   approvedAt?: Date;
 
   @ApiPropertyOptional({ description: 'rejectedReason' })
@@ -71,16 +80,21 @@ export class UpdateLeaveDto {
   @IsNumber()
   employeeId?: number;
 
-  @ApiPropertyOptional({ description: 'type' })
+  @ApiPropertyOptional({ description: 'LeaveType ID' })
   @IsOptional()
-  type?: any;
+  @IsInt()
+  typeId?: number;
 
-  @ApiPropertyOptional({ description: 'startDate' })
+  @ApiPropertyOptional({ description: 'startDate', type: String, format: 'date-time' })
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
   startDate?: Date;
 
-  @ApiPropertyOptional({ description: 'endDate' })
+  @ApiPropertyOptional({ description: 'endDate', type: String, format: 'date-time' })
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
   endDate?: Date;
 
   @ApiPropertyOptional({ description: 'totalDays' })
@@ -93,17 +107,20 @@ export class UpdateLeaveDto {
   @IsString()
   reason?: string;
 
-  @ApiPropertyOptional({ description: 'status' })
+  @ApiPropertyOptional({ description: 'LeaveStatus ID (default 1)' })
   @IsOptional()
-  status?: any;
+  @IsInt()
+  statusId?: number;
 
   @ApiPropertyOptional({ description: 'approvedById' })
   @IsOptional()
   @IsString()
   approvedById?: string;
 
-  @ApiPropertyOptional({ description: 'approvedAt' })
+  @ApiPropertyOptional({ description: 'approvedAt', type: String, format: 'date-time' })
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
   approvedAt?: Date;
 
   @ApiPropertyOptional({ description: 'rejectedReason' })

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { PageWrapper, Card } from "@/components/layout/PageWrapper";
-import { KCode, KColumns, KNumber, KSaveBar, KSelect } from "@/components/kform";
+import { KCheckbox, KCode, KColumns, KNumber, KSaveBar } from "@/components/kform";
 import { PartnerFields, emptyPartner, type PartnerCommon } from "./PartnerFields";
 import { api } from "@/lib/api-client";
 import { createWithAutoCode, isEmail } from "@/lib/auto-code";
@@ -12,20 +12,24 @@ import { usePageTitle } from "@/lib/page-title";
 
 const LIST = "/master/suppliers";
 
+// Partner fields the Supplier model can store (City, Province, TaxID, Bank*, ContactPerson, ...).
+const SUPPLIER_FIELDS: (keyof PartnerCommon)[] = [
+  "address", "city", "province", "phone", "contact", "email", "accountNo", "accountName", "bank", "npwp", "notes",
+];
+
 interface SupplierState extends PartnerCommon {
   code: string;
   dueDays: string;
-  taxUse: string;
-  taxSource: string;
-  taxType: string;
-  taxValue: string;
+  active: boolean;
 }
 
-const empty: SupplierState = { ...emptyPartner, code: "", dueDays: "0", taxUse: "default", taxSource: "default", taxType: "", taxValue: "0" };
+const empty: SupplierState = { ...emptyPartner, code: "", dueDays: "0", active: true };
 
 interface SupplierRow {
   ID: number; Code: string; Name: string; ContactPerson?: string | null; Phone?: string | null;
-  Email?: string | null; Address?: string | null; Notes?: string | null;
+  Email?: string | null; Address?: string | null; Notes?: string | null; IsActive?: boolean;
+  City?: string | null; Province?: string | null; TaxID?: string | null; BankName?: string | null;
+  BankAccountNumber?: string | null; BankAccountName?: string | null; DueDays?: number | null;
 }
 
 export function SupplierForm({ id, copyFrom }: { id?: number; copyFrom?: number }) {
@@ -51,14 +55,15 @@ export function SupplierForm({ id, copyFrom }: { id?: number; copyFrom?: number 
           code: id ? r.Code : "",
           name: r.Name ?? "", contact: r.ContactPerson ?? "", phone: r.Phone ?? "", email: r.Email ?? "",
           address: r.Address ?? "", notes: r.Notes ?? "",
+          city: r.City ?? "", province: r.Province ?? "", npwp: r.TaxID ?? "", bank: r.BankName ?? "",
+          accountNo: r.BankAccountNumber ?? "", accountName: r.BankAccountName ?? "",
+          dueDays: String(r.DueDays ?? 0), active: r.IsActive ?? true,
         });
       })
       .catch(() => toast.error("Gagal memuat data supplier"))
       .finally(() => alive && setLoading(false));
     return () => { alive = false; };
   }, [id, copyFrom]);
-
-  const dataSupplier = f.taxSource === "supplier";
 
   const save = async () => {
     const errs: typeof errors = {};
@@ -68,14 +73,23 @@ export function SupplierForm({ id, copyFrom }: { id?: number; copyFrom?: number 
     if (Object.keys(errs).length) return;
     setSaving(true);
     try {
-      // Only fields the current API DTO accepts (camelCase, whitelist validation).
+      const orNull = (v: string) => v.trim() || (isNew ? undefined : null);
+      // Every field shown on this form is sent (camelCase, validated by Create/UpdateSupplierDto).
       const payload = {
         name: f.name.trim(),
-        contactPerson: f.contact || (isNew ? undefined : null),
-        phone: f.phone || (isNew ? undefined : null),
-        email: f.email || (isNew ? undefined : null),
-        address: f.address || (isNew ? undefined : null),
-        notes: f.notes || (isNew ? undefined : null),
+        contactPerson: orNull(f.contact),
+        phone: orNull(f.phone),
+        email: orNull(f.email),
+        address: orNull(f.address),
+        notes: orNull(f.notes),
+        city: orNull(f.city),
+        province: orNull(f.province),
+        taxId: orNull(f.npwp),
+        bankName: orNull(f.bank),
+        bankAccountNumber: orNull(f.accountNo),
+        bankAccountName: orNull(f.accountName),
+        dueDays: Math.max(0, Math.trunc(Number(f.dueDays) || 0)),
+        isActive: f.active,
       };
       if (isNew) await createWithAutoCode("supplier", "SUP", "code", payload);
       else await api.patch("supplier", id!, { ...payload, code: f.code.trim() || undefined });
@@ -96,31 +110,11 @@ export function SupplierForm({ id, copyFrom }: { id?: number; copyFrom?: number 
             <KColumns>
               <div>
                 <KCode value={f.code} isNew={isNew} onChange={(v) => patch({ code: v })} />
-                <PartnerFields value={f} onChange={patch} nameLabel="Nama" errors={errors} />
+                <PartnerFields value={f} onChange={patch} nameLabel="Nama" errors={errors} fields={SUPPLIER_FIELDS} />
               </div>
               <div>
-                <div>
-                  <KNumber label="Jatuh Tempo" value={f.dueDays} onChange={(v) => patch({ dueDays: v })} min={0} hint="0 = Mengacu Pada Pengaturan" />
-                  <KSelect
-                    label="Menggunakan Pajak" value={f.taxUse} onChange={(v) => patch({ taxUse: v || "default" })} placeholder="Default"
-                    hint="Default = Mengacu Pada Pengaturan"
-                    options={[{ value: "default", label: "Default" }, { value: "non", label: "Non" }, { value: "include", label: "Include" }, { value: "exclude", label: "Exclude" }]}
-                  />
-                  <KSelect
-                    label="Nilai Pajak diset Dari" value={f.taxSource}
-                    onChange={(v) => patch({ taxSource: v || "default", ...(v !== "supplier" ? { taxType: "", taxValue: "0" } : {}) })}
-                    placeholder="Default"
-                    options={[{ value: "default", label: "Default" }, { value: "supplier", label: "Data Supplier" }]}
-                  />
-                  <KSelect
-                    label="Jenis Pajak" value={f.taxType} onChange={(v) => patch({ taxType: v })} disabled={!dataSupplier}
-                    options={[{ value: "PPN", label: "PPN" }, { value: "PPNBM", label: "PPnBM" }]}
-                  />
-                  <KNumber
-                    label="Nilai Pajak" value={f.taxValue} onChange={(v) => patch({ taxValue: v })} disabled={!dataSupplier} min={0}
-                    className={dataSupplier ? "" : "border-dashed"}
-                  />
-                </div>
+                <KNumber label="Jatuh Tempo (hari)" value={f.dueDays} onChange={(v) => patch({ dueDays: v })} min={0} hint="0 = Mengacu Pada Pengaturan" />
+                <KCheckbox label="Status" caption="Aktif" checked={f.active} onChange={(v) => patch({ active: v })} />
               </div>
             </KColumns>
             <KSaveBar onSave={save} saving={saving} />

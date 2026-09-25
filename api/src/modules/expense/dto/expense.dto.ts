@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString, IsInt, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -7,8 +7,10 @@ export class CreateExpenseDto {
   @IsString()
   code: string;
 
-  @ApiPropertyOptional({ description: 'date' })
+  @ApiPropertyOptional({ description: 'date', type: String, format: 'date-time' })
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
   date?: Date;
 
   @ApiProperty({ description: 'expenseCategoryId' })
@@ -39,8 +41,10 @@ export class CreateExpenseDto {
   @IsString()
   approvedById?: string;
 
-  @ApiPropertyOptional({ description: 'approvedAt' })
+  @ApiPropertyOptional({ description: 'approvedAt', type: String, format: 'date-time' })
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
   approvedAt?: Date;
 
   @ApiPropertyOptional({ description: 'notes' })
@@ -53,9 +57,6 @@ export class CreateExpenseDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiProperty({ description: 'expenseCategory' })
-  expenseCategory: any;
-
 
 }
 
@@ -65,8 +66,10 @@ export class UpdateExpenseDto {
   @IsString()
   code?: string;
 
-  @ApiPropertyOptional({ description: 'date' })
+  @ApiPropertyOptional({ description: 'date', type: String, format: 'date-time' })
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
   date?: Date;
 
   @ApiPropertyOptional({ description: 'expenseCategoryId' })
@@ -99,8 +102,10 @@ export class UpdateExpenseDto {
   @IsString()
   approvedById?: string;
 
-  @ApiPropertyOptional({ description: 'approvedAt' })
+  @ApiPropertyOptional({ description: 'approvedAt', type: String, format: 'date-time' })
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
   approvedAt?: Date;
 
   @ApiPropertyOptional({ description: 'notes' })
@@ -112,10 +117,6 @@ export class UpdateExpenseDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
-
-  @ApiPropertyOptional({ description: 'expenseCategory' })
-  @IsOptional()
-  expenseCategory?: any;
 
 
 }

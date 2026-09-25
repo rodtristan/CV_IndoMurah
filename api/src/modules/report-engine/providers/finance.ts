@@ -1,6 +1,7 @@
 import { ReportProvider, MAX_ROWS } from '../report-engine.types';
 import { f, n, str, int, ymd, bool, dateFilter, dateRangeParams, lookupParam, startOf, endOf, todayStr } from '../helpers';
 import { PrismaService } from '../../../common/prisma/prisma-service';
+import { OPENING_REF, CLOSING_REF, openingRowsWhere } from '../../../common/accounting/ledger';
 
 const accountSelect = {
   endpoint: 'account', valueField: 'ID', labelField: 'Name',
@@ -103,9 +104,14 @@ interface Mv {
 }
 
 /**
- * All ledger movements (posted journal lines + OpeningBalance ACCOUNT rows).
- * YEAR_CLOSE lines are flagged (close=true); journals of ReferenceType OPENING_BALANCE are
- * skipped because OpeningBalance rows are read directly (avoids double counting).
+ * All ledger movements = posted journal lines (auto journals from transactions + manual journals)
+ * + OpeningBalance ACCOUNT rows. Same definition as common/accounting/ledger.ts (account balances):
+ *  - journals of ReferenceType OPENING_BALANCE are skipped because the OpeningBalance rows are read
+ *    directly (opening balances counted exactly once);
+ *  - legacy "Opening Balance FY <year>" rows from the retired business-logic year-close are ignored
+ *    (they duplicated balances already carried by the journals);
+ *  - YEAR_CLOSE journal lines are flagged (close=true) so P&L reports exclude them; they still zero the
+ *    P&L accounts into Laba Ditahan for the balance sheet / later periods.
  */
 async function loadMovements(prisma: PrismaService, opts: { to?: Date; from?: Date; includeDraft?: boolean }): Promise<Mv[]> {
   const dateCond: any = {};
@@ -126,16 +132,16 @@ async function loadMovements(prisma: PrismaService, opts: { to?: Date; from?: Da
   const out: Mv[] = [];
   for (const l of lines) {
     const j = l.JournalEntry?.Journal;
-    if (!j || j.ReferenceType === 'OPENING_BALANCE') continue;
+    if (!j || j.ReferenceType === OPENING_REF) continue;
     const a = l.Account;
     out.push({
       accountId: a.ID, code: a.Code, name: a.Name, typeCode: a.Type?.Code ?? '', typeName: a.Type?.Name ?? '',
       debitNormal: a.Type?.IsDebitNormal ?? true, date: j.Date, debit: n(l.Debit), credit: n(l.Credit),
-      desc: l.Description || j.Description || '', ref: j.ReferenceType ?? '', docCode: j.Code, close: j.ReferenceType === 'YEAR_CLOSE',
+      desc: l.Description || j.Description || '', ref: j.ReferenceType ?? '', docCode: j.Code, close: j.ReferenceType === CLOSING_REF,
     });
   }
   const obs: any[] = await prisma.openingBalance.findMany({
-    where: { Type: 'ACCOUNT', AccountID: { not: null }, ...(hasDate ? { Date: dateCond } : {}) },
+    where: openingRowsWhere(hasDate ? dateCond : undefined) as any,
     include: { Account: { select: { ID: true, Code: true, Name: true, Type: { select: { Code: true, Name: true, IsDebitNormal: true } } } } },
   });
   for (const o of obs) {

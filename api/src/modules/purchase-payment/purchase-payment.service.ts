@@ -4,6 +4,9 @@ import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
 import { Prisma } from '@prisma/client';
 import { CreatePurchasePaymentDto, UpdatePurchasePaymentDto } from './dto/purchase-payment.dto';
+import { AutoJournalService, REF, Tx } from '../../common/accounting/auto-journal.service';
+import { DepositLedgerService } from '../../common/accounting/deposit-ledger.service';
+import { ensureDepositMethod, isChequeInstrument, syncChequeMirror } from '../../common/accounting/payment-link';
 
 @Injectable()
 export class PurchasePaymentService {
@@ -14,6 +17,8 @@ export class PurchasePaymentService {
     private prisma: PrismaService,
     private redis: RedisService,
     private queryService: QueryService,
+    private autoJournal: AutoJournalService,
+    private deposits: DepositLedgerService,
   ) {}
 
   async findAll(query: Record<string, any>) {
@@ -81,6 +86,34 @@ export class PurchasePaymentService {
     );
   }
 
+  // ─── writes: every change posts / reverses the PURCHASE_PAYMENT journal, keeps the cek/BG mirror and deposit usage in sync ───
+
+  private async resolveInstrument(tx: Tx, methodId: number | undefined, instrument: string | undefined, useDeposit?: boolean) {
+    let inst = useDeposit ? 'DEPOSIT' : instrument ?? 'CASH';
+    let method = methodId ? await tx.paymentMethod.findUnique({ where: { ID: methodId } }) : null;
+    if (methodId && !method) throw new BadRequestException('Metode pembayaran tidak ditemukan');
+    if (method?.Code === 'DEPOSIT') inst = 'DEPOSIT';
+    if (inst === 'DEPOSIT') method = await ensureDepositMethod(tx);
+    if (!method) throw new BadRequestException('Metode pembayaran wajib dipilih');
+    return { inst, methodId: method.ID };
+  }
+
+  /** Apply side effects of a written payment inside the transaction. */
+  private async afterPaymentWrite(tx: Tx, paymentId: number, userId: string) {
+    const p = await tx.purchasePayment.findUniqueOrThrow({ where: { ID: paymentId }, include: { Purchase: { select: { SupplierID: true, Code: true } } } });
+    if (p.InstrumentType === 'DEPOSIT') {
+      await this.deposits.useSupplierDeposit(tx, {
+        supplierId: p.Purchase.SupplierID, purchasePaymentId: p.ID, amount: Number(p.Amount), date: p.Date, userId,
+        note: `Pembayaran pembelian ${p.Purchase.Code} memakai deposit`,
+      });
+    } else {
+      await this.deposits.releaseSupplierDeposit(tx, p.ID);
+    }
+    await syncChequeMirror(tx, 'PURCHASE_PAYMENT', p);
+    await this.autoJournal.postPurchasePayment(tx, p.ID, userId);
+    await this.updatePurchasePaymentStatus(tx, p.PurchaseID);
+  }
+
   async create(dto: CreatePurchasePaymentDto, userId: string) {
     const parent = await this.prisma.purchase.findUnique({ where: { ID: dto.PurchaseID } });
     if (!parent) throw new NotFoundException('Purchase not found');
@@ -94,31 +127,33 @@ export class PurchasePaymentService {
       throw new BadRequestException(`Payment amount (${dto.Amount}) exceeds remaining amount (${remaining})`);
     }
 
-    const instrument = dto.InstrumentType ?? 'CASH';
-    const cleared = instrument === 'CASH';
-    const payment = await this.prisma.purchasePayment.create({
-      data: {
-        PurchaseID: dto.PurchaseID,
-        MethodID: dto.MethodID,
-        Amount: new Prisma.Decimal(dto.Amount.toString()),
-        ReferenceNumber: dto.ReferenceNumber,
-        Date: dto.Date ? new Date(dto.Date) : new Date(),
-        Notes: dto.Notes,
-        InstrumentType: instrument,
-        DueDate: dto.DueDate ? new Date(dto.DueDate) : null,
-        IsCleared: cleared,
-        ClearedAt: cleared ? new Date() : null,
-        CreatedByID: userId,
-      },
-      include: { Purchase: true, Creator: true },
+    const payment = await this.prisma.$transaction(async (tx) => {
+      const { inst, methodId } = await this.resolveInstrument(tx, dto.MethodID, dto.InstrumentType, dto.UseDeposit);
+      const cleared = !isChequeInstrument(inst);
+      const created = await tx.purchasePayment.create({
+        data: {
+          PurchaseID: dto.PurchaseID,
+          MethodID: methodId,
+          Amount: new Prisma.Decimal(dto.Amount.toString()),
+          ReferenceNumber: dto.ReferenceNumber,
+          Date: dto.Date ? new Date(dto.Date) : new Date(),
+          Notes: dto.Notes,
+          InstrumentType: inst,
+          DueDate: dto.DueDate ? new Date(dto.DueDate) : null,
+          IsCleared: cleared,
+          ClearedAt: cleared ? new Date() : null,
+          CreatedByID: userId,
+        },
+      });
+      await this.afterPaymentWrite(tx, created.ID, userId);
+      return tx.purchasePayment.findUniqueOrThrow({ where: { ID: created.ID }, include: { Purchase: true, Creator: true } });
     });
 
-    await this.updatePurchasePaymentStatus(dto.PurchaseID);
     await this.invalidate(dto.PurchaseID);
     return this.serialize(payment);
   }
 
-  async update(id: number, dto: UpdatePurchasePaymentDto) {
+  async update(id: number, dto: UpdatePurchasePaymentDto, userId?: string) {
     const payment = await this.prisma.purchasePayment.findUnique({ where: { ID: id } });
     if (!payment) throw new NotFoundException('Purchase payment not found');
 
@@ -132,57 +167,69 @@ export class PurchasePaymentService {
       }
     }
 
-    const updateData: any = {};
-    if (dto.MethodID) updateData.MethodID = dto.MethodID;
-    if (dto.Amount !== undefined) updateData.Amount = new Prisma.Decimal(dto.Amount.toString());
-    if (dto.ReferenceNumber !== undefined) updateData.ReferenceNumber = dto.ReferenceNumber;
-    if (dto.Date) updateData.Date = new Date(dto.Date);
-    if (dto.Notes !== undefined) updateData.Notes = dto.Notes;
-    if (dto.DueDate !== undefined) updateData.DueDate = dto.DueDate ? new Date(dto.DueDate) : null;
-    if (dto.InstrumentType) {
-      updateData.InstrumentType = dto.InstrumentType;
-      if (dto.InstrumentType === 'CASH') {
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const target = dto.UseDeposit ? 'DEPOSIT' : dto.InstrumentType ?? (dto.UseDeposit === false && payment.InstrumentType === 'DEPOSIT' ? 'CASH' : payment.InstrumentType);
+      const leavingDeposit = target !== 'DEPOSIT' && payment.InstrumentType === 'DEPOSIT';
+      const { inst, methodId } = await this.resolveInstrument(tx, dto.MethodID ?? (leavingDeposit ? undefined : payment.MethodID), target, dto.UseDeposit);
+      const updateData: any = { MethodID: methodId, InstrumentType: inst };
+      if (dto.Amount !== undefined) updateData.Amount = new Prisma.Decimal(dto.Amount.toString());
+      if (dto.ReferenceNumber !== undefined) updateData.ReferenceNumber = dto.ReferenceNumber;
+      if (dto.Date) updateData.Date = new Date(dto.Date);
+      if (dto.Notes !== undefined) updateData.Notes = dto.Notes;
+      if (dto.DueDate !== undefined) updateData.DueDate = dto.DueDate ? new Date(dto.DueDate) : null;
+      if (!isChequeInstrument(inst)) {
         updateData.IsCleared = true;
         updateData.ClearedAt = payment.ClearedAt ?? new Date();
-      } else if (payment.InstrumentType === 'CASH') {
+      } else if (!isChequeInstrument(payment.InstrumentType)) {
         updateData.IsCleared = false;
         updateData.ClearedAt = null;
       }
-    }
-
-    const updated = await this.prisma.purchasePayment.update({
-      where: { ID: id },
-      data: updateData,
-      include: { Purchase: true, Creator: true },
+      await tx.purchasePayment.update({ where: { ID: id }, data: updateData });
+      await this.afterPaymentWrite(tx, id, userId ?? payment.CreatedByID);
+      return tx.purchasePayment.findUniqueOrThrow({ where: { ID: id }, include: { Purchase: true, Creator: true } });
     });
 
-    await this.updatePurchasePaymentStatus(payment.PurchaseID);
     await this.invalidate(payment.PurchaseID);
     return this.serialize(updated);
   }
 
-  async clear(id: number) {
-    const payment = await this.prisma.purchasePayment.findUnique({ where: { ID: id } });
+  /** Mark cek/BG as cleared (cair) inside a transaction: posts the payment journal and updates the cheque mirror. */
+  async clearTx(tx: Tx, id: number, userId?: string, clearedAt?: Date) {
+    const payment = await tx.purchasePayment.findUnique({ where: { ID: id } });
     if (!payment) throw new NotFoundException('Purchase payment not found');
     if (payment.IsCleared) throw new BadRequestException('Pembayaran sudah lunas/cair');
+    await tx.purchasePayment.update({ where: { ID: id }, data: { IsCleared: true, ClearedAt: clearedAt ?? new Date() } });
+    await this.afterPaymentWrite(tx, id, userId ?? payment.CreatedByID);
+    return tx.purchasePayment.findUniqueOrThrow({ where: { ID: id } });
+  }
 
-    const updated = await this.prisma.purchasePayment.update({
-      where: { ID: id },
-      data: { IsCleared: true, ClearedAt: new Date() },
-    });
-    await this.updatePurchasePaymentStatus(payment.PurchaseID);
-    await this.invalidate(payment.PurchaseID);
+  async clear(id: number, userId?: string) {
+    const updated = await this.prisma.$transaction((tx) => this.clearTx(tx, id, userId));
+    await this.invalidate(updated.PurchaseID);
     return this.serialize(updated);
+  }
+
+  /** Delete inside a transaction: reverses the journal, releases deposit usage, drops the pending/cleared cheque mirror. */
+  async deleteTx(tx: Tx, id: number) {
+    const payment = await tx.purchasePayment.findUnique({ where: { ID: id } });
+    if (!payment) throw new NotFoundException('Purchase payment not found');
+    await this.autoJournal.reverse(tx, REF.PURCHASE_PAYMENT, id);
+    await tx.chequePayment.deleteMany({ where: { ReferenceType: 'PURCHASE_PAYMENT', ReferenceID: id, Status: { in: ['PENDING', 'CLEARED'] } } });
+    await tx.purchasePayment.delete({ where: { ID: id } });
+    await this.deposits.releaseSupplierDeposit(tx, id);
+    await this.updatePurchasePaymentStatus(tx, payment.PurchaseID);
+    return payment;
   }
 
   async delete(id: number) {
-    const payment = await this.prisma.purchasePayment.findUnique({ where: { ID: id } });
-    if (!payment) throw new NotFoundException('Purchase payment not found');
-
-    await this.prisma.purchasePayment.delete({ where: { ID: id } });
-    await this.updatePurchasePaymentStatus(payment.PurchaseID);
+    const payment = await this.prisma.$transaction((tx) => this.deleteTx(tx, id));
     await this.invalidate(payment.PurchaseID);
     return { id };
+  }
+
+  /** Invalidate caches after a write made through clearTx/deleteTx by another module. */
+  async invalidateFor(parentId: number) {
+    await this.invalidate(parentId);
   }
 
   async list(query: Record<string, any>) {
@@ -228,6 +275,8 @@ export class PurchasePaymentService {
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
     await this.redis.invalidatePattern(`purchases:${parentId}*`);
     await this.redis.invalidatePattern('reports:*');
+    await this.redis.invalidatePattern('journal:*');
+    await this.redis.invalidatePattern('supplier*');
   }
 
   private serializeDeep(v: any): any {
@@ -268,14 +317,14 @@ export class PurchasePaymentService {
     return { data: serializedData, total, skip: prismaQuery.skip, take: prismaQuery.take };
   }
 
-  private async updatePurchasePaymentStatus(purchaseId: number) {
-    const purchase = await this.prisma.purchase.findUnique({
+  private async updatePurchasePaymentStatus(tx: Tx, purchaseId: number) {
+    const purchase = await tx.purchase.findUnique({
       where: { ID: purchaseId },
       include: { PurchasePayments: true },
     });
     if (!purchase) return;
 
-    // Only cleared payments (cash, or cek/bg marked lunas) count as paid.
+    // Only cleared payments (cash, deposit, or cek/bg marked lunas) count as paid.
     const paidAmount = purchase.PurchasePayments.filter((p) => p.IsCleared).reduce((sum, p) => sum + Number(p.Amount), 0);
     const totalAmount = Number(purchase.Total);
 
@@ -283,8 +332,8 @@ export class PurchasePaymentService {
     if (paidAmount > 0 && paidAmount < totalAmount) code = 'PARTIAL';
     else if (paidAmount >= totalAmount && totalAmount > 0) code = 'PAID';
 
-    const paymentStatus = await this.prisma.paymentStatus.findUnique({ where: { Code: code } });
-    await this.prisma.purchase.update({
+    const paymentStatus = await tx.paymentStatus.findUnique({ where: { Code: code } });
+    await tx.purchase.update({
       where: { ID: purchaseId },
       data: {
         PaymentStatusID: paymentStatus?.ID ?? purchase.PaymentStatusID,

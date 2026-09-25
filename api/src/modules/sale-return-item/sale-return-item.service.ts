@@ -2,12 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
-import { BaseService } from '../../common/templates/base.service';
+import { ReadOnlyItemService } from '../../common/stock/read-only-item.service';
 import { CreateSaleReturnItemDto, UpdateSaleReturnItemDto } from './dto/sale-return-item.dto';
 import { Prisma } from '@prisma/client';
 
 @Injectable()
-export class SaleReturnItemService extends BaseService<
+export class SaleReturnItemService extends ReadOnlyItemService<
   any,
   CreateSaleReturnItemDto,
   UpdateSaleReturnItemDto

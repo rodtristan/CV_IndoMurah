@@ -3,7 +3,7 @@
 // Ketoko-style transaction list: filter panel (kata kunci, gudang, periode, urutan) + grid,
 // Add / Edit / Copy / Delete all go to the full-page form.
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { DataTable } from "@/components/ui/DataTable";
@@ -38,7 +38,8 @@ export function TransactionList({
   canEdit?: (row: Rec) => boolean;
   emptyMessage: string;
   deleteLabel: string;
-  extraActions?: (row: Rec | null) => ReactNode;
+  /** `query` = the list's active filter/sort params (without paging), e.g. for exports. */
+  extraActions?: (row: Rec | null, ctx: { query: Rec }) => ReactNode;
   filterPartner?: { field: "SupplierID" | "CustomerID"; endpoint: string; label: string };
 }) {
   const router = useRouter();
@@ -64,27 +65,28 @@ export function TransactionList({
     }
   }, [partnerEndpoint]);
 
+  // Filter + sort params shared by the grid and by extra actions (CSV export etc.).
+  const query = useMemo(() => {
+    const where: Rec = {};
+    if (f.status) where[statusFilter.relation] = { Code: f.status };
+    if (f.warehouse) where.WarehouseID = Number(f.warehouse);
+    if (f.partner && partnerField) where[partnerField] = Number(f.partner);
+    if (f.from || f.to) {
+      where.Date = {};
+      if (f.from) where.Date.dategte = f.from;
+      if (f.to) where.Date.datelte = f.to;
+    }
+    const q: Rec = { $orderBy: { [(f.sort as string) || "Date"]: (f.dir as string) || "desc" } };
+    if (f.search) { q.$search = f.search; q.$searchFields = "Code"; }
+    if (Object.keys(where).length) q.$where = where;
+    return q;
+  }, [f, statusFilter.relation, partnerField]);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const where: Rec = {};
-      if (f.status) where[statusFilter.relation] = { Code: f.status };
-      if (f.warehouse) where.WarehouseID = Number(f.warehouse);
-      if (f.partner && partnerField) where[partnerField] = Number(f.partner);
-      if (f.from || f.to) {
-        where.Date = {};
-        if (f.from) where.Date.dategte = f.from;
-        if (f.to) where.Date.datelte = f.to;
-      }
-      const params: Rec = {
-        $include: include,
-        $take: pageSize,
-        $skip: (page - 1) * pageSize,
-        $orderBy: { [(f.sort as string) || "Date"]: (f.dir as string) || "desc" },
-      };
-      if (f.search) { params.$search = f.search; params.$searchFields = "Code"; }
-      if (Object.keys(where).length) params.$where = where;
+      const params: Rec = { ...query, $include: include, $take: pageSize, $skip: (page - 1) * pageSize };
       const res = await api.get<Rec[]>(endpoint, params, { skipCache: true });
       setRows(Array.isArray(res.data) ? res.data : []);
       setTotal(res.meta?.total ?? (Array.isArray(res.data) ? res.data.length : 0));
@@ -94,7 +96,7 @@ export function TransactionList({
     } finally {
       setLoading(false);
     }
-  }, [endpoint, include, f, page, pageSize, statusFilter.relation, partnerField]);
+  }, [endpoint, include, query, page, pageSize]);
 
   useEffect(() => { void fetchData(); }, [fetchData]);
 
@@ -147,7 +149,7 @@ export function TransactionList({
                 disableCopy={!selected}
                 disableDelete={!selected || (canDelete ? !canDelete(selected) : false)}
               />
-              {extraActions?.(selected)}
+              {extraActions?.(selected, { query })}
             </div>
           }
         />

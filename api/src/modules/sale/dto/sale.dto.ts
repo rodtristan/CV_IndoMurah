@@ -86,6 +86,26 @@ export class CreateSaleDto {
   @IsNumber()
   CashAmount?: number;
 
+  @ApiPropertyOptional({ description: 'Voucher ID (divalidasi: aktif, periode, kuota, minimal belanja)' })
+  @IsOptional()
+  @IsInt()
+  VoucherID?: number;
+
+  @ApiPropertyOptional({ description: 'Kode voucher (alternatif VoucherID)' })
+  @IsOptional()
+  @IsString()
+  VoucherCode?: string;
+
+  @ApiPropertyOptional({ description: 'Alias camelCase untuk PaymentMethodID' })
+  @IsOptional()
+  @IsInt()
+  paymentMethodId?: number;
+
+  @ApiPropertyOptional({ description: 'Alias camelCase untuk WarehouseID' })
+  @IsOptional()
+  @IsInt()
+  warehouseId?: number;
+
   @ApiPropertyOptional({ description: 'Notes' })
   @IsOptional()
   @IsString()

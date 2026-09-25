@@ -1,10 +1,11 @@
-import { IsString, IsOptional, IsInt, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsNumber, IsIn, IsDateString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateCustomerDepositDto {
-  @ApiProperty({ description: 'Kode deposit' })
+  @ApiPropertyOptional({ description: 'Kode deposit; awalan DPIN/DPOUT menentukan jenis bila "type" kosong (auto bila kosong)' })
+  @IsOptional()
   @IsString()
-  code: string;
+  code?: string;
 
   @ApiProperty({ description: 'Pelanggan' })
   @IsInt()
@@ -13,6 +14,36 @@ export class CreateCustomerDepositDto {
   @ApiProperty({ description: 'Jumlah deposit' })
   @IsNumber()
   amount: number;
+
+  @ApiPropertyOptional({ description: 'IN = dana diterima dari pelanggan, OUT = dana ditarik pelanggan' })
+  @IsOptional()
+  @IsIn(['IN', 'OUT'])
+  type?: 'IN' | 'OUT';
+
+  @ApiPropertyOptional({ description: 'Tanggal (ISO)' })
+  @IsOptional()
+  @IsDateString()
+  date?: string;
+
+  @ApiPropertyOptional({ description: 'Akun kas/bank (default Setting Perkiraan Kas)' })
+  @IsOptional()
+  @IsInt()
+  cashAccountId?: number;
+
+  @ApiPropertyOptional({ description: 'Akun deposit (default Setting Perkiraan Deposit Pelanggan)' })
+  @IsOptional()
+  @IsInt()
+  depositAccountId?: number;
+
+  @ApiPropertyOptional({ description: 'Metode pembayaran' })
+  @IsOptional()
+  @IsInt()
+  paymentMethodId?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  referenceNumber?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -38,8 +69,33 @@ export class UpdateCustomerDepositDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsNumber()
-  remainingAmount?: number;
+  @IsIn(['IN', 'OUT'])
+  type?: 'IN' | 'OUT';
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  date?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  cashAccountId?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  depositAccountId?: number;
+
+  @ApiPropertyOptional({ description: 'Metode pembayaran' })
+  @IsOptional()
+  @IsInt()
+  paymentMethodId?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  referenceNumber?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

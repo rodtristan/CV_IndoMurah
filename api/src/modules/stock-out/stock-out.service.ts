@@ -1,21 +1,24 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
-import { BaseService } from '../../common/templates/base.service';
+import { StockDocumentService } from '../../common/stock/stock-document.service';
+import { StockLedgerService } from '../../common/stock/stock-ledger.service';
 import { Prisma } from '@prisma/client';
 import { CreateStockOutDto, UpdateStockOutDto } from './dto/stock-out.dto';
 
+/**
+ * Barang Keluar: stok keluar dari gudang dokumen lewat StockLedger (RefType STOCK_OUT),
+ * ditolak bila stok gudang tidak cukup. Nilai keluar = HPP rata-rata produk.
+ * Hapus = balik mutasi; ubah gudang = pindahkan mutasi ke gudang baru.
+ */
 @Injectable()
-export class StockOutService extends BaseService<
-  any,
-  CreateStockOutDto,
-  UpdateStockOutDto
-> {
+export class StockOutService extends StockDocumentService<any, CreateStockOutDto, UpdateStockOutDto> {
   constructor(
     readonly prisma: PrismaService,
     readonly redis: RedisService,
     readonly queryService: QueryService,
+    private readonly ledger: StockLedgerService,
   ) {
     super(prisma, redis, queryService, {
       modelName: 'stockOut',
@@ -32,18 +35,15 @@ export class StockOutService extends BaseService<
     });
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  // BUSINESS LOGIC METHODS
-  // ═══════════════════════════════════════════════════════════════════
-
   async createStockOut(dto: CreateStockOutDto, userId: string) {
     if (!dto.Items || dto.Items.length === 0) {
-      throw new BadRequestException('Stock out items tidak boleh kosong');
+      throw new BadRequestException('Item barang keluar tidak boleh kosong');
     }
+    if (dto.Items.some((i) => !(Number(i.Quantity) > 0))) throw new BadRequestException('Jumlah item harus lebih dari 0');
 
     const code = await this.generateCode();
     const completedStatus = await this.getTransactionStatusByCode('COMPLETED');
-
+    const docDate = dto.Date ? new Date(dto.Date) : new Date();
     const totalItems = dto.Items.reduce((sum, item) => sum + Number(item.Quantity), 0);
 
     const itemsData = dto.Items.map((item) => {
@@ -58,39 +58,88 @@ export class StockOutService extends BaseService<
       };
     });
 
-    const stockOut = await this.prisma.$transaction(async (tx) => {
-      const newStockOut = await tx.stockOut.create({
-        data: {
-          Code: code,
-          Date: dto.Date ? new Date(dto.Date) : new Date(),
-          Warehouse: { connect: { ID: dto.WarehouseID } },
-          ...(dto.ReferenceTypeID ? { ReferenceType: { connect: { ID: dto.ReferenceTypeID } } } : {}),
-          ReferenceID: dto.ReferenceID,
-          TotalItems: new Prisma.Decimal(totalItems),
-          Description: dto.Description,
-          Status: { connect: { ID: completedStatus.ID } },
-          Creator: { connect: { ID: userId } },
-          StockOutItems: { create: itemsData },
-        },
-        include: {
-          Warehouse: true,
-          Status: true,
-          Creator: true,
-          StockOutItems: { include: { Product: true, Unit: true } },
-        },
-      });
-
-      for (const item of dto.Items) {
-        await tx.product.update({
-          where: { ID: item.ProductID },
-          data: { Stock: { decrement: new Prisma.Decimal(item.Quantity) } },
+    const stockIn = await this.prisma.$transaction(
+      async (tx) => {
+        const warehouseId = await this.ledger.resolveWarehouseId(tx, dto.WarehouseID);
+        const created = await tx.stockOut.create({
+          data: {
+            Code: code,
+            Date: docDate,
+            Warehouse: { connect: { ID: warehouseId } },
+            ...(dto.ReferenceTypeID ? { ReferenceType: { connect: { ID: dto.ReferenceTypeID } } } : {}),
+            ReferenceID: dto.ReferenceID,
+            TotalItems: new Prisma.Decimal(totalItems),
+            Description: dto.Description,
+            Status: { connect: { ID: completedStatus.ID } },
+            Creator: { connect: { ID: userId } },
+            StockOutItems: { create: itemsData },
+          },
+          include: { StockOutItems: true },
         });
+
+        for (const it of created.StockOutItems) {
+          const base = await this.ledger.toBaseQty(tx, it.ProductID, it.UnitID, it.Quantity);
+          await this.ledger.move(tx, {
+            productId: it.ProductID,
+            warehouseId,
+            qty: base.neg(),
+            refType: 'STOCK_OUT',
+            refId: created.ID,
+            refCode: created.Code,
+            userId,
+            date: docDate,
+            notes: dto.Description,
+          });
+        }
+
+        return tx.stockOut.findUniqueOrThrow({
+          where: { ID: created.ID },
+          include: { Warehouse: true, Status: true, Creator: true, StockOutItems: { include: { Product: true, Unit: true } } },
+        });
+      },
+      { timeout: 30000 },
+    );
+
+    await this.afterWrite();
+    return this.serializeStockOut(stockIn);
+  }
+
+  /** Ubah header. Ganti gudang = mutasi dipindah ke gudang baru. Item tidak dapat diubah. */
+  async patchById(id: any, dto: Partial<UpdateStockOutDto>, userId?: string) {
+    const doc = await this.prisma.stockOut.findUnique({ where: { ID: Number(id) } });
+    if (!doc) throw new NotFoundException('Barang keluar tidak ditemukan');
+    const result = await this.prisma.$transaction(async (tx) => {
+      const data: Prisma.StockOutUncheckedUpdateInput = {};
+      if (dto.WarehouseID && Number(dto.WarehouseID) !== doc.WarehouseID) {
+        const wh = await this.ledger.resolveWarehouseId(tx, Number(dto.WarehouseID));
+        await this.ledger.relocateRef(tx, ['STOCK_OUT'], doc.ID, wh, { refCode: doc.Code, userId });
+        data.WarehouseID = wh;
       }
-
-      return newStockOut;
+      if (dto.Date) data.Date = new Date(dto.Date);
+      if (dto.Description !== undefined) data.Description = dto.Description;
+      return tx.stockOut.update({ where: { ID: doc.ID }, data });
     });
+    await this.afterWrite();
+    return this.serializeStockOut(result);
+  }
 
-    return this.serializeStockOut(stockOut);
+  async deleteById(id: any, userId?: string) {
+    const doc = await this.prisma.stockOut.findUnique({ where: { ID: Number(id) }, include: { StockOutItems: true } });
+    if (!doc) throw new NotFoundException('Barang keluar tidak ditemukan');
+    await this.prisma.$transaction(
+      async (tx) => {
+        await this.ledger.reverseRef(tx, ['STOCK_OUT'], doc.ID, { refCode: doc.Code, userId, notes: `Hapus barang keluar ${doc.Code}` });
+        await tx.stockOut.delete({ where: { ID: doc.ID } });
+      },
+      { timeout: 30000 },
+    );
+    await this.afterWrite();
+    return this.serializeStockOut(doc);
+  }
+
+  private async afterWrite() {
+    await this.invalidateCache();
+    await this.ledger.invalidateCaches();
   }
 
   private async getTransactionStatusByCode(code: string) {

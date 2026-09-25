@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { LeaveService } from './leave-service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
+import { CurrentUser } from '../../../common/decorators/current-user-decorator';
 import {
   CreateLeaveDto,
   UpdateLeaveDto,
@@ -19,7 +20,7 @@ export class LeaveController {
   @Post()
   async createLeave(
     @Body() dto: CreateLeaveDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.leaveService.createLeave(dto, userId);
   }
@@ -48,7 +49,7 @@ export class LeaveController {
   async updateLeave(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateLeaveDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.leaveService.updateLeave(id, dto, userId);
   }
@@ -57,7 +58,7 @@ export class LeaveController {
   async approveLeave(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ApproveLeaveDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.leaveService.approveLeave(id, dto, userId);
   }
@@ -66,7 +67,7 @@ export class LeaveController {
   async rejectLeave(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: RejectLeaveDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.leaveService.rejectLeave(id, dto, userId);
   }
@@ -79,7 +80,7 @@ export class LeaveController {
   @Post('balances/initialize')
   async initializeLeaveBalances(
     @Body() dto: InitializeLeaveBalanceDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.leaveService.initializeLeaveBalances(dto, userId);
   }

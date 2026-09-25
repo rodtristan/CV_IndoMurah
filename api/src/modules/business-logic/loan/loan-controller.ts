@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { LoanService } from './loan-service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
+import { CurrentUser } from '../../../common/decorators/current-user-decorator';
 import {
   CreateLoanDto,
   UpDateLoanDto,
@@ -17,7 +18,7 @@ export class LoanController {
   @Post()
   async createLoan(
     @Body() dto: CreateLoanDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.loanService.createLoan(dto, userId);
   }
@@ -63,7 +64,7 @@ export class LoanController {
   @Post('installment')
   async recordInstallment(
     @Body() dto: RecordInstallmentDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.loanService.RecordInstallment(dto, userId);
   }

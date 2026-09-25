@@ -1,0 +1,428 @@
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SupplierService = void 0;
+const common_1 = require("@nestjs/common");
+const prisma_service_1 = require("../../../common/prisma/prisma-service");
+const client_1 = require("@prisma/client");
+const number_1 = require("../../../common/utils/number");
+let SupplierService = class SupplierService {
+    constructor(prisma) {
+        this.prisma = prisma;
+    }
+    async createSupplier(dto, UserId) {
+        const existing = await this.prisma.supplier.findUnique({
+            where: { Code: dto.Code },
+        });
+        if (existing) {
+            throw new common_1.BadRequestException(`Supplier Code '${dto.Code}' already exists`);
+        }
+        const Supplier = await this.prisma.supplier.create({
+            data: {
+                Code: dto.Code,
+                Name: dto.Name,
+                ContactPerson: dto.ContactPerson,
+                Phone: dto.Phone,
+                Email: dto.Email,
+                Address: dto.Address,
+                TotalDebt: new client_1.Prisma.Decimal(dto.TotalDebt || 0),
+                Notes: dto.Notes,
+                IsActive: true,
+            },
+        });
+        await this.prisma.activityLog.create({
+            data: {
+                Type: 'SUPPLIER_CREATED',
+                Title: 'Supplier Created',
+                Description: `New Supplier ${Supplier.Name} (${Supplier.Code}) created`,
+                ReferenceType: 'SUPPLIER',
+                ReferenceID: Supplier.ID,
+                CreatedByID: UserId,
+            },
+        });
+        return {
+            success: true,
+            Supplier: this.formatSupplier(Supplier),
+        };
+    }
+    async updateSupplier(SupplierId, dto, UserId) {
+        const Supplier = await this.prisma.supplier.findUnique({
+            where: { ID: SupplierId },
+        });
+        if (!Supplier) {
+            throw new common_1.NotFoundException('Supplier not found');
+        }
+        const updated = await this.prisma.supplier.update({
+            where: { ID: SupplierId },
+            data: {
+                Name: dto.Name,
+                ContactPerson: dto.ContactPerson,
+                Phone: dto.Phone,
+                Email: dto.Email,
+                Address: dto.Address,
+                Notes: dto.Notes,
+                IsActive: dto.IsActive,
+            },
+        });
+        await this.prisma.activityLog.create({
+            data: {
+                Type: 'SUPPLIER_UPDATED',
+                Title: 'Supplier UpDated',
+                Description: `Supplier ${updated.Name} (${updated.Code}) updated`,
+                ReferenceType: 'SUPPLIER',
+                ReferenceID: updated.ID,
+                CreatedByID: UserId,
+            },
+        });
+        return {
+            success: true,
+            Supplier: this.formatSupplier(updated),
+        };
+    }
+    async getSupplier(SupplierId) {
+        const Supplier = await this.prisma.supplier.findUnique({
+            where: { ID: SupplierId },
+            include: {
+                Purchases: {
+                    take: 5,
+                    orderBy: { Date: 'desc' },
+                },
+                PurchaseReturns: {
+                    take: 5,
+                    orderBy: { Date: 'desc' },
+                },
+            },
+        });
+        if (!Supplier) {
+            throw new common_1.NotFoundException('Supplier not found');
+        }
+        return {
+            ...this.formatSupplier(Supplier),
+            TotalPurchases: Supplier.Purchases.length,
+            TotalReturns: Supplier.PurchaseReturns.length,
+        };
+    }
+    async listSuppliers(dto) {
+        const where = {};
+        if (dto.Search) {
+            where.OR = [
+                { Name: { contains: dto.Search, mode: 'insensitive' } },
+                { Code: { contains: dto.Search, mode: 'insensitive' } },
+                { Phone: { contains: dto.Search, mode: 'insensitive' } },
+                { ContactPerson: { contains: dto.Search, mode: 'insensitive' } },
+            ];
+        }
+        if (dto.IsActive !== undefined) {
+            where.IsActive = dto.IsActive;
+        }
+        if (dto.HasDebt) {
+            where.TotalDebt = { gt: 0 };
+        }
+        const page = dto.Page || 1;
+        const limit = dto.Limit || 20;
+        const skip = (page - 1) * limit;
+        const [Suppliers, Total] = await Promise.all([
+            this.prisma.supplier.findMany({
+                where,
+                include: {
+                    _count: {
+                        select: {
+                            Purchases: true,
+                            PurchaseOrders: true,
+                        },
+                    },
+                },
+                orderBy: { Name: 'asc' },
+                skip,
+                take: limit,
+            }),
+            this.prisma.supplier.count({ where }),
+        ]);
+        return {
+            data: Suppliers.map((s) => ({
+                ...this.formatSupplier(s),
+                PurchaseCount: s._count.Purchases,
+                OrderCount: s._count.PurchaseOrders,
+            })),
+            pagination: {
+                page,
+                limit,
+                Total,
+                TotalPages: Math.ceil(Total / limit),
+            },
+        };
+    }
+    async deleteSupplier(SupplierId, UserId) {
+        const Supplier = await this.prisma.supplier.findUnique({
+            where: { ID: SupplierId },
+        });
+        if (!Supplier) {
+            throw new common_1.NotFoundException('Supplier not found');
+        }
+        const PurchaseCount = await this.prisma.purchase.count({
+            where: { SupplierID: SupplierId },
+        });
+        if (PurchaseCount > 0) {
+            await this.prisma.supplier.update({
+                where: { ID: SupplierId },
+                data: { IsActive: false },
+            });
+        }
+        else {
+            await this.prisma.supplier.delete({
+                where: { ID: SupplierId },
+            });
+        }
+        return {
+            success: true,
+            message: PurchaseCount > 0 ? 'Supplier deactivated' : 'Supplier deleted',
+        };
+    }
+    async addDebt(dto, UserId) {
+        const Supplier = await this.prisma.supplier.findUnique({
+            where: { ID: dto.SupplierId },
+        });
+        if (!Supplier) {
+            throw new common_1.NotFoundException('Supplier not found');
+        }
+        const updated = await this.prisma.supplier.update({
+            where: { ID: dto.SupplierId },
+            data: {
+                TotalDebt: { increment: new client_1.Prisma.Decimal(dto.Amount) },
+            },
+        });
+        await this.prisma.activityLog.create({
+            data: {
+                Type: 'SUPPLIER_DEBT_ADDED',
+                Title: 'Supplier Debt Added',
+                Description: `Added ${dto.Amount} to ${Supplier.Name}'s debt`,
+                ReferenceType: dto.ReferenceType,
+                ReferenceID: dto.ReferenceId,
+                Amount: new client_1.Prisma.Decimal(dto.Amount),
+                CreatedByID: UserId,
+            },
+        });
+        return {
+            success: true,
+            SupplierId: dto.SupplierId,
+            SupplierName: Supplier.Name,
+            previousDebt: (0, number_1.number)(Supplier.TotalDebt),
+            addedAmount: dto.Amount,
+            newDebt: (0, number_1.number)(updated.TotalDebt),
+        };
+    }
+    async paymentDebt(dto, UserId) {
+        const Supplier = await this.prisma.supplier.findUnique({
+            where: { ID: dto.SupplierId },
+        });
+        if (!Supplier) {
+            throw new common_1.NotFoundException('Supplier not found');
+        }
+        if (Number(Supplier.TotalDebt) < dto.Amount) {
+            throw new common_1.BadRequestException(`Payment exceeds debt. Available: ${Supplier.TotalDebt}, Payment: ${dto.Amount}`);
+        }
+        const updated = await this.prisma.supplier.update({
+            where: { ID: dto.SupplierId },
+            data: {
+                TotalDebt: { decrement: new client_1.Prisma.Decimal(dto.Amount) },
+            },
+        });
+        await this.prisma.activityLog.create({
+            data: {
+                Type: 'SUPPLIER_DEBT_PAID',
+                Title: 'Supplier Debt Payment',
+                Description: `${Supplier.Name} paid ${dto.Amount}`,
+                ReferenceType: 'SUPPLIER_PAYMENT',
+                Amount: new client_1.Prisma.Decimal(dto.Amount),
+                CreatedByID: UserId,
+            },
+        });
+        return {
+            success: true,
+            SupplierId: dto.SupplierId,
+            SupplierName: Supplier.Name,
+            previousDebt: (0, number_1.number)(Supplier.TotalDebt),
+            PaymentAmount: dto.Amount,
+            newDebt: (0, number_1.number)(updated.TotalDebt),
+        };
+    }
+    async getSupplierDebt(SupplierId) {
+        const Supplier = await this.prisma.supplier.findUnique({
+            where: { ID: SupplierId },
+            include: {
+                Purchases: {
+                    where: {
+                        PaymentStatus: {
+                            Code: { in: ['PARTIAL', 'UNPAID'] },
+                        },
+                    },
+                    orderBy: { Date: 'desc' },
+                    include: {
+                        PurchasePayments: true,
+                    },
+                },
+            },
+        });
+        if (!Supplier) {
+            throw new common_1.NotFoundException('Supplier not found');
+        }
+        const outstandingPurchases = Supplier.Purchases.map((p) => ({
+            ID: p.ID,
+            Code: p.Code,
+            Date: p.Date,
+            Total: (0, number_1.number)(p.Total),
+            Paid: p.PurchasePayments.reduce((sum, pay) => sum + Number(pay.Amount), 0),
+            outstanding: (0, number_1.number)(p.Total) - p.PurchasePayments.reduce((sum, pay) => sum + Number(pay.Amount), 0),
+        }));
+        return {
+            Supplier: this.formatSupplier(Supplier),
+            currentDebt: (0, number_1.number)(Supplier.TotalDebt),
+            outstandingPurchases,
+            TotalOutstanding: outstandingPurchases.reduce((sum, inv) => sum + inv.outstanding, 0),
+        };
+    }
+    async getSupplierStatement(dto) {
+        const Supplier = await this.prisma.supplier.findUnique({
+            where: { ID: dto.SupplierId },
+        });
+        if (!Supplier) {
+            throw new common_1.NotFoundException('Supplier not found');
+        }
+        const startDate = new Date(dto.StartDate);
+        const endDate = new Date(dto.EndDate);
+        endDate.setHours(23, 59, 59, 999);
+        const Purchases = await this.prisma.purchase.findMany({
+            where: {
+                SupplierID: dto.SupplierId,
+                Date: { gte: startDate, lte: endDate },
+            },
+            orderBy: { Date: 'asc' },
+            include: {
+                PurchasePayments: true,
+            },
+        });
+        const returns = await this.prisma.purchaseReturn.findMany({
+            where: {
+                SupplierID: dto.SupplierId,
+                Date: { gte: startDate, lte: endDate },
+            },
+            orderBy: { Date: 'asc' },
+        });
+        const Deposits = await this.prisma.supplierDeposit.findMany({
+            where: {
+                SupplierID: dto.SupplierId,
+                Date: { gte: startDate, lte: endDate },
+            },
+            orderBy: { Date: 'asc' },
+        });
+        const transactions = [
+            ...Purchases.map((p) => ({
+                Date: p.Date,
+                Type: 'PURCHASE',
+                reference: p.Code,
+                Description: 'Pembelian',
+                debit: (0, number_1.number)(p.Total),
+                credit: p.PurchasePayments.reduce((sum, pay) => sum + Number(pay.Amount), 0),
+            })),
+            ...returns.map((r) => ({
+                Date: r.Date,
+                Type: 'RETURN',
+                reference: r.Code,
+                Description: 'Retur Pembelian',
+                debit: 0,
+                credit: (0, number_1.number)(r.TotalReturn),
+            })),
+            ...Deposits.map((d) => ({
+                Date: d.Date,
+                Type: 'PAYMENT',
+                reference: d.Code,
+                Description: 'Pembayaran Hutang',
+                debit: 0,
+                credit: (0, number_1.number)(d.Amount),
+            })),
+        ].sort((a, b) => a.Date.getTime() - b.Date.getTime());
+        const TotalDebit = transactions.reduce((sum, t) => sum + t.debit, 0);
+        const TotalCredit = transactions.reduce((sum, t) => sum + t.credit, 0);
+        return {
+            Supplier: this.formatSupplier(Supplier),
+            period: { startDate: dto.StartDate, endDate: dto.EndDate },
+            openingBalance: (0, number_1.number)(Supplier.TotalDebt),
+            transactions,
+            closingBalance: (0, number_1.number)(Supplier.TotalDebt) + TotalDebit - TotalCredit,
+            Summary: {
+                TotalPurchases: TotalDebit,
+                TotalPayments: TotalCredit,
+                netChange: TotalDebit - TotalCredit,
+            },
+        };
+    }
+    async getSupplierSummary() {
+        const [TotalSuppliers, ActiveSuppliers, SuppliersWithDebt,] = await Promise.all([
+            this.prisma.supplier.count(),
+            this.prisma.supplier.count({ where: { IsActive: true } }),
+            this.prisma.supplier.count({ where: { TotalDebt: { gt: 0 } } }),
+        ]);
+        const TotalDebt = await this.prisma.supplier.aggregate({
+            where: { TotalDebt: { gt: 0 } },
+            _sum: { TotalDebt: true },
+        });
+        return {
+            TotalSuppliers,
+            ActiveSuppliers,
+            SuppliersWithDebt,
+            TotalOutstandingDebt: (0, number_1.number)(TotalDebt._sum.TotalDebt || 0),
+        };
+    }
+    async getTopSuppliers(limit = 10) {
+        const Suppliers = await this.prisma.supplier.findMany({
+            include: {
+                Purchases: {
+                    select: {
+                        Total: true,
+                    },
+                },
+            },
+        });
+        return Suppliers
+            .map((s) => ({
+            SupplierId: s.ID,
+            SupplierCode: s.Code,
+            SupplierName: s.Name,
+            contactPerson: s.ContactPerson,
+            TotalPurchases: s.Purchases.reduce((sum, p) => sum + Number(p.Total), 0),
+            transactionCount: s.Purchases.length,
+        }))
+            .filter((s) => s.TotalPurchases > 0)
+            .sort((a, b) => b.TotalPurchases - a.TotalPurchases)
+            .slice(0, limit);
+    }
+    formatSupplier(Supplier) {
+        return {
+            ID: Supplier.ID,
+            Code: Supplier.Code,
+            Name: Supplier.Name,
+            contactPerson: Supplier.ContactPerson,
+            phone: Supplier.Phone,
+            email: Supplier.Email,
+            address: Supplier.Address,
+            TotalDebt: (0, number_1.number)(Supplier.TotalDebt),
+            Notes: Supplier.Notes,
+            IsActive: Supplier.IsActive,
+            createdAt: Supplier.CreatedAt,
+            updatedAt: Supplier.UpdatedAt,
+        };
+    }
+};
+exports.SupplierService = SupplierService;
+exports.SupplierService = SupplierService = __decorate([
+    (0, common_1.Injectable)(),
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+], SupplierService);

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsInt, IsDateString, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsInt, IsDateString, IsIn, IsBoolean } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateSalePaymentDto {
@@ -6,9 +6,10 @@ export class CreateSalePaymentDto {
   @IsInt()
   SaleID: number;
 
-  @ApiProperty({ description: 'Payment method ID' })
+  @ApiPropertyOptional({ description: 'Payment method ID (tidak wajib bila InstrumentType DEPOSIT / UseDeposit)' })
+  @IsOptional()
   @IsInt()
-  MethodID: number;
+  MethodID?: number;
 
   @ApiProperty({ description: 'Payment amount' })
   @IsNumber()
@@ -24,10 +25,15 @@ export class CreateSalePaymentDto {
   @IsDateString()
   Date?: string;
 
-  @ApiPropertyOptional({ description: 'CASH | CEK | BG' })
+  @ApiPropertyOptional({ description: 'CASH | CEK | BG | DEPOSIT (DEPOSIT = bayar memakai saldo deposit)' })
   @IsOptional()
-  @IsIn(['CASH', 'CEK', 'BG'])
+  @IsIn(['CASH', 'CEK', 'BG', 'DEPOSIT'])
   InstrumentType?: string;
+
+  @ApiPropertyOptional({ description: 'true = bayar memakai saldo deposit (sama dengan InstrumentType DEPOSIT)' })
+  @IsOptional()
+  @IsBoolean()
+  UseDeposit?: boolean;
 
   @ApiPropertyOptional({ description: 'Due date (cek/bg)', type: String })
   @IsOptional()
@@ -61,10 +67,15 @@ export class UpdateSalePaymentDto {
   @IsDateString()
   Date?: string;
 
-  @ApiPropertyOptional({ description: 'CASH | CEK | BG' })
+  @ApiPropertyOptional({ description: 'CASH | CEK | BG | DEPOSIT (DEPOSIT = bayar memakai saldo deposit)' })
   @IsOptional()
-  @IsIn(['CASH', 'CEK', 'BG'])
+  @IsIn(['CASH', 'CEK', 'BG', 'DEPOSIT'])
   InstrumentType?: string;
+
+  @ApiPropertyOptional({ description: 'true = bayar memakai saldo deposit (sama dengan InstrumentType DEPOSIT)' })
+  @IsOptional()
+  @IsBoolean()
+  UseDeposit?: boolean;
 
   @ApiPropertyOptional({ description: 'Due date (cek/bg)', type: String })
   @IsOptional()

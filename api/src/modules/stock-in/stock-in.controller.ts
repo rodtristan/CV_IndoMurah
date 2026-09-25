@@ -74,8 +74,9 @@ export class StockInController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update StockIn by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateStockInDto>) {
-    return super.patchById(id, dto);
+  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateStockInDto>, @CurrentUser() user?: any) {
+    const data = await this.stockInService.patchById(Number(id), dto, user?.id);
+    return { success: true, data, message: 'Data berhasil diperbarui' };
   }
 
   @Patch('by/:field/:value')
@@ -119,8 +120,9 @@ export class StockInController extends BaseController<
   // DELETE endpoints
   @Delete(':id')
   @ApiOperation({ summary: 'Delete StockIn by ID' })
-  async deleteById(@Param('id') id: string) {
-    return super.deleteById(id);
+  async deleteById(@Param('id') id: string, @CurrentUser() user?: any) {
+    const data = await this.stockInService.deleteById(Number(id), user?.id);
+    return { success: true, data, message: 'Data berhasil dihapus' };
   }
 
   @Delete('by/:field/:value')

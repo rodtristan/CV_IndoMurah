@@ -3,7 +3,29 @@
 // OData-optimized with intelligent caching & batching
 // ============================================================
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+// NEXT_PUBLIC_API_URL is inlined at build time (see web/.env.example). In development
+// we fall back to the local API (port 5000, prefix /api/v1); a production build without
+// it must fail loudly instead of silently pointing browsers at localhost.
+function resolveApiBaseUrl(): string {
+  const fromEnv = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (fromEnv) return fromEnv.replace(/\/+$/, '');
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'NEXT_PUBLIC_API_URL belum di-set. Set variabel ini (mis. https://api.domain-anda.com/api/v1) sebelum build produksi.',
+    );
+  }
+  return 'http://localhost:5000/api/v1';
+}
+
+export const API_BASE_URL = resolveApiBaseUrl();
+
+/** Turns a NestJS error body ({ message: string | string[] }) into one readable sentence. */
+function extractErrorMessage(errorData: unknown, status: number, statusText: string): string {
+  const msg = (errorData as { message?: unknown } | null)?.message;
+  if (Array.isArray(msg)) return msg.map(String).join('; ');
+  if (typeof msg === 'string' && msg) return msg;
+  return `HTTP ${status}: ${statusText}`;
+}
 
 // ─── Global in-flight request tracker ──────────────────────────
 // Every get/post/put/patch/delete/login call funnels through
@@ -340,7 +362,7 @@ class ApiClient {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+        throw new Error(extractErrorMessage(errorData, response.status, response.statusText));
       }
 
       return await response.json();

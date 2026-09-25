@@ -1,11 +1,9 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma-service';
 
-export const ACCOUNT_SETTING_KEYS = [
-  'cash', 'inventory', 'receivable', 'payable', 'sales', 'salesDiscount', 'cogs',
-  'salesReturn', 'purchaseReturn', 'vatOut', 'vatIn', 'custDeposit', 'suppDeposit',
-  'shipping', 'stockDiff', 'retained', 'currentProfit', 'otherIncome', 'otherExpense',
-];
+import { ACCOUNT_KEYS } from '../../common/accounting/account-keys';
+
+export const ACCOUNT_SETTING_KEYS = ACCOUNT_KEYS;
 
 @Injectable()
 export class AccountSettingService {

@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { StockTransferService } from './stock-transfer-service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
+import { CurrentUser } from '../../../common/decorators/current-user-decorator';
 import {
   CreateStockTransferDto,
   StockTransferFilterDto,
@@ -15,7 +16,7 @@ export class StockTransferController {
   @Post()
   async createStockTransfer(
     @Body() dto: CreateStockTransferDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.stockTransferService.createStockTransfer(dto, userId);
   }
@@ -38,7 +39,7 @@ export class StockTransferController {
   @Post(':id/complete')
   async completeStockTransfer(
     @Param('id', ParseIntPipe) id: number,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.stockTransferService.completeStockTransfer(id, userId);
   }
@@ -46,7 +47,7 @@ export class StockTransferController {
   @Post(':id/cancel')
   async cancelStockTransfer(
     @Param('id', ParseIntPipe) id: number,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.stockTransferService.cancelStockTransfer(id, userId);
   }

@@ -1,13 +1,18 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
-import { BaseService } from '../../common/templates/base.service';
+import { StockDocumentService } from '../../common/stock/stock-document.service';
+import { StockLedgerService } from '../../common/stock/stock-ledger.service';
 import { Prisma } from '@prisma/client';
 import { CreateStockTransferDto, UpdateStockTransferDto } from './dto/stock-transfer.dto';
 
+/**
+ * Transfer antar gudang: TRANSFER_OUT dari gudang asal (ditolak bila stok tidak cukup) dan
+ * TRANSFER_IN ke gudang tujuan, atomik dalam satu transaksi. Total Product.Stock tetap.
+ */
 @Injectable()
-export class StockTransferService extends BaseService<
+export class StockTransferService extends StockDocumentService<
   any,
   CreateStockTransferDto,
   UpdateStockTransferDto
@@ -16,6 +21,7 @@ export class StockTransferService extends BaseService<
     readonly prisma: PrismaService,
     readonly redis: RedisService,
     readonly queryService: QueryService,
+    private readonly ledger: StockLedgerService,
   ) {
     super(prisma, redis, queryService, {
       modelName: 'stockTransfer',
@@ -62,37 +68,97 @@ export class StockTransferService extends BaseService<
       };
     });
 
-    // NOTE: Product.Stock in this schema is a single global figure (not
-    // per-warehouse), so a transfer between warehouses nets to zero on the
-    // total. We do NOT mutate Product.Stock here — matching
-    // report.service.ts#stockMutationReport, which records StockTransfer
-    // rows only as TRANSFER_IN/TRANSFER_OUT movement entries.
-    const stockTransfer = await this.prisma.$transaction(async (tx) => {
-      const newStockTransfer = await tx.stockTransfer.create({
-        data: {
-          Code: code,
-          Date: dto.Date ? new Date(dto.Date) : new Date(),
-          FromWarehouse: { connect: { ID: dto.FromWarehouseID } },
-          ToWarehouse: { connect: { ID: dto.ToWarehouseID } },
-          TotalItems: new Prisma.Decimal(totalItems),
-          Notes: dto.Notes,
-          Status: { connect: { ID: completedStatus.ID } },
-          Creator: { connect: { ID: userId } },
-          TransferItems: { create: itemsData },
-        },
-        include: {
-          FromWarehouse: true,
-          ToWarehouse: true,
-          Status: true,
-          Creator: true,
-          TransferItems: { include: { Product: true, Unit: true } },
-        },
-      });
+    if (dto.Items.some((i) => !(Number(i.Quantity) > 0))) throw new BadRequestException('Jumlah item harus lebih dari 0');
+    const docDate = dto.Date ? new Date(dto.Date) : new Date();
 
-      return newStockTransfer;
-    });
+    const stockTransfer = await this.prisma.$transaction(
+      async (tx) => {
+        const fromId = await this.ledger.resolveWarehouseId(tx, dto.FromWarehouseID);
+        const toId = await this.ledger.resolveWarehouseId(tx, dto.ToWarehouseID);
+        const created = await tx.stockTransfer.create({
+          data: {
+            Code: code,
+            Date: docDate,
+            FromWarehouse: { connect: { ID: fromId } },
+            ToWarehouse: { connect: { ID: toId } },
+            TotalItems: new Prisma.Decimal(totalItems),
+            Notes: dto.Notes,
+            Status: { connect: { ID: completedStatus.ID } },
+            Creator: { connect: { ID: userId } },
+            TransferItems: { create: itemsData },
+          },
+          include: { TransferItems: true },
+        });
 
+        for (const it of created.TransferItems) {
+          const base = await this.ledger.toBaseQty(tx, it.ProductID, it.UnitID, it.Quantity);
+          const common = { productId: it.ProductID, refId: created.ID, refCode: created.Code, userId, date: docDate, notes: dto.Notes };
+          await this.ledger.move(tx, { ...common, warehouseId: fromId, qty: base.neg(), refType: 'TRANSFER_OUT' });
+          await this.ledger.move(tx, { ...common, warehouseId: toId, qty: base, refType: 'TRANSFER_IN' });
+        }
+
+        return tx.stockTransfer.findUniqueOrThrow({
+          where: { ID: created.ID },
+          include: {
+            FromWarehouse: true,
+            ToWarehouse: true,
+            Status: true,
+            Creator: true,
+            TransferItems: { include: { Product: true, Unit: true } },
+          },
+        });
+      },
+      { timeout: 30000 },
+    );
+
+    await this.afterWrite();
     return this.serializeStockTransfer(stockTransfer);
+  }
+
+  /** Ubah header; ganti gudang asal/tujuan = mutasi dipindahkan. Item tidak dapat diubah. */
+  async patchById(id: any, dto: Partial<UpdateStockTransferDto>, userId?: string) {
+    const doc = await this.prisma.stockTransfer.findUnique({ where: { ID: Number(id) } });
+    if (!doc) throw new NotFoundException('Transfer tidak ditemukan');
+    const from = dto.FromWarehouseID ? Number(dto.FromWarehouseID) : doc.FromWarehouseID;
+    const to = dto.ToWarehouseID ? Number(dto.ToWarehouseID) : doc.ToWarehouseID;
+    if (from === to) throw new BadRequestException('Gudang asal dan tujuan tidak boleh sama');
+    const result = await this.prisma.$transaction(async (tx) => {
+      const data: Prisma.StockTransferUncheckedUpdateInput = {};
+      if (to !== doc.ToWarehouseID) {
+        const wh = await this.ledger.resolveWarehouseId(tx, to);
+        await this.ledger.relocateRef(tx, ['TRANSFER_IN'], doc.ID, wh, { refCode: doc.Code, userId });
+        data.ToWarehouseID = wh;
+      }
+      if (from !== doc.FromWarehouseID) {
+        const wh = await this.ledger.resolveWarehouseId(tx, from);
+        await this.ledger.relocateRef(tx, ['TRANSFER_OUT'], doc.ID, wh, { refCode: doc.Code, userId });
+        data.FromWarehouseID = wh;
+      }
+      if (dto.Date) data.Date = new Date(dto.Date);
+      if (dto.Notes !== undefined) data.Notes = dto.Notes;
+      return tx.stockTransfer.update({ where: { ID: doc.ID }, data });
+    });
+    await this.afterWrite();
+    return this.serializeStockTransfer(result);
+  }
+
+  async deleteById(id: any, userId?: string) {
+    const doc = await this.prisma.stockTransfer.findUnique({ where: { ID: Number(id) } });
+    if (!doc) throw new NotFoundException('Transfer tidak ditemukan');
+    await this.prisma.$transaction(
+      async (tx) => {
+        await this.ledger.reverseRef(tx, ['TRANSFER_IN', 'TRANSFER_OUT'], doc.ID, { refCode: doc.Code, userId, notes: `Hapus transfer ${doc.Code}` });
+        await tx.stockTransfer.delete({ where: { ID: doc.ID } });
+      },
+      { timeout: 30000 },
+    );
+    await this.afterWrite();
+    return this.serializeStockTransfer(doc);
+  }
+
+  private async afterWrite() {
+    await this.invalidateCache();
+    await this.ledger.invalidateCaches();
   }
 
   private async getTransactionStatusByCode(code: string) {

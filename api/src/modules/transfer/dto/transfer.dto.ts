@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString, IsInt, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -7,8 +7,10 @@ export class CreateTransferDto {
   @IsString()
   code: string;
 
-  @ApiPropertyOptional({ description: 'date' })
+  @ApiPropertyOptional({ description: 'date', type: String, format: 'date-time' })
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
   date?: Date;
 
   @ApiPropertyOptional({ description: 'fromAccountId' })
@@ -40,8 +42,10 @@ export class CreateTransferDto {
   @IsString()
   description?: string;
 
-  @ApiProperty({ description: 'status' })
-  status: any;
+  @ApiPropertyOptional({ description: 'TransactionStatus ID (default 1)' })
+  @IsOptional()
+  @IsInt()
+  statusId?: number;
 
   @ApiPropertyOptional({ description: 'notes' })
   @IsOptional()
@@ -53,18 +57,6 @@ export class CreateTransferDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiProperty({ description: 'fromAccount' })
-  fromAccount: any;
-
-  @ApiProperty({ description: 'toAccount' })
-  toAccount: any;
-
-  @ApiProperty({ description: 'fromWarehouse' })
-  fromWarehouse: any;
-
-  @ApiProperty({ description: 'toWarehouse' })
-  toWarehouse: any;
-
 }
 
 export class UpdateTransferDto {
@@ -73,8 +65,10 @@ export class UpdateTransferDto {
   @IsString()
   code?: string;
 
-  @ApiPropertyOptional({ description: 'date' })
+  @ApiPropertyOptional({ description: 'date', type: String, format: 'date-time' })
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
   date?: Date;
 
   @ApiPropertyOptional({ description: 'fromAccountId' })
@@ -107,9 +101,10 @@ export class UpdateTransferDto {
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ description: 'status' })
+  @ApiPropertyOptional({ description: 'TransactionStatus ID (default 1)' })
   @IsOptional()
-  status?: any;
+  @IsInt()
+  statusId?: number;
 
   @ApiPropertyOptional({ description: 'notes' })
   @IsOptional()
@@ -120,22 +115,6 @@ export class UpdateTransferDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
-
-  @ApiPropertyOptional({ description: 'fromAccount' })
-  @IsOptional()
-  fromAccount?: any;
-
-  @ApiPropertyOptional({ description: 'toAccount' })
-  @IsOptional()
-  toAccount?: any;
-
-  @ApiPropertyOptional({ description: 'fromWarehouse' })
-  @IsOptional()
-  fromWarehouse?: any;
-
-  @ApiPropertyOptional({ description: 'toWarehouse' })
-  @IsOptional()
-  toWarehouse?: any;
 
 }
 

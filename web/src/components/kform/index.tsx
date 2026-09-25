@@ -8,6 +8,7 @@ import {
   AlertTriangle, Lightbulb, Save, Bold, Italic, Strikethrough, Underline, AlignLeft, AlignCenter,
   AlignRight, AlignJustify, List, ListOrdered, Link2, Undo2, Redo2, Trash2, Plus, ImagePlus, Copy,
 } from "lucide-react";
+import DOMPurify from "dompurify";
 import { cn } from "@/lib/utils";
 
 const controlCls =
@@ -279,7 +280,7 @@ export function KRichText({
   const cmd = (c: string, arg?: string) => {
     ref.current?.focus();
     document.execCommand(c, false, arg);
-    onChange(ref.current?.innerHTML ?? "");
+    onChange(sanitizeRichText(ref.current?.innerHTML ?? ""));
   };
   const Btn = ({ icon: I, c, arg, title }: { icon: typeof Bold; c: string; arg?: string; title: string }) => (
     <button type="button" title={title} onMouseDown={(e) => e.preventDefault()} onClick={() => cmd(c, arg)} className="flex size-9 items-center justify-center rounded text-[#3a4654] hover:bg-[#eef1f4]">
@@ -321,14 +322,23 @@ export function KRichText({
           ref={ref}
           contentEditable
           suppressContentEditableWarning
-          onInput={() => onChange(ref.current?.innerHTML ?? "")}
-          dangerouslySetInnerHTML={{ __html: value }}
+          onInput={() => onChange(sanitizeRichText(ref.current?.innerHTML ?? ""))}
+          dangerouslySetInnerHTML={{ __html: sanitizeRichText(value) }}
           className="prose-sm p-3 text-sm outline-none"
           style={{ minHeight }}
         />
       </div>
     </KField>
   );
+}
+
+// Rich-text HTML is user input: strip scripts, event handlers and javascript: URLs
+// before it is rendered or handed back to the caller. DOMPurify needs a DOM, so on the
+// server (prerender) nothing is rendered; the editor fills in after hydration.
+function sanitizeRichText(html: string): string {
+  if (!html) return "";
+  if (typeof window === "undefined" || !DOMPurify.isSupported) return "";
+  return DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
 }
 
 // ─── Images (max N, preview as data URLs until the API supports upload) ──

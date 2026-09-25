@@ -57,43 +57,43 @@ export class SaleReturnController {
 
   @Put(':id')
   @ApiOperation({ summary: 'Update sale return' })
-  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateSaleReturnDto) {
-    const data = await this.saleReturnService.update(id, dto);
+  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateSaleReturnDto, @CurrentUser() user: any) {
+    const data = await this.saleReturnService.update(id, dto, user?.id);
     return ApiResponse.ok(data, 'Sale return updated successfully');
   }
 
   @Put(':id/confirm')
   @ApiOperation({ summary: 'Confirm sale return' })
-  async confirm(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.saleReturnService.updateStatus(id, { StatusCode: 'CONFIRMED' });
+  async confirm(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    const data = await this.saleReturnService.updateStatus(id, { StatusCode: 'CONFIRMED' }, user?.id);
     return ApiResponse.ok(data, 'Sale return confirmed');
   }
 
   @Put(':id/complete')
   @ApiOperation({ summary: 'Complete sale return' })
-  async complete(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.saleReturnService.updateStatus(id, { StatusCode: 'COMPLETED' });
+  async complete(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    const data = await this.saleReturnService.updateStatus(id, { StatusCode: 'COMPLETED' }, user?.id);
     return ApiResponse.ok(data, 'Sale return completed');
   }
 
   @Put(':id/cancel')
   @ApiOperation({ summary: 'Cancel sale return' })
-  async cancel(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.saleReturnService.updateStatus(id, { StatusCode: 'CANCELLED' });
+  async cancel(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    const data = await this.saleReturnService.updateStatus(id, { StatusCode: 'CANCELLED' }, user?.id);
     return ApiResponse.ok(data, 'Sale return cancelled');
   }
 
   @Put(':id/status')
   @ApiOperation({ summary: 'Update sale return status' })
-  async updateStatus(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateSaleReturnStatusDto) {
-    const data = await this.saleReturnService.updateStatus(id, dto);
+  async updateStatus(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateSaleReturnStatusDto, @CurrentUser() user: any) {
+    const data = await this.saleReturnService.updateStatus(id, dto, user?.id);
     return ApiResponse.ok(data, 'Status updated successfully');
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete draft sale return' })
-  async delete(@Param('id', ParseIntPipe) id: number) {
-    await this.saleReturnService.delete(id);
+  async delete(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    await this.saleReturnService.delete(id, user?.id);
     return ApiResponse.ok({ id }, 'Sale return deleted successfully');
   }
 }

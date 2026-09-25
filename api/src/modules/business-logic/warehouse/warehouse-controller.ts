@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Patch, Put, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { WarehouseService } from './warehouse-service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
+import { CurrentUser } from '../../../common/decorators/current-user-decorator';
 import {
   CreateWarehouseDto,
   UpdateWarehouseDto,
@@ -18,7 +19,7 @@ export class WarehouseController {
   @Post()
   async createWarehouse(
     @Body() dto: CreateWarehouseDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.warehouseService.createWarehouse(dto, userId);
   }
@@ -47,7 +48,7 @@ export class WarehouseController {
   async updateWarehouse(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateWarehouseDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.warehouseService.updateWarehouse(id, dto, userId);
   }
@@ -61,7 +62,7 @@ export class WarehouseController {
   @Post('shelves')
   async createShelf(
     @Body() dto: CreateShelfDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.warehouseService.createShelf(dto, userId);
   }

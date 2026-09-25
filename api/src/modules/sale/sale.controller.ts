@@ -60,8 +60,8 @@ export class SaleController {
 
   @Put(':id')
   @ApiOperation({ summary: 'Update sale' })
-  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateSaleDto) {
-    const data = await this.saleService.update(id, dto);
+  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateSaleDto, @CurrentUser() user: any) {
+    const data = await this.saleService.update(id, dto, user?.id);
     return ApiResponse.ok(data, 'Sale updated successfully');
   }
 
@@ -78,8 +78,8 @@ export class SaleController {
 
   @Put(':id/status')
   @ApiOperation({ summary: 'Update sale payment status' })
-  async updateStatus(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateStatusDto) {
-    const data = await this.saleService.updateStatus(id, dto);
+  async updateStatus(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateStatusDto, @CurrentUser() user: any) {
+    const data = await this.saleService.updateStatus(id, dto, user?.id);
     return ApiResponse.ok(data, 'Sale status updated');
   }
 
@@ -92,15 +92,15 @@ export class SaleController {
 
   @Post(':id/cancel')
   @ApiOperation({ summary: 'Cancel sale' })
-  async cancel(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.saleService.cancel(id);
+  async cancel(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    const data = await this.saleService.cancel(id, user?.id);
     return ApiResponse.ok(data, 'Sale cancelled');
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete pending sale' })
-  async delete(@Param('id', ParseIntPipe) id: number) {
-    await this.saleService.delete(id);
+  async delete(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    await this.saleService.delete(id, user?.id);
     return ApiResponse.ok({ id }, 'Sale deleted successfully');
   }
 }

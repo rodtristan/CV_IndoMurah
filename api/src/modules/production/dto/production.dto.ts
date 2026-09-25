@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString, IsInt, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -7,8 +7,10 @@ export class CreateProductionDto {
   @IsString()
   code: string;
 
-  @ApiPropertyOptional({ description: 'date' })
+  @ApiPropertyOptional({ description: 'date', type: String, format: 'date-time' })
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
   date?: Date;
 
   @ApiPropertyOptional({ description: 'productId' })
@@ -51,8 +53,10 @@ export class CreateProductionDto {
   @IsNumber()
   totalCost?: number;
 
-  @ApiProperty({ description: 'status' })
-  status: any;
+  @ApiPropertyOptional({ description: 'ProductionStatus ID (default 1)' })
+  @IsOptional()
+  @IsInt()
+  statusId?: number;
 
   @ApiPropertyOptional({ description: 'notes' })
   @IsOptional()
@@ -73,8 +77,10 @@ export class UpdateProductionDto {
   @IsString()
   code?: string;
 
-  @ApiPropertyOptional({ description: 'date' })
+  @ApiPropertyOptional({ description: 'date', type: String, format: 'date-time' })
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
   date?: Date;
 
   @ApiPropertyOptional({ description: 'productId' })
@@ -117,9 +123,10 @@ export class UpdateProductionDto {
   @IsNumber()
   totalCost?: number;
 
-  @ApiPropertyOptional({ description: 'status' })
+  @ApiPropertyOptional({ description: 'ProductionStatus ID (default 1)' })
   @IsOptional()
-  status?: any;
+  @IsInt()
+  statusId?: number;
 
   @ApiPropertyOptional({ description: 'notes' })
   @IsOptional()

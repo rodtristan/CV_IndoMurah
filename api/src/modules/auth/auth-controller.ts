@@ -6,6 +6,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   UseGuards,
   HttpCode,
@@ -15,7 +16,7 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AuthService } from './auth-service';
-import { LoginDto, RegisterDto } from './dto/auth-dto';
+import { LoginDto, RegisterDto, ChangePasswordDto } from './dto/auth-dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 import { CurrentUser } from '../../common/decorators/current-user-decorator';
 import { ApiResponse } from '../../common/dto/api-response-dto';
@@ -34,12 +35,28 @@ export class AuthController {
     return ApiResponse.ok(data, 'Login berhasil');
   }
 
+  // Bukan lagi pendaftaran publik: hanya Administrator yang sudah login
+  // (JwtAuthGuard di sini + AdminRouteGuard global untuk prefix auth/register).
+  // Web membuat user lewat POST /users.
   @Post('register')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Throttle({ default: { limit: 5, ttl: 60000 } })
-  @ApiOperation({ summary: 'Register - Daftarkan user baru dengan Company Code' })
-  async register(@Body() dto: RegisterDto) {
-    const data = await this.authService.register(dto);
+  @ApiOperation({ summary: 'Register - Administrator membuat user baru (butuh login admin)' })
+  async register(@Body() dto: RegisterDto, @CurrentUser() user: { id: string; companyId: number }) {
+    const data = await this.authService.register(dto, user);
     return ApiResponse.ok(data, 'Registrasi berhasil');
+  }
+
+  @Patch('password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @ApiOperation({ summary: 'Ganti password user yang sedang login' })
+  async changePassword(@Body() dto: ChangePasswordDto, @CurrentUser() user: { id: string }) {
+    const data = await this.authService.changePassword(user.id, dto);
+    return ApiResponse.ok(data, 'Password berhasil diubah');
   }
 
   @Get('me')

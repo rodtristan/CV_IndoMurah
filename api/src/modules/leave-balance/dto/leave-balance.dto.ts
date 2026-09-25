@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString, IsInt, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -11,8 +11,9 @@ export class CreateLeaveBalanceDto {
   @IsNumber()
   year: number;
 
-  @ApiProperty({ description: 'leaveType' })
-  leaveType: any;
+  @ApiProperty({ description: 'LeaveType ID' })
+  @IsInt()
+  typeId: number;
 
   @ApiPropertyOptional({ description: 'totalDays' })
   @IsOptional()
@@ -48,9 +49,10 @@ export class UpdateLeaveBalanceDto {
   @IsNumber()
   year?: number;
 
-  @ApiPropertyOptional({ description: 'leaveType' })
+  @ApiPropertyOptional({ description: 'LeaveType ID' })
   @IsOptional()
-  leaveType?: any;
+  @IsInt()
+  typeId?: number;
 
   @ApiPropertyOptional({ description: 'totalDays' })
   @IsOptional()

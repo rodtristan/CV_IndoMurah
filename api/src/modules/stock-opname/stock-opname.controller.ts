@@ -74,8 +74,9 @@ export class StockOpnameController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update StockOpname by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateStockOpnameDto>) {
-    return super.patchById(id, dto);
+  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateStockOpnameDto>, @CurrentUser() user?: any) {
+    const data = await this.stockOpnameService.patchById(Number(id), dto);
+    return { success: true, data, message: 'Data berhasil diperbarui' };
   }
 
   @Patch('by/:field/:value')
@@ -119,8 +120,9 @@ export class StockOpnameController extends BaseController<
   // DELETE endpoints
   @Delete(':id')
   @ApiOperation({ summary: 'Delete StockOpname by ID' })
-  async deleteById(@Param('id') id: string) {
-    return super.deleteById(id);
+  async deleteById(@Param('id') id: string, @CurrentUser() user?: any) {
+    const data = await this.stockOpnameService.deleteById(Number(id), user?.id);
+    return { success: true, data, message: 'Data berhasil dihapus' };
   }
 
   @Delete('by/:field/:value')

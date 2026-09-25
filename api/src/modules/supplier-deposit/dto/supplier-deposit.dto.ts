@@ -1,10 +1,11 @@
-import { IsString, IsOptional, IsInt, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsNumber, IsIn, IsDateString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateSupplierDepositDto {
-  @ApiProperty({ description: 'Kode deposit' })
+  @ApiPropertyOptional({ description: 'Kode deposit; awalan DBIN/DBOUT menentukan jenis bila "type" kosong (auto bila kosong)' })
+  @IsOptional()
   @IsString()
-  code: string;
+  code?: string;
 
   @ApiProperty({ description: 'Supplier' })
   @IsInt()
@@ -13,6 +14,26 @@ export class CreateSupplierDepositDto {
   @ApiProperty({ description: 'Jumlah deposit' })
   @IsNumber()
   amount: number;
+
+  @ApiPropertyOptional({ description: 'IN = dana dikirim ke supplier, OUT = dana ditarik dari supplier' })
+  @IsOptional()
+  @IsIn(['IN', 'OUT'])
+  type?: 'IN' | 'OUT';
+
+  @ApiPropertyOptional({ description: 'Tanggal (ISO)' })
+  @IsOptional()
+  @IsDateString()
+  date?: string;
+
+  @ApiPropertyOptional({ description: 'Akun kas/bank (default Setting Perkiraan Kas)' })
+  @IsOptional()
+  @IsInt()
+  cashAccountId?: number;
+
+  @ApiPropertyOptional({ description: 'Akun deposit (default Setting Perkiraan Deposit Supplier)' })
+  @IsOptional()
+  @IsInt()
+  depositAccountId?: number;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -38,8 +59,23 @@ export class UpdateSupplierDepositDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsNumber()
-  remainingAmount?: number;
+  @IsIn(['IN', 'OUT'])
+  type?: 'IN' | 'OUT';
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  date?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  cashAccountId?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  depositAccountId?: number;
 
   @ApiPropertyOptional()
   @IsOptional()

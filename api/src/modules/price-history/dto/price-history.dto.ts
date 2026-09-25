@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString, IsInt, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -24,8 +24,10 @@ export class CreatePriceHistoryDto {
   @IsString()
   changedBy?: string;
 
-  @ApiPropertyOptional({ description: 'changedAt' })
+  @ApiPropertyOptional({ description: 'changedAt', type: String, format: 'date-time' })
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
   changedAt?: Date;
 
 
@@ -57,8 +59,10 @@ export class UpdatePriceHistoryDto {
   @IsString()
   changedBy?: string;
 
-  @ApiPropertyOptional({ description: 'changedAt' })
+  @ApiPropertyOptional({ description: 'changedAt', type: String, format: 'date-time' })
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
   changedAt?: Date;
 
 

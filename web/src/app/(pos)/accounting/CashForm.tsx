@@ -3,6 +3,8 @@
 // Kas Masuk / Kas Keluar / Kas Transfer full-page form (Ketoko layout).
 // Header: No Transaksi (Auto), Tanggal, Masuk ke / Keluar dari Akun, Saldo Kas, Jumlah Kas, Keterangan.
 // Grid: Kode Akun (sumber / penggunaan dana), Keterangan Rincian, Jumlah. Total must equal Jumlah Kas.
+// Saving posts an automatic journal (Kas Masuk: Dr kas / Cr rincian, Kas Keluar: Dr rincian / Cr kas,
+// Transfer: Dr tujuan / Cr asal); the grid rows are stored as the journal lines (GET <endpoint>/:id/lines).
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -44,6 +46,15 @@ export default function CashForm({ kind }: { kind: CashKind }) {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
   const [del, setDel] = useState(false);
+  const [balances, setBalances] = useState<Record<number, number>>({});
+
+  useEffect(() => {
+    api.request<{ accountId: number; balance: number }[]>("GET", "account/balances").then((r) => {
+      const m: Record<number, number> = {};
+      for (const b of r.data ?? []) m[b.accountId] = b.balance;
+      setBalances(m);
+    }).catch(() => undefined);
+  }, []);
 
   const label = (a: Row) => `${a.Code} - ${a.Name}`;
   const cashOpts = useMemo(() => accounts.filter((a: Row) => (a.Type?.Code ?? "ASSET") === "ASSET").map((a: Row) => ({ value: a.ID, label: label(a) })), [accounts]);
@@ -58,7 +69,14 @@ export default function CashForm({ kind }: { kind: CashKind }) {
       setToAccountId(String(d.ToAccountID ?? ""));
       setAmount(String(num(d.Amount)));
       setNote(d.Description ?? "");
-      if (kind !== "transfer") setLines([{ accountId: "", info: d.Description ?? "", amount: String(num(d.Amount)) }]);
+      if (kind !== "transfer") {
+        api.request<{ accountId: number; amount: number; description: string | null }[]>("GET", `${cfg.endpoint}/${loadId}/lines`)
+          .then((lr) => {
+            const ls = (lr.data ?? []).map((l) => ({ accountId: String(l.accountId), info: l.description ?? "", amount: String(l.amount) }));
+            setLines(ls.length ? ls : [{ accountId: "", info: d.Description ?? "", amount: String(num(d.Amount)) }]);
+          })
+          .catch(() => setLines([{ accountId: "", info: d.Description ?? "", amount: String(num(d.Amount)) }]));
+      }
     }).catch(() => setErr("Data tidak ditemukan"));
   }, [loadId, cfg.endpoint, isEdit, kind]);
 
@@ -74,16 +92,17 @@ export default function CashForm({ kind }: { kind: CashKind }) {
       if (toAccountId === accountId) return setErr("Akun asal dan tujuan tidak boleh sama");
     } else {
       if (lines.length === 0) return setErr("Tambahkan minimal 1 rincian akun");
-      if (!isEdit && lines.some((l) => !l.accountId)) return setErr("Kode Akun pada rincian wajib diisi");
+      if (lines.some((l) => !l.accountId)) return setErr("Kode Akun pada rincian wajib diisi");
+      if (lines.some((l) => !(num(l.amount) > 0))) return setErr("Jumlah rincian harus lebih dari 0");
       if (Math.abs(total - num(amount)) > 0.005) return setErr(`Jumlah Kas (${fmt(amount)}) dan Total rincian (${fmt(total)}) harus sama`);
     }
     setSaving(true);
     try {
       const desc = note || (kind === "transfer" ? undefined : lines[0]?.info) || undefined;
-      const common = { amount: num(amount), description: desc };
+      const common = { amount: num(amount), description: desc, date: new Date(date).toISOString() };
       const body = kind === "transfer"
         ? { ...common, fromAccountId: Number(accountId), toAccountId: Number(toAccountId) }
-        : { ...common, accountId: Number(accountId) };
+        : { ...common, accountId: Number(accountId), lines: lines.map((l) => ({ accountId: Number(l.accountId), amount: num(l.amount), description: l.info || undefined })) };
       const res = isEdit
         ? await api.patch(cfg.endpoint, id!, body)
         : await api.post(cfg.endpoint, { code: `${cfg.prefix}-${stamp()}`, ...body });
@@ -96,7 +115,7 @@ export default function CashForm({ kind }: { kind: CashKind }) {
   };
 
   return (
-    <DocShell backHref={cfg.base} notice={kind !== "transfer" ? "API hanya menyimpan Akun Kas, Jumlah dan Keterangan. Rincian akun (grid) dan Tanggal belum disimpan di backend." : "Tanggal belum disimpan di backend."} error={err}>
+    <DocShell backHref={cfg.base} error={err}>
       <KRow cols={2}>
         <div>
           <KReadOnly label="No Transaksi" value={isEdit ? code : "Auto"} />
@@ -108,7 +127,7 @@ export default function CashForm({ kind }: { kind: CashKind }) {
             <KSelect label={cfg.accLabel} value={accountId} onChange={setAccountId} options={cashOpts} />
             {kind === "transfer"
               ? <KSelect label="Transfer ke" value={toAccountId} onChange={setToAccountId} options={cashOpts.filter((o) => String(o.value) !== accountId)} />
-              : <KReadOnly label="Saldo Kas" value="-" align="right" />}
+              : <KReadOnly label="Saldo Kas" value={accountId ? fmt(balances[Number(accountId)] ?? 0) : "-"} align="right" />}
           </KRow>
           <KNumber label={kind === "transfer" ? "Jumlah" : "Jumlah Kas"} value={amount} onChange={setAmount} />
         </div>

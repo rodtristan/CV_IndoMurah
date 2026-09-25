@@ -10,6 +10,7 @@ import { CurrentUser } from '../../common/decorators/current-user-decorator';
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('journal')
+/** Manual journals: create/patch/delete by ID only (balanced, closed-year guarded; auto journals are read-only). */
 export class JournalController extends BaseController<
   any,
   CreateJournalDto,
@@ -65,12 +66,6 @@ export class JournalController extends BaseController<
     return { success: true, data, message: 'Journal created successfully' };
   }
 
-  @Post('bulk')
-  @ApiOperation({ summary: 'Create multiple Journals' })
-  async createBulk(@Body() dtos: CreateJournalDto[]) {
-    return super.createBulk(dtos);
-  }
-
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update Journal by ID (pass `entries` to replace all debit/credit lines atomically)' })
@@ -79,44 +74,7 @@ export class JournalController extends BaseController<
     return { success: true, data, message: 'Journal updated successfully' };
   }
 
-  @Patch('by/:field/:value')
-  @ApiOperation({ summary: 'Update Journals by field reference' })
-  async patchByFilterReference(
-    @Param('field') field: string,
-    @Param('value') value: string,
-    @Body() dto: Partial<UpdateJournalDto>,
-  ) {
-    return super.patchByFilterReference(field, value, dto);
-  }
-
-  @Patch('bulk')
-  @ApiOperation({ summary: 'Update multiple Journals' })
-  async patchBulk(@Body() body: { ids: number[]; data: Partial<UpdateJournalDto> }) {
-    return super.patchBulk(body);
-  }
-
   // PUT (UPSERT) endpoints
-  @Put()
-  @ApiOperation({ summary: 'Upsert Journal' })
-  async upsert(@Body() body: { where: { id: number }; create: CreateJournalDto; update: Partial<UpdateJournalDto> }) {
-    return super.upsert(body);
-  }
-
-  @Put('by/:field')
-  @ApiOperation({ summary: 'Upsert Journal by field reference' })
-  async upsertByFilterReference(
-    @Param('field') field: string,
-    @Body() body: { filterValue: any; create: CreateJournalDto; update: Partial<UpdateJournalDto> },
-  ) {
-    return super.upsertByFilterReference(field, body);
-  }
-
-  @Put('bulk')
-  @ApiOperation({ summary: 'Bulk upsert Journals' })
-  async upsertBulk(@Body() body: { items: any[] }) {
-    return super.upsertBulk(body);
-  }
-
   // DELETE endpoints
   @Delete(':id')
   @ApiOperation({ summary: 'Delete Journal by ID' })
@@ -125,15 +83,4 @@ export class JournalController extends BaseController<
     return { success: true, data, message: 'Journal deleted successfully' };
   }
 
-  @Delete('by/:field/:value')
-  @ApiOperation({ summary: 'Delete Journals by field reference' })
-  async deleteByFilterReference(@Param('field') field: string, @Param('value') value: string) {
-    return super.deleteByFilterReference(field, value);
-  }
-
-  @Delete('bulk')
-  @ApiOperation({ summary: 'Delete multiple Journals' })
-  async deleteBulk(@Body() body: { ids: number[] }) {
-    return super.deleteBulk(body);
-  }
 }

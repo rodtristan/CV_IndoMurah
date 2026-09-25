@@ -1,8 +1,10 @@
 "use client";
 
-// Ketoko "Item Baru" / "Edit Item" full-page form (9 tabs). Used by
-// /master/items/new and /master/items/[id]. Fields the API does not support yet are
-// kept in component state so the UI is complete (see buildPayload for what is sent).
+// Ketoko "Item Baru" / "Edit Item" full-page form. Used by /master/items/new and
+// /master/items/[id]. Saved: Data Umum (Product), all units (ProductUnit: konversi,
+// jual/beli) and all price tiers (ProductPrice: STANDARD, LEVEL2-4, QTY1-4) — see
+// ./product-pricing. Tabs whose data has no storage in the API are shown disabled with
+// a notice instead of silently discarding what the user types.
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -15,12 +17,15 @@ import {
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { usePageTitle } from "@/lib/page-title";
 import { api, odata } from "@/lib/api-client";
+import {
+  fetchProductPrices, fetchProductUnits, saveUnitsAndPrices, type PriceToSave, type UnitToSave,
+} from "./product-pricing";
 import type { Product, Category, Brand, Unit, Warehouse, Account } from "@/lib/types";
 
 // ─── Types ─────────────────────────────────────────────────────────────
 
 type UnitRow = {
-  unitId: string; konversi: string; barcode: string; poin: string; komisi: string; pokok: string; jual: string;
+  unitId: string; konversi: string; jualYN: string; beliYN: string; jual: string;
   hj1: string; hj2: string; hj3: string; hj4: string;
   jml1: string; jml2: string; jml3: string; jml4: string;
   h1: string; h2: string; h3: string; h4: string;
@@ -43,7 +48,7 @@ interface FormState {
 }
 
 const emptyUnitRow = (): UnitRow => ({
-  unitId: "", konversi: "1", barcode: "", poin: "0", komisi: "0", pokok: "0", jual: "0",
+  unitId: "", konversi: "1", jualYN: "1", beliYN: "1", jual: "0",
   hj1: "0", hj2: "0", hj3: "0", hj4: "0", jml1: "0", jml2: "0", jml3: "0", jml4: "0", h1: "0", h2: "0", h3: "0", h4: "0",
 });
 const emptyDiscountRow = (): DiscountRow => ({ group: "", p1: "0", p2: "0", p3: "0", p4: "0" });
@@ -73,11 +78,9 @@ const TABS = [
   { key: "pajak", label: "Data Pendukung Pajak" },
 ];
 
-const TIPE_OPTIONS = [
-  { value: "barang", label: "Barang" }, { value: "jasa", label: "Jasa" },
-  { value: "rakitan_proses", label: "Rakitan Proses" }, { value: "rakitan_non", label: "Rakitan Non Proses" },
-  { value: "non_inventory", label: "Non Inventory" }, { value: "biaya", label: "Biaya" }, { value: "varian", label: "Varian" },
-];
+// Tabs whose data has no column/table in the API yet (shown read-only with a notice).
+const UNSUPPORTED_TABS = ["dimensi", "potongan", "akuntansi", "gambar", "share", "marketplace", "pajak"];
+
 
 // Customer groups (no list endpoint yet) — same seeded set used by /master/customers.
 const GROUP_OPTIONS: KOption[] = [
@@ -132,12 +135,12 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
   const [error, setError] = useState("");
   const [errors, setErrors] = useState<{ name?: string; unit?: string }>({});
   const [itemName, setItemName] = useState("");
+  const [createdId, setCreatedId] = useState<string | null>(null);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
-  const [suppliers, setSuppliers] = useState<{ ID: number; Name: string }[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
 
   usePageTitle(isNew ? "Item Baru" : itemName ? itemName : "Edit Item");
@@ -149,16 +152,15 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
     let alive = true;
     (async () => {
       const safe = <T,>(p: Promise<{ data?: unknown }>) => p.then((r) => list<T>(r)).catch(() => [] as T[]);
-      const [c, b, u, w, s, a] = await Promise.all([
+      const [c, b, u, w, a] = await Promise.all([
         safe<Category>(api.get("categories", odata().take(200).toParams())),
         safe<Brand>(api.get("brand", odata().take(200).toParams())),
         safe<Unit>(api.get("unit", odata().take(200).toParams())),
         safe<Warehouse>(api.get("warehouse", odata().take(200).toParams())),
-        safe<{ ID: number; Name: string }>(api.get("supplier", odata().take(200).toParams())),
         safe<Account>(api.get("account", odata().take(500).toParams())),
       ]);
       if (!alive) return;
-      setCategories(c); setBrands(b); setUnits(u); setWarehouses(w); setSuppliers(s); setAccounts(a);
+      setCategories(c); setBrands(b); setUnits(u); setWarehouses(w); setAccounts(a);
     })();
     return () => { alive = false; };
   }, []);
@@ -175,6 +177,32 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
         if (!alive) return;
         if (!res.success || !p) { setLoadError("Item tidak ditemukan."); return; }
         setItemName(p.Name);
+        const [pUnits, pPrices] = await Promise.all([
+          fetchProductUnits(p.ID).catch(() => []),
+          fetchProductPrices(p.ID).catch(() => []),
+        ]);
+        if (!alive) return;
+        const loadedUnits = pUnits.length
+          ? [...pUnits].sort((a, b) => Number(b.isBase) - Number(a.isBase) || a.conversion - b.conversion)
+          : [{ unitId: p.UnitID, conversion: 1, isBase: true, isSell: true, isPurchase: true }];
+        const priceOf = (unitId: number, type: string) => pPrices.find((x) => x.unitId === unitId && x.priceType === type);
+        const rows: UnitRow[] = loadedUnits.map((u, i) => {
+          const std = priceOf(u.unitId, "STANDARD")?.price ?? (i === 0 ? num(p.SellingPrice) : num(p.SellingPrice) * u.conversion);
+          const r: UnitRow = {
+            ...emptyUnitRow(), unitId: String(u.unitId), konversi: String(u.conversion),
+            jualYN: u.isSell ? "1" : "0", beliYN: u.isPurchase ? "1" : "0", jual: String(std), hj1: String(std),
+          };
+          for (const lv of [2, 3, 4] as const) r[`hj${lv}`] = String(priceOf(u.unitId, `LEVEL${lv}`)?.price ?? 0);
+          for (const q of [1, 2, 3, 4] as const) {
+            const t = priceOf(u.unitId, `QTY${q}`);
+            r[`jml${q}`] = String(t?.maxQty ?? 0);
+            r[`h${q}`] = String(t?.price ?? 0);
+          }
+          return r;
+        });
+        const hasQty = pPrices.some((x) => x.priceType.startsWith("QTY"));
+        const hasLevel = pPrices.some((x) => x.priceType.startsWith("LEVEL"));
+        const loadedType = hasQty ? "jumlah" : hasLevel ? "level" : rows.length > 1 ? "satuan" : "satu";
         setF((prev) => ({
           ...prev,
           code: id ? p.Code : "",
@@ -190,6 +218,8 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
           minimumStock: String(p.MinimumStock ?? 0),
           description: p.Description || "",
           isActive: p.IsActive,
+          priceType: loadedType,
+          unitRows: rows,
         }));
         setLoaded(true);
       } catch {
@@ -230,26 +260,73 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
   };
 
   const unitCols: KGridColumn<UnitRow>[] = useMemo(() => {
+    const yn: KOption[] = [{ value: "1", label: "Ya" }, { value: "0", label: "Tidak" }];
     const base: KGridColumn<UnitRow> = { key: "unitId", label: "Satuan", type: "select", options: unitOptions, width: "180px" };
     const konv: KGridColumn<UnitRow> = { key: "konversi", label: "Jml Konversi", type: "number", width: "110px" };
-    const barcode: KGridColumn<UnitRow> = { key: "barcode", label: "Barcode", type: "text", width: "140px" };
-    const poin: KGridColumn<UnitRow> = { key: "poin", label: "Point", type: "number", width: "80px" };
-    const komisi: KGridColumn<UnitRow> = { key: "komisi", label: "Komisi Sales", type: "number", width: "110px" };
-    const pokok: KGridColumn<UnitRow> = { key: "pokok", label: "Harga Pokok", type: "number", width: "120px" };
+    const jualYN: KGridColumn<UnitRow> = { key: "jualYN", label: "Dijual", type: "select", options: yn, width: "90px" };
+    const beliYN: KGridColumn<UnitRow> = { key: "beliYN", label: "Dibeli", type: "select", options: yn, width: "90px" };
     const n = (key: keyof UnitRow & string, label: string): KGridColumn<UnitRow> => ({ key, label, type: "number", width: "110px" });
-    if (f.priceType === "level") return [base, konv, poin, barcode, pokok, n("hj1", "HJ Level 1"), n("hj2", "HJ Level 2"), n("hj3", "HJ Level 3"), n("hj4", "HJ Level 4"), komisi];
-    if (f.priceType === "jumlah") return [base, konv, poin, barcode, pokok, n("jml1", "Jumlah 1"), n("jml2", "Jumlah 2"), n("jml3", "Jumlah 3"), n("jml4", "Jumlah 4"), n("h1", "Harga 1"), n("h2", "Harga 2"), n("h3", "Harga 3"), n("h4", "Harga 4"), komisi];
-    return [base, konv, barcode, poin, komisi, pokok, n("jual", "Harga Jual")];
+    const head = [base, konv, jualYN, beliYN];
+    if (f.priceType === "level") return [...head, n("hj1", "HJ Level 1"), n("hj2", "HJ Level 2"), n("hj3", "HJ Level 3"), n("hj4", "HJ Level 4")];
+    if (f.priceType === "jumlah") return [...head, n("jml1", "s/d Jumlah 1"), n("h1", "Harga 1"), n("jml2", "s/d Jumlah 2"), n("h2", "Harga 2"), n("jml3", "s/d Jumlah 3"), n("h3", "Harga 3"), n("jml4", "s/d Jumlah 4"), n("h4", "Harga 4")];
+    return [...head, n("jual", "Harga Jual")];
   }, [f.priceType, unitOptions]);
 
   // ─── Derived persisted values ──
-  const persisted = () => {
+  /** Units + price tiers exactly as they will be stored; first row = satuan dasar. */
+  const buildUnitsAndPrices = (): { units: UnitToSave[]; prices: PriceToSave[]; error?: string } => {
     if (f.priceType === "satu") {
-      return { unitId: num(f.unitId), barcode: f.barcode, purchasePrice: num(f.pokok), sellingPrice: num(f.jual) };
+      const unitId = num(f.unitId);
+      return {
+        units: unitId ? [{ unitId, conversion: 1, isBase: true, isSell: true, isPurchase: true }] : [],
+        prices: unitId ? [{ unitId, priceType: "STANDARD", price: num(f.jual) }] : [],
+      };
     }
-    const r = f.unitRows[0] ?? emptyUnitRow();
-    const sell = f.priceType === "level" ? r.hj1 : f.priceType === "jumlah" ? r.h1 : r.jual;
-    return { unitId: num(r.unitId), barcode: r.barcode, purchasePrice: num(r.pokok), sellingPrice: num(sell) };
+    const rows = f.unitRows.filter((r) => num(r.unitId) > 0);
+    const ids = rows.map((r) => num(r.unitId));
+    if (new Set(ids).size !== ids.length) return { units: [], prices: [], error: "Satuan tidak boleh duplikat." };
+    const units: UnitToSave[] = [];
+    const prices: PriceToSave[] = [];
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      const unitId = num(r.unitId);
+      const conversion = i === 0 ? 1 : num(r.konversi);
+      if (conversion <= 0) return { units: [], prices: [], error: `Jml konversi baris ${i + 1} harus lebih dari 0.` };
+      units.push({ unitId, conversion, isBase: i === 0, isSell: r.jualYN !== "0", isPurchase: r.beliYN !== "0" });
+      if (f.priceType === "satuan") {
+        prices.push({ unitId, priceType: "STANDARD", price: num(r.jual) });
+      } else if (f.priceType === "level") {
+        prices.push({ unitId, priceType: "STANDARD", price: num(r.hj1) });
+        for (const lv of [2, 3, 4] as const) {
+          const v = num(r[`hj${lv}`]);
+          if (v > 0) prices.push({ unitId, priceType: `LEVEL${lv}`, price: v });
+        }
+      } else {
+        // Harga per jumlah: tier q berlaku untuk (Jumlah q-1) < qty <= (Jumlah q).
+        // Jumlah 0 pada tingkat terakhir yang berharga = "dan seterusnya".
+        const tiers = ([1, 2, 3, 4] as const)
+          .map((q) => ({ upTo: num(r[`jml${q}`]), price: num(r[`h${q}`]) }))
+          .filter((t) => t.price > 0);
+        let prev = 0;
+        for (let q = 0; q < tiers.length; q++) {
+          const t = tiers[q];
+          const isLast = q === tiers.length - 1;
+          if (t.upTo <= 0 && !isLast) return { units: [], prices: [], error: `Baris ${i + 1}: "s/d Jumlah ${q + 1}" harus diisi (kecuali tingkat terakhir).` };
+          if (t.upTo > 0 && t.upTo <= prev) return { units: [], prices: [], error: `Baris ${i + 1}: "s/d Jumlah" harus naik berurutan.` };
+          prices.push({ unitId, priceType: `QTY${q + 1}`, price: t.price, minQty: prev > 0 ? prev : null, maxQty: t.upTo > 0 ? t.upTo : null });
+          if (t.upTo > 0) prev = t.upTo;
+        }
+        prices.push({ unitId, priceType: "STANDARD", price: tiers[0]?.price ?? 0 });
+      }
+    }
+    return { units, prices };
+  };
+
+  const persisted = () => {
+    const { units, prices } = buildUnitsAndPrices();
+    const base = units[0];
+    const baseStd = prices.find((p) => p.unitId === base?.unitId && p.priceType === "STANDARD");
+    return { unitId: base?.unitId ?? 0, barcode: f.barcode, purchasePrice: num(f.pokok), sellingPrice: baseStd?.price ?? 0 };
   };
 
   // `skip` bumps the sequence so a retry avoids codes still held by soft-deleted rows.
@@ -271,7 +348,9 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
   const validate = () => {
     const e: { name?: string; unit?: string } = {};
     if (!f.name.trim()) e.name = "Nama Item harus diisi.";
-    if (!persisted().unitId) e.unit = "Satuan harus dipilih.";
+    const built = buildUnitsAndPrices();
+    if (built.error) e.unit = built.error;
+    else if (!persisted().unitId) e.unit = "Satuan harus dipilih.";
     setErrors(e);
     if (e.name) setTab("umum");
     else if (e.unit) setTab("harga");
@@ -284,6 +363,7 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
     setSaving(true);
     try {
       const pv = persisted();
+      const { units: unitsToSave, prices: pricesToSave } = buildUnitsAndPrices();
       // Only fields accepted by CreateProductDto/UpdateProductDto (whitelist validation).
       const payload = {
         code: f.code.trim(),
@@ -299,10 +379,17 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
         description: f.description || null,
         isActive: f.isActive,
       };
-      if (id) {
-        const res = await api.patch<Product>("products", id, payload);
+      const productId = id ?? createdId;
+      if (productId) {
+        const res = await api.patch<Product>("products", productId, payload);
         if (!res.success) throw new Error(res.message || "Gagal menyimpan item.");
+        try {
+          await saveUnitsAndPrices(Number(productId), unitsToSave, pricesToSave);
+        } catch (err) {
+          throw new Error(`Data umum tersimpan, tetapi satuan/harga gagal disimpan: ${err instanceof Error ? err.message : err}`);
+        }
         setItemName(payload.name);
+        if (!id) { router.replace(`/master/items/${productId}?saved=1`); return; }
         setNotice("Data item berhasil disimpan.");
         window.scrollTo({ top: 0, behavior: "smooth" });
       } else {
@@ -320,7 +407,15 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
         }
         if (!res?.success) throw new Error(res?.message || "Gagal menyimpan item.");
         const newId = res.data?.ID ?? res.data?.id;
-        router.replace(newId ? `/master/items/${newId}?saved=1` : "/master/items");
+        if (!newId) { router.replace("/master/items"); return; }
+        // Remember the new id so a retry after a unit/price failure updates instead of duplicating.
+        setCreatedId(String(newId));
+        try {
+          await saveUnitsAndPrices(Number(newId), unitsToSave, pricesToSave);
+        } catch (err) {
+          throw new Error(`Item dibuat, tetapi satuan/harga gagal disimpan: ${err instanceof Error ? err.message : err}. Klik Simpan untuk mencoba lagi.`);
+        }
+        router.replace(`/master/items/${newId}?saved=1`);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Gagal menyimpan item.");
@@ -350,8 +445,6 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
         <div className="border border-t-0 border-[#c9d3df] bg-white p-5">
           {tab === "umum" && (
             <div className="max-w-[1070px]">
-              <KRadioGroup label="Tipe Item" value={f.tipe} onChange={(v) => set("tipe", v)} options={TIPE_OPTIONS} />
-              <KCheckbox label="Item Serial" checked={f.serial} onChange={(v) => set("serial", v)} />
               <KCode label="Kode Item" value={f.code} isNew={isNew} onChange={isNew ? undefined : (v) => set("code", v)}
                 fieldClassName="max-w-[320px]" />
               <KField label="Nama Item">
@@ -362,18 +455,9 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
                 />
                 {errors.name && <p className="mt-1 text-[13px] text-danger">{errors.name}</p>}
               </KField>
-              <KRow>
-                <KSelect label="Jenis" value={f.categoryId} onChange={(v) => set("categoryId", v)} options={opts(categories)} />
-                <KSelect label="Sub Jenis" value={f.subCategoryId} onChange={(v) => set("subCategoryId", v)} options={opts(categories)} />
-              </KRow>
+              <KSelect label="Jenis" value={f.categoryId} onChange={(v) => set("categoryId", v)} options={opts(categories)} />
               <KSelect label="Merek" value={f.brandId} onChange={(v) => set("brandId", v)} options={opts(brands)} />
-              <KInput label="Rak" value={f.rak} onChange={(e) => set("rak", e.target.value)} />
-              <KRadioGroup label="Status Jual" inline value={f.statusJual} onChange={(v) => set("statusJual", v)} options={[
-                { value: "dijual", label: "Masih dijual" }, { value: "tidak", label: "Tidak dijual" },
-                { value: "beli", label: "Bisa beli tidak dijual" },
-              ]} />
               <KNumber label="Stok Minimum" value={f.minimumStock} onChange={(v) => set("minimumStock", v)} />
-              <KSelect label="Supplier" value={f.supplierId} onChange={(v) => set("supplierId", v)} options={opts(suppliers)} />
               <KSelect label="Dept/Gudang" value={f.warehouseId} onChange={(v) => set("warehouseId", v)} options={opts(warehouses)} />
               <KTextarea label="Keterangan" rows={3} value={f.description} onChange={(e) => set("description", e.target.value)} />
               <KCheckbox label="Aktif" caption="Item aktif" checked={f.isActive} onChange={(v) => set("isActive", v)} />
@@ -395,30 +479,46 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
                 <div className="max-w-[1070px]">
                   <KSelect label="Satuan" value={f.unitId} onChange={(v) => set("unitId", v)} options={unitOptions} />
                   <KInput label="Kode Barcode" value={f.barcode} onChange={(e) => set("barcode", e.target.value)} />
-                  <KInput label="SKU (Stock Keeping Unit)" value={f.sku} onChange={(e) => set("sku", e.target.value)} />
                   <KRow cols={3}>
                     <KNumber label="Harga Pokok" value={f.pokok} onChange={setPokok} />
                     <KNumber label="Proc %" value={f.proc} onChange={setProc} />
                     <KNumber label="Harga Jual" value={f.jual} onChange={setJual} />
                   </KRow>
-                  <KRow>
-                    <KNumber label="Poin" value={f.poin} onChange={(v) => set("poin", v)} />
-                    <KNumber label="Komisi Sales" value={f.komisi} onChange={(v) => set("komisi", v)} />
-                  </KRow>
                 </div>
               ) : (
-                <KEditableGrid<UnitRow>
-                  columns={unitCols}
-                  rows={f.unitRows}
-                  onChange={setUnitRows}
-                  newRow={emptyUnitRow}
-                  addLabel="Tambah Satuan"
-                  removeLabel="Hapus Satuan"
-                />
+                <div>
+                  <div className="max-w-[1070px]">
+                    <KRow>
+                      <KInput label="Kode Barcode (satuan dasar)" value={f.barcode} onChange={(e) => set("barcode", e.target.value)} />
+                      <KNumber label="Harga Pokok (per satuan dasar)" value={f.pokok} onChange={(v) => set("pokok", v)} />
+                    </KRow>
+                  </div>
+                  <KInfoBox title="KETERANGAN" items={[
+                    "Baris pertama adalah satuan dasar (konversi = 1); stok selalu dihitung dalam satuan dasar.",
+                    "Jml Konversi = isi satuan tersebut dalam satuan dasar (mis. 1 Dus = 12 Pcs).",
+                    ...(f.priceType === "level" ? ["HJ Level 1 = harga standar. Level 2-4 dipakai kasir sesuai level harga pelanggan; kosong/0 = pakai harga standar."] : []),
+                    ...(f.priceType === "jumlah" ? ["Harga 1 berlaku untuk jumlah s/d Jumlah 1, Harga 2 untuk jumlah di atas Jumlah 1 s/d Jumlah 2, dst. Jumlah 0 pada tingkat terakhir = dan seterusnya."] : []),
+                  ]} />
+                  <KEditableGrid<UnitRow>
+                    columns={unitCols}
+                    rows={f.unitRows}
+                    onChange={setUnitRows}
+                    newRow={emptyUnitRow}
+                    addLabel="Tambah Satuan"
+                    removeLabel="Hapus Satuan"
+                  />
+                </div>
               )}
             </div>
           )}
 
+          {UNSUPPORTED_TABS.includes(tab) && (
+            <KInfoBox variant="warning" title="Belum tersimpan">
+              Data pada tab ini belum didukung oleh server sehingga tidak ikut disimpan. Isian dinonaktifkan agar tidak ada
+              data yang hilang tanpa pemberitahuan.
+            </KInfoBox>
+          )}
+          <fieldset disabled={UNSUPPORTED_TABS.includes(tab)} className="m-0 min-w-0 border-0 p-0 disabled:opacity-60">
           {tab === "dimensi" && (
             <div className="max-w-[1070px]">
               <KInfoBox title="KETERANGAN" items={[
@@ -531,6 +631,7 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
               ]} />
             </div>
           )}
+          </fieldset>
         </div>
 
         <KSaveBar onSave={handleSave} saving={saving} />

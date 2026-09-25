@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { CustomerService } from './customer-service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
+import { CurrentUser } from '../../../common/decorators/current-user-decorator';
 import {
   CreateCustomerDto,
   UpdateCustomerDto,
@@ -27,7 +28,7 @@ export class CustomerController {
   @Post()
   async createCustomer(
     @Body() dto: CreateCustomerDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.customerService.createCustomer(dto, userId);
   }
@@ -56,7 +57,7 @@ export class CustomerController {
   async updateCustomer(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateCustomerDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.customerService.updateCustomer(id, dto, userId);
   }
@@ -64,7 +65,7 @@ export class CustomerController {
   @Delete(':id')
   async deleteCustomer(
     @Param('id', ParseIntPipe) id: number,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.customerService.deleteCustomer(id, userId);
   }
@@ -76,7 +77,7 @@ export class CustomerController {
   @Post('receivable/add')
   async addReceivable(
     @Body() dto: AddReceivableDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.customerService.addReceivable(dto, userId);
   }
@@ -84,7 +85,7 @@ export class CustomerController {
   @Post('receivable/payment')
   async paymentReceivable(
     @Body() dto: PaymentReceivableDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.customerService.paymentReceivable(dto, userId);
   }
@@ -106,7 +107,7 @@ export class CustomerController {
   @Post('points/adjust')
   async adjustPoints(
     @Body() dto: AdjustPointsDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.customerService.adjustPoints(dto, userId);
   }

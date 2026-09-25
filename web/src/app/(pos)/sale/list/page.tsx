@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { ArrowLeftRight, Download } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { Badge } from "@/components/ui/StatCard";
@@ -11,16 +12,22 @@ const variants: Record<string, string> = { PAID: "success", PARTIAL: "warning", 
 const labels: Record<string, string> = { PAID: "Lunas", PARTIAL: "Sebagian", PENDING: "Kredit", CANCELLED: "Batal" };
 const methods: Record<string, string> = { CASH: "Tunai", TRANSFER: "Transfer", DEBIT: "Debit", QRIS: "QRIS", CREDIT: "Kredit" };
 
-// Exports every sale (all pages, newest first) as CSV; the list's on-screen filters are internal to TransactionList.
-async function exportSalesCsv() {
+// Exports the sales matching the list's active filters (keyword, gudang, pelanggan, status,
+// periode, urutan) across all pages as CSV. `query` comes from TransactionList.
+async function exportSalesCsv(query: Record<string, unknown>) {
   const rows: any[] = [];
   for (let skip = 0; skip < 20000; skip += 500) {
-    const r = await api.get<any[]>("sales", { $include: "Customer,SalesPerson,PaymentStatus,PaymentMethod", $take: 500, $skip: skip, $orderBy: { Date: "desc" } }, { skipCache: true });
+    const r = await api.get<any[]>("sales", { ...query, $include: "Customer,SalesPerson,PaymentStatus,PaymentMethod", $take: 500, $skip: skip }, { skipCache: true });
     const d = r.data ?? [];
     rows.push(...d);
     if (d.length < 500) break;
   }
-  const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  // Quote every cell; neutralise spreadsheet formulas (=, +, -, @) in text cells.
+  const esc = (v: unknown) => {
+    let t = String(v ?? "");
+    if (/^[=+\-@]/.test(t) && !/^-?\d+(\.\d+)?$/.test(t)) t = `'${t}`;
+    return `"${t.replace(/"/g, '""')}"`;
+  };
   const head = ["No. Transaksi", "Tanggal", "Pelanggan", "Sales", "Metode", "Status", "Subtotal", "Diskon", "Pajak", "Total"];
   const lines = rows.map((s) => [s.Code, String(s.Date ?? "").slice(0, 10), s.Customer?.Name, s.SalesPerson?.Name, s.PaymentMethod?.Name, s.PaymentStatus?.Code, s.Subtotal, s.DiscountAmount, s.TaxAmount, s.Total].map(esc).join(","));
   const blob = new Blob(["\uFEFF" + [head.map(esc).join(","), ...lines].join("\r\n")], { type: "text/csv;charset=utf-8" });
@@ -48,9 +55,9 @@ export default function SaleListPage() {
       }}
       sortOptions={[{ value: "Date", label: "Tanggal" }, { value: "Code", label: "No. Transaksi" }, { value: "Total", label: "Total" }, { value: "CreatedAt", label: "Waktu Input" }]}
       canDelete={(r) => r.PaymentStatus?.Code === "PENDING"}
-      extraActions={(row) => (
+      extraActions={(row, { query }) => (
         <>
-        <button type="button" title="Ekspor semua faktur penjualan ke CSV" onClick={() => void exportSalesCsv()} className="inline-flex h-9 items-center gap-1.5 rounded border border-default bg-white px-3 text-sm hover:bg-bg"><Download className="size-4" /> Ekspor CSV</button>
+        <button type="button" title="Ekspor faktur penjualan sesuai filter ke CSV" onClick={() => void exportSalesCsv(query).catch((e) => toast.error(e instanceof Error ? e.message : "Gagal mengekspor CSV"))} className="inline-flex h-9 items-center gap-1.5 rounded border border-default bg-white px-3 text-sm hover:bg-bg"><Download className="size-4" /> Ekspor CSV</button>
         <button
           type="button"
           disabled={!row}

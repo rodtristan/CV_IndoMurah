@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { isSensitiveKey } from '../utils/redact';
 
 /**
  * ============================================================
@@ -180,6 +181,62 @@ import { Injectable } from '@nestjs/common';
  *
  * ============================================================================
  */
+/** True bila nama field (atau path a.b.c) menyentuh kolom sensitif. */
+export function isSensitiveFieldPath(path: string): boolean {
+  return String(path)
+    .split(/[.,]/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .some((p) => isSensitiveKey(p));
+}
+
+function collectKeysDeep(value: unknown, out: string[], depth = 0): void {
+  if (!value || typeof value !== 'object' || depth > 10) return;
+  if (Array.isArray(value)) {
+    for (const v of value) collectKeysDeep(v, out, depth + 1);
+    return;
+  }
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    out.push(k);
+    collectKeysDeep(v, out, depth + 1);
+  }
+}
+
+/**
+ * Lempar 400 jika query menyebut field sensitif di mana pun:
+ * $select, $searchFields, $include, $where (rekursif), $orderBy, $filter,
+ * atau sintaks alternatif `field[op]=value`.
+ */
+export function assertNoSensitiveQueryFields(query: Record<string, any> | undefined | null): void {
+  if (!query || typeof query !== 'object') return;
+  const names: string[] = [];
+
+  for (const key of ['$select', '$searchFields', '$include']) {
+    const v = query[key];
+    if (v !== undefined && v !== null) names.push(...String(v).split(/[.,]/));
+  }
+  for (const key of ['$where', '$orderBy']) {
+    const v = query[key];
+    if (v && typeof v === 'object') collectKeysDeep(v, names);
+    else if (typeof v === 'string') names.push(v);
+  }
+  const filter = query['$filter'];
+  if (filter) {
+    // buang literal string, lalu ambil semua identifier
+    const stripped = String(filter).replace(/'[^']*'|"[^"]*"/g, ' ');
+    names.push(...(stripped.match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? []));
+  }
+  for (const key of Object.keys(query)) {
+    if (key.startsWith('$')) continue;
+    names.push(key.replace(/\[.*$/, ''));
+  }
+
+  const bad = names.find((n) => n && isSensitiveKey(n.trim()));
+  if (bad) {
+    throw new BadRequestException(`Field "${bad.trim()}" tidak boleh dipakai dalam query`);
+  }
+}
+
 @Injectable()
 export class QueryService {
   /**
@@ -224,6 +281,11 @@ export class QueryService {
   } {
     const maxTake = options?.maxTake ?? 100;
     const defaultTake = options?.defaultTake ?? 20;
+
+    // Tolak referensi ke field sensitif (Password, PasswordHash, *token*, *secret*, ApiKey, ...)
+    // di SEMUA bagian query — $select mem-bypass global omit Prisma, dan $where/$orderBy/
+    // $search pada kolom hash bisa dipakai sebagai oracle.
+    assertNoSensitiveQueryFields(query);
 
     return {
       select: this.parseSelect(query, options?.allowedFields),

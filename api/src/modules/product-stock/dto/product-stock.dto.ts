@@ -19,6 +19,16 @@ export class CreateProductStockDto {
   @IsOptional()
   @IsNumber()
   minimumStock?: number;
+
+  @ApiPropertyOptional({ description: 'Harga pokok per satuan dasar (opsional, untuk HPP & kartu stok)' })
+  @IsOptional()
+  @IsNumber()
+  unitPrice?: number;
+
+  @ApiPropertyOptional({ description: 'Tanggal saldo awal (opsional)' })
+  @IsOptional()
+  @IsString()
+  date?: string;
 }
 
 export class UpdateProductStockDto {
@@ -41,6 +51,16 @@ export class UpdateProductStockDto {
   @IsOptional()
   @IsNumber()
   minimumStock?: number;
+
+  @ApiPropertyOptional({ description: 'Harga pokok per satuan dasar (opsional, untuk HPP & kartu stok)' })
+  @IsOptional()
+  @IsNumber()
+  unitPrice?: number;
+
+  @ApiPropertyOptional({ description: 'Tanggal saldo awal (opsional)' })
+  @IsOptional()
+  @IsString()
+  date?: string;
 }
 
 export class QueryProductStockDto {

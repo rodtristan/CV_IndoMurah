@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../../common/prisma/prisma-service';
 import { Prisma } from '@prisma/client'
 import { number } from '../../../common/utils/number';
+import { resolveDateRange, requireIntParam } from '../shared/date-range';
 import {
   CreateQCInspectionDto,
   RecordQCResultDto,
@@ -469,9 +470,8 @@ export class QualityControlService {
   /**
    * Get defect analytics
    */
-  async getDefectAnalytics(startDate: string, endDate: string) {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+  async getDefectAnalytics(startDate?: string, endDate?: string) {
+    const { start, end } = resolveDateRange(startDate, endDate);
 
     const defects = await this.prisma.defectReport.findMany({
       where: {
@@ -577,7 +577,8 @@ export class QualityControlService {
   /**
    * Get QC Standard for Product
    */
-  async getQCStandard(ProductId: number, InspectionType: string) {
+  async getQCStandard(ProductId: number, InspectionType?: string) {
+    ProductId = requireIntParam(ProductId, 'productId');
     const Standard = await this.prisma.qCStandard.findFirst({
       where: { ProductID: ProductId, InspectionType: InspectionType },
       include: { Checkpoints: { orderBy: { SortOrder: 'asc' } } },
@@ -729,9 +730,8 @@ export class QualityControlService {
   /**
    * Get QC performance Report
    */
-  async getQCPerformanceReport(startDate: string, endDate: string) {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+  async getQCPerformanceReport(startDate?: string, endDate?: string) {
+    const { start, end } = resolveDateRange(startDate, endDate);
 
     const Inspections = await this.prisma.qCInspection.findMany({
       where: {

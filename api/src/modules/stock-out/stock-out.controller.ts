@@ -74,8 +74,9 @@ export class StockOutController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update StockOut by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateStockOutDto>) {
-    return super.patchById(id, dto);
+  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateStockOutDto>, @CurrentUser() user?: any) {
+    const data = await this.stockOutService.patchById(Number(id), dto, user?.id);
+    return { success: true, data, message: 'Data berhasil diperbarui' };
   }
 
   @Patch('by/:field/:value')
@@ -119,8 +120,9 @@ export class StockOutController extends BaseController<
   // DELETE endpoints
   @Delete(':id')
   @ApiOperation({ summary: 'Delete StockOut by ID' })
-  async deleteById(@Param('id') id: string) {
-    return super.deleteById(id);
+  async deleteById(@Param('id') id: string, @CurrentUser() user?: any) {
+    const data = await this.stockOutService.deleteById(Number(id), user?.id);
+    return { success: true, data, message: 'Data berhasil dihapus' };
   }
 
   @Delete('by/:field/:value')

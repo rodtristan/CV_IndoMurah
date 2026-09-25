@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString, MinLength, IsNumber, IsPositive, IsAlpha } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, MinLength, MaxLength, IsNumber, IsPositive } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class LoginDto {
@@ -34,9 +34,10 @@ export class RegisterDto {
   @IsString()
   email?: string;
 
-  @ApiProperty({ example: 'password123', minLength: 6 })
+  @ApiProperty({ example: 'password123', minLength: 8 })
   @IsString()
-  @MinLength(6)
+  @MinLength(8)
+  @MaxLength(128)
   password: string;
 
   @ApiProperty({ example: 'John Doe' })
@@ -54,9 +55,22 @@ export class RegisterDto {
   @IsString()
   photo?: string;
 
-  @ApiPropertyOptional({ example: 1, description: 'Default role assigned if omitted: 1' })
+  @ApiPropertyOptional({ example: 2, description: 'Kelompok akses (Role ID). Tidak ada default — tanpa roleId user tidak mendapat role apa pun.' })
   @IsOptional()
   @IsNumber()
   @IsPositive()
   roleId?: number;
+}
+
+export class ChangePasswordDto {
+  @ApiProperty({ example: 'passwordLama123' })
+  @IsString()
+  @IsNotEmpty()
+  currentPassword: string;
+
+  @ApiProperty({ example: 'passwordBaru123', minLength: 8 })
+  @IsString()
+  @MinLength(8)
+  @MaxLength(128)
+  newPassword: string;
 }

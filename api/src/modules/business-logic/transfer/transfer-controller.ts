@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { TransferService } from './transfer-service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
+import { CurrentUser } from '../../../common/decorators/current-user-decorator';
 import {
   CreateTransferDto,
   TransferFilterDto,
@@ -15,7 +16,7 @@ export class TransferController {
   @Post()
   async createTransfer(
     @Body() dto: CreateTransferDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.transferService.createTransfer(dto, userId);
   }

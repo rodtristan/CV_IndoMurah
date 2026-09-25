@@ -29,6 +29,8 @@
 //
 //  [3] PROVIDER GLOBAL — Dijalankan untuk setiap request:
 //      - ThrottlerGuard    : cek rate limit
+//      - AdminRouteGuard   : route sensitif khusus Administrator
+//      - AllExceptionsFilter: format error, sembunyikan detail internal
 //      - LoggingInterceptor: catat setiap request ke tabel logs
 //
 // ================================================================
@@ -36,16 +38,20 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 
 // Configs — membaca semua konfigurasi dari .env
 import { appConfig, databaseConfig, jwtConfig, redisConfig, securityConfig } from './config';
 
 // ── Infrastruktur ──────────────────────────────────────────────────────
 import { PrismaModule } from './common/prisma/prisma-module';
+import { AutoAccountingModule } from './common/accounting/accounting.module';
 import { RedisModule } from './common/redis/redis-module';
 import { QueryModule } from './common/query/query-module';
 import { HashIdModule } from './common/utils/hash-id-module';
+import { AuthzModule } from './common/auth/authz-module';
+import { AdminRouteGuard } from './common/guards/admin-route-guard';
+import { AllExceptionsFilter } from './common/filters/all-exceptions-filter';
 
 // ── Fitur ──────────────────────────────────────────────────────────────
 import { AuthModule } from './modules/auth/auth-module';
@@ -118,7 +124,7 @@ import { NumberingModule } from './modules/numbering/numbering.module';
 
 // Reports
 import { ReportModule } from './modules/report/report.module';
-import { TestingModule } from './modules/testing/testing.module';
+// TestingModule sengaja TIDAK didaftarkan (endpoint uji tidak boleh ada di produksi).
 import { ExpenseCategoryModule } from './modules/expense-category/expense-category.module';
 import { ExpenseModule } from './modules/expense/expense.module';
 import { TransferModule } from './modules/transfer/transfer.module';
@@ -168,12 +174,15 @@ import { UserRoleModule } from './modules/user-role/user-role.module';
 import { RoleMenuModule } from './modules/role-menu/role-menu.module';
 import { UserMenuModule } from './modules/user-menu/user-menu.module';
 import { StockBalanceModule } from './modules/stock-balance/stock-balance.module';
+import { StockModule } from './common/stock/stock.module';
 import { ProductImportModule } from './modules/product-import/product-import.module';
 import { LeaveModule } from './modules/leave/leave.module';
 import { LeaveBalanceModule } from './modules/leave-balance/leave-balance.module';
 import { AppSettingModule } from './modules/app-setting/app-setting.module';
 import { ReportEngineModule } from './modules/report-engine/report-engine.module';
-import { BackupModule } from './modules/backup/backup.module';
+// BackupModule sengaja TIDAK didaftarkan: implementasinya hanya men-dump 10 tabel
+// ke JSON di disk container (hilang saat redeploy) dan restore-nya placeholder.
+// Backup produksi = backup Postgres terkelola (Railway Backups / pg_dump).
 import { ImportModule } from './modules/import/import.module';
 import { BalanceRepairModule } from './modules/balance-repair/balance-repair.module';
 
@@ -266,9 +275,11 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
 
     // ── [3] Infrastruktur Core ────────────────────────────────────────
     PrismaModule,   // Database ORM (PostgreSQL)
+    AutoAccountingModule, // Jurnal otomatis + saldo deposit (global)
     RedisModule,    // Cache layer
     QueryModule,    // Smart query builder ($select, $where, $orderBy, dll)
     HashIdModule,   // Obfuscate integer ID di URL
+    AuthzModule,    // Status user aktif/admin (cache Redis) untuk JwtStrategy & AdminRouteGuard
 
     // ── [4] Modul Fitur ───────────────────────────────────────────────
     AuthModule,     // Login, register, JWT
@@ -334,7 +345,6 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     PointRedemptionModule, // Penukaran Poin (sale/points)
     CompanyModule,        // Informasi Perusahaan
     NumberingModule,      // Format Penomoran
-    TestingModule,
     ExpenseCategoryModule,
     ExpenseModule,
     TransferModule,       // Transfer (Gudang/Kas)
@@ -387,11 +397,11 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     LeaveBalanceModule,
     AppSettingModule,
     StockBalanceModule,
+    StockModule,
     ProductImportModule,
     ReportEngineModule,
     FileStorageModule,
     AttendanceMobileModule,
-    BackupModule,
     ImportModule,
     BalanceRepairModule,
 
@@ -456,6 +466,17 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard, // Cek rate limit sebelum request masuk
+    },
+    {
+      // Route sensitif (users, roles, menus, journal, backup, import, ...)
+      // hanya untuk Administrator. Fail closed. Lihat admin-route-guard.ts.
+      provide: APP_GUARD,
+      useExisting: AdminRouteGuard,
+    },
+    {
+      // Format error seragam; 500 tidak membocorkan detail internal di production.
+      provide: APP_FILTER,
+      useClass: AllExceptionsFilter,
     },
     {
       provide: APP_INTERCEPTOR,

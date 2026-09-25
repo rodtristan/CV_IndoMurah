@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../../common/prisma/prisma-service';
 import { Prisma } from '@prisma/client'
 import { number } from '../../../common/utils/number';
+import { resolveDateRange, requireIntParam } from '../shared/date-range';
 import {
   CreateAssemblyDto,
   UpdateAssemblyDto,
@@ -920,6 +921,8 @@ export class AssemblyService {
    * Flow: Owner membandingkan 2 BOM untuk optimasi biaya
    */
   async compareBOMs(BOMId1: number, BOMId2: number) {
+    BOMId1 = requireIntParam(BOMId1, 'bomId1');
+    BOMId2 = requireIntParam(BOMId2, 'bomId2');
     const [BOM1, BOM2] = await Promise.all([
       this.prisma.bOM.findUnique({
         where: { ID: BOMId1 },
@@ -984,9 +987,8 @@ export class AssemblyService {
   /**
    * Get Assembly analytics
    */
-  async getAssemblyAnalytics(startDate: string, endDate: string) {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+  async getAssemblyAnalytics(startDate?: string, endDate?: string) {
+    const { start, end } = resolveDateRange(startDate, endDate);
 
     const Assemblies = await this.prisma.assembly.findMany({
       where: {

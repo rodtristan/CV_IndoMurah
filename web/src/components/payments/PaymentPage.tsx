@@ -2,6 +2,8 @@
 
 // Daftar Pembayaran (pembelian / penjualan) + Status Lunas Bg/Cek.
 // Talks to /PurchasePayments|/SalePayments (list, create, update, delete, PATCH :id/clear).
+// Jenis "Deposit" (InstrumentType DEPOSIT, no MethodID needed) pays from the customer/supplier deposit balance.
+// Every save posts the automatic journal on the API; cek/BG only post when marked lunas (cair).
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, Pencil, Plus, Trash2 } from "lucide-react";
@@ -24,7 +26,8 @@ const CFG = {
   },
 } as const;
 
-const INSTRUMENTS = [{ value: "CASH", label: "Tunai / Transfer" }, { value: "CEK", label: "Cek" }, { value: "BG", label: "Bilyet Giro (BG)" }];
+const INSTRUMENTS = [{ value: "CASH", label: "Tunai / Transfer" }, { value: "CEK", label: "Cek" }, { value: "BG", label: "Bilyet Giro (BG)" }, { value: "DEPOSIT", label: "Deposit" }];
+const CHEQUES = INSTRUMENTS.filter((i) => i.value === "CEK" || i.value === "BG");
 const instLabel = (v: string) => INSTRUMENTS.find((i) => i.value === v)?.label ?? v;
 const dateInput = (iso?: string | null) => (iso ? String(iso).slice(0, 10) : "");
 const today = () => new Date().toISOString().slice(0, 10);
@@ -36,7 +39,7 @@ const emptyForm = (): FormState => ({ parentId: "", methodId: "", amount: "", in
 export function PaymentPage({ kind, chequeOnly = false }: { kind: Kind; chequeOnly?: boolean }) {
   const c = CFG[kind];
   const methods = useList("payment-methods", { $take: 200 });
-  const methodOpts = useMemo(() => methods.map((m) => ({ value: m.ID, label: m.Name })), [methods]);
+  const methodOpts = useMemo(() => methods.filter((m) => m.Code !== "DEPOSIT").map((m) => ({ value: m.ID, label: m.Name })), [methods]);
 
   const [rows, setRows] = useState<Row[]>([]);
   const [total, setTotal] = useState(0);
@@ -91,15 +94,16 @@ export function PaymentPage({ kind, chequeOnly = false }: { kind: Kind; chequeOn
     if (!form) return;
     setErr(""); setOk("");
     if (!form.id && !form.parentId) return setErr(`${c.parentLabel} wajib dipilih`);
-    if (!form.methodId) return setErr("Metode pembayaran wajib dipilih");
+    const isDeposit = form.instrument === "DEPOSIT";
+    if (!isDeposit && !form.methodId) return setErr("Metode pembayaran wajib dipilih");
     if (!(num(form.amount) > 0)) return setErr("Jumlah harus lebih dari 0");
-    if (form.instrument !== "CASH" && !form.dueDate) return setErr("Tanggal jatuh tempo cek/BG wajib diisi");
+    if ((form.instrument === "CEK" || form.instrument === "BG") && !form.dueDate) return setErr("Tanggal jatuh tempo cek/BG wajib diisi");
     setSaving(true);
     try {
       const body: Record<string, unknown> = {
-        MethodID: Number(form.methodId), Amount: num(form.amount), InstrumentType: form.instrument,
+        MethodID: isDeposit || !form.methodId ? undefined : Number(form.methodId), Amount: num(form.amount), InstrumentType: form.instrument,
         Date: new Date(form.date).toISOString(), ReferenceNumber: form.ref || undefined, Notes: form.notes || undefined,
-        DueDate: form.instrument !== "CASH" && form.dueDate ? new Date(form.dueDate).toISOString() : undefined,
+        DueDate: (form.instrument === "CEK" || form.instrument === "BG") && form.dueDate ? new Date(form.dueDate).toISOString() : undefined,
       };
       const r = form.id
         ? await api.put(c.endpoint, form.id, body)
@@ -133,7 +137,7 @@ export function PaymentPage({ kind, chequeOnly = false }: { kind: Kind; chequeOn
               <KInput label="Sampai Tanggal" type="date" value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} />
               <KSelect label="Metode" value={filters.methodId} onChange={(v) => setFilters({ ...filters, methodId: v })} options={methodOpts} placeholder="Semua" />
               {chequeOnly
-                ? <KSelect label="Jenis" value={filters.instrumentType} onChange={(v) => setFilters({ ...filters, instrumentType: v })} options={INSTRUMENTS.slice(1)} placeholder="Cek & BG" />
+                ? <KSelect label="Jenis" value={filters.instrumentType} onChange={(v) => setFilters({ ...filters, instrumentType: v })} options={CHEQUES} placeholder="Cek & BG" />
                 : <KSelect label="Status" value={filters.cleared} onChange={(v) => setFilters({ ...filters, cleared: v })} options={[{ value: "true", label: "Lunas / Cair" }, { value: "false", label: "Belum Cair" }]} placeholder="Semua" />}
             </KRow>
             <KRow cols={4}>
@@ -169,7 +173,7 @@ export function PaymentPage({ kind, chequeOnly = false }: { kind: Kind; chequeOn
                       <td className="px-2 py-1.5 text-right">{fmt(r.Amount, 0)}</td>
                       <td className="px-2 py-1.5">
                         <span className={cn("rounded px-2 py-0.5 text-xs", r.IsCleared ? "bg-[#e8f5e9] text-[#2e7d32]" : "bg-[#fff3e0] text-[#e65100]")}>
-                          {r.IsCleared ? (r.InstrumentType === "CASH" ? "Lunas" : "Sudah Cair") : "Belum Cair"}
+                          {r.IsCleared ? (r.InstrumentType === "CEK" || r.InstrumentType === "BG" ? "Sudah Cair" : "Lunas") : "Belum Cair"}
                         </span>
                       </td>
                     </tr>
@@ -229,7 +233,15 @@ function PaymentForm({ kind, form, setForm, methodOpts, saving, onSave, onCancel
   }, [form.parentId, found.length]);
 
   const opts = found.map((p) => ({ value: p.ID, label: `${p.Code} - ${p[c.partyRel]?.Name ?? ""} (sisa ${fmt(outstanding(p), 0)})` }));
-  const isCheque = form.instrument !== "CASH";
+  const isCheque = form.instrument === "CEK" || form.instrument === "BG";
+  const isDeposit = form.instrument === "DEPOSIT";
+  const partyId = chosen ? (kind === "sale" ? chosen.CustomerID : chosen.SupplierID) : null;
+  const [depBalance, setDepBalance] = useState<number | null>(null);
+  useEffect(() => {
+    if (!isDeposit || !partyId) { setDepBalance(null); return; }
+    const ep = kind === "sale" ? "customer-deposit" : "supplier-deposit";
+    api.request<{ balance: number }>("GET", `${ep}/balance/${partyId}`).then((r) => setDepBalance(num(r.data?.balance))).catch(() => setDepBalance(null));
+  }, [isDeposit, partyId, kind]);
 
   return (
     <div>
@@ -241,8 +253,10 @@ function PaymentForm({ kind, form, setForm, methodOpts, saving, onSave, onCancel
         </div>
       )}
       <KRow cols={3}>
-        <KSelect label="Jenis Pembayaran" value={form.instrument} onChange={(v) => set({ instrument: v })} options={INSTRUMENTS} />
-        <KSelect label="Metode" value={form.methodId} onChange={(v) => set({ methodId: v })} options={methodOpts} />
+        <KSelect label="Jenis Pembayaran" value={form.instrument} onChange={(v) => set({ instrument: v, methodId: v === "DEPOSIT" || !methodOpts.some((o) => String(o.value) === form.methodId) ? "" : form.methodId })} options={INSTRUMENTS} />
+        {isDeposit
+          ? <KInput label="Saldo Deposit" value={depBalance === null ? "-" : fmt(depBalance, 0)} readOnly />
+          : <KSelect label="Metode" value={form.methodId} onChange={(v) => set({ methodId: v })} options={methodOpts} />}
         <KNumber label="Jumlah" value={form.amount} onChange={(v) => set({ amount: v })} />
       </KRow>
       <KRow cols={3}>
@@ -251,7 +265,8 @@ function PaymentForm({ kind, form, setForm, methodOpts, saving, onSave, onCancel
         {isCheque && <KInput label="Tanggal Jatuh Tempo" type="date" value={form.dueDate} onChange={(e) => set({ dueDate: e.target.value })} />}
       </KRow>
       <KInput label="Catatan" value={form.notes} onChange={(e) => set({ notes: e.target.value })} />
-      {isCheque && <p className="mb-3 text-[13px] text-[#3a4654]">Cek/BG belum dihitung sebagai pembayaran sampai ditandai lunas di menu Status Lunas.</p>}
+      {isCheque && <p className="mb-3 text-[13px] text-[#3a4654]">Cek/BG belum dihitung sebagai pembayaran (dan belum dijurnal) sampai ditandai lunas di menu Status Lunas.</p>}
+      {isDeposit && <p className="mb-3 text-[13px] text-[#3a4654]">Pembayaran memotong saldo deposit {kind === "sale" ? "pelanggan" : "supplier"}; ditolak bila saldo tidak mencukupi.</p>}
       <div className="flex gap-2">
         <button type="button" className={btn} disabled={saving} onClick={onSave}>{saving ? "Menyimpan..." : "Simpan"}</button>
         <button type="button" className={btn} onClick={onCancel}>Batal</button>

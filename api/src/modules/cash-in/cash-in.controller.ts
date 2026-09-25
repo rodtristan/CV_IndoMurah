@@ -1,11 +1,16 @@
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
-import { UseGuards, Controller, Get, Post, Patch, Delete, Put, Param, Body, Query } from '@nestjs/common';
+import { UseGuards, Controller, Get, Post, Patch, Delete, Param, Body, Query, ParseIntPipe } from '@nestjs/common';
 import { BaseController } from '../../common/templates/base.controller';
 import { CashInService } from './cash-in.service';
 import { CreateCashInDto, UpdateCashInDto } from './dto/cash-in.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 import { CurrentUser } from '../../common/decorators/current-user-decorator';
+import { ApiResponse } from '../../common/dto/api-response-dto';
 
+/**
+ * Kas Masuk. Writes are limited to create / patch / delete by ID because each one posts or reverses
+ * the automatic journal; bulk / upsert / by-field writes of the generic template are intentionally not exposed.
+ */
 @ApiTags('CashIn')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -15,8 +20,8 @@ export class CashInController extends BaseController<
   CreateCashInDto,
   UpdateCashInDto
 > {
-  constructor(cashInService: CashInService) {
-    super(cashInService, {
+  constructor(private readonly svc: CashInService) {
+    super(svc, {
       modelName: 'CashIn',
       pluralName: 'CashIns',
       primaryKeyType: 'number',
@@ -25,112 +30,49 @@ export class CashInController extends BaseController<
     });
   }
 
-  // GET endpoints
   @Get()
   @ApiOperation({ summary: 'Get all CashIns with OData query support' })
-  @ApiQuery({ name: '$select', required: false, description: 'Select fields' })
   @ApiQuery({ name: '$include', required: false, description: 'Include relations: account' })
-  @ApiQuery({ name: '$where[field]', required: false, description: 'Filter by field' })
-  @ApiQuery({ name: '$orderBy[field]', required: false, description: 'Sort: asc/desc' })
-  @ApiQuery({ name: '$skip', required: false, type: Number, description: 'Offset' })
-  @ApiQuery({ name: '$take', required: false, type: Number, description: 'Limit' })
-  @ApiQuery({ name: '$search', required: false, description: 'Search: code, description' })
   async findAll(@Query() query: any) {
     return super.findAll(query);
   }
 
   @Get('count')
-  @ApiOperation({ summary: 'Get count of CashIns' })
   async getCount(@Query() query: any) {
     return super.getCount(query);
   }
 
+  @Get(':id/lines')
+  @ApiOperation({ summary: 'Rincian akun lawan (dari jurnal otomatis)' })
+  async lines(@Param('id', ParseIntPipe) id: number) {
+    return ApiResponse.ok(await this.svc.lines(id));
+  }
+
   @Get(':id')
-  @ApiOperation({ summary: 'Get CashIn by ID' })
   async findById(@Param('id') id: string, @Query() query: any) {
     return super.findById(id, query);
   }
 
   @Get('by/:field/:value')
-  @ApiOperation({ summary: 'Get CashIn by field reference' })
   async findByField(@Param('field') field: string, @Param('value') value: string, @Query() query: any) {
     return super.findByField(field, value, query);
   }
 
-  // POST endpoints
   @Post()
-  @ApiOperation({ summary: 'Create new CashIn' })
+  @ApiOperation({ summary: 'Create CashIn + jurnal otomatis' })
   async create(@Body() dto: CreateCashInDto, @CurrentUser() user?: any) {
-    return super.create({ ...dto, createdById: user.id } as any);
+    return ApiResponse.ok(await this.svc.createDoc(dto, user.id), 'Kas Masuk tersimpan');
   }
 
-  @Post('bulk')
-  @ApiOperation({ summary: 'Create multiple CashIns' })
-  async createBulk(@Body() dtos: CreateCashInDto[]) {
-    return super.createBulk(dtos);
-  }
-
-  // PATCH endpoints
   @Patch(':id')
-  @ApiOperation({ summary: 'Update CashIn by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateCashInDto>) {
-    return super.patchById(id, dto);
+  @ApiOperation({ summary: 'Update CashIn + posting ulang jurnal' })
+  async patchById(@Param('id') id: string, @Body() dto: UpdateCashInDto, @CurrentUser() user?: any) {
+    return ApiResponse.ok(await this.svc.updateDoc(Number(id), dto, user.id), 'Kas Masuk diperbarui');
   }
 
-  @Patch('by/:field/:value')
-  @ApiOperation({ summary: 'Update CashIns by field reference' })
-  async patchByFilterReference(
-    @Param('field') field: string,
-    @Param('value') value: string,
-    @Body() dto: Partial<UpdateCashInDto>,
-  ) {
-    return super.patchByFilterReference(field, value, dto);
-  }
-
-  @Patch('bulk')
-  @ApiOperation({ summary: 'Update multiple CashIns' })
-  async patchBulk(@Body() body: { ids: number[]; data: Partial<UpdateCashInDto> }) {
-    return super.patchBulk(body);
-  }
-
-  // PUT (UPSERT) endpoints
-  @Put()
-  @ApiOperation({ summary: 'Upsert CashIn' })
-  async upsert(@Body() body: { where: { id: number }; create: CreateCashInDto; update: Partial<UpdateCashInDto> }) {
-    return super.upsert(body);
-  }
-
-  @Put('by/:field')
-  @ApiOperation({ summary: 'Upsert CashIn by field reference' })
-  async upsertByFilterReference(
-    @Param('field') field: string,
-    @Body() body: { filterValue: any; create: CreateCashInDto; update: Partial<UpdateCashInDto> },
-  ) {
-    return super.upsertByFilterReference(field, body);
-  }
-
-  @Put('bulk')
-  @ApiOperation({ summary: 'Bulk upsert CashIns' })
-  async upsertBulk(@Body() body: { items: any[] }) {
-    return super.upsertBulk(body);
-  }
-
-  // DELETE endpoints
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete CashIn by ID' })
+  @ApiOperation({ summary: 'Delete CashIn + hapus jurnal otomatis' })
   async deleteById(@Param('id') id: string) {
-    return super.deleteById(id);
-  }
-
-  @Delete('by/:field/:value')
-  @ApiOperation({ summary: 'Delete CashIns by field reference' })
-  async deleteByFilterReference(@Param('field') field: string, @Param('value') value: string) {
-    return super.deleteByFilterReference(field, value);
-  }
-
-  @Delete('bulk')
-  @ApiOperation({ summary: 'Delete multiple CashIns' })
-  async deleteBulk(@Body() body: { ids: number[] }) {
-    return super.deleteBulk(body);
+    return ApiResponse.ok(await this.svc.deleteDoc(Number(id)), 'Kas Masuk dihapus');
   }
 }

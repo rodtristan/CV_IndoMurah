@@ -34,13 +34,13 @@
 // POST   /              → create
 // POST   /bulk          → createBulk
 // PATCH  /:id           → patchById
-// PATCH  /by/:field/:value → patchByFilterReference
-// PATCH  /bulk          → patchBulk
+// PATCH  /by/:field/:value → (dinonaktifkan, 404)
+// PATCH  /bulk          → (dinonaktifkan, 404)
 // DELETE /:id           → deleteById
-// DELETE /by/:field/:value → deleteByFilterReference
-// DELETE /bulk          → deleteBulk
+// DELETE /by/:field/:value → (dinonaktifkan, 404)
+// DELETE /bulk          → (dinonaktifkan, 404)
 // UPSERT /              → upsert
-// UPSERT /bulk          → upsertBulk
+// UPSERT /bulk          → (dinonaktifkan, 404)
 //
 // ================================================================
 
@@ -55,6 +55,7 @@ import {
   Query,
   Body,
   UseGuards,
+  NotFoundException,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery, ApiParam } from '@nestjs/swagger';
 import { BaseService } from './base.service';
@@ -159,19 +160,19 @@ export abstract class BaseController<
     return ApiResponse.ok(data, `${this.modelName} updated successfully`);
   }
 
+  // DINONAKTIFKAN secara global: update massal by-field / bulk melewati aturan
+  // bisnis per-modul (mis. proteksi jurnal ber-ReferenceType, status dokumen).
+  // Route-nya masih dideklarasikan di subclass, tapi selalu 404.
   async patchByFilterReference(
-    @Param('field') field: string,
-    @Param('value') value: string,
-    @Body() dto: Partial<UpdateDto>,
-  ) {
-    const parsedValue = this.parseValue(value);
-    const data = await this.service.patchByFilterReference({ [field]: parsedValue }, dto);
-    return ApiResponse.ok(data, `${data.length} ${this.pluralName} updated`);
+    @Param('field') _field: string,
+    @Param('value') _value: string,
+    @Body() _dto: Partial<UpdateDto>,
+  ): Promise<ApiResponse<unknown>> {
+    throw this.disabled();
   }
 
-  async patchBulk(@Body() body: { ids: (number | string)[]; data: Partial<UpdateDto> }) {
-    const result = await this.service.patchBulk(body.ids, body.data);
-    return ApiResponse.ok(result, `${result.successCount} updated, ${result.failedCount} failed`);
+  async patchBulk(@Body() _body: { ids: (number | string)[]; data: Partial<UpdateDto> }): Promise<ApiResponse<unknown>> {
+    throw this.disabled();
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -195,9 +196,9 @@ export abstract class BaseController<
     return ApiResponse.ok(data, `${this.modelName} upserted successfully`);
   }
 
-  async upsertBulk(@Body() body: { items: any[] }) {
-    const result = await (this.service.upsertBulk(body.items as any) as Promise<any>);
-    return ApiResponse.ok(result, `${result.successCount} upserted, ${result.failedCount} failed`);
+  // DINONAKTIFKAN (lihat patchBulk).
+  async upsertBulk(@Body() _body: { items: any[] }): Promise<ApiResponse<unknown>> {
+    throw this.disabled();
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -210,20 +211,24 @@ export abstract class BaseController<
     return ApiResponse.ok(data, `${this.modelName} deleted successfully`);
   }
 
-  async deleteByFilterReference(@Param('field') field: string, @Param('value') value: string) {
-    const parsedValue = this.parseValue(value);
-    const result = await this.service.deleteByFilterReference({ [field]: parsedValue });
-    return ApiResponse.ok({ deleted: result.count }, `${result.count} ${this.pluralName} deleted`);
+  // DINONAKTIFKAN secara global: hard deleteMany by-field / bulk melewati aturan
+  // bisnis (proteksi jurnal otomatis, dokumen yang sudah diposting, dst).
+  // Hapus satu per satu lewat DELETE /:id.
+  async deleteByFilterReference(@Param('field') _field: string, @Param('value') _value: string): Promise<ApiResponse<unknown>> {
+    throw this.disabled();
   }
 
-  async deleteBulk(@Body() body: { ids: (number | string)[] }) {
-    const result = await this.service.deleteBulk(body.ids);
-    return ApiResponse.ok(result, `${result.successCount} deleted, ${result.failedCount} failed`);
+  async deleteBulk(@Body() _body: { ids: (number | string)[] }): Promise<ApiResponse<unknown>> {
+    throw this.disabled();
   }
 
   // ═══════════════════════════════════════════════════════════════
   // HELPER METHODS
   // ═══════════════════════════════════════════════════════════════
+
+  private disabled(): NotFoundException {
+    return new NotFoundException('Endpoint ini tidak tersedia');
+  }
 
   /**
    * Parse ID to appropriate type based on primaryKeyType

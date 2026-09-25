@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { resolveDateRange } from '../shared/date-range';
 import { PrismaService } from '../../../common/prisma/prisma-service';
 import { Prisma } from '@prisma/client'
 import { number } from '../../../common/utils/number';
@@ -318,11 +319,12 @@ export class ExpenseService {
   /**
    * Get expense Summary by Category
    */
-  async getExpenseSummary(startDate: string, endDate: string) {
+  async getExpenseSummary(startDate?: string, endDate?: string) {
+    const { start, end } = resolveDateRange(startDate, endDate);
     const where: any = {
       Date: {
-        gte: new Date(startDate),
-        lte: new Date(endDate),
+        gte: start,
+        lte: end,
       },
     };
 

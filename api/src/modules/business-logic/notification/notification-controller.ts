@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe, UseGuards, ForbiddenException } from '@nestjs/common';
 import { NotificationService } from './notification-service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
+import { CurrentUser } from '../../../common/decorators/current-user-decorator';
 import {
   CreateNotificationDto,
   NotificationFilterDto,
@@ -17,7 +18,7 @@ export class NotificationController {
   @Post()
   async createNotification(
     @Body() dto: CreateNotificationDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.notificationService.createNotification(dto, userId);
   }
@@ -25,7 +26,7 @@ export class NotificationController {
   @Post('bulk')
   async createBulkNotification(
     @Body() dto: BulkNotificationDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.notificationService.createBulkNotification(dto, userId);
   }
@@ -36,7 +37,7 @@ export class NotificationController {
   }
 
   @Get('summary')
-  async getNotificationSummary(@Query('userId') userId: string) {
+  async getNotificationSummary(@CurrentUser('id') userId: string) {
     return this.notificationService.getNotificationSummary(userId);
   }
 
@@ -46,7 +47,9 @@ export class NotificationController {
   }
 
   @Get('settings/:userId')
-  async getNotificationSettings(@Param('userId') userId: string) {
+  async getNotificationSettings(@Param('userId') userId: string, @CurrentUser('id') currentUserId: string) {
+    // Hanya boleh membaca pengaturan milik sendiri.
+    if (userId !== currentUserId) throw new ForbiddenException('Tidak boleh mengakses pengaturan user lain');
     return this.notificationService.getNotificationSettings(userId);
   }
 
@@ -58,13 +61,13 @@ export class NotificationController {
   @Post('mark-read')
   async markAsRead(
     @Body() dto: MarkReadDto,
-    @Query('userId') userId: string,
+    @CurrentUser('id') userId: string,
   ) {
     return this.notificationService.markAsRead(dto, userId);
   }
 
   @Post('mark-all-read')
-  async markAllAsRead(@Query('userId') userId: string) {
+  async markAllAsRead(@CurrentUser('id') userId: string) {
     return this.notificationService.markAllAsRead(userId);
   }
 
@@ -73,20 +76,22 @@ export class NotificationController {
     @Param('userId') userId: string,
     @Param('typeId', ParseIntPipe) typeId: number,
     @Body() dto: UpdateNotificationSettingsDto,
+    @CurrentUser('id') currentUserId: string,
   ) {
+    if (userId !== currentUserId) throw new ForbiddenException('Tidak boleh mengubah pengaturan user lain');
     return this.notificationService.updateNotificationSettings({ ...dto, UserId: userId}, typeId);
   }
 
   @Delete(':id')
   async deleteNotification(
     @Param('id', ParseIntPipe) id: number,
-    @Query('userId') userId: string,
+    @CurrentUser('id') userId: string,
   ) {
     return this.notificationService.deleteNotification(id, userId);
   }
 
   @Delete('read/all')
-  async deleteReadNotifications(@Query('userId') userId: string) {
+  async deleteReadNotifications(@CurrentUser('id') userId: string) {
     return this.notificationService.deleteReadNotifications(userId);
   }
 }

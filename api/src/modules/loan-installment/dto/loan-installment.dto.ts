@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString, IsInt, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -31,8 +31,10 @@ export class CreateLoanInstallmentDto {
   @IsNumber()
   remainingAfter: number;
 
-  @ApiPropertyOptional({ description: 'paymentDate' })
+  @ApiPropertyOptional({ description: 'paymentDate', type: String, format: 'date-time' })
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
   paymentDate?: Date;
 
   @ApiPropertyOptional({ description: 'status' })
@@ -84,8 +86,10 @@ export class UpdateLoanInstallmentDto {
   @IsNumber()
   remainingAfter?: number;
 
-  @ApiPropertyOptional({ description: 'paymentDate' })
+  @ApiPropertyOptional({ description: 'paymentDate', type: String, format: 'date-time' })
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
   paymentDate?: Date;
 
   @ApiPropertyOptional({ description: 'status' })

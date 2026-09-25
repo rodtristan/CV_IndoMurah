@@ -6,6 +6,7 @@ import { AuthController } from './auth-controller';
 import { AuthService } from './auth-service';
 import { JwtStrategy } from '../../common/strategies/jwt-strategy';
 import { MenuModule } from '../menu/menu-module';
+import { resolveJwtSecret } from '../../config/jwt-config';
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { MenuModule } from '../menu/menu-module';
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: async (config: ConfigService): Promise<JwtModuleOptions> => ({
-        secret: config.get<string>('JWT_SECRET') || config.get<string>('jwt.secret') || 'fallback-secret',
+        secret: resolveJwtSecret(),
         signOptions: {
           expiresIn: config.get<string>('JWT_EXPIRES_IN') || config.get<string>('jwt.expiresIn') || '8h',
         } as any,

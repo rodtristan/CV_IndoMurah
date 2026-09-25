@@ -1,9 +1,11 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString, IsInt, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateDailySalesSummaryDto {
-  @ApiProperty({ description: 'date' })
+  @ApiProperty({ description: 'date', type: String, format: 'date-time' })
+  @Type(() => Date)
+  @IsDate()
   date: Date;
 
   @ApiPropertyOptional({ description: 'totalTransactions' })
@@ -39,8 +41,10 @@ export class CreateDailySalesSummaryDto {
 }
 
 export class UpdateDailySalesSummaryDto {
-  @ApiPropertyOptional({ description: 'date' })
+  @ApiPropertyOptional({ description: 'date', type: String, format: 'date-time' })
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
   date?: Date;
 
   @ApiPropertyOptional({ description: 'totalTransactions' })

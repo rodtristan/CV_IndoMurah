@@ -2,12 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
-import { BaseService } from '../../common/templates/base.service';
+import { ReadOnlyItemService } from '../../common/stock/read-only-item.service';
 import { CreatePurchaseItemDto, UpdatePurchaseItemDto } from './dto/purchase-item.dto';
 import { Prisma } from '@prisma/client';
 
 @Injectable()
-export class PurchaseItemService extends BaseService<
+export class PurchaseItemService extends ReadOnlyItemService<
   any,
   CreatePurchaseItemDto,
   UpdatePurchaseItemDto

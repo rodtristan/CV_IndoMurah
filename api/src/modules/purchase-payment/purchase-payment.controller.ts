@@ -71,15 +71,15 @@ export class PurchasePaymentController {
 
   @Put(':id')
   @ApiOperation({ summary: 'Update purchase payment' })
-  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdatePurchasePaymentDto) {
-    const data = await this.purchasePaymentService.update(id, dto);
+  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdatePurchasePaymentDto, @CurrentUser() user: any) {
+    const data = await this.purchasePaymentService.update(id, dto, user?.id);
     return ApiResponse.ok(data, 'Purchase payment updated successfully');
   }
 
   @Patch(':id/clear')
   @ApiOperation({ summary: 'Mark cek/bg payment as cleared (lunas)' })
-  async clear(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.purchasePaymentService.clear(id);
+  async clear(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    const data = await this.purchasePaymentService.clear(id, user?.id);
     return ApiResponse.ok(data, 'Payment cleared');
   }
 

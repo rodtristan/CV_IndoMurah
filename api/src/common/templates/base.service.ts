@@ -38,10 +38,10 @@
 //
 // ================================================================
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma-service';
 import { RedisService } from '../redis/redis-service';
-import { QueryService } from '../query/query-service';
+import { QueryService, isSensitiveFieldPath } from '../query/query-service';
 import {
   ModelConfig,
   ODataQuery,
@@ -215,6 +215,9 @@ export class BaseService<
    * Endpoint: GET /by/:field/:value
    */
   async findByField(field: string, value: any, query: ODataQuery = {}): Promise<T | null> {
+    if (isSensitiveFieldPath(field)) {
+      throw new BadRequestException(`Field "${field}" tidak boleh dipakai dalam query`);
+    }
     const cacheKey = `${this.CACHE_PREFIX}:by:${field}:${value}:${this.queryService.generateCacheKey('q', query)}`;
 
     return this.redis.getOrSet(

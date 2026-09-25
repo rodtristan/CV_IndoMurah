@@ -65,43 +65,43 @@ export class PurchaseController {
 
   @Put(':id')
   @ApiOperation({ summary: 'Update purchase' })
-  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdatePurchaseDto) {
-    const data = await this.purchaseService.update(id, dto);
+  async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdatePurchaseDto, @CurrentUser() user: any) {
+    const data = await this.purchaseService.update(id, dto, user?.id);
     return ApiResponse.ok(data, 'Purchase updated successfully');
   }
 
   @Put(':id/confirm')
   @ApiOperation({ summary: 'Confirm purchase' })
-  async confirm(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.purchaseService.updateStatus(id, { StatusCode: 'CONFIRMED' });
+  async confirm(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    const data = await this.purchaseService.updateStatus(id, { StatusCode: 'CONFIRMED' }, user?.id);
     return ApiResponse.ok(data, 'Purchase confirmed');
   }
 
   @Put(':id/complete')
   @ApiOperation({ summary: 'Complete purchase' })
-  async complete(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.purchaseService.updateStatus(id, { StatusCode: 'COMPLETED' });
+  async complete(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    const data = await this.purchaseService.updateStatus(id, { StatusCode: 'COMPLETED' }, user?.id);
     return ApiResponse.ok(data, 'Purchase completed');
   }
 
   @Put(':id/cancel')
   @ApiOperation({ summary: 'Cancel purchase' })
-  async cancel(@Param('id', ParseIntPipe) id: number) {
-    const data = await this.purchaseService.updateStatus(id, { StatusCode: 'CANCELLED' });
+  async cancel(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    const data = await this.purchaseService.updateStatus(id, { StatusCode: 'CANCELLED' }, user?.id);
     return ApiResponse.ok(data, 'Purchase cancelled');
   }
 
   @Put(':id/status')
   @ApiOperation({ summary: 'Update purchase status' })
-  async updateStatus(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateStatusDto) {
-    const data = await this.purchaseService.updateStatus(id, dto);
+  async updateStatus(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateStatusDto, @CurrentUser() user: any) {
+    const data = await this.purchaseService.updateStatus(id, dto, user?.id);
     return ApiResponse.ok(data, 'Status updated successfully');
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete draft purchase' })
-  async delete(@Param('id', ParseIntPipe) id: number) {
-    await this.purchaseService.delete(id);
+  async delete(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    await this.purchaseService.delete(id, user?.id);
     return ApiResponse.ok({ id }, 'Purchase deleted successfully');
   }
 }

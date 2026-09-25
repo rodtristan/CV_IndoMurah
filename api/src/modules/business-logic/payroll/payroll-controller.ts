@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { PayrollService } from './payroll-service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
+import { CurrentUser } from '../../../common/decorators/current-user-decorator';
 import {
   CreatePayrollDto,
   UpdatePayrollDto,
@@ -17,7 +18,7 @@ export class PayrollController {
   @Post()
   async createPayroll(
     @Body() dto: CreatePayrollDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.payrollService.createPayroll(dto, userId);
   }
@@ -46,7 +47,7 @@ export class PayrollController {
   async updatePayroll(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdatePayrollDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.payrollService.updatePayroll(id, dto, userId);
   }
@@ -54,7 +55,7 @@ export class PayrollController {
   @Post('payment')
   async paymentPayroll(
     @Body() dto: PaymentPayrollDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.payrollService.paymentPayroll(dto, userId);
   }

@@ -9,6 +9,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('journal-entry')
+/** Read-only: journal entries are written only through /journal (manual) and the automatic journals. */
 export class JournalEntryController extends BaseController<
   any,
   CreateJournalEntryDto,
@@ -57,79 +58,7 @@ export class JournalEntryController extends BaseController<
   }
 
   // POST endpoints
-  @Post()
-  @ApiOperation({ summary: 'Create new JournalEntry' })
-  async create(@Body() dto: CreateJournalEntryDto) {
-    return super.create(dto);
-  }
-
-  @Post('bulk')
-  @ApiOperation({ summary: 'Create multiple JournalEntrys' })
-  async createBulk(@Body() dtos: CreateJournalEntryDto[]) {
-    return super.createBulk(dtos);
-  }
-
   // PATCH endpoints
-  @Patch(':id')
-  @ApiOperation({ summary: 'Update JournalEntry by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateJournalEntryDto>) {
-    return super.patchById(id, dto);
-  }
-
-  @Patch('by/:field/:value')
-  @ApiOperation({ summary: 'Update JournalEntrys by field reference' })
-  async patchByFilterReference(
-    @Param('field') field: string,
-    @Param('value') value: string,
-    @Body() dto: Partial<UpdateJournalEntryDto>,
-  ) {
-    return super.patchByFilterReference(field, value, dto);
-  }
-
-  @Patch('bulk')
-  @ApiOperation({ summary: 'Update multiple JournalEntrys' })
-  async patchBulk(@Body() body: { ids: number[]; data: Partial<UpdateJournalEntryDto> }) {
-    return super.patchBulk(body);
-  }
-
   // PUT (UPSERT) endpoints
-  @Put()
-  @ApiOperation({ summary: 'Upsert JournalEntry' })
-  async upsert(@Body() body: { where: { id: number }; create: CreateJournalEntryDto; update: Partial<UpdateJournalEntryDto> }) {
-    return super.upsert(body);
-  }
-
-  @Put('by/:field')
-  @ApiOperation({ summary: 'Upsert JournalEntry by field reference' })
-  async upsertByFilterReference(
-    @Param('field') field: string,
-    @Body() body: { filterValue: any; create: CreateJournalEntryDto; update: Partial<UpdateJournalEntryDto> },
-  ) {
-    return super.upsertByFilterReference(field, body);
-  }
-
-  @Put('bulk')
-  @ApiOperation({ summary: 'Bulk upsert JournalEntrys' })
-  async upsertBulk(@Body() body: { items: any[] }) {
-    return super.upsertBulk(body);
-  }
-
   // DELETE endpoints
-  @Delete(':id')
-  @ApiOperation({ summary: 'Delete JournalEntry by ID' })
-  async deleteById(@Param('id') id: string) {
-    return super.deleteById(id);
-  }
-
-  @Delete('by/:field/:value')
-  @ApiOperation({ summary: 'Delete JournalEntrys by field reference' })
-  async deleteByFilterReference(@Param('field') field: string, @Param('value') value: string) {
-    return super.deleteByFilterReference(field, value);
-  }
-
-  @Delete('bulk')
-  @ApiOperation({ summary: 'Delete multiple JournalEntrys' })
-  async deleteBulk(@Body() body: { ids: number[] }) {
-    return super.deleteBulk(body);
-  }
 }

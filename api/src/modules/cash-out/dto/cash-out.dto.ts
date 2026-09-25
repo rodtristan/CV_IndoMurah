@@ -1,10 +1,27 @@
-import { IsString, IsOptional, IsInt, IsNumber } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsString, IsOptional, IsInt, IsNumber, IsArray, ValidateNested, IsDateString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-export class CreateCashOutDto {
-  @ApiProperty({ description: 'Kode kas keluar' })
+export class CashOutLineDto {
+  @ApiProperty({ description: 'Kode akun rincian (penggunaan dana)' })
+  @IsInt()
+  accountId: number;
+
+  @ApiProperty({ description: 'Jumlah rincian' })
+  @IsNumber()
+  amount: number;
+
+  @ApiPropertyOptional({ description: 'Keterangan rincian' })
+  @IsOptional()
   @IsString()
-  code: string;
+  description?: string;
+}
+
+export class CreateCashOutDto {
+  @ApiPropertyOptional({ description: 'Kode kas keluar (auto bila kosong)' })
+  @IsOptional()
+  @IsString()
+  code?: string;
 
   @ApiProperty({ description: 'Akun kas/bank sumber' })
   @IsInt()
@@ -13,6 +30,11 @@ export class CreateCashOutDto {
   @ApiProperty({ description: 'Jumlah' })
   @IsNumber()
   amount: number;
+
+  @ApiPropertyOptional({ description: 'Tanggal transaksi (ISO)' })
+  @IsOptional()
+  @IsDateString()
+  date?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -28,6 +50,13 @@ export class CreateCashOutDto {
   @IsOptional()
   @IsInt()
   referenceId?: number;
+
+  @ApiPropertyOptional({ type: [CashOutLineDto], description: 'Rincian akun lawan; total harus = amount. Default: Setting Perkiraan Biaya Lain' })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CashOutLineDto)
+  lines?: CashOutLineDto[];
 }
 
 export class UpdateCashOutDto {
@@ -48,6 +77,11 @@ export class UpdateCashOutDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @IsDateString()
+  date?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   description?: string;
 
@@ -60,4 +94,11 @@ export class UpdateCashOutDto {
   @IsOptional()
   @IsInt()
   referenceId?: number;
+
+  @ApiPropertyOptional({ type: [CashOutLineDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CashOutLineDto)
+  lines?: CashOutLineDto[];
 }

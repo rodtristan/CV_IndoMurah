@@ -4,6 +4,7 @@ import { BaseController } from '../../common/templates/base.controller';
 import { ProductStockService } from './product-stock.service';
 import { CreateProductStockDto, UpdateProductStockDto } from './dto/product-stock.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
+import { CurrentUser } from '../../common/decorators/current-user-decorator';
 
 @ApiTags('ProductStocks')
 @ApiBearerAuth()
@@ -14,7 +15,7 @@ export class ProductStockController extends BaseController<
   CreateProductStockDto,
   UpdateProductStockDto
 > {
-  constructor(productStockService: ProductStockService) {
+  constructor(private readonly productStockService: ProductStockService) {
     super(productStockService, {
       modelName: 'ProductStock',
       pluralName: 'ProductStocks',
@@ -59,8 +60,9 @@ export class ProductStockController extends BaseController<
   // POST endpoints
   @Post()
   @ApiOperation({ summary: 'Create new ProductStock' })
-  async create(@Body() dto: CreateProductStockDto) {
-    return super.create(dto);
+  async create(@Body() dto: CreateProductStockDto, @CurrentUser() user?: any) {
+    const data = await this.productStockService.createOpening(dto, user?.id);
+    return { success: true, data, message: 'Stok tersimpan' };
   }
 
   @Post('bulk')
@@ -72,8 +74,9 @@ export class ProductStockController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update ProductStock by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateProductStockDto>) {
-    return super.patchById(id, dto);
+  async patchById(@Param('id') id: string, @Body() dto: UpdateProductStockDto, @CurrentUser() user?: any) {
+    const data = await this.productStockService.patchById(Number(id), dto, user?.id);
+    return { success: true, data, message: 'Stok diperbarui' };
   }
 
   @Patch('by/:field/:value')
@@ -117,8 +120,9 @@ export class ProductStockController extends BaseController<
   // DELETE endpoints
   @Delete(':id')
   @ApiOperation({ summary: 'Delete ProductStock by ID' })
-  async deleteById(@Param('id') id: string) {
-    return super.deleteById(id);
+  async deleteById(@Param('id') id: string, @CurrentUser() user?: any) {
+    const data = await this.productStockService.deleteById(Number(id), user?.id);
+    return { success: true, data, message: 'Stok dihapus' };
   }
 
   @Delete('by/:field/:value')

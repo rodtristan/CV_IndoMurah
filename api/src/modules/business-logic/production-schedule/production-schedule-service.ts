@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { resolveDateRange } from '../shared/date-range';
 import { PrismaService } from '../../../common/prisma/prisma-service';
 import { Prisma } from '@prisma/client'
 import { number } from '../../../common/utils/number';
@@ -187,16 +188,17 @@ export class ProductionScheduleService {
   /**
    * Get Schedule by Date range (calendar view)
    */
-  async getCalendarView(startDate: string, endDate: string, WarehouseId?: number) {
+  async getCalendarView(startDate?: string, endDate?: string, WarehouseId?: number) {
+    const { start, end } = resolveDateRange(startDate, endDate);
     const where: any = {
       ScheduledDate: {
-        gte: new Date(startDate),
-        lte: new Date(endDate),
+        gte: start,
+        lte: end,
       },
     };
 
     if (WarehouseId) {
-      where.WarehouseID = WarehouseId;
+      where.WarehouseID = Number(WarehouseId);
     }
 
     const Schedules = await this.prisma.productionSchedule.findMany({

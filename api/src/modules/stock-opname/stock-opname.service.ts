@@ -1,13 +1,19 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
-import { BaseService } from '../../common/templates/base.service';
+import { StockDocumentService } from '../../common/stock/stock-document.service';
+import { StockLedgerService } from '../../common/stock/stock-ledger.service';
 import { Prisma } from '@prisma/client';
 import { CreateStockOpnameDto, UpdateStockOpnameDto } from './dto/stock-opname.dto';
 
+/**
+ * Stock Opname per gudang: stok sistem diambil dari ProductStock gudang tsb (bukan dari klien),
+ * selisih (fisik - sistem) dibukukan lewat StockLedger (RefType OPNAME) sehingga hanya saldo
+ * gudang itu yang berubah dan Product.Stock tetap = jumlah semua gudang.
+ */
 @Injectable()
-export class StockOpnameService extends BaseService<
+export class StockOpnameService extends StockDocumentService<
   any,
   CreateStockOpnameDto,
   UpdateStockOpnameDto
@@ -16,6 +22,7 @@ export class StockOpnameService extends BaseService<
     readonly prisma: PrismaService,
     readonly redis: RedisService,
     readonly queryService: QueryService,
+    private readonly ledger: StockLedgerService,
   ) {
     super(prisma, redis, queryService, {
       modelName: 'stockOpname',
@@ -38,57 +45,134 @@ export class StockOpnameService extends BaseService<
 
   async createStockOpname(dto: CreateStockOpnameDto, userId: string) {
     if (!dto.Items || dto.Items.length === 0) {
-      throw new BadRequestException('Stock opname items tidak boleh kosong');
+      throw new BadRequestException('Item stock opname tidak boleh kosong');
+    }
+    if (dto.Items.some((i) => Number(i.CountedStock) < 0)) throw new BadRequestException('Stok fisik tidak boleh minus');
+    const seen = new Set<number>();
+    for (const i of dto.Items) {
+      if (seen.has(i.ProductID)) throw new BadRequestException(`Produk ID ${i.ProductID} muncul lebih dari sekali dalam opname`);
+      seen.add(i.ProductID);
     }
 
     const code = await this.generateCode();
     const completedStatus = await this.getStockOpnameStatusByCode('COMPLETED');
-
+    const docDate = dto.Date ? new Date(dto.Date) : new Date();
     const totalItems = dto.Items.reduce((sum, item) => sum + Number(item.CountedStock), 0);
 
-    const itemsData = dto.Items.map((item) => ({
-      ProductID: item.ProductID,
-      SystemStock: new Prisma.Decimal(item.SystemStock),
-      CountedStock: new Prisma.Decimal(item.CountedStock),
-      Difference: new Prisma.Decimal(item.Difference),
-      UnitID: item.UnitID,
-      UnitPrice: new Prisma.Decimal(item.UnitPrice ?? 0),
-      Note: item.Note,
-    }));
+    const stockOpname = await this.prisma.$transaction(
+      async (tx) => {
+        const warehouseId = await this.ledger.resolveWarehouseId(tx, dto.WarehouseID);
 
-    const stockOpname = await this.prisma.$transaction(async (tx) => {
-      const newStockOpname = await tx.stockOpname.create({
-        data: {
-          Code: code,
-          Date: dto.Date ? new Date(dto.Date) : new Date(),
-          Warehouse: { connect: { ID: dto.WarehouseID } },
-          TotalItems: new Prisma.Decimal(totalItems),
-          Notes: dto.Notes,
-          Status: { connect: { ID: completedStatus.ID } },
-          Creator: { connect: { ID: userId } },
-          OpnameItems: { create: itemsData },
-        },
-        include: {
-          Warehouse: true,
-          Status: true,
-          Creator: true,
-          OpnameItems: { include: { Product: true, Unit: true } },
-        },
-      });
+        // Stok sistem & selisih dihitung di server (satuan item); qty ledger dalam satuan dasar.
+        const plan: { item: CreateStockOpnameDto['Items'][number]; system: Prisma.Decimal; diff: Prisma.Decimal; diffBase: Prisma.Decimal; conv: Prisma.Decimal }[] = [];
+        for (const item of dto.Items) {
+          const conv = await this.ledger.conversion(tx, item.ProductID, item.UnitID);
+          const ps = await tx.productStock.findUnique({
+            where: { ProductID_WarehouseID: { ProductID: item.ProductID, WarehouseID: warehouseId } },
+            select: { Quantity: true },
+          });
+          let currentBase = new Prisma.Decimal(ps?.Quantity ?? 0);
+          if (!ps && (await tx.productStock.count({ where: { ProductID: item.ProductID } })) === 0) {
+            // data lama: stok global tanpa baris gudang dianggap berada di gudang default
+            if ((await this.ledger.getDefaultWarehouseId(tx)) === warehouseId) {
+              const p = await tx.product.findUnique({ where: { ID: item.ProductID }, select: { Stock: true } });
+              currentBase = new Prisma.Decimal(p?.Stock ?? 0);
+            }
+          }
+          const countedBase = new Prisma.Decimal(item.CountedStock).mul(conv);
+          plan.push({
+            item,
+            conv,
+            system: currentBase.div(conv).toDecimalPlaces(3),
+            diff: new Prisma.Decimal(item.CountedStock).minus(currentBase.div(conv)).toDecimalPlaces(3),
+            diffBase: countedBase.minus(currentBase),
+          });
+        }
 
-      // Physical recount reconciliation: set Product.Stock directly to the
-      // counted value (not increment/decrement).
-      for (const item of dto.Items) {
-        await tx.product.update({
-          where: { ID: item.ProductID },
-          data: { Stock: new Prisma.Decimal(item.CountedStock) },
+        const created = await tx.stockOpname.create({
+          data: {
+            Code: code,
+            Date: docDate,
+            Warehouse: { connect: { ID: warehouseId } },
+            TotalItems: new Prisma.Decimal(totalItems),
+            Notes: dto.Notes,
+            Status: { connect: { ID: completedStatus.ID } },
+            Creator: { connect: { ID: userId } },
+            OpnameItems: {
+              create: plan.map((p) => ({
+                ProductID: p.item.ProductID,
+                SystemStock: p.system,
+                CountedStock: new Prisma.Decimal(p.item.CountedStock),
+                Difference: p.diff,
+                UnitID: p.item.UnitID,
+                UnitPrice: new Prisma.Decimal(p.item.UnitPrice ?? 0),
+                Note: p.item.Note,
+              })),
+            },
+          },
         });
-      }
 
-      return newStockOpname;
-    });
+        for (const p of plan) {
+          if (p.diffBase.isZero()) continue;
+          const price = Number(p.item.UnitPrice ?? 0);
+          await this.ledger.move(tx, {
+            productId: p.item.ProductID,
+            warehouseId,
+            qty: p.diffBase,
+            refType: 'OPNAME',
+            refId: created.ID,
+            refCode: created.Code,
+            unitCost: price > 0 ? new Prisma.Decimal(price).div(p.conv) : undefined,
+            userId,
+            date: docDate,
+            notes: p.item.Note ?? dto.Notes,
+          });
+        }
 
+        return tx.stockOpname.findUniqueOrThrow({
+          where: { ID: created.ID },
+          include: { Warehouse: true, Status: true, Creator: true, OpnameItems: { include: { Product: true, Unit: true } } },
+        });
+      },
+      { timeout: 30000 },
+    );
+
+    await this.afterWrite();
     return this.serializeStockOpname(stockOpname);
+  }
+
+  /** Hanya tanggal & keterangan yang dapat diubah; gudang opname tidak dapat dipindah. */
+  async patchById(id: any, dto: Partial<UpdateStockOpnameDto>) {
+    const doc = await this.prisma.stockOpname.findUnique({ where: { ID: Number(id) } });
+    if (!doc) throw new NotFoundException('Stock opname tidak ditemukan');
+    if (dto.WarehouseID && Number(dto.WarehouseID) !== doc.WarehouseID) {
+      throw new BadRequestException('Gudang stock opname tidak dapat diubah. Hapus dan buat ulang opname di gudang yang benar.');
+    }
+    const data: Prisma.StockOpnameUncheckedUpdateInput = {};
+    if (dto.Date) data.Date = new Date(dto.Date);
+    if (dto.Notes !== undefined) data.Notes = dto.Notes;
+    const result = await this.prisma.stockOpname.update({ where: { ID: doc.ID }, data });
+    await this.afterWrite();
+    return this.serializeStockOpname(result);
+  }
+
+  async deleteById(id: any, userId?: string) {
+    const doc = await this.prisma.stockOpname.findUnique({ where: { ID: Number(id) } });
+    if (!doc) throw new NotFoundException('Stock opname tidak ditemukan');
+    await this.prisma.$transaction(
+      async (tx) => {
+        await this.ledger.reverseRef(tx, ['OPNAME'], doc.ID, { refCode: doc.Code, userId, notes: `Hapus opname ${doc.Code}` });
+        await tx.stockOpname.delete({ where: { ID: doc.ID } });
+      },
+      { timeout: 30000 },
+    );
+    await this.afterWrite();
+    return this.serializeStockOpname(doc);
+  }
+
+  private async afterWrite() {
+    await this.invalidateCache();
+    await this.ledger.invalidateCaches();
   }
 
   private async getStockOpnameStatusByCode(code: string) {

@@ -1,6 +1,7 @@
 import { Controller, Get, Put, Body, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
+import { ApiResponse } from '../../common/dto/api-response-dto';
 import { AccountSettingService } from './account-setting.service';
 
 @ApiTags('AccountSetting')
@@ -11,12 +12,12 @@ export class AccountSettingController {
   constructor(private readonly service: AccountSettingService) {}
 
   @Get()
-  getAll() {
-    return this.service.getAll();
+  async getAll() {
+    return ApiResponse.ok(await this.service.getAll());
   }
 
   @Put()
-  saveAll(@Body() body: Record<string, number | string | null>) {
-    return this.service.saveAll(body);
+  async saveAll(@Body() body: Record<string, number | string | null>) {
+    return ApiResponse.ok(await this.service.saveAll(body), 'Setting perkiraan tersimpan');
   }
 }

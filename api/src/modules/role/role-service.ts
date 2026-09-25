@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
@@ -59,16 +59,32 @@ export class RoleService {
   async update(id: number, data: any) {
     const role = await this.prisma.role.findUnique({ where: { ID: id } });
     if (!role) throw new NotFoundException('Role not found');
+    if (this.isAdminRole(role.RoleName)) {
+      const newName = data?.RoleName ?? data?.roleName;
+      const newActive = data?.IsActive ?? data?.isActive;
+      if ((newName !== undefined && !this.isAdminRole(String(newName))) || newActive === false) {
+        throw new BadRequestException('Role Administrator tidak boleh diganti nama atau dinonaktifkan');
+      }
+    }
     const result = await this.prisma.role.update({ where: { ID: id }, data });
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
+    await this.redis.invalidatePattern('authz:user:*');
     return result;
   }
 
   async remove(id: number) {
     const role = await this.prisma.role.findUnique({ where: { ID: id } });
     if (!role) throw new NotFoundException('Role not found');
+    if (this.isAdminRole(role.RoleName)) {
+      throw new BadRequestException('Role Administrator tidak boleh dihapus');
+    }
     const result = await this.prisma.role.update({ where: { ID: id }, data: { IsActive: false } });
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
+    await this.redis.invalidatePattern('authz:user:*');
     return result;
+  }
+
+  private isAdminRole(name: string | null | undefined): boolean {
+    return ['administrator', 'admin'].includes(String(name ?? '').trim().toLowerCase());
   }
 }

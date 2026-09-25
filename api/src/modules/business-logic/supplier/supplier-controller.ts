@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { SupplierService } from './supplier-service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
+import { CurrentUser } from '../../../common/decorators/current-user-decorator';
 import {
   CreateSupplierDto,
   UpDateSupplierDto,
@@ -18,7 +19,7 @@ export class SupplierController {
   @Post()
   async createSupplier(
     @Body() dto: CreateSupplierDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.supplierService.createSupplier(dto, userId);
   }
@@ -47,7 +48,7 @@ export class SupplierController {
   async updateSupplier(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpDateSupplierDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.supplierService.updateSupplier(id, dto, userId);
   }
@@ -55,7 +56,7 @@ export class SupplierController {
   @Delete(':id')
   async deleteSupplier(
     @Param('id', ParseIntPipe) id: number,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.supplierService.deleteSupplier(id, userId);
   }
@@ -64,7 +65,7 @@ export class SupplierController {
   @Post('debt/add')
   async addDebt(
     @Body() dto: AddSupplierDebtDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.supplierService.addDebt(dto, userId);
   }
@@ -72,7 +73,7 @@ export class SupplierController {
   @Post('debt/payment')
   async paymentDebt(
     @Body() dto: PaymentSupplierDebtDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.supplierService.paymentDebt(dto, userId);
   }

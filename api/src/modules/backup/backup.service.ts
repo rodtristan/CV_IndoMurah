@@ -1,11 +1,10 @@
-import { Injectable, Logger, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, InternalServerErrorException, NotImplementedException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma-service';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ZipArchive } from 'archiver';
 import { promisify } from 'util';
 import { pipeline } from 'stream';
-import { exec } from 'child_process';
 import { BackupResponseDto, CreateBackupDto, UpdateBackupDto } from './dto/backup.dto';
 
 const streamPipeline = promisify(pipeline);
@@ -300,84 +299,13 @@ export class BackupService {
     return `postgresql://${DB_DEV_USER}:${DB_DEV_PASS}@${DB_DEV_HOST}:${DB_DEV_PORT}/${DB_DEV}`;
   }
 
-  async restoreBackup(backupId: string, createBackupBeforeRestore: boolean = true): Promise<BackupResponseDto> {
-    const metadata = this.getMetadata();
-    const backup = metadata.find((b: any) => b.id === backupId);
-
-    if (!backup) {
-      throw new NotFoundException(`Backup with ID ${backupId} not found`);
-    }
-
-    if (backup.status !== 'completed') {
-      throw new BadRequestException('Cannot restore an incomplete or failed backup');
-    }
-
-    if (!fs.existsSync(backup.filePath)) {
-      throw new NotFoundException(`Backup file not found at ${backup.filePath}`);
-    }
-
-    // Create a backup before restoring if requested
-    if (createBackupBeforeRestore) {
-      this.logger.log('Creating backup before restore...');
-      try {
-        await this.createBackup({
-          name: backup.autoBackupName || `Auto-backup before restore ${backupId}`,
-          description: `Automatic backup created before restoring backup ${backupId}`,
-          includeDatabase: true,
-          includeFiles: false,
-        });
-      } catch (error) {
-        this.logger.warn(`Failed to create backup before restore: ${error.message}`);
-        // Continue with restore even if pre-backup fails
-      }
-    }
-
-    try {
-      // Extract and restore the backup
-      await this.extractAndRestoreBackup(backup);
-
-      this.logger.log(`Backup restored successfully: ${backupId}`);
-      return this.toResponseDto(backup);
-    } catch (error) {
-      this.logger.error(`Restore failed: ${error.message}`);
-      throw new InternalServerErrorException(`Restore failed: ${error.message}`);
-    }
-  }
-
-  private async extractAndRestoreBackup(backup: any): Promise<void> {
-    const extractDir = path.join(this.backupDir, 'temp', backup.id);
-
-    // Create temp extraction directory
-    fs.mkdirSync(extractDir, { recursive: true });
-
-    try {
-      // For now, this is a placeholder for actual restore logic
-      // In production, you would:
-      // 1. Extract the zip file
-      // 2. Parse the SQL dump
-      // 3. Execute the restore via Prisma or direct SQL connection
-
-      const backupInfoPath = path.join(extractDir, 'backup-info.json');
-      if (fs.existsSync(backupInfoPath)) {
-        const info = JSON.parse(fs.readFileSync(backupInfoPath, 'utf-8'));
-        this.logger.log(`Restoring backup: ${info.name}`);
-        this.logger.log(`Created at: ${info.createdAt}`);
-      }
-
-      // Simulate restore process
-      this.logger.log('Extracting backup archive...');
-
-      // Note: In production, use a proper unzip library like yauzl or unzipper
-      // to extract the backup archive and execute the SQL dump
-      // This is a simplified placeholder
-
-      this.logger.log('Backup extraction completed (placeholder)');
-    } finally {
-      // Clean up temp directory
-      if (fs.existsSync(extractDir)) {
-        fs.rmSync(extractDir, { recursive: true, force: true });
-      }
-    }
+  // Restore TIDAK diimplementasikan: implementasi sebelumnya hanya placeholder
+  // yang melaporkan "sukses" tanpa mengembalikan data apa pun. Pemulihan data
+  // produksi harus memakai backup Postgres terkelola (Railway/pg_dump + pg_restore).
+  async restoreBackup(_backupId: string, _createBackupBeforeRestore: boolean = true): Promise<BackupResponseDto> {
+    throw new NotImplementedException(
+      'Restore dari aplikasi tidak tersedia. Gunakan backup/restore Postgres terkelola (mis. Railway Backups atau pg_dump/pg_restore).',
+    );
   }
 
   async deleteBackup(backupId: string): Promise<{ success: boolean; message: string }> {

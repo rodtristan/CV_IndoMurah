@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString, IsInt, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -7,8 +7,10 @@ export class CreateServiceDto {
   @IsString()
   code: string;
 
-  @ApiPropertyOptional({ description: 'date' })
+  @ApiPropertyOptional({ description: 'date', type: String, format: 'date-time' })
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
   date?: Date;
 
   @ApiPropertyOptional({ description: 'customerId' })
@@ -61,8 +63,10 @@ export class CreateServiceDto {
   @IsString()
   technician?: string;
 
-  @ApiPropertyOptional({ description: 'warrantyUntil' })
+  @ApiPropertyOptional({ description: 'warrantyUntil', type: String, format: 'date-time' })
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
   warrantyUntil?: Date;
 
   @ApiPropertyOptional({ description: 'subtotal' })
@@ -99,8 +103,10 @@ export class UpdateServiceDto {
   @IsString()
   code?: string;
 
-  @ApiPropertyOptional({ description: 'date' })
+  @ApiPropertyOptional({ description: 'date', type: String, format: 'date-time' })
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
   date?: Date;
 
   @ApiPropertyOptional({ description: 'customerId' })
@@ -153,8 +159,10 @@ export class UpdateServiceDto {
   @IsString()
   technician?: string;
 
-  @ApiPropertyOptional({ description: 'warrantyUntil' })
+  @ApiPropertyOptional({ description: 'warrantyUntil', type: String, format: 'date-time' })
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
   warrantyUntil?: Date;
 
   @ApiPropertyOptional({ description: 'subtotal' })

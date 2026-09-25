@@ -5,6 +5,7 @@ import { QueryService } from '../../common/query/query-service';
 import { BaseService } from '../../common/templates/base.service';
 import { CreateJournalDto, UpdateJournalDto } from './dto/journal.dto';
 import { Prisma } from '@prisma/client';
+import { AutoJournalService } from '../../common/accounting/auto-journal.service';
 
 @Injectable()
 export class JournalService extends BaseService<
@@ -16,6 +17,7 @@ export class JournalService extends BaseService<
     readonly prisma: PrismaService,
     readonly redis: RedisService,
     readonly queryService: QueryService,
+    private readonly autoJournal: AutoJournalService,
   ) {
     super(prisma, redis, queryService, {
       modelName: 'journal',
@@ -49,13 +51,16 @@ export class JournalService extends BaseService<
       );
     }
 
-    const code = await this.generateCode();
+    const date = dto.date ? new Date(dto.date) : new Date();
+    if (isNaN(date.getTime())) throw new BadRequestException('Tanggal tidak valid');
 
     const journal = await this.prisma.$transaction(async (tx) => {
+      await this.autoJournal.assertOpenPeriod(tx, date);
+      const code = await this.autoJournal.nextCode(tx, date);
       return tx.journal.create({
         data: {
           Code: code,
-          Date: dto.date ? new Date(dto.date) : new Date(),
+          Date: date,
           Description: dto.description,
           ReferenceType: dto.referenceType,
           ReferenceID: dto.referenceId,
@@ -65,6 +70,7 @@ export class JournalService extends BaseService<
           JournalEntries: {
             create: {
               JournalNumber: code,
+              Date: date,
               Description: dto.description,
               TotalDebit: new Prisma.Decimal(totalDebit),
               TotalCredit: new Prisma.Decimal(totalCredit),
@@ -109,11 +115,13 @@ export class JournalService extends BaseService<
       }
 
       const journal = await this.prisma.$transaction(async (tx) => {
+        await this.autoJournal.assertOpenPeriod(tx, existing.Date);
         // JournalEntryLine rows cascade-delete with their parent JournalEntry.
         await tx.journalEntry.deleteMany({ where: { JournalID: id } });
         await tx.journalEntry.create({
           data: {
             JournalNumber: existing.Code,
+            Date: existing.Date,
             Description: dto.description ?? existing.Description,
             TotalDebit: new Prisma.Decimal(totalDebit),
             TotalCredit: new Prisma.Decimal(totalCredit),
@@ -159,32 +167,12 @@ export class JournalService extends BaseService<
       throw new BadRequestException('Jurnal otomatis dari sistem tidak dapat dihapus');
     }
     const result = await this.prisma.$transaction(async (tx) => {
+      await this.autoJournal.assertOpenPeriod(tx, existing.Date);
       // JournalEntryLine rows cascade-delete with their parent JournalEntry.
       await tx.journalEntry.deleteMany({ where: { JournalID: id } });
       return tx.journal.delete({ where: { ID: id } });
     });
     await this.invalidateCache();
     return result;
-  }
-
-  private async generateCode(): Promise<string> {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const prefix = `JR-${year}${month}`;
-
-    const lastJournal = await this.prisma.journal.findFirst({
-      where: { Code: { startsWith: prefix } },
-      orderBy: { Code: 'desc' },
-      select: { Code: true },
-    });
-
-    let nextNumber = 1;
-    if (lastJournal) {
-      const lastSeq = parseInt(lastJournal.Code.split('-').pop() || '0', 10);
-      nextNumber = lastSeq + 1;
-    }
-
-    return `${prefix}-${String(nextNumber).padStart(4, '0')}`;
   }
 }

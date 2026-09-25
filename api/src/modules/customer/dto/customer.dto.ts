@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsEmail, IsInt } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsEmail, IsInt, IsNumber, Min, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateCustomerDto {
@@ -34,6 +34,40 @@ export class CreateCustomerDto {
   @IsOptional()
   @IsInt()
   CustomerGroupID?: number;
+
+  @ApiPropertyOptional({ description: 'Region (Wilayah) ID' })
+  @IsOptional()
+  @IsInt()
+  RegionID?: number;
+
+  @ApiPropertyOptional({ description: 'Sub-region (Sub Wilayah) ID' })
+  @IsOptional()
+  @IsInt()
+  SubRegionID?: number;
+
+  @ApiPropertyOptional({ description: 'City' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  City?: string;
+
+  @ApiPropertyOptional({ description: 'Tax ID (NPWP)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  TaxID?: string;
+
+  @ApiPropertyOptional({ description: 'Receivable credit limit (0 = unlimited)' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  CreditLimit?: number;
+
+  @ApiPropertyOptional({ description: 'Payment due days (0 = use settings)' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  DueDays?: number;
 
   @ApiPropertyOptional({ default: true, description: 'Is active' })
   @IsOptional()
@@ -76,6 +110,40 @@ export class UpdateCustomerDto {
   @IsOptional()
   @IsInt()
   CustomerGroupID?: number;
+
+  @ApiPropertyOptional({ description: 'Region (Wilayah) ID' })
+  @IsOptional()
+  @IsInt()
+  RegionID?: number;
+
+  @ApiPropertyOptional({ description: 'Sub-region (Sub Wilayah) ID' })
+  @IsOptional()
+  @IsInt()
+  SubRegionID?: number;
+
+  @ApiPropertyOptional({ description: 'City' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  City?: string;
+
+  @ApiPropertyOptional({ description: 'Tax ID (NPWP)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  TaxID?: string;
+
+  @ApiPropertyOptional({ description: 'Receivable credit limit (0 = unlimited)' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  CreditLimit?: number;
+
+  @ApiPropertyOptional({ description: 'Payment due days (0 = use settings)' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  DueDays?: number;
 
   @ApiPropertyOptional({ description: 'Is active' })
   @IsOptional()

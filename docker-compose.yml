@@ -1,5 +1,14 @@
 name: indomurah
 
+# Variabel WAJIB (taruh di file .env di samping compose ini, JANGAN di-commit):
+#   POSTGRES_PASSWORD  — password database (tidak ada default)
+#   JWT_SECRET         — minimal 32 karakter acak (API menolak start bila kurang)
+# Opsional: CORS_ORIGIN (default http://localhost:3000,http://localhost:3001),
+#   SEED_ADMIN_PASSWORD (untuk `prisma db seed` di production).
+# Postgres & Redis hanya di-bind ke 127.0.0.1 (tidak terbuka ke jaringan).
+# Untuk membukanya ke LAN saat development, buat docker-compose.override.yml
+# sendiri — jangan lakukan di server produksi.
+
 services:
   # ─── Database ──────────────────────────────────────────────
   postgres:
@@ -8,10 +17,10 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD wajib di-set (lihat komentar di atas)}
       POSTGRES_DB: ${POSTGRES_DB:-toko_cv_indomurah_prod}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - indomurah_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -29,7 +38,7 @@ services:
     restart: unless-stopped
     command: redis-server --appendonly yes
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     volumes:
       - indomurah_redis_data:/data
     healthcheck:
@@ -56,16 +65,17 @@ services:
       NODE_ENV: production
       NODE_HOST: 0.0.0.0
       PORT: 5000
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-toko_cv_indomurah_prod}?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD wajib di-set}@postgres:5432/${POSTGRES_DB:-toko_cv_indomurah_prod}?schema=public
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-use-a-long-random-string}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET wajib di-set (minimal 32 karakter)}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
       EXPIRATION_TIME: ${EXPIRATION_TIME:-8h}
       AUTH_SECRET_KEY: ${AUTH_SECRET_KEY:-change-me-in-production}
       HASH_ID_SALT: ${HASH_ID_SALT:-toko-cv-indomurah-default-salt-change-in-production}
       HASH_ID_MIN_LENGTH: ${HASH_ID_MIN_LENGTH:-8}
-      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000,http://localhost:3001}
+      TRUST_PROXY: ${TRUST_PROXY:-true}
     ports:
       - "${API_PORT:-5000}:5000"
     volumes:

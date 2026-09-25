@@ -133,6 +133,13 @@ export class UpdatePurchaseDto {
   @IsOptional()
   @IsString()
   Notes?: string;
+
+  @ApiPropertyOptional({ description: 'Ganti seluruh item (stok lama dibalik, stok baru diterapkan)', type: [CreatePurchaseItemDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreatePurchaseItemDto)
+  Items?: CreatePurchaseItemDto[];
 }
 
 export class UpdateStatusDto {

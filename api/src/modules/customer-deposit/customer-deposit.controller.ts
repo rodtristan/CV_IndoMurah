@@ -1,11 +1,16 @@
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
-import { UseGuards, Controller, Get, Post, Patch, Delete, Put, Param, Body, Query } from '@nestjs/common';
+import { UseGuards, Controller, Get, Post, Patch, Delete, Param, Body, Query, ParseIntPipe } from '@nestjs/common';
 import { BaseController } from '../../common/templates/base.controller';
 import { CustomerDepositService } from './customer-deposit.service';
 import { CreateCustomerDepositDto, UpdateCustomerDepositDto } from './dto/customer-deposit.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 import { CurrentUser } from '../../common/decorators/current-user-decorator';
+import { ApiResponse } from '../../common/dto/api-response-dto';
 
+/**
+ * Deposit Pelanggan. Writes are limited to create / patch / delete by ID because each one posts or reverses
+ * the automatic journal; bulk / upsert / by-field writes of the generic template are intentionally not exposed.
+ */
 @ApiTags('CustomerDeposit')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -15,8 +20,8 @@ export class CustomerDepositController extends BaseController<
   CreateCustomerDepositDto,
   UpdateCustomerDepositDto
 > {
-  constructor(customerDepositService: CustomerDepositService) {
-    super(customerDepositService, {
+  constructor(private readonly svc: CustomerDepositService) {
+    super(svc, {
       modelName: 'CustomerDeposit',
       pluralName: 'CustomerDeposits',
       primaryKeyType: 'number',
@@ -25,112 +30,49 @@ export class CustomerDepositController extends BaseController<
     });
   }
 
-  // GET endpoints
   @Get()
   @ApiOperation({ summary: 'Get all CustomerDeposits with OData query support' })
-  @ApiQuery({ name: '$select', required: false, description: 'Select fields' })
-  @ApiQuery({ name: '$include', required: false, description: 'Include relations: customer' })
-  @ApiQuery({ name: '$where[field]', required: false, description: 'Filter by field' })
-  @ApiQuery({ name: '$orderBy[field]', required: false, description: 'Sort: asc/desc' })
-  @ApiQuery({ name: '$skip', required: false, type: Number, description: 'Offset' })
-  @ApiQuery({ name: '$take', required: false, type: Number, description: 'Limit' })
-  @ApiQuery({ name: '$search', required: false, description: 'Search: code, description' })
+  @ApiQuery({ name: '$include', required: false, description: 'Include relations: account' })
   async findAll(@Query() query: any) {
     return super.findAll(query);
   }
 
   @Get('count')
-  @ApiOperation({ summary: 'Get count of CustomerDeposits' })
   async getCount(@Query() query: any) {
     return super.getCount(query);
   }
 
+  @Get('balance/:partyId')
+  @ApiOperation({ summary: 'Saldo deposit customer' })
+  async balance(@Param('partyId', ParseIntPipe) partyId: number) {
+    return ApiResponse.ok({ balance: await this.svc.balance(partyId) });
+  }
+
   @Get(':id')
-  @ApiOperation({ summary: 'Get CustomerDeposit by ID' })
   async findById(@Param('id') id: string, @Query() query: any) {
     return super.findById(id, query);
   }
 
   @Get('by/:field/:value')
-  @ApiOperation({ summary: 'Get CustomerDeposit by field reference' })
   async findByField(@Param('field') field: string, @Param('value') value: string, @Query() query: any) {
     return super.findByField(field, value, query);
   }
 
-  // POST endpoints
   @Post()
-  @ApiOperation({ summary: 'Create new CustomerDeposit' })
+  @ApiOperation({ summary: 'Create CustomerDeposit + jurnal otomatis' })
   async create(@Body() dto: CreateCustomerDepositDto, @CurrentUser() user?: any) {
-    return super.create({ ...dto, remainingAmount: dto.amount, createdById: user.id } as any);
+    return ApiResponse.ok(await this.svc.createDoc(dto, user.id), 'Deposit Pelanggan tersimpan');
   }
 
-  @Post('bulk')
-  @ApiOperation({ summary: 'Create multiple CustomerDeposits' })
-  async createBulk(@Body() dtos: CreateCustomerDepositDto[]) {
-    return super.createBulk(dtos);
-  }
-
-  // PATCH endpoints
   @Patch(':id')
-  @ApiOperation({ summary: 'Update CustomerDeposit by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateCustomerDepositDto>) {
-    return super.patchById(id, dto);
+  @ApiOperation({ summary: 'Update CustomerDeposit + posting ulang jurnal' })
+  async patchById(@Param('id') id: string, @Body() dto: UpdateCustomerDepositDto, @CurrentUser() user?: any) {
+    return ApiResponse.ok(await this.svc.updateDoc(Number(id), dto, user.id), 'Deposit Pelanggan diperbarui');
   }
 
-  @Patch('by/:field/:value')
-  @ApiOperation({ summary: 'Update CustomerDeposits by field reference' })
-  async patchByFilterReference(
-    @Param('field') field: string,
-    @Param('value') value: string,
-    @Body() dto: Partial<UpdateCustomerDepositDto>,
-  ) {
-    return super.patchByFilterReference(field, value, dto);
-  }
-
-  @Patch('bulk')
-  @ApiOperation({ summary: 'Update multiple CustomerDeposits' })
-  async patchBulk(@Body() body: { ids: number[]; data: Partial<UpdateCustomerDepositDto> }) {
-    return super.patchBulk(body);
-  }
-
-  // PUT (UPSERT) endpoints
-  @Put()
-  @ApiOperation({ summary: 'Upsert CustomerDeposit' })
-  async upsert(@Body() body: { where: { id: number }; create: CreateCustomerDepositDto; update: Partial<UpdateCustomerDepositDto> }) {
-    return super.upsert(body);
-  }
-
-  @Put('by/:field')
-  @ApiOperation({ summary: 'Upsert CustomerDeposit by field reference' })
-  async upsertByFilterReference(
-    @Param('field') field: string,
-    @Body() body: { filterValue: any; create: CreateCustomerDepositDto; update: Partial<UpdateCustomerDepositDto> },
-  ) {
-    return super.upsertByFilterReference(field, body);
-  }
-
-  @Put('bulk')
-  @ApiOperation({ summary: 'Bulk upsert CustomerDeposits' })
-  async upsertBulk(@Body() body: { items: any[] }) {
-    return super.upsertBulk(body);
-  }
-
-  // DELETE endpoints
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete CustomerDeposit by ID' })
+  @ApiOperation({ summary: 'Delete CustomerDeposit + hapus jurnal otomatis' })
   async deleteById(@Param('id') id: string) {
-    return super.deleteById(id);
-  }
-
-  @Delete('by/:field/:value')
-  @ApiOperation({ summary: 'Delete CustomerDeposits by field reference' })
-  async deleteByFilterReference(@Param('field') field: string, @Param('value') value: string) {
-    return super.deleteByFilterReference(field, value);
-  }
-
-  @Delete('bulk')
-  @ApiOperation({ summary: 'Delete multiple CustomerDeposits' })
-  async deleteBulk(@Body() body: { ids: number[] }) {
-    return super.deleteBulk(body);
+    return ApiResponse.ok(await this.svc.deleteDoc(Number(id)), 'Deposit Pelanggan dihapus');
   }
 }

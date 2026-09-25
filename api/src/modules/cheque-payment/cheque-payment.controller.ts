@@ -38,7 +38,7 @@ export class ChequePaymentController {
   @Post()
   @ApiOperation({ summary: 'Create new cheque payment' })
   async create(@Body() dto: CreateChequePaymentDto, @CurrentUser() user: any) {
-    const data = await this.chequePaymentService.create(dto, user.ID);
+    const data = await this.chequePaymentService.create(dto, user.id);
     return ApiResponse.ok(data, 'Cheque payment created successfully');
   }
 
@@ -98,7 +98,7 @@ export class ChequePaymentController {
     @Body() dto: ClearChequeDto,
     @CurrentUser() user: any,
   ) {
-    const data = await this.chequePaymentService.clearCheque(id, dto, user.ID);
+    const data = await this.chequePaymentService.clearCheque(id, dto, user.id);
     return ApiResponse.ok(data);
   }
 
@@ -109,7 +109,7 @@ export class ChequePaymentController {
     @Body() dto: BounceChequeDto,
     @CurrentUser() user: any,
   ) {
-    const data = await this.chequePaymentService.bounceCheque(id, dto, user.ID);
+    const data = await this.chequePaymentService.bounceCheque(id, dto, user.id);
     return ApiResponse.ok(data);
   }
 
@@ -120,7 +120,7 @@ export class ChequePaymentController {
     @Body() body: { reason: string },
     @CurrentUser() user: any,
   ) {
-    const data = await this.chequePaymentService.cancelCheque(id, body.reason, user.ID);
+    const data = await this.chequePaymentService.cancelCheque(id, body.reason, user.id);
     return ApiResponse.ok(data);
   }
 

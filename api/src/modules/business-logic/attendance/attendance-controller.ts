@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { AttendanceService } from './attendance-service';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth-guard';
+import { CurrentUser } from '../../../common/decorators/current-user-decorator';
 import {
   RecordAttendanceDto,
   AttendanceFilterDto,
@@ -16,7 +17,7 @@ export class AttendanceController {
   @Post()
   async recordAttendance(
     @Body() dto: RecordAttendanceDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.attendanceService.recordAttendance(dto, userId);
   }
@@ -54,7 +55,7 @@ export class AttendanceController {
   async updateAttendance(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateAttendanceDto,
-    @Query('userId') userId: string = 'system',
+    @CurrentUser('id') userId: string,
   ) {
     return this.attendanceService.updateAttendance(id, dto, userId);
   }

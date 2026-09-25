@@ -6,27 +6,16 @@ import { Pencil, Plus, Save, Trash2 } from "lucide-react";
 import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { Modal, ConfirmModal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
-import { KInfoBox, KInput, KSelect, KTabs } from "@/components/kform";
+import { KInfoBox, KInput, KSelect } from "@/components/kform";
 import { api } from "@/lib/api-client";
-import { cn } from "@/lib/utils";
 import { usePageTitle } from "@/lib/page-title";
 import { apiError } from "../_lib/local";
-import { MODULE_GROUPS, PERMISSIONS, type PermKey, type PermMap } from "../_lib/modules";
+
+// Hak akses kelompok = daftar menu yang di-assign ke role di server (RoleMenus), lewat
+// GET menus/role/:id, POST menus/role/:id/assign, DELETE menus/role/:id/revoke/:menuId.
 
 interface RoleRow { ID: number; RoleName: string; RoleDescription?: string | null; IsActive: boolean }
-interface MenuRow { ID: number; MenuName: string; Route?: string | null }
-
-const permKey = (roleId: number) => `ketoko_local:role-perms:${roleId}`;
-const loadPerms = (roleId: number, admin: boolean): PermMap => {
-  try {
-    const raw = localStorage.getItem(permKey(roleId));
-    if (raw) return JSON.parse(raw) as PermMap;
-  } catch { /* ignore */ }
-  if (!admin) return {};
-  const all: PermMap = {};
-  for (const g of MODULE_GROUPS) for (const i of g.items) all[i.key] = { open: true, create: true, update: true, delete: true, print: true, lock: false };
-  return all;
-};
+interface MenuRow { ID: number; MenuName: string; MenuType?: string | null; Route?: string | null; ParentMenuID?: number | null; SortOrder?: number; IsActive?: boolean }
 
 const btn = "inline-flex h-10 items-center gap-2 rounded border border-[#cfd4da] bg-white px-4 text-[14px] hover:bg-[#f3f4f6] disabled:opacity-50";
 
@@ -34,12 +23,11 @@ export default function RolesPage() {
   usePageTitle("Kelompok Akses User");
   const [roles, setRoles] = useState<RoleRow[]>([]);
   const [roleId, setRoleId] = useState("");
-  const [tab, setTab] = useState("modul");
-  const [group, setGroup] = useState(MODULE_GROUPS[0].key);
-  const [perms, setPerms] = useState<PermMap>({});
   const [menus, setMenus] = useState<MenuRow[]>([]);
-  const [assigned, setAssigned] = useState<Set<number>>(new Set());
+  const [assigned, setAssigned] = useState<Set<number>>(new Set()); // as stored on the server
+  const [draft, setDraft] = useState<Set<number>>(new Set()); // as edited on screen
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState<{ id?: number; name: string; desc: string } | null>(null);
   const [showDelete, setShowDelete] = useState(false);
@@ -53,7 +41,7 @@ export default function RolesPage() {
     try {
       const [r, m] = await Promise.all([
         api.get<RoleRow[]>("roles", { $select: "ID,RoleName,RoleDescription,IsActive", $take: 200 }, { skipCache: true }),
-        api.get<MenuRow[]>("menus", { $take: 200 }, { skipCache: true }),
+        api.get<MenuRow[]>("menus", { $take: 500 }, { skipCache: true }),
       ]);
       const list = r.data ?? [];
       setRoles(list);
@@ -63,44 +51,43 @@ export default function RolesPage() {
   }, []);
   useEffect(() => { void fetchRoles(); }, [fetchRoles]);
 
+  const loadAssigned = useCallback(async (roleIdNum: number) => {
+    const res = await api.get<{ MenuID: number }[]>(`menus/role/${roleIdNum}`, undefined, { skipCache: true });
+    const set = new Set((res.data ?? []).map((m) => m.MenuID));
+    setAssigned(set);
+    setDraft(new Set(set));
+  }, []);
+
   useEffect(() => {
-    if (!role) { setPerms({}); setAssigned(new Set()); return; }
-    setPerms(loadPerms(role.ID, role.RoleName.toLowerCase() === "administrator"));
-    let cancelled = false;
-    api.get<{ MenuID: number }[]>(`menus/role/${role.ID}`, undefined, { skipCache: true })
-      .then((res) => { if (!cancelled) setAssigned(new Set((res.data ?? []).map((m) => m.MenuID))); })
-      .catch(() => { if (!cancelled) setAssigned(new Set()); });
-    return () => { cancelled = true; };
-  }, [role]);
+    if (!role) { setAssigned(new Set()); setDraft(new Set()); return; }
+    loadAssigned(role.ID).catch((e) => { toast.error(apiError(e)); setAssigned(new Set()); setDraft(new Set()); });
+  }, [role, loadAssigned]);
 
-  const current = MODULE_GROUPS.find((g) => g.key === group)!;
+  const dirty = useMemo(
+    () => draft.size !== assigned.size || [...draft].some((id) => !assigned.has(id)),
+    [draft, assigned],
+  );
 
-  const toggle = (itemKey: string, p: PermKey, v: boolean) =>
-    setPerms((prev) => ({ ...prev, [itemKey]: { ...prev[itemKey], [p]: v } }));
-  const toggleColumn = (p: PermKey, v: boolean) =>
-    setPerms((prev) => {
-      const next = { ...prev };
-      for (const i of current.items) next[i.key] = { ...next[i.key], [p]: v };
-      return next;
-    });
-  const colState = (p: PermKey) => current.items.every((i) => perms[i.key]?.[p]);
+  const toggle = (ids: number[], checked: boolean) =>
+    setDraft((prev) => { const n = new Set(prev); for (const id of ids) { if (checked) n.add(id); else n.delete(id); } return n; });
 
-  const savePerms = () => {
+  // Saves the difference between the screen and the server, one assign/revoke call per menu.
+  const savePerms = async () => {
     if (!role) return;
-    try { localStorage.setItem(permKey(role.ID), JSON.stringify(perms)); toast.success("Hak akses disimpan di browser ini"); }
-    catch { toast.error("Gagal menyimpan hak akses"); }
-  };
-
-  const toggleMenu = async (menuId: number, checked: boolean) => {
-    if (!role) return;
-    setAssigned((prev) => { const n = new Set(prev); if (checked) n.add(menuId); else n.delete(menuId); return n; });
-    try {
-      if (checked) await api.post(`menus/role/${role.ID}/assign`, { menuId });
-      else await api.delete(`menus/role/${role.ID}/revoke`, menuId);
-    } catch (e) {
-      toast.error(apiError(e));
-      setAssigned((prev) => { const n = new Set(prev); if (checked) n.delete(menuId); else n.add(menuId); return n; });
+    const toAssign = [...draft].filter((id) => !assigned.has(id));
+    const toRevoke = [...assigned].filter((id) => !draft.has(id));
+    setSaving(true);
+    let failed = 0;
+    for (const menuId of toAssign) {
+      try { await api.post(`menus/role/${role.ID}/assign`, { menuId }); } catch { failed++; }
     }
+    for (const menuId of toRevoke) {
+      try { await api.delete(`menus/role/${role.ID}/revoke`, menuId); } catch { failed++; }
+    }
+    try { await loadAssigned(role.ID); } catch { /* keep draft */ }
+    setSaving(false);
+    if (failed) toast.error(`${failed} perubahan hak akses gagal disimpan. Data di layar sudah dimuat ulang dari server.`);
+    else toast.success(`Hak akses disimpan (${toAssign.length} ditambah, ${toRevoke.length} dicabut)`);
   };
 
   const saveRole = async () => {
@@ -120,14 +107,25 @@ export default function RolesPage() {
     setBusy(true);
     try {
       await api.delete("roles", role.ID);
-      try { localStorage.removeItem(permKey(role.ID)); } catch { /* ignore */ }
       toast.success("Kelompok user dihapus");
       setShowDelete(false);
       await fetchRoles("");
     } catch (e) { toast.error(apiError(e)); } finally { setBusy(false); }
   };
 
-  const menuList = useMemo(() => menus, [menus]);
+  // Parent menus with their children; top-level menus without children form "Lainnya".
+  const menuGroups = useMemo(() => {
+    const active = menus.filter((m) => m.IsActive !== false);
+    const order = (a: MenuRow, b: MenuRow) => (a.SortOrder ?? 0) - (b.SortOrder ?? 0) || a.MenuName.localeCompare(b.MenuName);
+    const children = (id: number) => active.filter((m) => m.ParentMenuID === id).sort(order);
+    const roots = active.filter((m) => !m.ParentMenuID || !active.some((p) => p.ID === m.ParentMenuID)).sort(order);
+    const groups: { parent: MenuRow | null; items: MenuRow[] }[] = roots
+      .filter((r) => children(r.ID).length > 0)
+      .map((r) => ({ parent: r, items: children(r.ID) }));
+    const loose = roots.filter((r) => children(r.ID).length === 0);
+    if (loose.length) groups.push({ parent: null, items: loose });
+    return groups;
+  }, [menus]);
 
   return (
     <PageWrapper>
@@ -141,85 +139,47 @@ export default function RolesPage() {
           <button type="button" className={btn} onClick={() => setForm({ name: "", desc: "" })}><Plus className="size-4" /> Kelompok Baru</button>
           <button type="button" className={btn} disabled={!role} onClick={() => role && setForm({ id: role.ID, name: role.RoleName, desc: role.RoleDescription ?? "" })}><Pencil className="size-4" /> Edit Kelompok</button>
           <button type="button" className={btn} disabled={!role || isAdminRole} onClick={() => setShowDelete(true)}><Trash2 className="size-4" /> Hapus Kelompok</button>
-          <button type="button" onClick={savePerms} disabled={!role}
+          <button type="button" onClick={() => void savePerms()} disabled={!role || !dirty || saving}
             className="inline-flex h-10 items-center gap-2 rounded bg-[#4caf50] px-5 text-[15px] font-medium text-white hover:bg-[#43a047] disabled:opacity-60">
-            <Save className="size-4" /> Simpan
+            <Save className="size-4" /> {saving ? "Menyimpan..." : "Simpan"}
           </button>
+          {dirty && !saving && <span className="text-[13px] text-[#b45309]">Ada perubahan yang belum disimpan.</span>}
         </div>
 
         {isAdminRole && <KInfoBox variant="warning" title="Penting" items={["Kelompok ADMINISTRATOR memiliki hak akses paling tinggi, sebaiknya tidak diubah."]} />}
-
-        <div className="mt-3">
-          <KTabs tabs={[{ key: "modul", label: "Hak Akses Modul" }, { key: "menu", label: "Akses Menu (Server)" }]} active={tab} onChange={setTab} />
-        </div>
 
         {loading ? (
           <p className="py-10 text-center text-sm text-[#9aa3ad]">Memuat...</p>
         ) : !role ? (
           <p className="py-10 text-center text-sm text-[#9aa3ad]">Pilih atau buat Kelompok User terlebih dahulu.</p>
-        ) : tab === "modul" ? (
-          <div className="mt-3 grid gap-4 md:grid-cols-[220px_1fr]">
-            <div className="border border-[#d5d9de]">
-              <div className="border-b border-[#d5d9de] bg-[#f5f6f8] px-3 py-2 text-[14px] font-bold">Kelompok Modul</div>
-              {MODULE_GROUPS.map((g) => (
-                <button key={g.key} type="button" onClick={() => setGroup(g.key)}
-                  className={cn("block w-full border-b border-[#eceff2] px-3 py-2 text-left text-[14px] hover:bg-[#f3f4f6]", group === g.key && "bg-primary/10 font-semibold text-primary")}>
-                  {g.label}
-                </button>
-              ))}
-            </div>
-            <div className="overflow-x-auto border border-[#d5d9de]">
-              <table className="w-full text-[14px]">
-                <thead>
-                  <tr className="border-b border-[#d5d9de] bg-[#f5f6f8]">
-                    <th className="px-3 py-2 text-left font-bold">Point Hak Akses ({current.label})</th>
-                    {PERMISSIONS.map((p) => (
-                      <th key={p.key} className="w-24 px-2 py-2 text-center font-bold">
-                        <label className="flex cursor-pointer flex-col items-center gap-1">
-                          <span>{p.label}</span>
-                          <input type="checkbox" className="size-4 accent-[#4a90d9]" checked={colState(p.key)} onChange={(e) => toggleColumn(p.key, e.target.checked)} aria-label={`Pilih semua ${p.label}`} />
-                        </label>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {current.items.map((i) => (
-                    <tr key={i.key} className="border-b border-[#eceff2] hover:bg-[#fafbfc]">
-                      <td className="px-3 py-2">{i.label}</td>
-                      {PERMISSIONS.map((p) => (
-                        <td key={p.key} className="text-center">
-                          <input type="checkbox" className="size-5 accent-[#4a90d9]" checked={Boolean(perms[i.key]?.[p.key])} onChange={(e) => toggle(i.key, p.key, e.target.checked)} aria-label={`${i.label} ${p.label}`} />
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+        ) : menuGroups.length === 0 ? (
+          <p className="py-10 text-center text-sm text-[#9aa3ad]">Belum ada menu di server.</p>
         ) : (
-          <div className="mt-3">
-            <p className="mb-2 text-[13px] text-[#3a4654]">Menu aplikasi yang tersimpan di server untuk kelompok ini. Perubahan langsung tersimpan.</p>
-            {menuList.length === 0 ? (
-              <p className="py-6 text-center text-sm text-[#9aa3ad]">Belum ada menu.</p>
-            ) : (
-              <div className="grid max-h-96 gap-1 overflow-y-auto border border-[#d5d9de] p-3 sm:grid-cols-2 lg:grid-cols-3">
-                {menuList.map((m) => (
-                  <label key={m.ID} className="flex cursor-pointer items-center gap-2 text-[14px]">
-                    <input type="checkbox" className="size-5 accent-[#4a90d9]" checked={assigned.has(m.ID)} onChange={(e) => void toggleMenu(m.ID, e.target.checked)} />
-                    {m.MenuName}
+          <div className="mt-3 space-y-3">
+            <p className="text-[13px] text-[#3a4654]">
+              Centang menu yang boleh diakses kelompok ini, lalu klik <b>Simpan</b>. Hak akses tersimpan di server.
+            </p>
+            {menuGroups.map((g) => {
+              const ids = [...(g.parent ? [g.parent.ID] : []), ...g.items.map((m) => m.ID)];
+              const all = ids.every((id) => draft.has(id));
+              return (
+                <div key={g.parent?.ID ?? "loose"} className="border border-[#d5d9de]">
+                  <label className="flex cursor-pointer items-center gap-2 border-b border-[#d5d9de] bg-[#f5f6f8] px-3 py-2 text-[14px] font-bold">
+                    <input type="checkbox" className="size-4 accent-[#4a90d9]" checked={all} onChange={(e) => toggle(ids, e.target.checked)} />
+                    {g.parent ? g.parent.MenuName : "Lainnya"}
                   </label>
-                ))}
-              </div>
-            )}
+                  <div className="grid gap-1 p-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {g.items.map((m) => (
+                      <label key={m.ID} className="flex cursor-pointer items-center gap-2 text-[14px]">
+                        <input type="checkbox" className="size-5 accent-[#4a90d9]" checked={draft.has(m.ID)} onChange={(e) => toggle([m.ID], e.target.checked)} />
+                        {m.MenuName}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        )}
-        {tab === "modul" && role && (
-          <KInfoBox title="Keterangan" items={[
-            "Buka = dapat membuka modul; Baru = dapat menambah data; Ubah = dapat mengubah data; Hapus = dapat menghapus data; Cetak = dapat mencetak; Kunci No & Tanggal = tanggal transaksi tidak dapat diubah.",
-            "Penyimpanan hak akses per modul belum tersedia di server; disimpan di browser ini. Tab Akses Menu (Server) tersimpan di server.",
-          ]} />
         )}
       </Card>
 

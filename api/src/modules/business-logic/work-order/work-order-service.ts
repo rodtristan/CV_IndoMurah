@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../../common/prisma/prisma-service';
 import { Prisma } from '@prisma/client'
 import { number } from '../../../common/utils/number';
+import { resolveDateRange } from '../shared/date-range';
 import {
   CreateWorkOrderDto,
   UpdateWorkOrderDto,
@@ -772,10 +773,12 @@ export class WorkOrderService {
   /**
    * Get work Station utilization
    */
-  async getWorkStationUtilization(startDate: string, endDate: string, workStationId?: number) {
+  async getWorkStationUtilization(startDate?: string, endDate?: string, workStationId?: number) {
+    const range = resolveDateRange(startDate, endDate);
+    // Work orders whose schedule overlaps the requested period.
     const where: any = {
-      ScheduledStartDate: { gte: new Date(startDate) },
-      ScheduledEndDate: { lte: new Date(endDate) },
+      ScheduledStartDate: { lte: range.end },
+      ScheduledEndDate: { gte: range.start },
       Status: { IsTerminal: false },
     };
 
@@ -797,24 +800,29 @@ export class WorkOrderService {
     for (const wo of WorkOrders) {
       if (!wo.ScheduledStartDate || !wo.ScheduledEndDate) continue;
 
-      const start = new Date(wo.ScheduledStartDate);
-      const end = new Date(wo.ScheduledEndDate);
-      const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+      // Clip the schedule to the requested period, then spread its hours
+      // over the calendar days it actually covers.
+      const start = new Date(Math.max(new Date(wo.ScheduledStartDate).getTime(), range.start.getTime()));
+      const end = new Date(Math.min(new Date(wo.ScheduledEndDate).getTime(), range.end.getTime()));
+      if (end < start) continue;
 
-      const currentDate = new Date(start);
-      while (currentDate <= end) {
-        const DateKey = currentDate.toISOString().split('T')[0];
+      const dayCursor = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()));
+      while (dayCursor <= end) {
+        const dayStart = dayCursor.getTime();
+        const dayEnd = dayStart + 24 * 60 * 60 * 1000;
+        const overlapMs = Math.min(dayEnd, end.getTime()) - Math.max(dayStart, start.getTime());
+        const DateKey = dayCursor.toISOString().split('T')[0];
         if (!utilizationByDay[DateKey]) {
           utilizationByDay[DateKey] = { allocated: 0, hours: 0 };
         }
         utilizationByDay[DateKey].allocated += 1;
-        utilizationByDay[DateKey].hours += hours;
-        currentDate.setDate(currentDate.getDate() + 1);
+        utilizationByDay[DateKey].hours += Math.max(0, overlapMs) / (1000 * 60 * 60);
+        dayCursor.setUTCDate(dayCursor.getUTCDate() + 1);
       }
     }
 
     return {
-      period: { startDate, endDate },
+      period: { startDate: range.start.toISOString(), endDate: range.end.toISOString() },
       workStationId,
       TotalWorkOrders: WorkOrders.length,
       utilizationByDay: Object.entries(utilizationByDay)
@@ -830,9 +838,8 @@ export class WorkOrderService {
   /**
    * Get work Order analytics
    */
-  async getWorkOrderAnalytics(startDate: string, endDate: string) {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+  async getWorkOrderAnalytics(startDate?: string, endDate?: string) {
+    const { start, end } = resolveDateRange(startDate, endDate);
 
     const WorkOrders = await this.prisma.workOrder.findMany({
       where: {

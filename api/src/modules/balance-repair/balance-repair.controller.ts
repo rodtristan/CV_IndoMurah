@@ -14,6 +14,7 @@ import {
   BalanceCheckDto,
 } from './balance-repair.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
+import { CurrentUser } from '../../common/decorators/current-user-decorator';
 
 @Controller('accounting')
 @UseGuards(JwtAuthGuard)
@@ -45,7 +46,7 @@ export class BalanceRepairController {
   @Post('repair-balance')
   async repairBalance(
     @Body() dto: RepairBalanceDto,
-    @Body('userId') userId: string,
+    @CurrentUser('id') userId: string,
   ) {
     return this.balanceRepairService.repairBalance(dto, userId);
   }

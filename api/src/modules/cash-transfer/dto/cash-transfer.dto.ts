@@ -1,10 +1,11 @@
-import { IsString, IsOptional, IsInt, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsNumber, IsDateString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateCashTransferDto {
-  @ApiProperty({ description: 'Kode transfer kas' })
+  @ApiPropertyOptional({ description: 'Kode transfer kas (auto bila kosong)' })
+  @IsOptional()
   @IsString()
-  code: string;
+  code?: string;
 
   @ApiProperty({ description: 'Akun asal' })
   @IsInt()
@@ -22,6 +23,11 @@ export class CreateCashTransferDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @ApiPropertyOptional({ description: 'Tanggal transaksi (ISO)' })
+  @IsOptional()
+  @IsDateString()
+  date?: string;
 }
 
 export class UpdateCashTransferDto {
@@ -49,4 +55,9 @@ export class UpdateCashTransferDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @ApiPropertyOptional({ description: 'Tanggal transaksi (ISO)' })
+  @IsOptional()
+  @IsDateString()
+  date?: string;
 }

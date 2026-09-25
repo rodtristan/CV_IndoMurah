@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString, IsInt, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -16,8 +16,10 @@ export class CreateAssetDto {
   @IsNumber()
   assetCategoryId?: number;
 
-  @ApiPropertyOptional({ description: 'purchaseDate' })
+  @ApiPropertyOptional({ description: 'purchaseDate', type: String, format: 'date-time' })
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
   purchaseDate?: Date;
 
   @ApiPropertyOptional({ description: 'purchasePrice' })
@@ -30,8 +32,10 @@ export class CreateAssetDto {
   @IsNumber()
   currentValue?: number;
 
-  @ApiProperty({ description: 'depreciationMethod' })
-  depreciationMethod: any;
+  @ApiPropertyOptional({ description: 'DepreciationMethod ID' })
+  @IsOptional()
+  @IsInt()
+  depreciationMethodId?: number;
 
   @ApiPropertyOptional({ description: 'usefulLifeYears' })
   @IsOptional()
@@ -58,8 +62,10 @@ export class CreateAssetDto {
   @IsString()
   description?: string;
 
-  @ApiProperty({ description: 'status' })
-  status: any;
+  @ApiPropertyOptional({ description: 'AssetStatus ID (default 1)' })
+  @IsOptional()
+  @IsInt()
+  statusId?: number;
 
   @ApiPropertyOptional({ description: 'isActive' })
   @IsOptional()
@@ -85,8 +91,10 @@ export class UpdateAssetDto {
   @IsNumber()
   assetCategoryId?: number;
 
-  @ApiPropertyOptional({ description: 'purchaseDate' })
+  @ApiPropertyOptional({ description: 'purchaseDate', type: String, format: 'date-time' })
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
   purchaseDate?: Date;
 
   @ApiPropertyOptional({ description: 'purchasePrice' })
@@ -99,9 +107,10 @@ export class UpdateAssetDto {
   @IsNumber()
   currentValue?: number;
 
-  @ApiPropertyOptional({ description: 'depreciationMethod' })
+  @ApiPropertyOptional({ description: 'DepreciationMethod ID' })
   @IsOptional()
-  depreciationMethod?: any;
+  @IsInt()
+  depreciationMethodId?: number;
 
   @ApiPropertyOptional({ description: 'usefulLifeYears' })
   @IsOptional()
@@ -128,9 +137,10 @@ export class UpdateAssetDto {
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ description: 'status' })
+  @ApiPropertyOptional({ description: 'AssetStatus ID (default 1)' })
   @IsOptional()
-  status?: any;
+  @IsInt()
+  statusId?: number;
 
   @ApiPropertyOptional({ description: 'isActive' })
   @IsOptional()

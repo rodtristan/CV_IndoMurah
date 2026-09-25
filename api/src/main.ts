@@ -26,10 +26,10 @@ import * as qs from 'qs';
 import { AppModule } from './app-module';
 import { SanitizePipe } from './common/pipes/sanitize-pipe';
 import { PathService } from './common/utils/path-service';
+import { resolveJwtSecret } from './config/jwt-config';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
-
   // ── Langkah 1: Pastikan folder uploads sudah ada ──────────────
   PathService.ensureAllDirs();
 
@@ -39,6 +39,11 @@ async function bootstrap() {
     AppModule,
     new FastifyAdapter({
       logger: false,
+      // Di belakang proxy (Railway / Docker / Nginx): percayai X-Forwarded-For
+      // supaya req.ip = IP klien asli. Tanpa ini semua user berbagi satu
+      // bucket rate-limit (IP proxy). Bisa diatur lewat TRUST_PROXY
+      // (true/false/jumlah hop/daftar IP); default true.
+      trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
       bodyLimit: 10 * 1024 * 1024, // 10MB
       routerOptions: {
         caseSensitive: false,      // /Products dan /products dianggap sama
@@ -56,6 +61,16 @@ async function bootstrap() {
   );
 
   const configService = app.get(ConfigService);
+  // Dibaca SETELAH app dibuat supaya nilai dari file .env (ConfigModule) ikut terbaca.
+  const isProd = process.env.NODE_ENV === 'production';
+
+  // ── Langkah 0: Validasi konfigurasi kritis (fail fast di production) ──
+  // Throw bila JWT_SECRET kosong / < 32 karakter saat NODE_ENV=production
+  // (jwt-config & JwtStrategy juga memanggil ini, jadi app gagal start lebih awal).
+  resolveJwtSecret();
+  if (!isProd && !process.env.JWT_SECRET) {
+    logger.warn('JWT_SECRET tidak di-set — memakai secret development. JANGAN dipakai di production.');
+  }
 
   // ── Langkah 3: Global prefix ──────────────────────────────────────
   // Semua endpoint otomatis diawali dengan /api/v1
@@ -68,17 +83,24 @@ async function bootstrap() {
   //
   // Untuk mobile (Flutter), CORS tidak berlaku karena mobile bukan browser.
   // ────────────────────────────────────────────────────────────────────────────
-  const rawOrigin = configService.get<string>('CORS_ORIGIN', '');
-  const corsOrigin: string | string[] = rawOrigin
-    ? rawOrigin.split(',').map((o) => o.trim()).filter(Boolean)
-    : '*';
+  // Tanpa CORS_ORIGIN (hanya boleh di non-production): izinkan semua origin
+  // TANPA credentials — kombinasi '*' + credentials tidak aman. Autentikasi
+  // memakai header Authorization (bukan cookie), jadi credentials tidak dibutuhkan.
+  const rawOrigin = (configService.get<string>('CORS_ORIGIN', '') ?? '').trim();
+  const originList = rawOrigin && rawOrigin !== '*'
+    ? rawOrigin.split(',').map((o) => o.trim()).filter((o) => o && o !== '*')
+    : [];
+  if (isProd && originList.length === 0) {
+    throw new Error('CORS_ORIGIN harus berisi daftar origin eksplisit (bukan "*") saat NODE_ENV=production.');
+  }
+  const corsOrigin: string | string[] = originList.length ? originList : '*';
 
   app.enableCors({
     origin: corsOrigin,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: 'Content-Type,Authorization,X-Requested-With',
     exposedHeaders: 'Content-Disposition',
-    credentials: true,
+    credentials: originList.length > 0,
   });
 
   // Upload file (Report Design: gambar/logo → Google Drive), batas global 10 MB (CSV import); gambar dibatasi 2 MB di FileStorageController
@@ -126,46 +148,48 @@ async function bootstrap() {
     }),
   );
 
-  // ── Langkah 7: Swagger Documentation ─────────────────────────────
+  // ── Langkah 7: Swagger Documentation (hanya di luar production) ──
   // URL: http://localhost:5000/docs
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('Toko CV IndoMurah API')
-    .setDescription(
-      `## Toko CV IndoMurah API
+  if (!isProd) {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('Toko CV IndoMurah API')
+      .setDescription(
+        `## Toko CV IndoMurah API
 
-Built with NestJS + Fastify + Prisma + Redis.
+  Built with NestJS + Fastify + Prisma + Redis.
 
-### Query Engine (Smart Query)
-All GET endpoints support a powerful query syntax via query parameters:
+  ### Query Engine (Smart Query)
+  All GET endpoints support a powerful query syntax via query parameters:
 
-- **\`$select\`** — Choose fields: \`?$select=id,name,price\`
-- **\`$include\`** — Include relations: \`?$include=category,variants\`
-- **\`$where\`** — Filter: \`?$where[is_active]=true&$where[category_id]=1\`
-- **\`$orderBy\`** — Sort: \`?$orderBy[createdAt]=desc\`
-- **\`$skip\`** — Pagination offset: \`?$skip=0\`
-- **\`$take\`** — Page size: \`?$take=20\`
-- **\`$search\`** — Full-text search: \`?$search=keyword\`
-- **\`$searchFields\`** — Fields to search: \`?$searchFields=name,description\`
-      `,
-    )
-    .setVersion('1.0')
-    .addBearerAuth()
-    .addTag('Auth', 'Login, register, profil (JWT)')
-    .addTag('Users', 'Manajemen akun & UserRole (role tambahan per user)')
-    .addTag('Roles', 'Role/jabatan')
-    .addTag('Menus', 'Menu sidebar & kontrol akses (RoleMenu/UserMenu)')
-    .addTag('Health', 'Health check endpoint')
-    .build();
+  - **\`$select\`** — Choose fields: \`?$select=id,name,price\`
+  - **\`$include\`** — Include relations: \`?$include=category,variants\`
+  - **\`$where\`** — Filter: \`?$where[is_active]=true&$where[category_id]=1\`
+  - **\`$orderBy\`** — Sort: \`?$orderBy[createdAt]=desc\`
+  - **\`$skip\`** — Pagination offset: \`?$skip=0\`
+  - **\`$take\`** — Page size: \`?$take=20\`
+  - **\`$search\`** — Full-text search: \`?$search=keyword\`
+  - **\`$searchFields\`** — Fields to search: \`?$searchFields=name,description\`
+        `,
+      )
+      .setVersion('1.0')
+      .addBearerAuth()
+      .addTag('Auth', 'Login, register, profil (JWT)')
+      .addTag('Users', 'Manajemen akun & UserRole (role tambahan per user)')
+      .addTag('Roles', 'Role/jabatan')
+      .addTag('Menus', 'Menu sidebar & kontrol akses (RoleMenu/UserMenu)')
+      .addTag('Health', 'Health check endpoint')
+      .build();
 
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('docs', app, document, {
-    swaggerOptions: {
-      persistAuthorization: true,
-      docExpansion: 'none',
-      filter: true,
-      showRequestDuration: true,
-    },
-  });
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('docs', app, document, {
+      swaggerOptions: {
+        persistAuthorization: true,
+        docExpansion: 'none',
+        filter: true,
+        showRequestDuration: true,
+      },
+    });
+  }
 
   // ── Langkah 8: Jalankan server ────────────────────────────────────
   const port = configService.get<number>('PORT', 5000);
@@ -174,9 +198,18 @@ All GET endpoints support a powerful query syntax via query parameters:
   await app.listen(port, host);
 
   logger.log(`🚀 Toko CV IndoMurah API berjalan di http://${host}:${port}`);
-  logger.log(`📚 Swagger docs: http://localhost:${port}/docs`);
+  if (!isProd) logger.log(`📚 Swagger docs: http://localhost:${port}/docs`);
   logger.log(`🔧 Environment: ${configService.get('NODE_ENV', 'development')}`);
   logger.log(`🔒 CORS allowed origins: ${typeof corsOrigin === 'string' ? corsOrigin : corsOrigin.join(', ')}`);
+}
+
+/** TRUST_PROXY: kosong/'true' → true, 'false' → false, angka → jumlah hop, selain itu daftar IP/CIDR. */
+function parseTrustProxy(raw: string | undefined): boolean | number | string {
+  const v = (raw ?? '').trim();
+  if (!v || v.toLowerCase() === 'true') return true;
+  if (v.toLowerCase() === 'false') return false;
+  if (/^\d+$/.test(v)) return parseInt(v, 10);
+  return v;
 }
 
 bootstrap();

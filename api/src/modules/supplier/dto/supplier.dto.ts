@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsEmail } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsEmail, IsInt, Min, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateSupplierDto {
@@ -34,6 +34,48 @@ export class CreateSupplierDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({ description: 'City' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  city?: string;
+
+  @ApiPropertyOptional({ description: 'Province' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  province?: string;
+
+  @ApiPropertyOptional({ description: 'Tax ID (NPWP)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  taxId?: string;
+
+  @ApiPropertyOptional({ description: 'Bank name' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  bankName?: string;
+
+  @ApiPropertyOptional({ description: 'Bank account number' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  bankAccountNumber?: string;
+
+  @ApiPropertyOptional({ description: 'Bank account holder name' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  bankAccountName?: string;
+
+  @ApiPropertyOptional({ description: 'Payment due days (0 = use settings)' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  dueDays?: number;
 
   @ApiPropertyOptional({ default: true, description: 'Is active' })
   @IsOptional()
@@ -76,6 +118,48 @@ export class UpdateSupplierDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({ description: 'City' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  city?: string;
+
+  @ApiPropertyOptional({ description: 'Province' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  province?: string;
+
+  @ApiPropertyOptional({ description: 'Tax ID (NPWP)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  taxId?: string;
+
+  @ApiPropertyOptional({ description: 'Bank name' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  bankName?: string;
+
+  @ApiPropertyOptional({ description: 'Bank account number' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  bankAccountNumber?: string;
+
+  @ApiPropertyOptional({ description: 'Bank account holder name' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  bankAccountName?: string;
+
+  @ApiPropertyOptional({ description: 'Payment due days (0 = use settings)' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  dueDays?: number;
 
   @ApiPropertyOptional({ description: 'Is active' })
   @IsOptional()

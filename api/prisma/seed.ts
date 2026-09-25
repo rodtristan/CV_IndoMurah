@@ -442,7 +442,19 @@ async function main() {
   // ─── User admin default ────────────────────────────────────
   const adminUsername = 'admin';
   const adminEmail = 'admin@tokocvindomurah.com';
-  const adminPassword = await argon2.hash('admin123', { type: argon2.argon2id });
+  // Password admin awal: SEED_ADMIN_PASSWORD. Default 'admin123' HANYA di luar
+  // production; di production wajib diisi (min 8 karakter) atau seed berhenti.
+  // Catatan: upsert tidak menimpa password admin yang sudah ada.
+  const isProd = process.env.NODE_ENV === 'production';
+  const existingAdmin = await prisma.user.findUnique({
+    where: { CompanyID_Username: { CompanyID: company.ID, Username: adminUsername } },
+    select: { ID: true },
+  });
+  const seedAdminPassword = (process.env.SEED_ADMIN_PASSWORD ?? '').trim() || (isProd ? '' : 'admin123');
+  if (!existingAdmin && isProd && seedAdminPassword.length < 8) {
+    throw new Error('SEED_ADMIN_PASSWORD wajib diisi (minimal 8 karakter) saat NODE_ENV=production.');
+  }
+  const adminPassword = await argon2.hash(seedAdminPassword || 'unused-existing-admin', { type: argon2.argon2id });
 
   const admin = await prisma.user.upsert({
     where: {
@@ -519,7 +531,11 @@ async function main() {
   console.log(`  Role   : ${adminRole.RoleName} (ID=${adminRole.ID})`);
   console.log(`  Menus  : ${menus.map((m) => m.MenuName).join(', ')}`);
   console.log(`  Customer walk-in: ${walkInCustomer.Code} (ID=${walkInCustomer.ID})`);
-  console.log(`  Admin  : ${company.CompanyCode} / ${adminUsername} / admin123 (GANTI password ini setelah login pertama!)`);
+  console.log(
+    `  Admin  : ${company.CompanyCode} / ${adminUsername} / ` +
+      (process.env.SEED_ADMIN_PASSWORD ? '(password dari SEED_ADMIN_PASSWORD)' : 'admin123') +
+      ' (GANTI password ini setelah login pertama!)',
+  );
 
   await seedAccounting(prisma);
 

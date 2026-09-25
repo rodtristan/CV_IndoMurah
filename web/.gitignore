@@ -1,0 +1,10 @@
+# Environment (local secrets / machine-specific URLs) - never commit
+.env
+.env.local
+.env.*.local
+
+# Build output
+.next/
+out/
+node_modules/
+tsconfig.tsbuildinfo

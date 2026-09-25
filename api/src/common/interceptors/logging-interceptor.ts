@@ -2,30 +2,13 @@
 // logging-interceptor.ts — Pencatat Log Setiap Request HTTP
 // ================================================================
 //
-// ╔══════════════════════════════════════════════════════════════╗
-// ║  APA ITU INTERCEPTOR?                                        ║
-// ║  Interceptor adalah "penyadap" yang berjalan sebelum DAN     ║
-// ║  sesudah controller dieksekusi.                              ║
-// ║                                                              ║
-// ║  Alur kerja:                                                 ║
-// ║    Request masuk → [Interceptor mulai] → Controller          ║
-// ║                                              ↓               ║
-// ║    Response keluar ← [Interceptor selesai] ←┘               ║
-// ╚══════════════════════════════════════════════════════════════╝
+// Satu baris per request di terminal:
+//   [HTTP] POST /api/v1/auth/login 200 (125ms) user=admin
 //
-// Format log di terminal (output saat ada request ke API):
-//
-//   [HTTP] Endpoint: POST /api/v1/auth/login  (125ms)
-//   {
-//     "message": "Login successful",
-//     "status": 200,
-//     "data": { "token": "eyJ..." },
-//     "userId": 1,
-//     "userFullName": "John Doe",
-//     "logDatetime": "16-03-2026 08:00:00 +00:00"
-//   }
-//
-// Data ini juga disimpan ke database tabel `logs`.
+// Body RESPONSE tidak pernah di-log (bisa berisi JWT, data pelanggan, dst).
+// Body REQUEST disimpan ke tabel `logs` setelah di-redact secara rekursif
+// dan case-insensitive (password, token, secret, authorization, pin, ...),
+// dan hanya di-print ke terminal saat NODE_ENV=development.
 // ================================================================
 
 import {
@@ -39,6 +22,7 @@ import { Observable } from 'rxjs';
 import { tap, catchError } from 'rxjs/operators';
 import { throwError } from 'rxjs';
 import { PrismaService } from '../prisma/prisma-service';
+import { redactDeep } from '../utils/redact';
 
 // Tipe data untuk satu entri log
 interface LogPayload {
@@ -67,17 +51,18 @@ export class LoggingInterceptor implements NestInterceptor {
     const startTime = Date.now();
 
     const method: string = req.method ?? 'UNKNOWN';
-    const endpoint: string = req.url ?? '/';
+    // Query string bisa berisi token/kata sandi (mis. ?token=...) — simpan path saja.
+    const endpoint: string = String(req.url ?? '/').split('?')[0];
     const ipAddress: string | null = req.ip ?? req.socket?.remoteAddress ?? null;
     const userAgent: string | null = req.headers?.['user-agent'] ?? null;
 
-    const requestBody = this.redactSensitiveFields(req.body);
+    const requestBody = this.limitSize(redactDeep(req.body));
 
     // Info user yang login (diisi oleh Passport setelah JWT divalidasi)
     // Jika endpoint tidak butuh login, user akan bernilai undefined/null
-    const user = req.user as { id?: string; email?: string } | undefined;
+    const user = req.user as { id?: string; username?: string } | undefined;
     const userId: string | null       = user?.id ?? null;
-    const userFullName: string | null = user?.email ?? null;
+    const userFullName: string | null = user?.username ?? null;
 
     return next.handle().pipe(
       tap((responseData: unknown) => {
@@ -92,7 +77,7 @@ export class LoggingInterceptor implements NestInterceptor {
           method,
           endpoint,
           requestBody,
-          responseData,
+          responseData: undefined, // sengaja tidak di-log
           responseStatus,
           message,
           userId,
@@ -137,27 +122,18 @@ export class LoggingInterceptor implements NestInterceptor {
   }
 
   private printLog(log: LogPayload): void {
-    const formattedDatetime = this.formatDatetime(log.logDatetime);
-    const headerLine = `Endpoint: ${log.method} ${log.endpoint}  (${log.durationMs}ms)`;
-
-    const body = {
-      message: log.message,
-      status: log.responseStatus,
-      data: log.responseData,
-      userId: log.userId,
-      userFullName: log.userFullName,
-      logDatetime: formattedDatetime,
-    };
-
+    const line = `${log.method} ${log.endpoint} ${log.responseStatus} (${log.durationMs}ms)` +
+      (log.userFullName ? ` user=${log.userFullName}` : '');
     if (log.responseStatus >= 500) {
-      this.logger.error(headerLine);
-      console.error(JSON.stringify(body, null, 2));
+      this.logger.error(`${line} — ${log.message}`);
     } else if (log.responseStatus >= 400) {
-      this.logger.warn(headerLine);
-      console.warn(JSON.stringify(body, null, 2));
+      this.logger.warn(`${line} — ${log.message}`);
     } else {
-      this.logger.log(headerLine);
-      console.log(JSON.stringify(body, null, 2));
+      this.logger.log(line);
+    }
+    // Detail body request (sudah di-redact) hanya di development.
+    if (process.env.NODE_ENV === 'development' && log.requestBody && typeof log.requestBody === 'object') {
+      this.logger.debug(`body: ${JSON.stringify(log.requestBody).slice(0, 2000)}`);
     }
   }
 
@@ -185,17 +161,6 @@ export class LoggingInterceptor implements NestInterceptor {
     }
   }
 
-  private formatDatetime(date: Date): string {
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const dd = pad(date.getUTCDate());
-    const mm = pad(date.getUTCMonth() + 1);
-    const yyyy = date.getUTCFullYear();
-    const hh = pad(date.getUTCHours());
-    const min = pad(date.getUTCMinutes());
-    const ss = pad(date.getUTCSeconds());
-    return `${dd}-${mm}-${yyyy} ${hh}:${min}:${ss} +00:00`;
-  }
-
   private extractMessage(responseData: unknown): string | null {
     if (responseData && typeof responseData === 'object') {
       const obj = responseData as Record<string, unknown>;
@@ -204,13 +169,15 @@ export class LoggingInterceptor implements NestInterceptor {
     return null;
   }
 
-  private redactSensitiveFields(body: unknown): unknown {
+  /** Batasi ukuran payload yang disimpan ke tabel logs (import CSV bisa ribuan baris). */
+  private limitSize(body: unknown): unknown {
     if (!body || typeof body !== 'object') return body;
-    const sensitiveFields = ['password', 'password_confirmation', 'token', 'secret', 'pin'];
-    const clone = { ...(body as Record<string, unknown>) };
-    for (const field of sensitiveFields) {
-      if (clone[field] !== undefined) clone[field] = '[REDACTED]';
+    try {
+      const json = JSON.stringify(body);
+      if (json.length <= 20000) return body;
+      return { truncated: true, size: json.length };
+    } catch {
+      return { unserializable: true };
     }
-    return clone;
   }
 }

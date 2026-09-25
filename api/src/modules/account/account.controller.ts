@@ -4,6 +4,7 @@ import { BaseController } from '../../common/templates/base.controller';
 import { AccountService } from './account.service';
 import { CreateAccountDto, UpdateAccountDto } from './dto/account.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
+import { ApiResponse } from '../../common/dto/api-response-dto';
 
 @ApiTags('Account')
 @ApiBearerAuth()
@@ -14,7 +15,7 @@ export class AccountController extends BaseController<
   CreateAccountDto,
   UpdateAccountDto
 > {
-  constructor(accountService: AccountService) {
+  constructor(private readonly accountService: AccountService) {
     super(accountService, {
       modelName: 'Account',
       pluralName: 'Accounts',
@@ -35,7 +36,17 @@ export class AccountController extends BaseController<
   @ApiQuery({ name: '$take', required: false, type: Number, description: 'Limit' })
   @ApiQuery({ name: '$search', required: false, description: 'Search: code, name' })
   async findAll(@Query() query: any) {
-    return super.findAll(query);
+    const r: any = await super.findAll(query);
+    if (r?.data) r.data = await this.accountService.overlayBalance(r.data);
+    return r;
+  }
+
+  @Get('balances')
+  @ApiOperation({ summary: 'Saldo per akun dari buku besar (jurnal posted + saldo awal). asOf=YYYY-MM-DD opsional' })
+  async balances(@Query('asOf') asOf?: string) {
+    const to = asOf ? new Date(`${asOf}T23:59:59.999`) : undefined;
+    if (to && isNaN(to.getTime())) return ApiResponse.error('asOf tidak valid');
+    return ApiResponse.ok(await this.accountService.balances(to));
   }
 
   @Get('count')
@@ -47,7 +58,9 @@ export class AccountController extends BaseController<
   @Get(':id')
   @ApiOperation({ summary: 'Get Account by ID' })
   async findById(@Param('id') id: string, @Query() query: any) {
-    return super.findById(id, query);
+    const r: any = await super.findById(id, query);
+    if (r?.data) r.data = await this.accountService.overlayBalance(r.data);
+    return r;
   }
 
   @Get('by/:field/:value')

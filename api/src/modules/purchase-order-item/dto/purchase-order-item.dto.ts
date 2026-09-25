@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString, IsInt, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -36,9 +36,6 @@ export class CreatePurchaseOrderItemDto {
   @ApiProperty({ description: 'subtotal' })
   @IsNumber()
   subtotal: number;
-
-  @ApiProperty({ description: 'purchaseOrder' })
-  purchaseOrder: any;
 
 
 }
@@ -83,10 +80,6 @@ export class UpdatePurchaseOrderItemDto {
   @IsOptional()
   @IsNumber()
   subtotal?: number;
-
-  @ApiPropertyOptional({ description: 'purchaseOrder' })
-  @IsOptional()
-  purchaseOrder?: any;
 
 
 }
