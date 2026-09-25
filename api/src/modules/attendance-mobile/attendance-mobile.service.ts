@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Prisma } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../../common/prisma/prisma-service';
+import { RedisService } from '../../common/redis/redis-service';
 import { AttendancePhotoStore } from './attendance-photo.store';
 import { attendanceDate, distanceMeters, minutesOf, officeParts } from './attendance-time';
 
@@ -30,6 +31,7 @@ export class AttendanceMobileService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly photos: AttendancePhotoStore,
+    private readonly redis: RedisService,
   ) {}
 
   async login(username: string, password: string) {
@@ -178,6 +180,7 @@ export class AttendanceMobileService {
       update: data,
       include: { Status: true, Location: true },
     });
+    await this.redis.invalidatePattern('attendance:*');
     return this.mapAttendance(row);
   }
 
@@ -206,6 +209,7 @@ export class AttendanceMobileService {
       },
       include: { Status: true, Location: true },
     });
+    await this.redis.invalidatePattern('attendance:*');
     return this.mapAttendance(row);
   }
 }

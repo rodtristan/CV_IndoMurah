@@ -76,6 +76,7 @@ const TITLE_OVERRIDES: Record<string, string> = {
   "/settings/import": "Import Data",
   "/hr/attendance": "Absensi",
   "/hr/employees": "Karyawan",
+  "/hr/attendance-locations": "Lokasi Absensi",
   "/settings/users": "Pengguna",
 };
 

@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import * as argon2 from 'argon2';
 import * as ExcelJS from 'exceljs';
 import { PrismaService } from '../../common/prisma/prisma-service';
+import { RedisService } from '../../common/redis/redis-service';
 import { AttendancePhotoStore } from './attendance-photo.store';
 import { attendanceDate, officeParts } from './attendance-time';
 
@@ -28,7 +29,13 @@ export class AttendanceAdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly photos: AttendancePhotoStore,
+    private readonly redis: RedisService,
   ) {}
+
+  /** Endpoint generik /employees di-cache Redis (BaseService); bersihkan setelah perubahan langsung. */
+  private clearEmployeeCache() {
+    return this.redis.invalidatePattern('employee:*');
+  }
 
   // ── Lokasi kantor ─────────────────────────────────────────────────
   private checkLocation(d: LocationInput) {
@@ -84,10 +91,12 @@ export class AttendanceAdminService {
       // Riwayat absensi tetap merujuk lokasi ini, jadi hanya dinonaktifkan.
       await this.prisma.attendanceLocation.update({ where: { ID: id }, data: { IsActive: false } });
       await this.prisma.employee.updateMany({ where: { AttendanceLocationID: id }, data: { AttendanceLocationID: null } });
+      await this.clearEmployeeCache();
       return { deleted: false, deactivated: true };
     }
     await this.prisma.employee.updateMany({ where: { AttendanceLocationID: id }, data: { AttendanceLocationID: null } });
     await this.prisma.attendanceLocation.delete({ where: { ID: id } });
+    await this.clearEmployeeCache();
     return { deleted: true };
   }
 
@@ -113,11 +122,13 @@ export class AttendanceAdminService {
         ...(d.attendanceLocationId !== undefined ? { AttendanceLocationID: d.attendanceLocationId || null } : {}),
       },
     });
+    await this.clearEmployeeCache();
     return { employeeId, username, hasAccount: true };
   }
 
   async removeAccount(employeeId: number) {
     await this.prisma.employee.update({ where: { ID: employeeId }, data: { Username: null, PasswordHash: null } });
+    await this.clearEmployeeCache();
     return { employeeId, hasAccount: false };
   }
 

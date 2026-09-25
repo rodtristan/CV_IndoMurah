@@ -77,6 +77,7 @@ async function bootstrap() {
     origin: corsOrigin,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: 'Content-Type,Authorization,X-Requested-With',
+    exposedHeaders: 'Content-Disposition',
     credentials: true,
   });
 

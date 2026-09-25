@@ -175,6 +175,7 @@ const MENU_GROUPS: MenuGroup[] = [
     items: [
       { label: "Absensi", href: "/hr/attendance" },
       { label: "Karyawan", href: "/hr/employees" },
+      { label: "Lokasi Absensi", href: "/hr/attendance-locations" },
     ],
   },
   {
