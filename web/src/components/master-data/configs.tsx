@@ -8,6 +8,7 @@ import type { EntityConfig, ListColumn, FieldDef } from "./types";
 const str = (v: unknown) => (v === undefined || v === null ? "" : String(v));
 const num = (v: unknown) => (v === "" || v === undefined || v === null ? 0 : Number(v));
 
+const fmtDate = (v: unknown) => (v ? new Date(v as string).toLocaleDateString("id-ID") : "-");
 const codeCol: ListColumn = { key: "Code", label: "Kode", width: 140, render: (v) => <span className="font-mono text-xs">{str(v)}</span> };
 
 function Badge({ on, yes = "Aktif", no = "Nonaktif" }: { on: boolean; yes?: string; no?: string }) {
@@ -290,8 +291,8 @@ export const promoConfig: EntityConfig = {
     { key: "Type", label: "Jenis" },
     { key: "DiscountType", label: "Tipe Diskon" },
     { key: "DiscountValue", label: "Nilai", align: "right", render: (v) => num(v).toLocaleString("id-ID") },
-    { key: "StartDate", label: "Dari", render: (v) => v ? new Date(v).toLocaleDateString("id-ID") : "-" },
-    { key: "EndDate", label: "Sampai", render: (v) => v ? new Date(v).toLocaleDateString("id-ID") : "-" },
+    { key: "StartDate", label: "Dari", render: (v) => fmtDate(v) },
+    { key: "EndDate", label: "Sampai", render: (v) => fmtDate(v) },
     statusCol,
   ],
   sections: [
@@ -366,13 +367,13 @@ export const promoConfig: EntityConfig = {
 
 export const voucherConfig: EntityConfig = {
   singular: "Voucher", plural: "Voucher", basePath: "/master/vouchers",
-  endpoint: "voucher", codePrefix: "VCR", searchFields: ["code", "name"],
+  endpoint: "vouchers", codePrefix: "VCR", searchFields: ["code", "name"],
   columns: [
     codeCol, { key: "Name", label: "Nama Voucher" },
     { key: "Type", label: "Tipe" },
     { key: "Value", label: "Nilai", align: "right", render: (v) => num(v).toLocaleString("id-ID") },
     { key: "MinPurchaseAmount", label: "Min. Belanja", align: "right", render: (v) => num(v).toLocaleString("id-ID") },
-    { key: "EndDate", label: "Berakhir", render: (v) => v ? new Date(v).toLocaleDateString("id-ID") : "-" },
+    { key: "EndDate", label: "Berakhir", render: (v) => fmtDate(v) },
     { key: "UsedCount", label: "Terpakai", align: "right" },
     statusCol,
   ],

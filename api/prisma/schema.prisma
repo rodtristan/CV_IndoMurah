@@ -723,6 +723,8 @@ model Warehouse {
   ProductionSchedules    ProductionSchedule[]
   ProductionRequestItems ProductionRequestItem[]
 
+  StockLedgers StockLedger[]
+
   @@map("Warehouses")
 }
 
@@ -813,6 +815,15 @@ model Supplier {
 
   OpeningBalances OpeningBalance[]
 
+  // Data pendukung (panduan: Input Data Supplier)
+  City              String? @db.VarChar(100)
+  Province          String? @db.VarChar(100)
+  TaxID             String? @db.VarChar(50)
+  BankName          String? @db.VarChar(100)
+  BankAccountNumber String? @db.VarChar(50)
+  BankAccountName   String? @db.VarChar(150)
+  DueDays           Int     @default(0)
+
   @@map("Suppliers")
 }
 
@@ -842,6 +853,16 @@ model Customer {
   MemberCards      MemberCard[]
 
   OpeningBalances OpeningBalance[]
+
+  // Data pendukung (panduan: Input Data Pelanggan)
+  RegionID    Int?
+  SubRegionID Int?
+  City        String?    @db.VarChar(100)
+  TaxID       String?    @db.VarChar(50)
+  CreditLimit Decimal    @default(0) @db.Decimal(15, 2)
+  DueDays     Int        @default(0)
+  Region      Region?    @relation(fields: [RegionID], references: [ID])
+  SubRegion   SubRegion? @relation(fields: [SubRegionID], references: [ID])
 
   @@map("Customers")
 }
@@ -1009,6 +1030,8 @@ model Product {
   ProductionSchedules    ProductionSchedule[]
   ProductionRequestItems ProductionRequestItem[]
 
+  StockLedgers StockLedger[]
+
   @@map("Products")
 }
 
@@ -1095,6 +1118,10 @@ model Sale {
   DefectReports        DefectReport[]
   CashFlowTransactions CashFlowTransaction[]
 
+  DueDate         DateTime?
+  VoucherID       Int?
+  VoucherDiscount Decimal   @default(0) @db.Decimal(15, 2)
+
   @@map("Sales")
 }
 
@@ -1114,6 +1141,9 @@ model SaleItem {
   Product Product @relation(fields: [ProductID], references: [ID])
   Unit    Unit?   @relation(fields: [UnitID], references: [ID])
   UnitID  Int?
+
+  BaseQuantity Decimal @default(0) @db.Decimal(15, 3) // qty dalam satuan dasar (untuk stok)
+  CostPrice    Decimal @default(0) @db.Decimal(15, 2) // HPP per satuan dasar saat transaksi
 
   @@map("SaleItems")
 }
@@ -1181,6 +1211,8 @@ model SaleReturnItem {
   Product    Product    @relation(fields: [ProductID], references: [ID])
   Unit       Unit?      @relation(fields: [UnitID], references: [ID])
   UnitID     Int?
+
+  BaseQuantity Decimal @default(0) @db.Decimal(15, 3) // qty dalam satuan dasar (untuk stok)
 
   @@map("SaleReturnItems")
 }
@@ -1303,6 +1335,8 @@ model PurchaseItem {
   Product  Product  @relation(fields: [ProductID], references: [ID])
   Unit     Unit     @relation(fields: [UnitID], references: [ID])
 
+  BaseQuantity Decimal @default(0) @db.Decimal(15, 3) // qty dalam satuan dasar (untuk stok)
+
   @@map("PurchaseItems")
 }
 
@@ -1369,6 +1403,8 @@ model PurchaseReturnItem {
   PurchaseReturn PurchaseReturn @relation(fields: [PurchaseReturnID], references: [ID], onDelete: Cascade)
   Product        Product        @relation(fields: [ProductID], references: [ID])
   Unit           Unit           @relation(fields: [UnitID], references: [ID])
+
+  BaseQuantity Decimal @default(0) @db.Decimal(15, 3) // qty dalam satuan dasar (untuk stok)
 
   @@map("PurchaseReturnItems")
 }
@@ -3750,6 +3786,8 @@ model Region {
   SubRegions    SubRegion[]
   ShippingCosts ShippingCost[]
 
+  Customers Customer[]
+
   @@map("Regions")
 }
 
@@ -3765,8 +3803,10 @@ model SubRegion {
   CreatedAt   DateTime @default(now())
   UpdatedAt   DateTime @updatedAt
 
-  Region       Region        @relation(fields: [RegionID], references: [ID])
+  Region        Region         @relation(fields: [RegionID], references: [ID])
   ShippingCosts ShippingCost[]
+
+  Customers Customer[]
 
   @@map("SubRegions")
 }
@@ -3786,8 +3826,8 @@ model ShippingCost {
   CreatedAt     DateTime @default(now())
   UpdatedAt     DateTime @updatedAt
 
-  Region     Region?     @relation(fields: [RegionID], references: [ID])
-  SubRegion  SubRegion? @relation(fields: [SubRegionID], references: [ID])
+  Region    Region?    @relation(fields: [RegionID], references: [ID])
+  SubRegion SubRegion? @relation(fields: [SubRegionID], references: [ID])
 
   @@index([RegionID])
   @@index([SubRegionID])
@@ -3796,22 +3836,22 @@ model ShippingCost {
 
 // ─── Promotion (Promosi/Diskon) ─────────────────────────────────────────────
 model Promotion {
-  ID                Int       @id @default(autoincrement())
-  Code              String    @unique @db.VarChar(50)
-  Name              String    @db.VarChar(255)
-  Type              String    @db.VarChar(50) // DISCOUNT, BOGO, GIFT, BUY_GET
-  DiscountType      String    @db.VarChar(50) // PERCENTAGE, FIXED
-  DiscountValue     Decimal?  @db.Decimal(15, 2)
-  MinPurchase       Decimal?  @db.Decimal(15, 2)
+  ID                Int      @id @default(autoincrement())
+  Code              String   @unique @db.VarChar(50)
+  Name              String   @db.VarChar(255)
+  Type              String   @db.VarChar(50) // DISCOUNT, BOGO, GIFT, BUY_GET
+  DiscountType      String   @db.VarChar(50) // PERCENTAGE, FIXED
+  DiscountValue     Decimal? @db.Decimal(15, 2)
+  MinPurchase       Decimal? @db.Decimal(15, 2)
   MaxDiscountAmount Decimal? @db.Decimal(15, 2)
   StartDate         DateTime
   EndDate           DateTime
   UsageLimit        Int?
-  UsedCount         Int       @default(0)
-  Description       String?   @db.VarChar(1000)
-  IsActive          Boolean   @default(true)
-  CreatedAt         DateTime  @default(now())
-  UpdatedAt         DateTime  @updatedAt
+  UsedCount         Int      @default(0)
+  Description       String?  @db.VarChar(1000)
+  IsActive          Boolean  @default(true)
+  CreatedAt         DateTime @default(now())
+  UpdatedAt         DateTime @updatedAt
 
   @@index([StartDate, EndDate])
   @@index([Type])
@@ -3820,30 +3860,55 @@ model Promotion {
 
 // ─── ChequePayment (Cek/Giro) ─────────────────────────────────────────────
 model ChequePayment {
-  ID              Int       @id @default(autoincrement())
-  Code            String    @unique @db.VarChar(50)
-  Type            String    @db.VarChar(50) // SALE, PURCHASE
-  ReferenceType   String?   @db.VarChar(50) // SALE_PAYMENT, PURCHASE_PAYMENT
-  ReferenceID     Int?
-  BankID          Int?
-  ChequeNumber    String    @db.VarChar(100)
-  ChequeDate      DateTime
-  DueDate         DateTime?
-  Amount          Decimal   @db.Decimal(15, 2)
-  Status          String    @default("PENDING") @db.VarChar(50) // PENDING, CLEARED, BOUNCED, CANCELLED
-  ClearedDate     DateTime?
-  BouncedDate     DateTime?
-  Notes           String?   @db.VarChar(1000)
-  IsActive        Boolean   @default(true)
-  CreatedAt       DateTime  @default(now())
-  UpdatedAt       DateTime  @updatedAt
+  ID            Int       @id @default(autoincrement())
+  Code          String    @unique @db.VarChar(50)
+  Type          String    @db.VarChar(50) // SALE, PURCHASE
+  ReferenceType String?   @db.VarChar(50) // SALE_PAYMENT, PURCHASE_PAYMENT
+  ReferenceID   Int?
+  BankID        Int?
+  ChequeNumber  String    @db.VarChar(100)
+  ChequeDate    DateTime
+  DueDate       DateTime?
+  Amount        Decimal   @db.Decimal(15, 2)
+  Status        String    @default("PENDING") @db.VarChar(50) // PENDING, CLEARED, BOUNCED, CANCELLED
+  ClearedDate   DateTime?
+  BouncedDate   DateTime?
+  Notes         String?   @db.VarChar(1000)
+  IsActive      Boolean   @default(true)
+  CreatedAt     DateTime  @default(now())
+  UpdatedAt     DateTime  @updatedAt
 
   // Relations
-  Bank            Bank?     @relation(fields: [BankID], references: [ID])
+  Bank Bank? @relation(fields: [BankID], references: [ID])
 
   @@index([Type])
   @@index([Status])
   @@index([ChequeDate])
   @@index([DueDate])
   @@map("ChequePayments")
+}
+
+// ─── StockLedger (kartu stok: setiap perubahan stok per barang per gudang) ──
+model StockLedger {
+  ID           Int      @id @default(autoincrement())
+  Date         DateTime @default(now())
+  ProductID    Int
+  WarehouseID  Int
+  RefType      String   @db.VarChar(30) // SALE, SALE_RETURN, PURCHASE, PURCHASE_RETURN, STOCK_IN, STOCK_OUT, TRANSFER_IN, TRANSFER_OUT, OPNAME, OPENING, ADJUST
+  RefID        Int?
+  RefCode      String?  @db.VarChar(50)
+  QtyIn        Decimal  @default(0) @db.Decimal(15, 3)
+  QtyOut       Decimal  @default(0) @db.Decimal(15, 3)
+  BalanceAfter Decimal  @default(0) @db.Decimal(15, 3)
+  UnitCost     Decimal  @default(0) @db.Decimal(15, 2)
+  Notes        String?  @db.VarChar(500)
+  CreatedByID  String?
+  CreatedAt    DateTime @default(now())
+
+  Product   Product   @relation(fields: [ProductID], references: [ID])
+  Warehouse Warehouse @relation(fields: [WarehouseID], references: [ID])
+
+  @@index([ProductID, WarehouseID, Date])
+  @@index([RefType, RefID])
+  @@map("StockLedgers")
 }

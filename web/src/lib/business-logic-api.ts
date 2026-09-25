@@ -923,6 +923,10 @@ export interface ChequePayment {
   createdAt: string;
 }
 
+// DTO cheque-payment di API memakai PascalCase (Type, BankId, ChequeNumber, ...).
+const toPascal = (o?: Record<string, unknown>) =>
+  Object.fromEntries(Object.entries(o ?? {}).filter(([, v]) => v !== undefined && v !== "").map(([k, v]) => [k[0].toUpperCase() + k.slice(1), v]));
+
 export const chequePaymentApi = {
   /**
    * GET /cheque-payment
@@ -936,7 +940,7 @@ export const chequePaymentApi = {
     endDate?: string;
     search?: string;
   }) => {
-    return api.get<{ count: number; cheques: ChequePayment[] }>('cheque-payment', params as any);
+    return api.get<{ count: number; cheques: ChequePayment[] }>('cheque-payment', toPascal(params) as any);
   },
 
   /**
@@ -962,7 +966,7 @@ export const chequePaymentApi = {
     amount: number;
     notes?: string;
   }) => {
-    return api.post<{ success: boolean; cheque: ChequePayment }>('cheque-payment', data);
+    return api.post<{ success: boolean; cheque: ChequePayment }>('cheque-payment', toPascal(data));
   },
 
   /**
@@ -975,7 +979,7 @@ export const chequePaymentApi = {
     dueDate?: string;
     notes?: string;
   }) => {
-    return api.patch<{ success: boolean; cheque: ChequePayment }>('cheque-payment', id, data);
+    return api.patch<{ success: boolean; cheque: ChequePayment }>('cheque-payment', id, toPascal(data));
   },
 
   /**
@@ -983,7 +987,7 @@ export const chequePaymentApi = {
    * Mark cheque as cleared
    */
   clear: async (id: number, data?: { clearedDate?: string; notes?: string }) => {
-    return api.request<{ success: boolean; cheque: ChequePayment }>('PUT', `cheque-payment/${id}/clear`, data || {});
+    return api.request<{ success: boolean; cheque: ChequePayment }>('PUT', `cheque-payment/${id}/clear`, toPascal(data));
   },
 
   /**
@@ -991,7 +995,7 @@ export const chequePaymentApi = {
    * Mark cheque as bounced
    */
   bounce: async (id: number, data: { reason: string; bouncedDate?: string }) => {
-    return api.request<{ success: boolean; cheque: ChequePayment }>('PUT', `cheque-payment/${id}/bounce`, data);
+    return api.request<{ success: boolean; cheque: ChequePayment }>('PUT', `cheque-payment/${id}/bounce`, toPascal(data));
   },
 
   /**

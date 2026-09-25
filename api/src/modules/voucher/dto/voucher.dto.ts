@@ -11,8 +11,9 @@ export class CreateVoucherDto {
   @IsString()
   name: string;
 
-  @ApiProperty({ description: 'type' })
-  type: any;
+  @ApiProperty({ description: 'typeId (VoucherType)' })
+  @IsNumber()
+  typeId: number;
 
   @ApiProperty({ description: 'value' })
   @IsNumber()
@@ -29,10 +30,12 @@ export class CreateVoucherDto {
   maxDiscountAmount?: number;
 
   @ApiProperty({ description: 'startDate' })
-  startDate: Date;
+  @IsDateString()
+  startDate: string;
 
   @ApiProperty({ description: 'endDate' })
-  endDate: Date;
+  @IsDateString()
+  endDate: string;
 
   @ApiPropertyOptional({ description: 'usageLimit' })
   @IsOptional()
@@ -62,9 +65,10 @@ export class UpdateVoucherDto {
   @IsString()
   name?: string;
 
-  @ApiPropertyOptional({ description: 'type' })
+  @ApiPropertyOptional({ description: 'typeId (VoucherType)' })
   @IsOptional()
-  type?: any;
+  @IsNumber()
+  typeId?: number;
 
   @ApiPropertyOptional({ description: 'value' })
   @IsOptional()
@@ -113,8 +117,8 @@ export class VoucherResponseDto {
   @ApiProperty({ description: 'name' })
   name: string;
 
-  @ApiProperty({ description: 'type' })
-  type: any;
+  @ApiProperty({ description: 'typeId (VoucherType)' })
+  typeId: number;
 
   @ApiProperty({ description: 'value' })
   value: number;
