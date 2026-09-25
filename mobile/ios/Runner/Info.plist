@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Toko Cv Indomurah Absensi</string>
+	<string>Absensi IndoMurah</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -46,10 +46,13 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Aplikasi memerlukan akses kamera untuk mengambil foto selfie saat absen masuk/keluar.</string>
+	<string>Kamera dipakai untuk mengambil foto selfie saat Clock In / Clock Out.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Aplikasi memerlukan akses lokasi untuk mencatat posisi Anda saat absen masuk/keluar.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Aplikasi memerlukan akses galeri foto untuk memilih foto selfie absensi.</string>
+	<string>Lokasi dipakai untuk memastikan Anda berada di area kantor saat Clock In / Clock Out.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

@@ -7,10 +7,19 @@
     <!-- Required to take selfie photo during check-in / check-out -->
     <uses-permission android:name="android.permission.CAMERA"/>
 
+    <!-- connectivity_plus: detect online/offline for the offline queue -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <!-- Camera is used but not required (so the app still installs everywhere) -->
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.front" android:required="false"/>
+
+    <!-- usesCleartextTraffic: allows http:// for a local dev API (10.0.2.2 / LAN IP).
+         Production uses https. -->
     <application
-        android:label="toko_cv_indomurah_absensi"
+        android:label="Absensi IndoMurah"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"

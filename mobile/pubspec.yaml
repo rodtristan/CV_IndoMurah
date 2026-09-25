@@ -1,5 +1,5 @@
 name: toko_cv_indomurah_absensi
-description: "A new Flutter project."
+description: "Aplikasi absensi karyawan CV IndoMurah (selfie + GPS + offline)."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -39,7 +39,10 @@ dependencies:
   image_picker: ^1.2.1
   flutter_secure_storage: ^10.3.1
   intl: ^0.20.2
-  permission_handler: ^13.0.1
+  image: ^4.10.1
+  path_provider: ^2.1.6
+  connectivity_plus: ^7.3.1
+  http_parser: ^4.1.2
 
 dev_dependencies:
   flutter_test:

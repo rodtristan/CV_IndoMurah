@@ -1,103 +1,111 @@
-# Toko CV IndoMurah - Absensi (Mobile)
+# Absensi CV IndoMurah (Mobile)
 
-Aplikasi mobile absensi karyawan untuk bisnis **Toko CV IndoMurah**, dibangun dengan Flutter.
+Aplikasi Flutter untuk absensi karyawan CV IndoMurah: **Clock In / Clock Out dengan selfie
+(kamera depan) + GPS + geofence kantor**, dan **absensi offline** yang disinkronkan otomatis
+saat internet kembali. Terhubung ke backend `api/` (NestJS) lewat endpoint
+`/api/v1/attendance-mobile/*`.
 
-> **Status.** Login sudah terhubung ke backend sungguhan (`POST /api/v1/auth/login`) dan
-> menjadi satu-satunya pintu masuk ke aplikasi — tanpa token valid, tidak bisa masuk
-> (lihat `_SplashGate` di `main.dart`). Absensi (check-in/out) dan slip gaji (Payroll)
-> masih memakai data/logic dummy karena modulnya belum ada di backend — lihat komentar
-> `TODO` di `check_in_screen.dart`, `history_screen.dart`, dan `payroll_model.dart`.
+Akun karyawan (username + password) dan lokasi kantor dibuat oleh HRD di aplikasi web.
 
-## Struktur Folder
+## Fitur
+
+- **Login** username + password. Token disimpan di `flutter_secure_storage`; saat aplikasi dibuka
+  dilakukan auto-login via `GET /me`. Respon 401 di mana pun -> kembali ke layar login.
+- Respon `/me` terakhir (karyawan, lokasi kantor, aturan, absensi hari ini) **di-cache di HP**,
+  sehingga beranda dan pengecekan geofence tetap jalan saat offline.
+- **Beranda**: nama, tanggal & jam WIB, kantor + jarak live ("Di dalam area kantor" /
+  "Di luar area (X m)"), jam masuk/pulang hari ini + status (Hadir/Terlambat) + badge offline,
+  tombol besar Clock In / Clock Out, jumlah antrean offline + tombol "Sinkronkan sekarang",
+  daftar absensi offline yang ditolak server, tarik-untuk-refresh.
+- **Clock In/Out**: GPS akurasi tinggi -> diblokir jika GPS mati / izin ditolak / Fake GPS
+  (`isMocked`) / akurasi > `maxGpsAccuracyMeters` / di luar radius kantor (haversine terhadap
+  lokasi kantor yang di-cache). Lalu selfie **kamera depan saja** (tidak ada pilihan galeri),
+  kemudian **timestamp foto** dicetak ke dalam gambar (tanggal & jam WIB, lat/lng, akurasi,
+  kantor, nama, label OFFLINE) — resize maks 1000 px, JPEG q80 (~100-200 KB). Preview, lalu kirim.
+- **Offline**: tanpa internet (atau saat koneksi gagal/timeout/5xx) absensi disimpan di antrean
+  lokal (foto di `<app documents>/offline_photos/`, antrean di `offline_queue.json`) dengan
+  `capturedAt` = jam HP saat foto diambil. Beranda langsung menampilkan jam absen dengan badge
+  "Menunggu sinkron". Antrean dikirim FIFO (masuk sebelum pulang) dengan `offline=true` saat
+  koneksi kembali (listener `connectivity_plus`), saat aplikasi dibuka kembali, dan lewat tombol
+  manual. 2xx/409 -> dihapus; 400 -> dihapus dan pesan server ditampilkan di daftar "ditolak";
+  error jaringan -> tetap di antrean. Data offline > 72 jam ditolak server (diperingatkan di UI).
+- **Riwayat**: pilih bulan, daftar dari `GET /history?month=YYYY-MM`.
+- **Profil**: kode & nama karyawan, kantor, versi aplikasi, keluar (peringatan jika masih ada
+  data offline yang belum terkirim — data tersebut akan hilang saat logout).
+
+## Struktur
 
 ```
 lib/
-├── main.dart                          # Entry point + `_SplashGate` (cek token -> MainShell/Login)
-├── core/
-│   ├── constants/
-│   │   ├── app_colors.dart            # Palet warna aplikasi
-│   │   ├── app_strings.dart           # String/label UI (belum full i18n)
-│   │   └── api_endpoints.dart         # Base URL & endpoint API backend (NestJS)
-│   └── services/
-│       ├── api_service.dart           # Wrapper HTTP client (package `http`) + Bearer token
-│       ├── location_service.dart      # Wrapper `geolocator` untuk ambil GPS
-│       └── auth_storage_service.dart  # Wrapper `flutter_secure_storage` untuk token JWT + user
-├── models/
-│   ├── user_model.dart                # Model data user/karyawan (field cocok dengan API)
-│   ├── attendance_model.dart          # Model data absensi (checkIn/checkOut, lokasi, status)
-│   └── payroll_model.dart             # Model slip gaji (dummy, belum ada endpoint backend)
-├── screens/
-│   ├── auth/
-│   │   └── login_screen.dart          # Form login, terhubung ke POST /auth/login
-│   ├── home/
-│   │   ├── main_shell.dart            # Bottom nav: Beranda/Gaji/Profil/Pengaturan
-│   │   └── home_screen.dart           # Status absen hari ini + tombol Absen Masuk/Keluar
-│   ├── attendance/
-│   │   ├── check_in_screen.dart       # Ambil foto selfie + lokasi GPS sebelum submit absen
-│   │   └── history_screen.dart        # Riwayat absensi + filter hari/minggu/bulan/tahun (dummy)
-│   ├── payroll/
-│   │   └── payroll_screen.dart        # Daftar & detail slip gaji per bulan (dummy)
-│   ├── profile/
-│   │   └── profile_screen.dart        # Info user yang login (dari data login tersimpan)
-│   └── settings/
-│       └── settings_screen.dart       # Toggle notifikasi/dark mode (dummy) + Logout
-└── widgets/
-    ├── custom_button.dart             # Tombol reusable dengan state loading
-    └── attendance_card.dart           # Kartu untuk menampilkan satu record absensi
+├── main.dart                     # Root app, gate login/beranda berdasarkan AppController
+├── core/constants/api_endpoints.dart  # API_BASE_URL (--dart-define) + endpoint
+├── core/constants/app_colors.dart
+├── core/utils/wib.dart           # Format waktu WIB (UTC+7) + haversine
+├── models/absensi_models.dart    # Employee, OfficeLocation, Attendance, MeData, OfflineItem, ...
+├── services/
+│   ├── api_client.dart           # HTTP client (ApiException / NetworkException / 401)
+│   ├── app_controller.dart       # ChangeNotifier: auth, cache /me, submit, antrean & sinkron
+│   ├── local_store.dart          # Token (secure storage), cache & antrean (file JSON)
+│   ├── location_service.dart     # Izin + posisi GPS + cek geofence
+│   └── photo_service.dart        # Kamera depan + watermark (package `image`, di isolate)
+└── ui/                           # login, shell (bottom nav), home, clock, history, profile
 ```
 
-## Cara Menjalankan
+> Catatan: file scaffold lama (`lib/screens/`, `lib/widgets/`, `lib/core/services/`,
+> `lib/core/constants/app_strings.dart`, `lib/models/*_model.dart`, termasuk layar/model
+> Payroll) tidak lagi dipakai oleh aplikasi dan aman dihapus.
+
+## Menjalankan
+
+Prasyarat: Flutter 3.38+ (Dart 3.10), Android SDK, JDK 17.
 
 ```bash
+cd mobile
 flutter pub get
-flutter run
 ```
 
-Jalankan `flutter analyze` untuk memastikan tidak ada error kompilasi, dan
-`flutter test` untuk menjalankan smoke test dasar.
+Base URL API diatur saat build dengan `--dart-define=API_BASE_URL=...`
+(default: `http://10.0.2.2:5000/api/v1`, yaitu API lokal dari emulator Android).
 
-## Konfigurasi Backend
+| Target | Perintah |
+| --- | --- |
+| Emulator Android, API lokal | `flutter run --dart-define=API_BASE_URL=http://10.0.2.2:5000/api/v1` |
+| HP fisik, API lokal (satu WiFi) | `flutter run --dart-define=API_BASE_URL=http://192.168.1.10:5000/api/v1` (ganti dengan IP LAN PC: `ipconfig`) |
+| Produksi | `flutter run --dart-define=API_BASE_URL=https://cvindomurah.up.railway.app/api/v1` |
 
-Base URL API diatur di `lib/core/constants/api_endpoints.dart` lewat
-`String.fromEnvironment('API_BASE_URL', defaultValue: 'http://localhost:5000/api/v1')`
-— defaultnya localhost untuk `flutter run` sehari-hari, di-override saat build
-lewat `--dart-define`, **tanpa perlu ubah kode**:
+Untuk HP fisik: pastikan API listen di `0.0.0.0` (bukan hanya localhost) dan port 5000 diizinkan
+Windows Firewall. HTTP (non-https) diizinkan lewat `android:usesCleartextTraffic="true"` untuk
+kebutuhan development.
 
-- **Android emulator**: `flutter run --dart-define=API_BASE_URL=http://10.0.2.2:5000/api/v1`
-  (localhost host tidak bisa diakses langsung dari emulator).
-- **iOS simulator**: default (`localhost`) sudah bisa langsung dipakai.
-- **Perangkat fisik**: pakai IP LAN mesin development,
-  `flutter run --dart-define=API_BASE_URL=http://192.168.x.x:5000/api/v1`.
-- **Build release (production, Railway)**:
-  `flutter build apk --release --dart-define=API_BASE_URL=https://cvindomurah.up.railway.app/api/v1`
-  — ini persis yang dijalankan otomatis oleh service `mobile-apk-builder` di
-  root `docker-compose.yml` (lihat `API_BASE_URL_RELEASE` di root `.env.example`).
+Uji mode offline: matikan WiFi & data seluler, lakukan Clock In, lalu nyalakan lagi — antrean
+terkirim otomatis dan badge "Menunggu sinkron" hilang.
 
-## Dependency Utama
+## Build APK
 
-| Package                  | Kegunaan                                             |
-|---------------------------|-------------------------------------------------------|
-| `http`                    | HTTP client untuk komunikasi ke REST API backend       |
-| `geolocator`               | Ambil koordinat GPS saat absen                        |
-| `image_picker`              | Ambil foto selfie via kamera saat absen               |
-| `flutter_secure_storage`     | Simpan token JWT secara aman di device                |
-| `intl`                     | Format tanggal & jam (locale `id_ID`)                  |
-| `permission_handler`         | Cek/minta izin runtime (lokasi, kamera)                |
+```bash
+# Debug
+flutter build apk --debug --dart-define=API_BASE_URL=http://10.0.2.2:5000/api/v1
 
-## Perizinan (Permissions)
+# Release (produksi)
+flutter build apk --release --dart-define=API_BASE_URL=https://cvindomurah.up.railway.app/api/v1
+```
 
-- **Android** (`android/app/src/main/AndroidManifest.xml`): `INTERNET`,
-  `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, `CAMERA`.
-- **iOS** (`ios/Runner/Info.plist`): `NSCameraUsageDescription`,
-  `NSLocationWhenInUseUsageDescription`, `NSPhotoLibraryUsageDescription`.
+Hasil: `build/app/outputs/flutter-apk/app-release.apk` (atau `app-debug.apk`).
+Release saat ini masih ditandatangani dengan debug key (lihat `android/app/build.gradle.kts`);
+buat keystore sendiri sebelum distribusi resmi / Play Store.
 
-## Langkah Lanjutan (Belum Dikerjakan)
+## Tes & analisis
 
-- Integrasi nyata ke API backend NestJS (login, ambil status absen hari ini,
-  submit absen masuk/keluar dengan upload foto multipart, riwayat absensi dengan paginasi).
-- State management yang lebih terstruktur (mis. Provider/Riverpod/Bloc) — saat ini
-  masih pakai `StatefulWidget` sederhana untuk kemudahan scaffold.
-- Refresh token / auto-logout saat token kedaluwarsa (401 handling di `ApiService`).
-- Validasi & error handling yang lebih lengkap (mis. retry saat gagal ambil lokasi/submit).
-- Splash screen / auto-login jika token tersimpan masih valid (cek via `AuthStorageService`).
-- Unit test & widget test tambahan untuk masing-masing screen/service.
+```bash
+flutter analyze
+flutter test
+```
+
+## Catatan platform
+
+- Android: minSdk 23+, AGP 8.9.1, Kotlin 2.1.0, Gradle 8.11.1. Izin: INTERNET,
+  ACCESS_NETWORK_STATE, CAMERA, ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION.
+- iOS: `NSCameraUsageDescription` dan `NSLocationWhenInUseUsageDescription` sudah diisi
+  (Bahasa Indonesia). Belum diuji di iOS.
+- `preferredCameraDevice: front` adalah permintaan ke aplikasi kamera; sebagian HP Android
+  mengabaikannya dan membuka kamera belakang. Galeri tidak pernah ditawarkan.

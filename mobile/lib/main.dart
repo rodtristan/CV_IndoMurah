@@ -2,27 +2,70 @@ import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'core/constants/app_colors.dart';
-import 'core/constants/app_strings.dart';
-import 'core/services/auth_storage_service.dart';
-import 'screens/auth/login_screen.dart';
-import 'screens/home/main_shell.dart';
+import 'services/app_controller.dart';
+import 'ui/login_page.dart';
+import 'ui/shell_page.dart';
+
+const String kAppName = 'Absensi CV IndoMurah';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Loads Indonesian date/time formatting symbols used across the app
-  // (e.g. `DateFormat('EEEE, d MMMM y', 'id_ID')` in AttendanceCard).
   await initializeDateFormatting('id_ID', null);
   runApp(const AbsensiApp());
+  AppController.instance.init();
 }
 
-/// Root widget for the "Toko CV IndoMurah" employee attendance app.
-class AbsensiApp extends StatelessWidget {
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+
+class AbsensiApp extends StatefulWidget {
   const AbsensiApp({super.key});
 
   @override
+  State<AbsensiApp> createState() => _AbsensiAppState();
+}
+
+class _AbsensiAppState extends State<AbsensiApp> {
+  final _c = AppController.instance;
+  AuthState _last = AuthState.unknown;
+
+  @override
+  void initState() {
+    super.initState();
+    _c.addListener(_onChange);
+  }
+
+  @override
+  void dispose() {
+    _c.removeListener(_onChange);
+    super.dispose();
+  }
+
+  void _onChange() {
+    // On logout / expired session close any open page (e.g. clock screen).
+    if (_last == AuthState.loggedIn && _c.authState == AuthState.loggedOut) {
+      rootNavigatorKey.currentState?.popUntil((r) => r.isFirst);
+    }
+    if (_last != _c.authState) {
+      _last = _c.authState;
+      setState(() {});
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final Widget home;
+    switch (_c.authState) {
+      case AuthState.unknown:
+        home = const Scaffold(body: Center(child: CircularProgressIndicator()));
+      case AuthState.loggedOut:
+        home = const LoginPage();
+      case AuthState.loggedIn:
+        home = const ShellPage();
+    }
+
     return MaterialApp(
-      title: AppStrings.appName,
+      title: kAppName,
+      navigatorKey: rootNavigatorKey,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -40,32 +83,10 @@ class AbsensiApp extends StatelessWidget {
         inputDecorationTheme: const InputDecorationTheme(
           filled: true,
           fillColor: AppColors.surface,
+          border: OutlineInputBorder(),
         ),
       ),
-      home: const _SplashGate(),
-    );
-  }
-}
-
-/// Checks stored-login state before showing anything else. This is the
-/// single gate into the app: no token → [LoginScreen], token present →
-/// [MainShell]. There is no guest/browse-without-login path.
-class _SplashGate extends StatelessWidget {
-  const _SplashGate();
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: AuthStorageService.instance.isLoggedIn(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Scaffold(
-            backgroundColor: AppColors.background,
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-        return snapshot.data! ? const MainShell() : const LoginScreen();
-      },
+      home: home,
     );
   }
 }
