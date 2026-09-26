@@ -72,7 +72,7 @@ export class TaxController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update Tax by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateTaxDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateTaxDto) {
     return super.patchById(id, dto);
   }
 
@@ -81,7 +81,7 @@ export class TaxController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateTaxDto>,
+    @Body() dto: UpdateTaxDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

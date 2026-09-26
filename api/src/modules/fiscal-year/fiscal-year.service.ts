@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma-service';
+import { openingRowsWhere } from '../../common/accounting/ledger';
 
 const PL_TYPES = ['REVENUE', 'EXPENSE', 'COST'];
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -19,7 +20,13 @@ export class FiscalYearService {
    */
   private async plLines(year: number) {
     const r = this.range(year);
-    return this.prisma.journalEntryLine.findMany({
+    const sel = { AccountID: true, Debit: true, Credit: true, Account: { select: { Type: { select: { Code: true } } } } } as const;
+    // OpeningBalance ACCOUNT rows are part of the ledger (see common/accounting/ledger.ts), so they count here too.
+    const obs = await this.prisma.openingBalance.findMany({
+      where: { ...(openingRowsWhere({ gte: r.gte }) as any), Date: { gte: r.gte, lt: r.lt }, Account: { Type: { Code: { in: PL_TYPES } } } },
+      select: sel,
+    });
+    const lines = await this.prisma.journalEntryLine.findMany({
       where: {
         Account: { Type: { Code: { in: PL_TYPES } } },
         JournalEntry: {
@@ -30,8 +37,9 @@ export class FiscalYearService {
           },
         },
       },
-      select: { AccountID: true, Debit: true, Credit: true, Account: { select: { Type: { select: { Code: true } } } } },
+      select: sel,
     });
+    return [...lines, ...obs.filter((o) => o.AccountID && o.Account).map((o) => ({ ...o, AccountID: o.AccountID!, Account: o.Account! }))];
   }
 
   private async plBalances(year: number) {

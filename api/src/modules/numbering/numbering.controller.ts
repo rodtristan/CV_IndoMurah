@@ -62,7 +62,7 @@ export class NumberingController extends BaseController<
   }
 
   @Patch(':id')
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateNumberingDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateNumberingDto) {
     return super.patchById(id, dto);
   }
 
@@ -70,7 +70,7 @@ export class NumberingController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateNumberingDto>,
+    @Body() dto: UpdateNumberingDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

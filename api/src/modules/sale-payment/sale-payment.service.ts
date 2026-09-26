@@ -6,6 +6,7 @@ import { Prisma } from '@prisma/client';
 import { CreateSalePaymentDto, UpdateSalePaymentDto } from './dto/sale-payment.dto';
 import { AutoJournalService, REF, Tx } from '../../common/accounting/auto-journal.service';
 import { DepositLedgerService } from '../../common/accounting/deposit-ledger.service';
+import { PartyBalanceService } from '../../common/stock/party-balance.service';
 import { ensureDepositMethod, isChequeInstrument, syncChequeMirror } from '../../common/accounting/payment-link';
 
 @Injectable()
@@ -19,6 +20,7 @@ export class SalePaymentService {
     private queryService: QueryService,
     private autoJournal: AutoJournalService,
     private deposits: DepositLedgerService,
+    private party: PartyBalanceService,
   ) {}
 
   async findAll(query: Record<string, any>) {
@@ -86,6 +88,13 @@ export class SalePaymentService {
     );
   }
 
+  /** Total of non-cancelled returns of the document (reduces what can still be paid). */
+  private returnsOf(parent: any): number {
+    return ((parent?.SaleReturns ?? []) as any[])
+      .filter((r) => (r.Status?.Code ?? '').toUpperCase() !== 'CANCELLED')
+      .reduce((a, r) => a + Number(r.TotalReturn), 0);
+  }
+
   // ─── writes: every change posts / reverses the SALE_PAYMENT journal, keeps the cek/BG mirror and deposit usage in sync ───
 
   private async resolveInstrument(tx: Tx, methodId: number | undefined, instrument: string | undefined, useDeposit?: boolean) {
@@ -115,13 +124,14 @@ export class SalePaymentService {
   }
 
   async create(dto: CreateSalePaymentDto, userId: string) {
-    const parent = await this.prisma.sale.findUnique({ where: { ID: dto.SaleID } });
+    const parent = await this.prisma.sale.findUnique({ where: { ID: dto.SaleID }, include: { SaleReturns: { select: { TotalReturn: true, Status: { select: { Code: true } } } } } });
     if (!parent) throw new NotFoundException('Sale not found');
+    const returned = this.returnsOf(parent);
 
     // Overpayment guard counts every payment, including cek/bg not yet cleared.
     const existing = await this.prisma.salePayment.findMany({ where: { SaleID: dto.SaleID } });
     const committed = existing.reduce((sum, p) => sum + Number(p.Amount), 0);
-    const remaining = Number(parent.Total) - committed;
+    const remaining = Number(parent.Total) - returned - committed;
     if (dto.Amount <= 0) throw new BadRequestException('Jumlah pembayaran harus lebih dari 0');
     if (dto.Amount > remaining + 0.005) {
       throw new BadRequestException(`Payment amount (${dto.Amount}) exceeds remaining amount (${remaining})`);
@@ -158,11 +168,11 @@ export class SalePaymentService {
     if (!payment) throw new NotFoundException('Sale payment not found');
 
     if (dto.Amount !== undefined) {
-      const parent = await this.prisma.sale.findUnique({ where: { ID: payment.SaleID } });
+      const parent = await this.prisma.sale.findUnique({ where: { ID: payment.SaleID }, include: { SaleReturns: { select: { TotalReturn: true, Status: { select: { Code: true } } } } } });
       const others = await this.prisma.salePayment.findMany({ where: { SaleID: payment.SaleID, NOT: { ID: id } } });
       const committed = others.reduce((sum, p) => sum + Number(p.Amount), 0);
       if (dto.Amount <= 0) throw new BadRequestException('Jumlah pembayaran harus lebih dari 0');
-      if (parent && dto.Amount + committed > Number(parent.Total) + 0.005) {
+      if (parent && dto.Amount + committed > Number(parent.Total) - this.returnsOf(parent) + 0.005) {
         throw new BadRequestException('Payment amount exceeds remaining amount');
       }
     }
@@ -317,24 +327,10 @@ export class SalePaymentService {
     return { data: serializedData, total, skip: prismaQuery.skip, take: prismaQuery.take };
   }
 
+  /** Paid/Remaining/status + Customer.TotalReceivable via PartyBalanceService (returns are subtracted). */
   private async updateSalePaymentStatus(tx: Tx, saleId: number) {
-    const sale = await tx.sale.findUnique({
-      where: { ID: saleId },
-      include: { SalePayments: true },
-    });
-    if (!sale) return;
-
-    // Only cleared payments (cash, deposit, or cek/bg marked lunas) count as paid.
-    const paidAmount = sale.SalePayments.filter((p) => p.IsCleared).reduce((sum, p) => sum + Number(p.Amount), 0);
-    const totalAmount = Number(sale.Total);
-
-    let code: 'PENDING' | 'PARTIAL' | 'PAID' = 'PENDING';
-    if (paidAmount > 0 && paidAmount < totalAmount) code = 'PARTIAL';
-    else if (paidAmount >= totalAmount && totalAmount > 0) code = 'PAID';
-
-    const status = await tx.paymentStatus.findUnique({ where: { Code: code } });
-    if (!status) throw new BadRequestException(`Payment status '${code}' tidak ditemukan`);
-    await tx.sale.update({ where: { ID: saleId }, data: { PaymentStatusID: status.ID } });
+    const o = await this.party.recalcSale(tx, saleId);
+    if (o) await this.party.recalcCustomer(tx, o.customerId);
   }
 
   private serialize(data: any): any {

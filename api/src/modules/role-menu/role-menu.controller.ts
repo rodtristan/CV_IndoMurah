@@ -72,7 +72,7 @@ export class RoleMenuController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update RoleMenu by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateRoleMenuDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateRoleMenuDto) {
     return super.patchById(id, dto);
   }
 
@@ -81,7 +81,7 @@ export class RoleMenuController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateRoleMenuDto>,
+    @Body() dto: UpdateRoleMenuDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

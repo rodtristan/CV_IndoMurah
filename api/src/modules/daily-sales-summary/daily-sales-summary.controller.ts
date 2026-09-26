@@ -72,7 +72,7 @@ export class DailySalesSummaryController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update DailySalesSummary by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateDailySalesSummaryDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateDailySalesSummaryDto) {
     return super.patchById(id, dto);
   }
 
@@ -81,7 +81,7 @@ export class DailySalesSummaryController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateDailySalesSummaryDto>,
+    @Body() dto: UpdateDailySalesSummaryDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

@@ -72,7 +72,7 @@ export class TransferController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update transfer by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateTransferDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateTransferDto) {
     return super.patchById(id, dto);
   }
 
@@ -81,7 +81,7 @@ export class TransferController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateTransferDto>,
+    @Body() dto: UpdateTransferDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

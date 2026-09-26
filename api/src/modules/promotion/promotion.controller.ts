@@ -80,7 +80,7 @@ export class PromotionController extends BaseController<
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update Promotion by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdatePromotionDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdatePromotionDto) {
     return super.patchById(id, dto);
   }
 
@@ -89,7 +89,7 @@ export class PromotionController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdatePromotionDto>,
+    @Body() dto: UpdatePromotionDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

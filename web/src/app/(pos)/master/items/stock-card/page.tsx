@@ -56,18 +56,23 @@ export default function StockCardPage() {
           endDate: values.dateTo || undefined,
         })
         .catch(() => ({ success: false, data: null } as any));
-      const mutations = res.success && res.data ? res.data.mutations || [] : [];
-      setRows(
-        mutations.map((m: any, i: number) => ({
+      const data = res.success && res.data ? res.data : null;
+      const mutations = data ? data.mutations || [] : [];
+      const opening: StockCardRow[] = data && values.dateFrom
+        ? [{ id: -1, date: String(values.dateFrom), reference: "-", description: "Saldo awal periode", masuk: 0, keluar: 0, saldo: Number(data.openingBalance) || 0 }]
+        : [];
+      setRows([
+        ...opening,
+        ...mutations.map((m: any, i: number) => ({
           id: i,
           date: m.date,
           reference: m.code,
-          description: `${m.description || ""} (${m.warehouseName})`.trim(),
+          description: [m.typeLabel || m.type, m.description, m.warehouseName ? `(${m.warehouseName})` : ""].filter(Boolean).join(" - "),
           masuk: m.qtyIn,
           keluar: m.qtyOut,
           saldo: m.balance,
         })),
-      );
+      ]);
     } finally {
       setLoading(false);
     }

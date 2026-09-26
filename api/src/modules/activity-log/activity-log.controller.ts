@@ -72,7 +72,7 @@ export class ActivityLogController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update ActivityLog by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateActivityLogDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateActivityLogDto) {
     return super.patchById(id, dto);
   }
 
@@ -81,7 +81,7 @@ export class ActivityLogController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateActivityLogDto>,
+    @Body() dto: UpdateActivityLogDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

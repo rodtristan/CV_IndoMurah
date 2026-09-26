@@ -72,7 +72,7 @@ export class NotificationSettingController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update NotificationSetting by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateNotificationSettingDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateNotificationSettingDto) {
     return super.patchById(id, dto);
   }
 
@@ -81,7 +81,7 @@ export class NotificationSettingController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateNotificationSettingDto>,
+    @Body() dto: UpdateNotificationSettingDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

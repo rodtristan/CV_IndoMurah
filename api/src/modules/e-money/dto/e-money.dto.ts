@@ -37,6 +37,11 @@ export class CreateEMoneyDto {
 }
 
 export class UpdateEMoneyDto {
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  Code?: string;
+
   @ApiPropertyOptional({ example: 'GoPay' })
   @IsString()
   @IsOptional()

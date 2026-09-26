@@ -72,7 +72,7 @@ export class CustomerController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update Customer by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateCustomerDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateCustomerDto) {
     return super.patchById(id, dto);
   }
 
@@ -81,7 +81,7 @@ export class CustomerController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateCustomerDto>,
+    @Body() dto: UpdateCustomerDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

@@ -72,7 +72,7 @@ export class ExpenseCategoryController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update expense category by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateExpenseCategoryDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateExpenseCategoryDto) {
     return super.patchById(id, dto);
   }
 
@@ -81,7 +81,7 @@ export class ExpenseCategoryController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateExpenseCategoryDto>,
+    @Body() dto: UpdateExpenseCategoryDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

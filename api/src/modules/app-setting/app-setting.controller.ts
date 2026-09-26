@@ -72,7 +72,7 @@ export class AppSettingController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update AppSetting by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateAppSettingDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateAppSettingDto) {
     return super.patchById(id, dto);
   }
 
@@ -81,7 +81,7 @@ export class AppSettingController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateAppSettingDto>,
+    @Body() dto: UpdateAppSettingDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

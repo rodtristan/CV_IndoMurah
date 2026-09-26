@@ -71,7 +71,7 @@ export class ShippingCostController extends BaseController<
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update Shipping Cost by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateShippingCostDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateShippingCostDto) {
     return super.patchById(id, dto);
   }
 
@@ -80,7 +80,7 @@ export class ShippingCostController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateShippingCostDto>,
+    @Body() dto: UpdateShippingCostDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

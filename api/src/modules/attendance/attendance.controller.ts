@@ -73,7 +73,7 @@ export class AttendanceController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update Attendance by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateAttendanceDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateAttendanceDto) {
     const data = await this.attendanceService.updateAttendance(Number(id), dto);
     return { success: true, data, message: 'Attendance updated successfully' };
   }
@@ -83,7 +83,7 @@ export class AttendanceController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateAttendanceDto>,
+    @Body() dto: UpdateAttendanceDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

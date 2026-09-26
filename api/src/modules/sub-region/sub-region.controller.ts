@@ -70,7 +70,7 @@ export class SubRegionController extends BaseController<
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update Sub Region by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateSubRegionDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateSubRegionDto) {
     return super.patchById(id, dto);
   }
 
@@ -79,7 +79,7 @@ export class SubRegionController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateSubRegionDto>,
+    @Body() dto: UpdateSubRegionDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

@@ -6,6 +6,7 @@ import { Prisma } from '@prisma/client';
 import { CreatePurchasePaymentDto, UpdatePurchasePaymentDto } from './dto/purchase-payment.dto';
 import { AutoJournalService, REF, Tx } from '../../common/accounting/auto-journal.service';
 import { DepositLedgerService } from '../../common/accounting/deposit-ledger.service';
+import { PartyBalanceService } from '../../common/stock/party-balance.service';
 import { ensureDepositMethod, isChequeInstrument, syncChequeMirror } from '../../common/accounting/payment-link';
 
 @Injectable()
@@ -19,6 +20,7 @@ export class PurchasePaymentService {
     private queryService: QueryService,
     private autoJournal: AutoJournalService,
     private deposits: DepositLedgerService,
+    private party: PartyBalanceService,
   ) {}
 
   async findAll(query: Record<string, any>) {
@@ -86,6 +88,13 @@ export class PurchasePaymentService {
     );
   }
 
+  /** Total of non-cancelled returns of the document (reduces what can still be paid). */
+  private returnsOf(parent: any): number {
+    return ((parent?.PurchaseReturns ?? []) as any[])
+      .filter((r) => (r.Status?.Code ?? '').toUpperCase() !== 'CANCELLED')
+      .reduce((a, r) => a + Number(r.TotalReturn), 0);
+  }
+
   // ─── writes: every change posts / reverses the PURCHASE_PAYMENT journal, keeps the cek/BG mirror and deposit usage in sync ───
 
   private async resolveInstrument(tx: Tx, methodId: number | undefined, instrument: string | undefined, useDeposit?: boolean) {
@@ -115,13 +124,14 @@ export class PurchasePaymentService {
   }
 
   async create(dto: CreatePurchasePaymentDto, userId: string) {
-    const parent = await this.prisma.purchase.findUnique({ where: { ID: dto.PurchaseID } });
+    const parent = await this.prisma.purchase.findUnique({ where: { ID: dto.PurchaseID }, include: { PurchaseReturns: { select: { TotalReturn: true, Status: { select: { Code: true } } } } } });
     if (!parent) throw new NotFoundException('Purchase not found');
+    const returned = this.returnsOf(parent);
 
     // Overpayment guard counts every payment, including cek/bg not yet cleared.
     const existing = await this.prisma.purchasePayment.findMany({ where: { PurchaseID: dto.PurchaseID } });
     const committed = existing.reduce((sum, p) => sum + Number(p.Amount), 0);
-    const remaining = Number(parent.Total) - committed;
+    const remaining = Number(parent.Total) - returned - committed;
     if (dto.Amount <= 0) throw new BadRequestException('Jumlah pembayaran harus lebih dari 0');
     if (dto.Amount > remaining + 0.005) {
       throw new BadRequestException(`Payment amount (${dto.Amount}) exceeds remaining amount (${remaining})`);
@@ -158,11 +168,11 @@ export class PurchasePaymentService {
     if (!payment) throw new NotFoundException('Purchase payment not found');
 
     if (dto.Amount !== undefined) {
-      const parent = await this.prisma.purchase.findUnique({ where: { ID: payment.PurchaseID } });
+      const parent = await this.prisma.purchase.findUnique({ where: { ID: payment.PurchaseID }, include: { PurchaseReturns: { select: { TotalReturn: true, Status: { select: { Code: true } } } } } });
       const others = await this.prisma.purchasePayment.findMany({ where: { PurchaseID: payment.PurchaseID, NOT: { ID: id } } });
       const committed = others.reduce((sum, p) => sum + Number(p.Amount), 0);
       if (dto.Amount <= 0) throw new BadRequestException('Jumlah pembayaran harus lebih dari 0');
-      if (parent && dto.Amount + committed > Number(parent.Total) + 0.005) {
+      if (parent && dto.Amount + committed > Number(parent.Total) - this.returnsOf(parent) + 0.005) {
         throw new BadRequestException('Payment amount exceeds remaining amount');
       }
     }
@@ -317,30 +327,11 @@ export class PurchasePaymentService {
     return { data: serializedData, total, skip: prismaQuery.skip, take: prismaQuery.take };
   }
 
+  /** Paid/Remaining/status + Supplier.TotalDebt via PartyBalanceService (returns are subtracted). */
   private async updatePurchasePaymentStatus(tx: Tx, purchaseId: number) {
-    const purchase = await tx.purchase.findUnique({
-      where: { ID: purchaseId },
-      include: { PurchasePayments: true },
-    });
-    if (!purchase) return;
-
-    // Only cleared payments (cash, deposit, or cek/bg marked lunas) count as paid.
-    const paidAmount = purchase.PurchasePayments.filter((p) => p.IsCleared).reduce((sum, p) => sum + Number(p.Amount), 0);
-    const totalAmount = Number(purchase.Total);
-
-    let code: 'PENDING' | 'PARTIAL' | 'PAID' = 'PENDING';
-    if (paidAmount > 0 && paidAmount < totalAmount) code = 'PARTIAL';
-    else if (paidAmount >= totalAmount && totalAmount > 0) code = 'PAID';
-
-    const paymentStatus = await tx.paymentStatus.findUnique({ where: { Code: code } });
-    await tx.purchase.update({
-      where: { ID: purchaseId },
-      data: {
-        PaymentStatusID: paymentStatus?.ID ?? purchase.PaymentStatusID,
-        Paid: new Prisma.Decimal(paidAmount.toString()),
-        Remaining: new Prisma.Decimal(Math.max(totalAmount - paidAmount, 0).toString()),
-      },
-    });
+    await this.party.recalcPurchase(tx, purchaseId);
+    const pu = await tx.purchase.findUnique({ where: { ID: purchaseId }, select: { SupplierID: true } });
+    if (pu) await this.party.recalcSupplier(tx, pu.SupplierID);
   }
 
   private serialize(data: any): any {

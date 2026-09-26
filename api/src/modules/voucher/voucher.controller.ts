@@ -72,7 +72,7 @@ export class VoucherController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update Voucher by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateVoucherDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateVoucherDto) {
     return super.patchById(id, dto);
   }
 
@@ -81,7 +81,7 @@ export class VoucherController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateVoucherDto>,
+    @Body() dto: UpdateVoucherDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

@@ -31,6 +31,11 @@ export class CreateSubRegionDto {
 }
 
 export class UpdateSubRegionDto {
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  Code?: string;
+
   @ApiPropertyOptional({ example: 'Jakarta Selatan' })
   @IsString()
   @IsOptional()

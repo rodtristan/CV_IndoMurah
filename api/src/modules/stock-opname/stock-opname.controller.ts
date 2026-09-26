@@ -74,7 +74,7 @@ export class StockOpnameController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update StockOpname by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateStockOpnameDto>, @CurrentUser() user?: any) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateStockOpnameDto, @CurrentUser() user?: any) {
     const data = await this.stockOpnameService.patchById(Number(id), dto);
     return { success: true, data, message: 'Data berhasil diperbarui' };
   }
@@ -84,7 +84,7 @@ export class StockOpnameController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateStockOpnameDto>,
+    @Body() dto: UpdateStockOpnameDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

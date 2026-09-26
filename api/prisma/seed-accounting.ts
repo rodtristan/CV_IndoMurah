@@ -40,7 +40,7 @@ const COA: Row[] = [
 
 // key Setting Perkiraan -> kode akun (lihat ACCOUNT_SETTING_KEYS di modul account-setting)
 const SETTINGS: Record<string, string> = {
-  cash: '1-1100', inventory: '1-1400', receivable: '1-1300', payable: '2-1100',
+  cash: '1-1100', bank: '1-1200', inventory: '1-1400', receivable: '1-1300', payable: '2-1100',
   sales: '4-1000', salesDiscount: '4-1100', cogs: '5-1000', salesReturn: '4-1200',
   purchaseReturn: '5-1200', vatOut: '2-1200', vatIn: '1-1500', custDeposit: '2-1300',
   suppDeposit: '1-1600', shipping: '6-1300', stockDiff: '5-1300', retained: '3-2000',

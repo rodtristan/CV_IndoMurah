@@ -26,6 +26,8 @@ interface EntityConfig {
   /** null = no import endpoint on the server yet (template + reference only). */
   endpoint: string | null;
   variant?: Variant;
+  /** Varian product-import yang dipakai saat mengirim baris hasil mapRow. */
+  importVariant?: Variant;
   columns: string[];
   template: string;
   mapRow?: (cells: string[], lookups: Lookups) => Row;
@@ -64,18 +66,18 @@ const ENTITIES: Record<EntityKey, EntityConfig> = {
     label: "Import Item Berdasarkan 1 Harga", desc: "Item dengan satu satuan dan satu harga jual",
     docColumns: ["Kode Item", "Barcode", "Nama Item", "Jenis", "Merk", "Satuan", "Harga Pokok", "Harga Jual", "Stok Awal", "Stok Minimum", "Tipe Item", "Rak", "Kantor", "Supplier", "Keterangan", "Point", "Komisi Sales"],
     required: ["Kode Item", "Nama Item", "Satuan"],
-    endpoint: "products",
+    // Dikirim ke product-import (1 satuan) supaya stok awal tercatat per gudang lewat buku stok.
+    endpoint: "product-import", importVariant: "unit",
     columns: ["code", "name", "categoryCode", "unitCode", "purchasePrice", "sellingPrice", "stock"],
     template: "code,name,categoryCode,unitCode,purchasePrice,sellingPrice,stock\nP001,Item Contoh,CAT1,PCS,1000,1500,10",
-    mapRow: (c, lookups) => ({
-      code: c[0]?.trim(),
-      name: c[1]?.trim(),
-      categoryId: lookups.category.get(c[2]?.trim().toUpperCase()),
-      unitId: lookups.unit.get(c[3]?.trim().toUpperCase()),
-      purchasePrice: Number(c[4]) || 0,
-      sellingPrice: Number(c[5]) || 0,
-      stock: Number(c[6]) || 0,
-    }),
+    mapRow: (c) => {
+      const item = {
+        code: c[0]?.trim() ?? "", name: c[1]?.trim() ?? "", category: c[2]?.trim() || undefined,
+        stock: Number(c[6]) || 0,
+        units: [{ unit: c[3]?.trim() ?? "", conversion: 1, purchasePrice: Number(c[4]) || 0, sellingPrice: Number(c[5]) || 0 }],
+      };
+      return { code: item.code, name: item.name, categoryCode: c[2]?.trim(), unitCode: c[3]?.trim(), purchasePrice: item.units[0].purchasePrice, sellingPrice: item.units[0].sellingPrice, stock: item.stock, _item: item };
+    },
   },
   unit: {
     variant: "unit",
@@ -158,24 +160,17 @@ export default function ImportDataPage() {
     if (config.variant) { setRows(mapVariantRows(parsed[0] ?? [], parsed.slice(1), config.variant)); return; }
     const dataRows = parsed.slice(1);
     const lookups: Lookups = { category: new Map(), unit: new Map() };
-    if (entity === "product") {
-      const [catRes, unitRes] = await Promise.all([
-        api.get<Row[]>("categories", { $take: 200 }).catch(() => null),
-        api.get<Row[]>("unit", { $take: 200 }).catch(() => null),
-      ]);
-      for (const cat of catRes?.data ?? []) lookups.category.set(String(cat.Code ?? cat.code).toUpperCase(), Number(cat.ID ?? cat.id));
-      for (const u of unitRes?.data ?? []) lookups.unit.set(String(u.Code ?? u.code).toUpperCase(), Number(u.ID ?? u.id));
-    }
     setRows(dataRows.map((cells) => config.mapRow!(cells, lookups)));
   };
 
   const handleImport = async () => {
     if (rows.length === 0 || !config.endpoint) return;
+    const sendVariant = config.variant ?? config.importVariant;
     setImporting(true);
     try {
       const res = await api.post<{ successCount: number; failedCount: number; failed?: { data: unknown; error: string }[] }>(
-        config.variant ? config.endpoint : `${config.endpoint}/bulk`,
-        config.variant ? { variant: config.variant, items: rows.map((r) => r._item) } : rows);
+        sendVariant ? config.endpoint : `${config.endpoint}/bulk`,
+        sendVariant ? { variant: sendVariant, items: rows.map((r) => r._item) } : rows);
       if (res.success && res.data) setResult({ successCount: res.data.successCount, failedCount: res.data.failedCount, failed: res.data.failed ?? [] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Import gagal");

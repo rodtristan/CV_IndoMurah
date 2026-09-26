@@ -1,7 +1,8 @@
 "use client";
 
 // Saldo Awal Item Barang: pick Dept/Gudang, add items with opening quantity + price, Simpan.
-// Backed by product-stock (Quantity per Product+Warehouse). Price / date are UI-only.
+// Backed by product-stock: selisih saldo dibukukan sebagai OPENING di StockLedger (kartu stok);
+// harga dipakai sebagai HPP masuk, tanggal sebagai tanggal mutasi.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
@@ -49,8 +50,9 @@ export default function OpeningStockPage() {
     try {
       for (const id of removed) await api.delete("product-stock", id);
       for (const l of lines) {
-        const body = { productId: l.productId, warehouseId: Number(warehouseId), quantity: num(l.qty) };
-        const r = l.psId ? await api.patch("product-stock", l.psId, { quantity: body.quantity }) : await api.post("product-stock", body);
+        const extra = { unitPrice: num(l.price), date: date ? new Date(date).toISOString() : undefined };
+        const body = { productId: l.productId, warehouseId: Number(warehouseId), quantity: num(l.qty), ...extra };
+        const r = l.psId ? await api.patch("product-stock", l.psId, { quantity: body.quantity, ...extra }) : await api.post("product-stock", body);
         if (r.success === false) throw new Error(r.message || "Gagal menyimpan");
       }
       setOk("Saldo awal tersimpan."); await load();
@@ -68,7 +70,7 @@ export default function OpeningStockPage() {
         ]} />
         <KRow cols={3}>
           <KSelect label="Dept/Gudang" value={warehouseId} onChange={setWarehouseId} options={whOpts} />
-          <KInput label="Tanggal Saldo Awal" type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)} hint="Tanggal tidak disimpan oleh API." />
+          <KInput label="Tanggal Saldo Awal" type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)} hint="Dipakai sebagai tanggal mutasi saldo awal di kartu stok." />
           <span />
         </KRow>
         <div className="overflow-x-auto border border-[#c9d0d8]">

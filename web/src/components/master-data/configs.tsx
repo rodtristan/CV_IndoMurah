@@ -8,6 +8,16 @@ import type { EntityConfig, ListColumn, FieldDef } from "./types";
 const str = (v: unknown) => (v === undefined || v === null ? "" : String(v));
 const num = (v: unknown) => (v === "" || v === undefined || v === null ? 0 : Number(v));
 
+/** "YYYY-MM-DD" from a date input -> full ISO timestamp (local start / end of day) for DateTime columns. */
+const dayStart = (d: string) => (d ? new Date(`${d}T00:00:00`).toISOString() : undefined);
+const dayEnd = (d: string) => (d ? new Date(`${d}T23:59:59.999`).toISOString() : undefined);
+/** ISO timestamp -> "YYYY-MM-DD" in local time for a date input. */
+const toDateInput = (v: unknown) => {
+  if (!v) return "";
+  const d = new Date(v as string);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
 const fmtDate = (v: unknown) => (v ? new Date(v as string).toLocaleDateString("id-ID") : "-");
 const codeCol: ListColumn = { key: "Code", label: "Kode", width: 140, render: (v) => <span className="font-mono text-xs">{str(v)}</span> };
 
@@ -74,7 +84,7 @@ export const unitConfig: EntityConfig = {
     title: "Data Satuan",
     fields: [
       { key: "name", label: "Nama Satuan", required: true, hint: "Ukuran / unit item barang, mis. PCS, DUS, PAK, BAL." },
-      { key: "abbreviation", label: "Singkatan", local: true, placeholder: "mis. pcs" },
+      { key: "abbreviation", label: "Singkatan", placeholder: "mis. pcs" },
       { key: "description", label: "Keterangan", type: "textarea", rows: 3, full: true },
       activeField,
       {
@@ -98,7 +108,7 @@ export const unitConfig: EntityConfig = {
   }],
   defaults: { name: "", abbreviation: "", description: "", isActive: true, conversions: [] },
   fromRow: (r) => ({ name: str(r.Name), abbreviation: str(r.Abbreviation), description: str(r.Description), isActive: r.IsActive !== false, conversions: [] }),
-  toPayload: (v) => ({ name: v.name.trim(), description: v.description || undefined, isActive: !!v.isActive }),
+  toPayload: (v) => ({ name: v.name.trim(), abbreviation: v.abbreviation?.trim() || undefined, description: v.description || undefined, isActive: !!v.isActive }),
 };
 
 // ─── Dept./Gudang ────────────────────────────────────────────────────
@@ -184,7 +194,7 @@ export const salePointConfig: EntityConfig = {
     fields: [
       { key: "name", label: "Nama Sale Point", required: true, hint: "Titik / konter penjualan (kasir)." },
       {
-        key: "warehouseId", label: "Dept./Gudang", type: "select", local: true,
+        key: "warehouseId", label: "Dept./Gudang", type: "select",
         optionsFrom: { endpoint: "warehouse", label: (r) => `${r.Code} - ${r.Name}` },
         hint: "Gudang sumber stok untuk sale point ini.",
       },
@@ -194,7 +204,7 @@ export const salePointConfig: EntityConfig = {
   }],
   defaults: { name: "", warehouseId: "", description: "", isActive: true },
   fromRow: (r) => ({ name: str(r.Name), warehouseId: str(r.WarehouseID), description: str(r.Description), isActive: r.IsActive !== false }),
-  toPayload: (v) => ({ name: v.name.trim(), description: v.description || undefined, isActive: !!v.isActive }),
+  toPayload: (v) => ({ name: v.name.trim(), warehouseId: v.warehouseId ? Number(v.warehouseId) : undefined, description: v.description || undefined, isActive: !!v.isActive }),
 };
 
 // ─── Grup Pelanggan ────────────────────────────────────────────────
@@ -261,7 +271,7 @@ export const regionConfig: EntityConfig = {
 
 export const subRegionConfig: EntityConfig = {
   singular: "Sub Wilayah", plural: "Daftar Sub Wilayah", basePath: "/master/sub-regions",
-  endpoint: "sub-region", codePrefix: "SWL", searchFields: ["code", "name"],
+  endpoint: "sub-region", codePrefix: "SWL", codeKey: "Code", searchFields: ["code", "name"], include: "region",
   columns: [codeCol, { key: "Name", label: "Nama Sub Wilayah" }, { key: "Region", label: "Wilayah", render: (_v, r) => r.Region?.Name ?? "-" }, descCol(), statusCol],
   sections: [{
     title: "Data Sub Wilayah",
@@ -278,7 +288,8 @@ export const subRegionConfig: EntityConfig = {
   }],
   defaults: { name: "", regionId: "", description: "", isActive: true },
   fromRow: (r) => ({ name: str(r.Name), regionId: str(r.RegionID ?? ""), description: str(r.Description), isActive: r.IsActive !== false }),
-  toPayload: (v) => ({ name: v.name.trim(), regionId: Number(v.regionId), description: v.description || undefined, isActive: !!v.isActive }),
+  // sub-region DTO is PascalCase (Code, Name, RegionID, ...).
+  toPayload: (v) => ({ Name: v.name.trim(), RegionID: Number(v.regionId), Description: v.description || undefined, IsActive: !!v.isActive }),
 };
 
 // ─── Promo ────────────────────────────────────────────────────────────
@@ -345,8 +356,8 @@ export const promoConfig: EntityConfig = {
     minPurchase: str(r.MinPurchase ?? 0),
     usageLimit: str(r.UsageLimit ?? 0),
     description: str(r.Description),
-    startDate: r.StartDate ? new Date(r.StartDate).toISOString().split("T")[0] : "",
-    endDate: r.EndDate ? new Date(r.EndDate).toISOString().split("T")[0] : "",
+    startDate: toDateInput(r.StartDate),
+    endDate: toDateInput(r.EndDate),
     isActive: r.IsActive !== false,
   }),
   toPayload: (v) => ({
@@ -358,8 +369,8 @@ export const promoConfig: EntityConfig = {
     minPurchase: num(v.minPurchase) || undefined,
     usageLimit: v.usageLimit ? parseInt(v.usageLimit) : undefined,
     description: v.description || undefined,
-    startDate: v.startDate,
-    endDate: v.endDate,
+    startDate: dayStart(v.startDate),
+    endDate: dayEnd(v.endDate),
     isActive: !!v.isActive,
   }),
   validate: (v): Record<string, string> => (v.startDate && v.endDate && v.endDate < v.startDate ? { endDate: "Tanggal akhir tidak boleh sebelum tanggal awal" } : {}),
@@ -402,8 +413,8 @@ export const voucherConfig: EntityConfig = {
     minPurchaseAmount: str(r.MinPurchaseAmount ?? 0),
     maxDiscountAmount: str(r.MaxDiscountAmount ?? 0),
     usageLimit: str(r.UsageLimit ?? 0),
-    startDate: r.StartDate ? new Date(r.StartDate).toISOString().split("T")[0] : "",
-    endDate: r.EndDate ? new Date(r.EndDate).toISOString().split("T")[0] : "",
+    startDate: toDateInput(r.StartDate),
+    endDate: toDateInput(r.EndDate),
     isActive: r.IsActive !== false,
   }),
   toPayload: (v) => ({
@@ -413,8 +424,8 @@ export const voucherConfig: EntityConfig = {
     minPurchaseAmount: num(v.minPurchaseAmount) || undefined,
     maxDiscountAmount: num(v.maxDiscountAmount) || undefined,
     usageLimit: v.usageLimit ? parseInt(v.usageLimit) : undefined,
-    startDate: v.startDate,
-    endDate: v.endDate,
+    startDate: dayStart(v.startDate),
+    endDate: dayEnd(v.endDate),
     isActive: !!v.isActive,
   }),
   validate: (v): Record<string, string> => (v.startDate && v.endDate && v.endDate < v.startDate ? { endDate: "Tanggal akhir tidak boleh sebelum tanggal awal" } : {}),
@@ -464,7 +475,7 @@ export const bankConfig: EntityConfig = {
 
 export const eMoneyConfig: EntityConfig = {
   singular: "E-Money", plural: "Daftar E-Money", basePath: "/master/e-money",
-  endpoint: "e-money", codePrefix: "EMN", searchFields: ["code", "name"],
+  endpoint: "e-money", codePrefix: "EMN", codeKey: "Code", searchFields: ["code", "name"],
   columns: [
     codeCol, { key: "Name", label: "Nama E-Money" },
     { key: "AccountNumber", label: "No. Akun", width: 150, render: (v) => str(v) || "-" },
@@ -489,18 +500,19 @@ export const eMoneyConfig: EntityConfig = {
     description: str(r.Description),
     isActive: r.IsActive !== false,
   }),
+  // e-money DTO is PascalCase.
   toPayload: (v) => ({
-    name: v.name.trim(),
-    accountNumber: v.accountNumber || undefined,
-    accountName: v.accountName || undefined,
-    description: v.description || undefined,
-    isActive: !!v.isActive,
+    Name: v.name.trim(),
+    AccountNumber: v.accountNumber || undefined,
+    AccountName: v.accountName || undefined,
+    Description: v.description || undefined,
+    IsActive: !!v.isActive,
   }),
 };
 
 export const shippingConfig: EntityConfig = {
   singular: "Ongkir", plural: "Daftar Ongkir", basePath: "/master/shipping-costs",
-  endpoint: "shipping-cost", codePrefix: "ONG", searchFields: ["code", "name"],
+  endpoint: "shipping-cost", codePrefix: "ONG", codeKey: "Code", searchFields: ["code", "name"], include: "region,subRegion",
   columns: [
     codeCol, { key: "Name", label: "Nama Expedisi" },
     { key: "Region", label: "Region", render: (_v, r) => r.Region?.Name ?? "-" },
@@ -539,13 +551,14 @@ export const shippingConfig: EntityConfig = {
     description: str(r.Description),
     isActive: r.IsActive !== false,
   }),
+  // shipping-cost DTO is PascalCase.
   toPayload: (v) => ({
-    name: v.name.trim(),
-    regionId: v.regionId ? Number(v.regionId) : undefined,
-    subRegionId: v.subRegionId ? Number(v.subRegionId) : undefined,
-    cost: num(v.cost),
-    estimatedDays: v.estimatedDays ? parseInt(v.estimatedDays) : undefined,
-    description: v.description || undefined,
-    isActive: !!v.isActive,
+    Name: v.name.trim(),
+    RegionID: v.regionId ? Number(v.regionId) : undefined,
+    SubRegionID: v.subRegionId ? Number(v.subRegionId) : undefined,
+    Cost: num(v.cost),
+    EstimatedDays: v.estimatedDays ? parseInt(v.estimatedDays) : undefined,
+    Description: v.description || undefined,
+    IsActive: !!v.isActive,
   }),
 };

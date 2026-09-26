@@ -1,6 +1,6 @@
-import { api } from "@/lib/api-client";
+import { api, API_BASE_URL } from "@/lib/api-client";
 
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000").replace(/\/$/, "");
+const API_BASE = API_BASE_URL.replace(/\/$/, "");
 export const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 export const IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
 

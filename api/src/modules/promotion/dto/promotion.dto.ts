@@ -1,6 +1,6 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNumber, IsDate } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 export class CreatePromotionDto {
   @ApiProperty({ description: 'Promotion code' })
@@ -38,12 +38,14 @@ export class CreatePromotionDto {
   maxDiscountAmount?: number;
 
   @ApiProperty({ description: 'Promotion start date' })
-  @IsDateString()
-  startDate: string;
+  @Type(() => Date)
+  @IsDate()
+  startDate: Date;
 
   @ApiProperty({ description: 'Promotion end date' })
-  @IsDateString()
-  endDate: string;
+  @Type(() => Date)
+  @IsDate()
+  endDate: Date;
 
   @ApiPropertyOptional({ description: 'Usage limit (null = unlimited)' })
   @IsOptional()
@@ -103,13 +105,15 @@ export class UpdatePromotionDto {
 
   @ApiPropertyOptional({ description: 'Promotion start date' })
   @IsOptional()
-  @IsDateString()
-  startDate?: string;
+  @Type(() => Date)
+  @IsDate()
+  startDate?: Date;
 
   @ApiPropertyOptional({ description: 'Promotion end date' })
   @IsOptional()
-  @IsDateString()
-  endDate?: string;
+  @Type(() => Date)
+  @IsDate()
+  endDate?: Date;
 
   @ApiPropertyOptional({ description: 'Usage limit' })
   @IsOptional()

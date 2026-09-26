@@ -21,7 +21,7 @@ export class BankService extends BaseService<
       primaryKey: 'ID',
       searchableFields: ['code', 'name', 'branch', 'accountNumber'],
       allowedIncludes: [],
-      allowedSortFields: ['code', 'name', 'sortOrder', 'createdAt'],
+      allowedSortFields: ['ID', 'Code', 'Name', 'SortOrder', 'CreatedAt', 'UpdatedAt'],
       allowedSelectFields: ['*'],
       defaultOrderBy: { SortOrder: 'asc' },
       maxTake: 100,

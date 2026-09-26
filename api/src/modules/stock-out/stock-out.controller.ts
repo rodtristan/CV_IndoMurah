@@ -74,7 +74,7 @@ export class StockOutController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update StockOut by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateStockOutDto>, @CurrentUser() user?: any) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateStockOutDto, @CurrentUser() user?: any) {
     const data = await this.stockOutService.patchById(Number(id), dto, user?.id);
     return { success: true, data, message: 'Data berhasil diperbarui' };
   }
@@ -84,7 +84,7 @@ export class StockOutController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateStockOutDto>,
+    @Body() dto: UpdateStockOutDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

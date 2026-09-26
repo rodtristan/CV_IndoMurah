@@ -72,7 +72,7 @@ export class PurchaseReturnItemController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update PurchaseReturnItem by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdatePurchaseReturnItemDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdatePurchaseReturnItemDto) {
     return super.patchById(id, dto);
   }
 
@@ -81,7 +81,7 @@ export class PurchaseReturnItemController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdatePurchaseReturnItemDto>,
+    @Body() dto: UpdatePurchaseReturnItemDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

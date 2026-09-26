@@ -72,7 +72,7 @@ export class StockAlertController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update StockAlert by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateStockAlertDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateStockAlertDto) {
     return super.patchById(id, dto);
   }
 
@@ -81,7 +81,7 @@ export class StockAlertController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateStockAlertDto>,
+    @Body() dto: UpdateStockAlertDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

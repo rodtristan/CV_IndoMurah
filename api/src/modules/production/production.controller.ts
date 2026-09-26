@@ -72,7 +72,7 @@ export class ProductionController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update Production by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateProductionDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateProductionDto) {
     return super.patchById(id, dto);
   }
 
@@ -81,7 +81,7 @@ export class ProductionController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateProductionDto>,
+    @Body() dto: UpdateProductionDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

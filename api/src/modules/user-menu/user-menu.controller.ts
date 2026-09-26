@@ -72,7 +72,7 @@ export class UserMenuController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update UserMenu by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateUserMenuDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateUserMenuDto) {
     return super.patchById(id, dto);
   }
 
@@ -81,7 +81,7 @@ export class UserMenuController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateUserMenuDto>,
+    @Body() dto: UpdateUserMenuDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

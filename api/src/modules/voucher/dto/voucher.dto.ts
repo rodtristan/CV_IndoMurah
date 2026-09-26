@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNumber, IsArray, ValidateNested, IsEnum, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -30,12 +30,14 @@ export class CreateVoucherDto {
   maxDiscountAmount?: number;
 
   @ApiProperty({ description: 'startDate' })
-  @IsDateString()
-  startDate: string;
+  @Type(() => Date)
+  @IsDate()
+  startDate: Date;
 
   @ApiProperty({ description: 'endDate' })
-  @IsDateString()
-  endDate: string;
+  @Type(() => Date)
+  @IsDate()
+  endDate: Date;
 
   @ApiPropertyOptional({ description: 'usageLimit' })
   @IsOptional()
@@ -87,10 +89,14 @@ export class UpdateVoucherDto {
 
   @ApiPropertyOptional({ description: 'startDate' })
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
   startDate?: Date;
 
   @ApiPropertyOptional({ description: 'endDate' })
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
   endDate?: Date;
 
   @ApiPropertyOptional({ description: 'usageLimit' })

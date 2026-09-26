@@ -62,7 +62,7 @@ export class CompanyController extends BaseController<
   }
 
   @Patch(':id')
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateCompanyDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateCompanyDto) {
     return super.patchById(id, dto);
   }
 
@@ -70,7 +70,7 @@ export class CompanyController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateCompanyDto>,
+    @Body() dto: UpdateCompanyDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

@@ -62,7 +62,7 @@ export class TestingController extends BaseController<
   }
 
   @Patch(':id')
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateTestingDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateTestingDto) {
     return super.patchById(id, dto);
   }
 
@@ -70,7 +70,7 @@ export class TestingController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateTestingDto>,
+    @Body() dto: UpdateTestingDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

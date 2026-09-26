@@ -63,7 +63,7 @@ export class PointRedemptionController extends BaseController<
   }
 
   @Patch(':id')
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdatePointRedemptionDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdatePointRedemptionDto) {
     return super.patchById(id, dto);
   }
 
@@ -71,7 +71,7 @@ export class PointRedemptionController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdatePointRedemptionDto>,
+    @Body() dto: UpdatePointRedemptionDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

@@ -99,7 +99,7 @@ export function EntityForm({ config, id, copyFrom }: { config: EntityConfig; id?
         if (hasCode) await createWithAutoCode(config.endpoint, config.codePrefix, config.codeKey ?? "code", payload);
         else await api.post(config.endpoint, payload);
       } else {
-        await api.patch(config.endpoint, id!, { ...payload, ...(hasCode ? { code } : {}) });
+        await api.patch(config.endpoint, id!, { ...payload, ...(hasCode ? { [config.codeKey ?? "code"]: code } : {}) });
       }
       toast.success(`${config.singular} tersimpan`);
       router.push(config.basePath);

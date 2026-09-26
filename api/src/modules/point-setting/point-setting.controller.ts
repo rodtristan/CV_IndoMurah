@@ -62,7 +62,7 @@ export class PointSettingController extends BaseController<
   }
 
   @Patch(':id')
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdatePointSettingDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdatePointSettingDto) {
     return super.patchById(id, dto);
   }
 
@@ -70,7 +70,7 @@ export class PointSettingController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdatePointSettingDto>,
+    @Body() dto: UpdatePointSettingDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

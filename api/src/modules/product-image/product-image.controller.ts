@@ -72,7 +72,7 @@ export class ProductImageController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update ProductImage by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateProductImageDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateProductImageDto) {
     return super.patchById(id, dto);
   }
 
@@ -81,7 +81,7 @@ export class ProductImageController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateProductImageDto>,
+    @Body() dto: UpdateProductImageDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

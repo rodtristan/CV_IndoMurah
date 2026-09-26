@@ -8,7 +8,6 @@ import { KCard, KInfoBox, KInput, KSelect, KRow } from "@/components/kform";
 import { DocActions, ItemPicker, KReadOnly, fmt, nowLocal, num, useList, type Row } from "@/components/kform/erp";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { api } from "@/lib/api-client";
-import { inventoryApi } from "@/lib/business-logic-api";
 import { cn } from "@/lib/utils";
 
 interface Line {
@@ -108,7 +107,8 @@ export default function FixBalancePage() {
         notes: "Perbaikan Saldo Stok",
       };
 
-      await inventoryApi.fixBalance(body);
+      const r = await api.post("stock-balance/adjust", { ...body, date: date ? new Date(date).toISOString() : undefined });
+      if (r.success === false) throw new Error(r.message || "Gagal menyimpan");
       setOk(`Saldo berhasil diperbaiki. ${positiveCount} item bertambah, ${negativeCount} item berkurang.`);
       await load();
     } catch (e: any) {
@@ -130,7 +130,7 @@ export default function FixBalancePage() {
         ]} />
         <KRow cols={3}>
           <KSelect label="Dept/Gudang" value={warehouseId} onChange={setWarehouseId} options={whOpts} />
-          <KInput label="Tanggal" type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)} hint="Tanggal tidak disimpan oleh API." />
+          <KInput label="Tanggal" type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)} hint="Tanggal mutasi penyesuaian di kartu stok." />
           <span />
         </KRow>
         <div className="overflow-x-auto border border-[#c9d0d8]">

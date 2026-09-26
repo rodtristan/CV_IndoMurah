@@ -84,7 +84,7 @@ export class ProductStockController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateProductStockDto>,
+    @Body() dto: UpdateProductStockDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

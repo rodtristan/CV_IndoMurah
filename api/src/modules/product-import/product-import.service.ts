@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma-service';
+import { StockLedgerService } from '../../common/stock/stock-ledger.service';
 
 export interface ImportUnitDto {
   unit: string; // unit Code or Name
@@ -35,9 +36,12 @@ const eq = (a?: string | null, b?: string | null) => !!a && !!b && a.trim().toLo
 
 @Injectable()
 export class ProductImportService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ledger: StockLedgerService,
+  ) {}
 
-  async import(body: ImportBody) {
+  async import(body: ImportBody, userId?: string) {
     const [units, cats, brands, whs] = await Promise.all([
       this.prisma.unit.findMany(),
       this.prisma.category.findMany(),
@@ -75,7 +79,7 @@ export class ProductImportService {
               UnitID: base.unit.ID, WarehouseID: wh?.ID ?? null,
               PurchasePrice: D(base.u.purchasePrice),
               SellingPrice: D(body.variant === 'level' ? base.u.levelPrices?.[0] ?? base.u.sellingPrice : base.u.sellingPrice ?? base.u.qtyTiers?.[0]?.price),
-              Stock: D(stock), MinimumStock: D(it.minStock), Description: it.description || null,
+              Stock: D(0), MinimumStock: D(it.minStock), Description: it.description || null,
             },
           });
           for (let i = 0; i < resolved.length; i++) {
@@ -105,11 +109,11 @@ export class ProductImportService {
               }
             }
           }
-          if (wh && stock !== 0) {
-            await tx.productStock.upsert({
-              where: { ProductID_WarehouseID: { ProductID: product.ID, WarehouseID: wh.ID } },
-              update: { Quantity: D(stock) },
-              create: { ProductID: product.ID, WarehouseID: wh.ID, Quantity: D(stock), MinimumStock: D(it.minStock) },
+          if (stock !== 0) {
+            // Stok awal lewat buku stok supaya ProductStock, Product.Stock dan kartu stok konsisten.
+            await this.ledger.move(tx, {
+              productId: product.ID, warehouseId: wh?.ID ?? null, qty: stock, refType: 'OPENING',
+              refCode: 'IMPORT', unitCost: D(base.u.purchasePrice), notes: 'Stok awal dari import', userId: userId ?? null,
             });
           }
         });

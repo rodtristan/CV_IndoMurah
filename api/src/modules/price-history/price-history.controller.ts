@@ -72,7 +72,7 @@ export class PriceHistoryController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update PriceHistory by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdatePriceHistoryDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdatePriceHistoryDto) {
     return super.patchById(id, dto);
   }
 
@@ -81,7 +81,7 @@ export class PriceHistoryController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdatePriceHistoryDto>,
+    @Body() dto: UpdatePriceHistoryDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

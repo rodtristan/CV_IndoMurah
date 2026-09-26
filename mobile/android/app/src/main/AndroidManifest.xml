@@ -13,13 +13,14 @@
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
     <uses-feature android:name="android.hardware.camera.front" android:required="false"/>
 
-    <!-- usesCleartextTraffic: allows http:// for a local dev API (10.0.2.2 / LAN IP).
-         Production uses https. -->
+    <!-- Cleartext (http://) is NOT allowed here: release/profile builds only talk
+         to the API over https. The debug manifest (src/debug) enables cleartext
+         for a local dev API (10.0.2.2 / LAN IP). -->
     <application
         android:label="Absensi IndoMurah"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="false">
         <activity
             android:name=".MainActivity"
             android:exported="true"

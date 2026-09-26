@@ -19,6 +19,11 @@ export class CreateSalePointDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ description: 'Warehouse (stock source) ID' })
+  @IsOptional()
+  @IsInt()
+  warehouseId?: number;
 }
 
 export class UpdateSalePointDto {
@@ -41,4 +46,9 @@ export class UpdateSalePointDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ description: 'Warehouse (stock source) ID' })
+  @IsOptional()
+  @IsInt()
+  warehouseId?: number;
 }

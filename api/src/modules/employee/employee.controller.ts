@@ -73,7 +73,7 @@ export class EmployeeController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update Employee by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateEmployeeDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateEmployeeDto) {
     const data = await this.employeeService.updateEmployee(Number(id), dto);
     return { success: true, data, message: 'Employee updated successfully' };
   }
@@ -83,7 +83,7 @@ export class EmployeeController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateEmployeeDto>,
+    @Body() dto: UpdateEmployeeDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

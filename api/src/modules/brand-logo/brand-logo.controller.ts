@@ -72,7 +72,7 @@ export class BrandLogoController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update BrandLogo by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateBrandLogoDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateBrandLogoDto) {
     return super.patchById(id, dto);
   }
 
@@ -81,7 +81,7 @@ export class BrandLogoController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateBrandLogoDto>,
+    @Body() dto: UpdateBrandLogoDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

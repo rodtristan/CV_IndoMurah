@@ -72,7 +72,7 @@ export class ShelfController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update Shelf by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateShelfDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateShelfDto) {
     return super.patchById(id, dto);
   }
 
@@ -81,7 +81,7 @@ export class ShelfController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateShelfDto>,
+    @Body() dto: UpdateShelfDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

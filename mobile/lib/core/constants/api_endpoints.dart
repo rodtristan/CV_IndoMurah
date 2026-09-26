@@ -12,10 +12,29 @@
 class ApiEndpoints {
   ApiEndpoints._();
 
+  /// Emulator default, used only when no `--dart-define=API_BASE_URL` is given.
+  static const String devDefaultBaseUrl = 'http://10.0.2.2:5000/api/v1';
+
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:5000/api/v1',
+    defaultValue: devDefaultBaseUrl,
   );
+
+  /// Release builds must be given a real https API URL at build time.
+  /// Returns an error message when the configuration is not usable, or
+  /// `null` when it is fine. Debug/profile builds are not checked.
+  static String? releaseConfigError({required bool isRelease}) {
+    if (!isRelease) return null;
+    if (baseUrl == devDefaultBaseUrl || baseUrl.trim().isEmpty) {
+      return 'API_BASE_URL belum diatur. Build rilis wajib memakai '
+          '--dart-define=API_BASE_URL=https://<server>/api/v1';
+    }
+    final uri = Uri.tryParse(baseUrl);
+    if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
+      return 'API_BASE_URL untuk build rilis harus https:// (sekarang: $baseUrl)';
+    }
+    return null;
+  }
 
   static const String _mobile = '$baseUrl/attendance-mobile';
 

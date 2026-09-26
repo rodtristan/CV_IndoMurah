@@ -21,7 +21,7 @@ export class PromotionService extends BaseService<
       primaryKey: 'ID',
       searchableFields: ['code', 'name', 'description'],
       allowedIncludes: [],
-      allowedSortFields: ['code', 'name', 'startDate', 'endDate', 'createdAt'],
+      allowedSortFields: ['ID', 'Code', 'Name', 'StartDate', 'EndDate', 'CreatedAt', 'UpdatedAt'],
       allowedSelectFields: ['*'],
       defaultOrderBy: { StartDate: 'desc' },
       maxTake: 100,

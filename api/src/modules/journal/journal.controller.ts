@@ -69,7 +69,7 @@ export class JournalController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update Journal by ID (pass `entries` to replace all debit/credit lines atomically)' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateJournalDto>, @CurrentUser() user?: any) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateJournalDto, @CurrentUser() user?: any) {
     const data = await this.journalService.updateJournal(Number(id), dto, user.id);
     return { success: true, data, message: 'Journal updated successfully' };
   }

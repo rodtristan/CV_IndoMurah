@@ -749,152 +749,74 @@ export class ReportService {
   // ─── Stock Mutation Report (Kartu Stok / Mutasi Stok) ──────────────────────
 
   async stockMutationReport(filter: StockMutationFilterDto): Promise<StockMutationResponseDto> {
-    const cacheKey = `${this.CACHE_PREFIX}:stock-mutation:${JSON.stringify(filter)}`;
-    const cached = await this.redis.get(cacheKey);
-    if (cached) return JSON.parse(cached);
-
+    // Kartu stok dibaca dari StockLedger: semua jenis mutasi (penjualan, pembelian, retur,
+    // barang masuk/keluar, transfer, opname, saldo awal, penyesuaian) dalam satuan dasar.
     const product = await this.prisma.product.findUnique({ where: { ID: filter.productId } });
     if (!product) {
       throw new NotFoundException('Product not found');
     }
 
     const startDate = filter.startDate ? new Date(filter.startDate) : undefined;
-    const endDate = filter.endDate ? new Date(filter.endDate + 'T23:59:59') : undefined;
-    const warehouseFilter = filter.warehouseId;
+    const endDate = filter.endDate ? new Date(String(filter.endDate).slice(0, 10) + 'T23:59:59.999') : undefined;
+    const base: any = { ProductID: filter.productId };
+    if (filter.warehouseId) base.WarehouseID = filter.warehouseId;
 
-    type RawMove = {
-      date: Date;
-      type: 'IN' | 'OUT' | 'TRANSFER_IN' | 'TRANSFER_OUT' | 'OPNAME';
-      code: string;
-      warehouseName: string;
-      description: string | null;
-      qty: number;
+    const LABEL: Record<string, string> = {
+      SALE: 'Penjualan', SALE_RETURN: 'Retur Penjualan', PURCHASE: 'Pembelian', PURCHASE_RETURN: 'Retur Pembelian',
+      STOCK_IN: 'Barang Masuk', STOCK_OUT: 'Barang Keluar', TRANSFER_IN: 'Transfer Masuk', TRANSFER_OUT: 'Transfer Keluar',
+      OPNAME: 'Stock Opname', OPENING: 'Saldo Awal', ADJUST: 'Penyesuaian',
     };
 
-    const moves: RawMove[] = [];
-
-    const stockIns = await this.prisma.stockInItem.findMany({
-      where: {
-        ProductID: filter.productId,
-        StockIn: warehouseFilter ? { WarehouseID: warehouseFilter } : undefined,
-      },
-      include: { StockIn: { include: { Warehouse: true } } },
-    });
-    for (const item of stockIns) {
-      moves.push({
-        date: item.StockIn.Date,
-        type: 'IN',
-        code: item.StockIn.Code,
-        warehouseName: item.StockIn.Warehouse.Name,
-        description: item.StockIn.Description,
-        qty: Number(item.Quantity),
-      });
+    let openingBalance = 0;
+    if (startDate) {
+      const agg = await this.prisma.stockLedger.aggregate({ where: { ...base, Date: { lt: startDate } }, _sum: { QtyIn: true, QtyOut: true } });
+      openingBalance = Number(agg._sum.QtyIn ?? 0) - Number(agg._sum.QtyOut ?? 0);
     }
-
-    const stockOuts = await this.prisma.stockOutItem.findMany({
-      where: {
-        ProductID: filter.productId,
-        StockOut: warehouseFilter ? { WarehouseID: warehouseFilter } : undefined,
-      },
-      include: { StockOut: { include: { Warehouse: true } } },
+    const dateWhere: any = {};
+    if (startDate) dateWhere.gte = startDate;
+    if (endDate) dateWhere.lte = endDate;
+    const rows = await this.prisma.stockLedger.findMany({
+      where: { ...base, ...(startDate || endDate ? { Date: dateWhere } : {}) },
+      include: { Warehouse: { select: { Name: true } } },
+      orderBy: [{ Date: 'asc' }, { ID: 'asc' }],
     });
-    for (const item of stockOuts) {
-      moves.push({
-        date: item.StockOut.Date,
-        type: 'OUT',
-        code: item.StockOut.Code,
-        warehouseName: item.StockOut.Warehouse.Name,
-        description: item.StockOut.Description,
-        qty: Number(item.Quantity),
-      });
-    }
-
-    const transfers = await this.prisma.stockTransferItem.findMany({
-      where: { ProductID: filter.productId },
-      include: { StockTransfer: { include: { FromWarehouse: true, ToWarehouse: true } } },
-    });
-    for (const item of transfers) {
-      const t = item.StockTransfer;
-      const qty = Number(item.Quantity);
-      if (!warehouseFilter || t.FromWarehouseID === warehouseFilter) {
-        moves.push({
-          date: t.Date, type: 'TRANSFER_OUT', code: t.Code,
-          warehouseName: t.FromWarehouse.Name, description: t.Notes, qty,
-        });
-      }
-      if (!warehouseFilter || t.ToWarehouseID === warehouseFilter) {
-        moves.push({
-          date: t.Date, type: 'TRANSFER_IN', code: t.Code,
-          warehouseName: t.ToWarehouse.Name, description: t.Notes, qty,
-        });
-      }
-    }
-
-    const opnames = await this.prisma.stockOpnameItem.findMany({
-      where: {
-        ProductID: filter.productId,
-        StockOpname: warehouseFilter ? { WarehouseID: warehouseFilter } : undefined,
-      },
-      include: { StockOpname: { include: { Warehouse: true } } },
-    });
-    for (const item of opnames) {
-      moves.push({
-        date: item.StockOpname.Date,
-        type: 'OPNAME',
-        code: item.StockOpname.Code,
-        warehouseName: item.StockOpname.Warehouse.Name,
-        description: item.Note,
-        qty: Number(item.Difference),
-      });
-    }
-
-    moves.sort((a, b) => a.date.getTime() - b.date.getTime());
-
-    const isInbound = (type: RawMove['type'], qty: number) =>
-      type === 'IN' || type === 'TRANSFER_IN' || (type === 'OPNAME' && qty >= 0);
-
-    const beforePeriod = startDate ? moves.filter((m) => m.date < startDate) : [];
-    const openingBalance = beforePeriod.reduce((bal, m) => {
-      const qty = Math.abs(m.qty);
-      return bal + (isInbound(m.type, m.qty) ? qty : -qty);
-    }, 0);
-
-    const inPeriod = moves.filter(
-      (m) => (!startDate || m.date >= startDate) && (!endDate || m.date <= endDate),
-    );
 
     let balance = openingBalance;
     let totalIn = 0;
     let totalOut = 0;
-    const mutations = inPeriod.map((m) => {
-      const qty = Math.abs(m.qty);
-      const inbound = isInbound(m.type, m.qty);
-      if (inbound) { balance += qty; totalIn += qty; } else { balance -= qty; totalOut += qty; }
+    const mutations = rows.map((r) => {
+      const qin = Number(r.QtyIn);
+      const qout = Number(r.QtyOut);
+      balance += qin - qout;
+      totalIn += qin;
+      totalOut += qout;
       return {
-        date: m.date.toISOString().split('T')[0],
-        type: m.type,
-        code: m.code,
-        warehouseName: m.warehouseName,
-        description: m.description,
-        qtyIn: inbound ? qty : 0,
-        qtyOut: inbound ? 0 : qty,
-        balance,
+        date: r.Date.toISOString(),
+        type: r.RefType,
+        typeLabel: LABEL[r.RefType] ?? r.RefType,
+        code: r.RefCode ?? '-',
+        refId: r.RefID,
+        warehouseId: r.WarehouseID,
+        warehouseName: r.Warehouse?.Name ?? '',
+        description: r.Notes,
+        qtyIn: qin,
+        qtyOut: qout,
+        unitCost: Number(r.UnitCost),
+        balance: Math.round(balance * 1000) / 1000,
+        warehouseBalanceAfter: Number(r.BalanceAfter),
       };
     });
 
-    const result: StockMutationResponseDto = {
+    return {
       productId: product.ID,
       productCode: product.Code,
       productName: product.Name,
       openingBalance,
-      closingBalance: balance,
+      closingBalance: Math.round(balance * 1000) / 1000,
       totalIn,
       totalOut,
       mutations,
     };
-
-    await this.redis.set(cacheKey, JSON.stringify(result), this.CACHE_TTL);
-    return result;
   }
 
   // ─── Sales Summary (chart: sales vs purchases vs profit per day) ──────────

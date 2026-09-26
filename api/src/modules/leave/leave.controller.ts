@@ -72,7 +72,7 @@ export class LeaveController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update Leave by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateLeaveDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateLeaveDto) {
     return super.patchById(id, dto);
   }
 
@@ -81,7 +81,7 @@ export class LeaveController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateLeaveDto>,
+    @Body() dto: UpdateLeaveDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

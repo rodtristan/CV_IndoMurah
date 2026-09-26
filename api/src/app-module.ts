@@ -183,7 +183,6 @@ import { ReportEngineModule } from './modules/report-engine/report-engine.module
 // BackupModule sengaja TIDAK didaftarkan: implementasinya hanya men-dump 10 tabel
 // ke JSON di disk container (hilang saat redeploy) dan restore-nya placeholder.
 // Backup produksi = backup Postgres terkelola (Railway Backups / pg_dump).
-import { ImportModule } from './modules/import/import.module';
 import { BalanceRepairModule } from './modules/balance-repair/balance-repair.module';
 
 // ── Business Logic Modules ──────────────────────────────────────────────
@@ -402,7 +401,7 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
     ReportEngineModule,
     FileStorageModule,
     AttendanceMobileModule,
-    ImportModule,
+    // ImportModule dicabut: duplikat product-import dan menimpa stok berjalan (tidak dipakai web).
     BalanceRepairModule,
 
     // Business Logic Modules (see comment above the imports above)

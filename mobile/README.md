@@ -74,8 +74,8 @@ Base URL API diatur saat build dengan `--dart-define=API_BASE_URL=...`
 | Produksi | `flutter run --dart-define=API_BASE_URL=https://cvindomurah.up.railway.app/api/v1` |
 
 Untuk HP fisik: pastikan API listen di `0.0.0.0` (bukan hanya localhost) dan port 5000 diizinkan
-Windows Firewall. HTTP (non-https) diizinkan lewat `android:usesCleartextTraffic="true"` untuk
-kebutuhan development.
+Windows Firewall. HTTP (non-https) **hanya diizinkan di build debug** (`android/app/src/debug/AndroidManifest.xml`
+mengaktifkan `usesCleartextTraffic`); build release/profile hanya boleh https.
 
 Uji mode offline: matikan WiFi & data seluler, lakukan Clock In, lalu nyalakan lagi — antrean
 terkirim otomatis dan badge "Menunggu sinkron" hilang.
@@ -91,8 +91,42 @@ flutter build apk --release --dart-define=API_BASE_URL=https://cvindomurah.up.ra
 ```
 
 Hasil: `build/app/outputs/flutter-apk/app-release.apk` (atau `app-debug.apk`).
-Release saat ini masih ditandatangani dengan debug key (lihat `android/app/build.gradle.kts`);
-buat keystore sendiri sebelum distribusi resmi / Play Store.
+
+Aturan build release:
+
+- `--dart-define=API_BASE_URL=https://...` **wajib**. Jika tidak diisi (masih default emulator)
+  atau bukan https, aplikasi release langsung menampilkan layar "Konfigurasi aplikasi tidak valid"
+  saat dibuka dan tidak memanggil API.
+- Release **tidak pernah** ditandatangani dengan debug key. Tanpa `android/key.properties`
+  build release gagal dengan pesan yang jelas.
+
+### Rilis (APK bertanda tangan)
+
+1. Buat keystore sekali saja (simpan file & password di tempat aman — kehilangan keystore berarti
+   tidak bisa lagi merilis update dengan package name yang sama):
+
+   ```bash
+   keytool -genkey -v -keystore android/upload-keystore.jks      -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+   ```
+
+2. Buat `android/key.properties` (sudah di-.gitignore, **jangan di-commit**):
+
+   ```properties
+   storePassword=<password keystore>
+   keyPassword=<password key>
+   keyAlias=upload
+   storeFile=upload-keystore.jks
+   ```
+
+   `storeFile` relatif terhadap folder `android/`. File `*.jks`/`*.keystore` juga di-.gitignore.
+
+3. Build:
+
+   ```bash
+   flutter build apk --release --dart-define=API_BASE_URL=https://cvindomurah.up.railway.app/api/v1
+   # atau untuk Play Store:
+   flutter build appbundle --release --dart-define=API_BASE_URL=https://cvindomurah.up.railway.app/api/v1
+   ```
 
 ## Tes & analisis
 

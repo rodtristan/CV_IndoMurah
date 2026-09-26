@@ -72,7 +72,7 @@ export class StockInItemController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update StockInItem by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateStockInItemDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateStockInItemDto) {
     return super.patchById(id, dto);
   }
 
@@ -81,7 +81,7 @@ export class StockInItemController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateStockInItemDto>,
+    @Body() dto: UpdateStockInItemDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

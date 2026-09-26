@@ -282,13 +282,18 @@ export class StockMutationResponseDto {
   totalOut: number;
   mutations: Array<{
     date: string;
-    type: 'IN' | 'OUT' | 'TRANSFER_IN' | 'TRANSFER_OUT' | 'OPNAME';
+    type: string;
+    typeLabel: string;
     code: string;
+    refId: number | null;
+    warehouseId: number;
     warehouseName: string;
     description: string | null;
     qtyIn: number;
     qtyOut: number;
+    unitCost: number;
     balance: number;
+    warehouseBalanceAfter: number;
   }>;
 }
 

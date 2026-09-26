@@ -72,7 +72,7 @@ export class AssetController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update Asset by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateAssetDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateAssetDto) {
     return super.patchById(id, dto);
   }
 
@@ -81,7 +81,7 @@ export class AssetController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateAssetDto>,
+    @Body() dto: UpdateAssetDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

@@ -72,7 +72,7 @@ export class UnitController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update Unit by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateUnitDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateUnitDto) {
     return super.patchById(id, dto);
   }
 
@@ -81,7 +81,7 @@ export class UnitController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateUnitDto>,
+    @Body() dto: UpdateUnitDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

@@ -72,7 +72,7 @@ export class AssetCategoryController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update AssetCategory by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateAssetCategoryDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateAssetCategoryDto) {
     return super.patchById(id, dto);
   }
 
@@ -81,7 +81,7 @@ export class AssetCategoryController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateAssetCategoryDto>,
+    @Body() dto: UpdateAssetCategoryDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

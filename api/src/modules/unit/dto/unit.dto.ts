@@ -19,6 +19,11 @@ export class CreateUnitDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ description: 'Abbreviation, e.g. pcs' })
+  @IsOptional()
+  @IsString()
+  abbreviation?: string;
 }
 
 export class UpdateUnitDto {
@@ -41,4 +46,9 @@ export class UpdateUnitDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ description: 'Abbreviation, e.g. pcs' })
+  @IsOptional()
+  @IsString()
+  abbreviation?: string;
 }

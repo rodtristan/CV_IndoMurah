@@ -46,6 +46,11 @@ export class CreateShippingCostDto {
 }
 
 export class UpdateShippingCostDto {
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  Code?: string;
+
   @ApiPropertyOptional({ example: 'JNE Regular' })
   @IsString()
   @IsOptional()

@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma-service';
+import { RedisService } from '../redis/redis-service';
 import { ACCOUNT_KEY_LABELS } from './account-keys';
 
 export type Tx = Prisma.TransactionClient;
@@ -57,7 +58,24 @@ const CASH_CODES = ['CASH', 'TUNAI'];
  */
 @Injectable()
 export class AutoJournalService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
+  ) {}
+
+  private invalidateTimer: NodeJS.Timeout | null = null;
+  /**
+   * Journal/account list caches (BaseService, Redis prefix 'journal:' / 'account:') are dropped shortly after a
+   * posting, i.e. after the caller's transaction has normally committed (callers may also invalidate themselves).
+   */
+  private scheduleInvalidate() {
+    if (this.invalidateTimer) return;
+    this.invalidateTimer = setTimeout(() => {
+      this.invalidateTimer = null;
+      void this.redis.invalidatePattern('journal:*').catch(() => undefined);
+      void this.redis.invalidatePattern('account:*').catch(() => undefined);
+    }, 750);
+  }
 
   // ───────────────────────────── core ─────────────────────────────
 
@@ -144,6 +162,7 @@ export class AutoJournalService {
     }
     await this.assertOpenPeriod(tx, input.date);
     const code = await this.nextCode(tx, input.date);
+    this.scheduleInvalidate();
     return tx.journal.create({
       data: {
         Code: code,
@@ -212,6 +231,7 @@ export class AutoJournalService {
     if (!js.length) return 0;
     for (const j of js) await this.assertOpenPeriod(tx, j.Date);
     const ids = js.map((j) => j.ID);
+    this.scheduleInvalidate();
     await tx.journalEntry.deleteMany({ where: { JournalID: { in: ids } } }); // lines cascade
     await tx.journal.deleteMany({ where: { ID: { in: ids } } });
     return ids.length;

@@ -72,7 +72,7 @@ export class UserRoleController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update UserRole by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateUserRoleDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateUserRoleDto) {
     return super.patchById(id, dto);
   }
 
@@ -81,7 +81,7 @@ export class UserRoleController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateUserRoleDto>,
+    @Body() dto: UpdateUserRoleDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

@@ -74,7 +74,7 @@ export class StockTransferController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update StockTransfer by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateStockTransferDto>, @CurrentUser() user?: any) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateStockTransferDto, @CurrentUser() user?: any) {
     const data = await this.stockTransferService.patchById(Number(id), dto, user?.id);
     return { success: true, data, message: 'Data berhasil diperbarui' };
   }
@@ -84,7 +84,7 @@ export class StockTransferController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateStockTransferDto>,
+    @Body() dto: UpdateStockTransferDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

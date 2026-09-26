@@ -5,9 +5,8 @@
 // + Bearer token milik api-client.
 // ============================================================
 
-import { api } from "@/lib/api-client";
+import { api, API_BASE_URL } from "@/lib/api-client";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 export interface AttendanceLocation {
   ID: number;

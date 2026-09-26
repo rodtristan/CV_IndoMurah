@@ -72,7 +72,7 @@ export class ProductGroupController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update ProductGroup by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateProductGroupDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateProductGroupDto) {
     return super.patchById(id, dto);
   }
 
@@ -81,7 +81,7 @@ export class ProductGroupController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateProductGroupDto>,
+    @Body() dto: UpdateProductGroupDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

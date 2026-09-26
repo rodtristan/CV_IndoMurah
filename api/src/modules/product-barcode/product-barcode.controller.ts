@@ -72,7 +72,7 @@ export class ProductBarcodeController extends BaseController<
   // PATCH endpoints
   @Patch(':id')
   @ApiOperation({ summary: 'Update ProductBarcode by ID' })
-  async patchById(@Param('id') id: string, @Body() dto: Partial<UpdateProductBarcodeDto>) {
+  async patchById(@Param('id') id: string, @Body() dto: UpdateProductBarcodeDto) {
     return super.patchById(id, dto);
   }
 
@@ -81,7 +81,7 @@ export class ProductBarcodeController extends BaseController<
   async patchByFilterReference(
     @Param('field') field: string,
     @Param('value') value: string,
-    @Body() dto: Partial<UpdateProductBarcodeDto>,
+    @Body() dto: UpdateProductBarcodeDto,
   ) {
     return super.patchByFilterReference(field, value, dto);
   }

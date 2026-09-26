@@ -21,7 +21,7 @@ export class EMoneyService extends BaseService<
       primaryKey: 'ID',
       searchableFields: ['code', 'name', 'accountNumber'],
       allowedIncludes: [],
-      allowedSortFields: ['code', 'name', 'sortOrder', 'createdAt'],
+      allowedSortFields: ['ID', 'Code', 'Name', 'SortOrder', 'CreatedAt', 'UpdatedAt'],
       allowedSelectFields: ['*'],
       defaultOrderBy: { SortOrder: 'asc' },
       maxTake: 100,
