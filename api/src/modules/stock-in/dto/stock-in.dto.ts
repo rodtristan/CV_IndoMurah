@@ -61,6 +61,11 @@ export class CreateStockInDto {
   @ValidateNested({ each: true })
   @Type(() => CreateStockInItemDto)
   Items: CreateStockInItemDto[];
+
+  @ApiPropertyOptional({ description: 'Kode Akun lawan persediaan' })
+  @IsOptional()
+  @IsInt()
+  AccountID?: number | null;
 }
 
 export class UpdateStockInDto {
@@ -88,6 +93,18 @@ export class UpdateStockInDto {
   @IsOptional()
   @IsInt()
   StatusID?: number;
+
+  @ApiPropertyOptional({ description: 'Kode Akun lawan persediaan' })
+  @IsOptional()
+  @IsInt()
+  AccountID?: number | null;
+
+  @ApiPropertyOptional({ type: [CreateStockInItemDto], description: 'Mengganti seluruh item' })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateStockInItemDto)
+  Items?: CreateStockInItemDto[];
 }
 
 export class UpdateStockInStatusDto {

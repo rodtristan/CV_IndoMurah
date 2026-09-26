@@ -8,14 +8,14 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { StatCard } from "@/components/ui/StatCard";
 import { api } from "@/lib/api-client";
-import { formatCurrency, formatNumber, formatDate } from "@/lib/utils";
+import { formatCurrency, formatNumber, formatDate, localDate } from "@/lib/utils";
 import type { SalesReport, ChartDataPoint, TopProduct } from "@/lib/types";
 
 export default function SalesReportPage() {
   const [startDate, setStartDate] = useState(() => {
-    const d = new Date(); d.setDate(1); return d.toISOString().split("T")[0];
+    const d = new Date(); d.setDate(1); return localDate(d);
   });
-  const [endDate, setEndDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [endDate, setEndDate] = useState(() => localDate());
   const [warehouseId, setWarehouseId] = useState("");
   const [customerId, setCustomerId] = useState("");
   const [loading, setLoading] = useState(false);

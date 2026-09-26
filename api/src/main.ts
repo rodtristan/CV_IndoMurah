@@ -1,3 +1,4 @@
+import { requestContext, clientLabel } from './common/context/request-context';
 // ================================================================
 // main.ts — Titik masuk aplikasi Toko CV IndoMurah API
 // ================================================================
@@ -95,10 +96,15 @@ async function bootstrap() {
   }
   const corsOrigin: string | string[] = originList.length ? originList : '*';
 
+  // Konteks per request (username + "Komputer") untuk kolom audit transaksi.
+  app.getHttpAdapter().getInstance().addHook('onRequest', (req: any, _reply: any, done: () => void) => {
+    requestContext.run({ device: clientLabel(req.headers ?? {}) }, done);
+  });
+
   app.enableCors({
     origin: corsOrigin,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    allowedHeaders: 'Content-Type,Authorization,X-Requested-With',
+    allowedHeaders: 'Content-Type,Authorization,X-Requested-With,X-Client',
     exposedHeaders: 'Content-Disposition',
     credentials: originList.length > 0,
   });

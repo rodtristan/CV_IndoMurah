@@ -12,6 +12,7 @@ import { KReadOnly, fmt } from "@/components/kform/erp";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { api } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
+import { LoadingState } from "@/components/ui/Loader";
 
 interface FiscalYear {
   year: number;
@@ -102,7 +103,7 @@ export default function YearClosePage() {
         {!retainedSet && <div className="mb-4 rounded bg-red-50 px-4 py-3 text-sm text-red-700">Setting Perkiraan &quot;Laba Ditahan&quot; belum diisi. Lengkapi dulu di menu Setting Perkiraan.</div>}
 
         {loading ? (
-          <div className="py-8 text-center text-gray-500">Memuat data...</div>
+          <LoadingState />
         ) : years.length === 0 ? (
           <div className="py-8 text-center text-gray-500">Tidak ada data tahun fiskal</div>
         ) : (

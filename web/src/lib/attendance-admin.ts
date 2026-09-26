@@ -5,7 +5,7 @@
 // + Bearer token milik api-client.
 // ============================================================
 
-import { api, API_BASE_URL } from "@/lib/api-client";
+import { api, API_BASE_URL, trackRequest } from "@/lib/api-client";
 
 
 export interface AttendanceLocation {
@@ -121,19 +121,19 @@ async function readError(res: Response): Promise<Error> {
 
 async function requestJson<T>(method: string, path: string, body?: unknown): Promise<T> {
   const hasBody = body !== undefined;
-  const res = await fetch(url(path), {
+  const res = await trackRequest(fetch(url(path), {
     method,
     headers: authHeaders({ Accept: "application/json", ...(hasBody ? { "Content-Type": "application/json" } : {}) }),
     body: hasBody ? JSON.stringify(body) : undefined,
     cache: "no-store",
-  });
+  }));
   if (!res.ok) throw await readError(res);
   const text = await res.text();
   return (text ? JSON.parse(text) : null) as T;
 }
 
 async function requestBlob(path: string): Promise<Response> {
-  const res = await fetch(url(path), { headers: authHeaders(), cache: "no-store" });
+  const res = await trackRequest(fetch(url(path), { headers: authHeaders(), cache: "no-store" }));
   if (!res.ok) throw await readError(res);
   return res;
 }

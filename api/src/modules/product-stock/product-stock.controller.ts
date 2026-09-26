@@ -5,6 +5,7 @@ import { ProductStockService } from './product-stock.service';
 import { CreateProductStockDto, UpdateProductStockDto } from './dto/product-stock.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 import { CurrentUser } from '../../common/decorators/current-user-decorator';
+import { ApiResponse } from '../../common/dto/api-response-dto';
 
 @ApiTags('ProductStocks')
 @ApiBearerAuth()
@@ -37,6 +38,24 @@ export class ProductStockController extends BaseController<
   @ApiQuery({ name: '$search', required: false, description: 'Search keyword' })
   async findAll(@Query() query: any) {
     return super.findAll(query);
+  }
+
+  @Get('opening')
+  @ApiOperation({ summary: 'Saldo Awal Item: saldo OPENING per item & gudang' })
+  async opening(@Query('warehouseId') warehouseId?: string) {
+    return ApiResponse.ok(await this.productStockService.openingList(warehouseId ? Number(warehouseId) : undefined));
+  }
+
+  @Put('opening')
+  @ApiOperation({ summary: 'Simpan Saldo Awal Item. Body: { Date, Items: [{ ProductID, WarehouseID, Quantity, UnitPrice }], Removed: [{ ProductID, WarehouseID }] }' })
+  async saveOpening(@Body() body: any, @CurrentUser() user?: any) {
+    return ApiResponse.ok(await this.productStockService.saveOpening(body ?? {}, user?.id), 'Saldo awal tersimpan');
+  }
+
+  @Post('repair')
+  @ApiOperation({ summary: 'Proses Perbaikan Saldo: hitung ulang saldo stok dari kartu stok. Body: { WarehouseID? }' })
+  async repair(@Body() body: { WarehouseID?: number }) {
+    return ApiResponse.ok(await this.productStockService.repairBalances(body?.WarehouseID ? Number(body.WarehouseID) : undefined), 'Proses perbaikan saldo berhasil');
   }
 
   @Get('count')

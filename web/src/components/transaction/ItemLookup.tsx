@@ -5,6 +5,7 @@ import { Check, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { Modal } from "@/components/ui/Modal";
 import { cn, formatCurrency } from "@/lib/utils";
+import { LoadingState } from "@/components/ui/Loader";
 
 export interface LookupProduct {
   ID: number;
@@ -114,7 +115,7 @@ export function ItemLookup({
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="px-3 py-6 text-center text-muted">Memuat...</td></tr>
+                <tr><td colSpan={6}><LoadingState className="py-6" /></td></tr>
               ) : rows.length === 0 ? (
                 <tr><td colSpan={6} className="px-3 py-6 text-center text-muted">Tidak ada data</td></tr>
               ) : rows.map((r) => (

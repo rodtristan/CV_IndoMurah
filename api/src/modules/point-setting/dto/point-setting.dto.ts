@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsInt } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNumber, IsInt, IsIn, IsDate, Min, MaxLength } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -19,6 +19,20 @@ export class CreatePointSettingDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ enum: ['NONE', 'DISCOUNT', 'REWARD', 'ITEM'] })
+  @IsOptional() @IsIn(['NONE', 'DISCOUNT', 'REWARD', 'ITEM']) pointType?: string;
+  @ApiPropertyOptional({ description: '1 Point kelipatan faktur' }) @IsOptional() @IsNumber() @Min(0) invoiceMultiple?: number;
+  @ApiPropertyOptional() @IsOptional() @Type(() => Date) @IsDate() periodFrom?: Date | null;
+  @ApiPropertyOptional() @IsOptional() @Type(() => Date) @IsDate() periodTo?: Date | null;
+  @ApiPropertyOptional() @IsOptional() @Type(() => Date) @IsDate() redeemFrom?: Date | null;
+  @ApiPropertyOptional() @IsOptional() @Type(() => Date) @IsDate() redeemTo?: Date | null;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() nonMemberEarns?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(0) nominalPerPoint?: number;
+  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) validDays?: number;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(1000) rewardPrintText?: string | null;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(1000) discountPrintText?: string | null;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(1000) itemPrintText?: string | null;
 }
 
 export class UpdatePointSettingDto {
@@ -41,6 +55,20 @@ export class UpdatePointSettingDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ enum: ['NONE', 'DISCOUNT', 'REWARD', 'ITEM'] })
+  @IsOptional() @IsIn(['NONE', 'DISCOUNT', 'REWARD', 'ITEM']) pointType?: string;
+  @ApiPropertyOptional({ description: '1 Point kelipatan faktur' }) @IsOptional() @IsNumber() @Min(0) invoiceMultiple?: number;
+  @ApiPropertyOptional() @IsOptional() @Type(() => Date) @IsDate() periodFrom?: Date | null;
+  @ApiPropertyOptional() @IsOptional() @Type(() => Date) @IsDate() periodTo?: Date | null;
+  @ApiPropertyOptional() @IsOptional() @Type(() => Date) @IsDate() redeemFrom?: Date | null;
+  @ApiPropertyOptional() @IsOptional() @Type(() => Date) @IsDate() redeemTo?: Date | null;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() nonMemberEarns?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(0) nominalPerPoint?: number;
+  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) validDays?: number;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(1000) rewardPrintText?: string | null;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(1000) discountPrintText?: string | null;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(1000) itemPrintText?: string | null;
 }
 
 export class PointSettingResponseDto {

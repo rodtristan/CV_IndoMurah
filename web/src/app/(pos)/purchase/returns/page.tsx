@@ -1,36 +1,51 @@
 "use client";
 
-import { Badge } from "@/components/ui/StatCard";
-import { TransactionList } from "@/components/transaction/TransactionList";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { TransactionList, kcol, type TxnColumn } from "@/components/transaction/TransactionList";
 
-const statusColors: Record<string, string> = { DRAFT: "warning", CONFIRMED: "info", COMPLETED: "success", CANCELLED: "danger" };
+const STATUS_LABEL: Record<string, string> = { DRAFT: "Draft", CONFIRMED: "Dikonfirmasi", COMPLETED: "Selesai", CANCELLED: "Batal" };
+
+// Kolom Daftar Retur Pembelian (pola daftar transaksi Ketoko).
+const COLUMNS: TxnColumn[] = [
+  kcol.text("Code", "No Transaksi", 150),
+  kcol.datetime("Date", "Tanggal", 150),
+  kcol.text("Warehouse.Code", "Dept/Gudang", 100),
+  kcol.text("Supplier.Code", "Kode Supplier", 110),
+  kcol.text("Supplier.Name", "Nama", 170),
+  kcol.text("Purchase.Code", "No. Pembelian", 150),
+  kcol.money("TotalReturn", "Total", 120),
+  kcol.text("Reason", "Keterangan", 200),
+  { key: "Status.Code", label: "Status", width: 110, render: (v) => STATUS_LABEL[String(v)] ?? String(v ?? "") },
+];
+
+const SORTS = [
+  { value: "Date", label: "Tanggal" },
+  { value: "Code", label: "No Transaksi" },
+  { value: "Supplier.Name", label: "Nama Supplier" },
+  { value: "TotalReturn", label: "Total" },
+];
+const STATUS_FILTER = {
+  relation: "Status",
+  options: [{ value: "DRAFT", label: "Draft" }, { value: "CONFIRMED", label: "Dikonfirmasi" }, { value: "COMPLETED", label: "Selesai" }, { value: "CANCELLED", label: "Batal" }],
+};
+const PARTNER = { field: "SupplierID" as const, endpoint: "supplier", label: "Supplier" };
+const SEARCH = ["Code", "Reason", "Supplier.Name", "Purchase.Code"];
 
 export default function PurchaseReturnsPage() {
   return (
     <TransactionList
+      title="Daftar Retur Pembelian"
       endpoint="PurchaseReturns"
       basePath="/purchase/returns"
       include="Purchase,Supplier,Warehouse,Status"
       deleteLabel="Retur Pembelian"
       emptyMessage="Tidak ada retur pembelian"
-      filterPartner={{ field: "SupplierID", endpoint: "supplier", label: "Supplier" }}
-      statusFilter={{
-        relation: "Status",
-        options: [{ value: "DRAFT", label: "Draft" }, { value: "CONFIRMED", label: "Dikonfirmasi" }, { value: "COMPLETED", label: "Selesai" }, { value: "CANCELLED", label: "Dibatalkan" }],
-      }}
-      sortOptions={[{ value: "Date", label: "Tanggal" }, { value: "Code", label: "No. Transaksi" }, { value: "TotalReturn", label: "Total Retur" }, { value: "CreatedAt", label: "Waktu Input" }]}
+      searchPlaceholder="No. transaksi / supplier..."
+      searchFields={SEARCH}
+      filterPartner={PARTNER}
+      statusFilter={STATUS_FILTER}
+      sortOptions={SORTS}
       canDelete={(r) => r.Status?.Code === "DRAFT"}
-      columns={[
-        { key: "Code", label: "No. Transaksi", render: (v) => <span className="font-mono text-xs">{v as string}</span> },
-        { key: "Date", label: "Tanggal", render: (v) => formatDate(v as string) },
-        { key: "Purchase", label: "Faktur Pembelian", render: (v) => <span className="font-mono text-xs">{(v as { Code?: string })?.Code || "-"}</span> },
-        { key: "Supplier", label: "Supplier", render: (v) => (v as { Name?: string })?.Name || "-" },
-        { key: "Warehouse", label: "Gudang", render: (v) => (v as { Name?: string })?.Name || "-" },
-        { key: "Status.Code", label: "Status", render: (v) => <Badge variant={(statusColors[v as string] || "default") as never}>{v as string}</Badge> },
-        { key: "TotalReturn", label: "Total Retur", align: "right", render: (v) => <span className="font-bold text-danger">{formatCurrency(v as number)}</span> },
-        { key: "Reason", label: "Keterangan" },
-      ]}
+      columns={COLUMNS}
     />
   );
 }

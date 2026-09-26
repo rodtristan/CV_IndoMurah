@@ -17,6 +17,23 @@ type EntityKey = "supplier" | "customer" | "product" | "unit" | "level" | "qty";
 type Row = Record<string, unknown>;
 type Lookups = Record<string, Map<string, number>>;
 
+/** Cari ID dari kode/nama (tidak peka huruf besar). */
+const lookupId = (m: Map<string, number> | undefined, v?: string) => {
+  const k = v?.trim().toUpperCase();
+  return k && m ? m.get(k) : undefined;
+};
+
+async function loadLookup(endpoint: string): Promise<Map<string, number>> {
+  const m = new Map<string, number>();
+  const res = await api.get<{ ID: number; Code?: string; Name?: string }[]>(endpoint, { $take: 100 } as never, { skipCache: true }).catch(() => ({ data: [] }));
+  for (const r of (res.data ?? []) as { ID: number; Code?: string; Name?: string }[]) {
+    if (!m.has("__default")) m.set("__default", r.ID);
+    if (r.Code) m.set(r.Code.toUpperCase(), r.ID);
+    if (r.Name) m.set(r.Name.toUpperCase(), r.ID);
+  }
+  return m;
+}
+
 interface EntityConfig {
   label: string;
   desc: string;
@@ -43,11 +60,15 @@ const ENTITIES: Record<EntityKey, EntityConfig> = {
     docColumns: ["Nama", "Alamat", "Kota", "Provinsi", "Negara", "Kode Pos", "Telepon", "Fax", "Bank", "No Rekening", "AN/Rekening", "Kontak", "Email", "Keterangan"],
     required: ["Nama"],
     endpoint: "supplier",
-    columns: ["code", "name", "contactPerson", "phone", "email", "address"],
-    template: "code,name,contactPerson,phone,email,address\nSUP001,Supplier Contoh,Budi,08123456789,budi@mail.com,Jl. Contoh No. 1",
+    columns: ["Nama", "Alamat", "Kota", "Provinsi", "Negara", "Kode Pos", "Telepon", "Fax", "Bank", "No Rekening", "AN/Rekening", "Kontak", "Email", "Keterangan"],
+    template: "Nama,Alamat,Kota,Provinsi,Negara,Kode Pos,Telepon,Fax,Bank,No Rekening,AN/Rekening,Kontak,Email,Keterangan\nPT Contoh,Jl. Contoh No. 1,Denpasar,Bali,Indonesia,80111,08123456789,,BCA,1234567890,PT Contoh,Budi,budi@mail.com,Supplier contoh",
+    // Kode supplier dibuat otomatis (SP + urutan), seperti "Auto" di form Supplier.
     mapRow: (c) => ({
-      code: c[0]?.trim(), name: c[1]?.trim(), contactPerson: c[2]?.trim() || undefined,
-      phone: c[3]?.trim() || undefined, email: c[4]?.trim() || undefined, address: c[5]?.trim() || undefined,
+      Code: `SP${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 5).toUpperCase()}`,
+      Name: c[0]?.trim(), Address: c[1]?.trim() || undefined, City: c[2]?.trim() || undefined, Province: c[3]?.trim() || undefined,
+      Country: c[4]?.trim() || undefined, PostalCode: c[5]?.trim() || undefined, Phone: c[6]?.trim() || undefined, Fax: c[7]?.trim() || undefined,
+      BankName: c[8]?.trim() || undefined, BankAccountNumber: c[9]?.trim() || undefined, BankAccountName: c[10]?.trim() || undefined,
+      ContactPerson: c[11]?.trim() || undefined, Email: c[12]?.trim() || undefined, Notes: c[13]?.trim() || undefined,
     }),
   },
   customer: {
@@ -55,11 +76,16 @@ const ENTITIES: Record<EntityKey, EntityConfig> = {
     docColumns: ["Kode", "Nama", "Alamat", "Kota", "Provinsi", "Negara", "Kode Pos", "Telepon", "Fax", "Bank", "No Rekening", "AN/Rekening", "Kontak", "Email", "Keterangan", "Wilayah", "Sub Wilayah"],
     required: ["Kode", "Nama"],
     endpoint: "customer",
-    columns: ["code", "name", "phone", "email", "address"],
-    template: "code,name,phone,email,address\nCUST001,Pelanggan Contoh,08123456789,pelanggan@mail.com,Jl. Contoh No. 2",
-    mapRow: (c) => ({
-      Code: c[0]?.trim(), Name: c[1]?.trim(), Phone: c[2]?.trim() || undefined,
-      Email: c[3]?.trim() || undefined, Address: c[4]?.trim() || undefined,
+    columns: ["Kode", "Nama", "Alamat", "Kota", "Provinsi", "Negara", "Kode Pos", "Telepon", "Fax", "Bank", "No Rekening", "AN/Rekening", "Kontak", "Email", "Keterangan", "Wilayah", "Sub Wilayah"],
+    template: "Kode,Nama,Alamat,Kota,Provinsi,Negara,Kode Pos,Telepon,Fax,Bank,No Rekening,AN/Rekening,Kontak,Email,Keterangan,Wilayah,Sub Wilayah\nPL0100,Pelanggan Contoh,Jl. Contoh No. 2,Semarang,Jawa Tengah,Indonesia,50124,08123456789,,,,,,pelanggan@mail.com,,,",
+    mapRow: (c, lk) => ({
+      Code: c[0]?.trim(), Name: c[1]?.trim(), Address: c[2]?.trim() || undefined, City: c[3]?.trim() || undefined,
+      Province: c[4]?.trim() || undefined, Country: c[5]?.trim() || undefined, PostalCode: c[6]?.trim() || undefined,
+      Phone: c[7]?.trim() || undefined, Fax: c[8]?.trim() || undefined, BankName: c[9]?.trim() || undefined,
+      BankAccountNumber: c[10]?.trim() || undefined, BankAccountName: c[11]?.trim() || undefined, ContactPerson: c[12]?.trim() || undefined,
+      Email: c[13]?.trim() || undefined, Notes: c[14]?.trim() || undefined,
+      RegionID: lookupId(lk.region, c[15]), SubRegionID: lookupId(lk.subRegion, c[16]),
+      CustomerGroupID: lk.customerGroup?.get("__default"),
     }),
   },
   product: {
@@ -160,7 +186,10 @@ export default function ImportDataPage() {
     if (config.variant) { setRows(mapVariantRows(parsed[0] ?? [], parsed.slice(1), config.variant)); return; }
     const dataRows = parsed.slice(1);
     const lookups: Lookups = { category: new Map(), unit: new Map() };
-    setRows(dataRows.map((cells) => config.mapRow!(cells, lookups)));
+    if (entity === "customer") {
+      [lookups.region, lookups.subRegion, lookups.customerGroup] = await Promise.all([loadLookup("region"), loadLookup("sub-region"), loadLookup("customer-group")]);
+    }
+    setRows(dataRows.map((cells) => config.mapRow!(cells, lookups)).filter((r) => r.Name));
   };
 
   const handleImport = async () => {

@@ -1,72 +1,70 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { PageWrapper, Card } from "@/components/layout/PageWrapper";
-import { Badge } from "@/components/ui/StatCard";
-import { DataTable } from "@/components/ui/DataTable";
-import { FilterBar } from "@/components/ui/FilterBar";
-import { api } from "@/lib/api-client";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { TransactionList, TAX_MODE_LABEL, kcol, type TxnColumn } from "@/components/transaction/TransactionList";
+import type { KListFilter } from "@/components/ui/KetokoList";
 
-export default function PurchaseOrderPage() {
-  const [data, setData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState("");
-  const [suppliers, setSuppliers] = useState<any[]>([]);
-  const [filterSupplier, setFilterSupplier] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
+const ORDER_STATUS: Record<string, string> = {
+  WAITING_PAYMENT: "Menunggu Pembayaran", PAID: "Sudah Dibayar", PROCESSED: "Diproses", SHIPPED: "Dikirim", DONE: "Selesai", CANCELLED: "Batal",
+};
+const PROCESS: Record<string, string> = { OPEN: "Belum Diterima", PARTIAL: "Diterima Sebagian", DONE: "Diterima Semua" };
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params: any = { $include: "supplier" };
-      if (search) params.$search = search;
-      if (filterSupplier) params.supplierId = filterSupplier;
-      if (filterStatus) params.$where = `status eq '${filterStatus}'`;
-      const res = await api.get("PurchaseOrders", params).catch(() => ({ success: false, data: { data: [] } } as any));
-      if (res.success) setData(res.data || []);
-    } finally { setLoading(false); }
-  }, [search, filterSupplier, filterStatus]);
+// Kolom Daftar Pesanan Pembelian Ketoko.
+const COLUMNS: TxnColumn[] = [
+  kcol.text("Code", "No Transaksi", 150),
+  kcol.datetime("Date", "Tanggal", 150),
+  kcol.date("DeliveryDate", "Tanggal Kirim", 120),
+  kcol.text("Warehouse.Code", "Dept/Gudang", 100),
+  kcol.text("Supplier.Code", "Kode Supplier", 110),
+  kcol.text("Supplier.Name", "Nama", 160),
+  kcol.qty("OrderedQty", "Jumlah Pesan", 110),
+  kcol.qty("ReceivedQty", "Jumlah Terima", 110),
+  { key: "ProcessStatus", label: "Status Proses", width: 140, render: (v) => PROCESS[String(v)] ?? "" },
+  { key: "OrderStatus", label: "Status Pesanan", width: 160, render: (v) => ORDER_STATUS[String(v)] ?? "" },
+  { key: "TaxMode", label: "Pajak", width: 80, render: (v) => TAX_MODE_LABEL[String(v)] ?? "" },
+  kcol.money("Total", "Total", 120),
+  kcol.money("DownPayment", "Titip/DP", 110),
+  kcol.text("Notes", "Keterangan", 180),
+];
 
-  const fetchSuppliers = useCallback(async () => {
-    const res = await api.get("supplier", { $select: "id,name" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-    if (res.success) setSuppliers(res.data || []);
-  }, []);
+const SORTS = [
+  { value: "Date", label: "Tanggal" },
+  { value: "Code", label: "No Transaksi" },
+  { value: "DeliveryDate", label: "Tanggal Kirim" },
+  { value: "Supplier.Name", label: "Nama Supplier" },
+  { value: "Total", label: "Total" },
+];
 
-  useEffect(() => { fetchData(); }, [fetchData]);
-  useEffect(() => { fetchSuppliers(); }, [fetchSuppliers]);
+const EXTRA_FILTERS: KListFilter[] = [
+  {
+    key: "process", label: "Status Proses", type: "select",
+    options: Object.entries(PROCESS).map(([value, label]) => ({ value, label })),
+    where: (v) => ({ ProcessStatus: v }),
+  },
+  {
+    key: "orderStatus", label: "Status Pesanan", type: "select",
+    options: Object.entries(ORDER_STATUS).map(([value, label]) => ({ value, label })),
+    where: (v) => ({ OrderStatus: v }),
+  },
+];
+const PARTNER = { field: "SupplierID" as const, endpoint: "supplier", label: "Supplier" };
+const SEARCH = ["Code", "Notes", "Supplier.Name", "Supplier.Code"];
 
-  const statusColors: Record<string, string> = {
-    DRAFT: "default", PENDING: "warning", CONFIRMED: "info",
-    COMPLETED: "success", CANCELLED: "danger",
-  };
-
-  const columns = [
-    { key: "Code", label: "Kode PO", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "Date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
-    { key: "DueDate", label: "Jatuh Tempo", render: (v: unknown) => v ? formatDate(v as string) : "-" },
-    { key: "supplierName", label: "Supplier" },
-    { key: "status", label: "Status", render: (v: unknown) => <Badge variant={statusColors[v as string] as any || "default"}>{v as string}</Badge> },
-    { key: "Total", label: "Total", align: "right" as const, render: (v: unknown) => <span className="font-semibold">{formatCurrency(v as number)}</span> },
-    { key: "paid", label: "Dibayar", align: "right" as const, render: (v: unknown) => formatCurrency(v as number) },
-  ];
-
+export default function PurchaseOrderListPage() {
   return (
-    <PageWrapper>
-      <Card className="p-4">
-        <FilterBar
-          fields={[
-            { key: "search", label: "Kata Kunci", type: "text", placeholder: "Cari PO..." },
-            { key: "supplierId", label: "Supplier", type: "select", options: [{ value: "", label: "Semua" }, ...suppliers.map(s => ({ value: s.id, label: s.name }))] },
-            { key: "status", label: "Status", type: "select", options: [{ value: "", label: "Semua" }, { value: "DRAFT", label: "Draft" }, { value: "PENDING", label: "Pending" }, { value: "CONFIRMED", label: "Dikonfirmasi" }, { value: "COMPLETED", label: "Selesai" }] },
-          ]}
-          onFilter={(v) => { setSearch((v.search as string) || ""); setFilterSupplier((v.supplierId as string) || ""); setFilterStatus((v.status as string) || ""); }}
-          loading={loading}
-        />
-        <div className="mt-4">
-          <DataTable data={data} columns={columns} loading={loading} emptyMessage="Tidak ada purchase order" />
-        </div>
-      </Card>
-    </PageWrapper>
+    <TransactionList
+      title="Daftar Pesanan Pembelian"
+      endpoint="PurchaseOrders"
+      basePath="/purchase/order"
+      include="Supplier,Warehouse,Status"
+      deleteLabel="Pesanan"
+      emptyMessage="Tidak ada pesanan pembelian"
+      searchPlaceholder="No. transaksi / supplier..."
+      searchFields={SEARCH}
+      filterPartner={PARTNER}
+      extraFilters={EXTRA_FILTERS}
+      sortOptions={SORTS}
+      canDelete={(r) => r.Status?.Code === "DRAFT" && !(Number(r.ReceivedQty) > 0)}
+      columns={COLUMNS}
+    />
   );
 }

@@ -4,6 +4,7 @@ import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
 import { StockDocumentService } from '../../common/stock/stock-document.service';
 import { StockLedgerService } from '../../common/stock/stock-ledger.service';
+import { AutoJournalService, REF } from '../../common/accounting/auto-journal.service';
 import { Prisma } from '@prisma/client';
 import { CreateStockInDto, UpdateStockInDto } from './dto/stock-in.dto';
 
@@ -19,6 +20,7 @@ export class StockInService extends StockDocumentService<any, CreateStockInDto, 
     readonly redis: RedisService,
     readonly queryService: QueryService,
     private readonly ledger: StockLedgerService,
+    private readonly journal: AutoJournalService,
   ) {
     super(prisma, redis, queryService, {
       modelName: 'stockIn',
@@ -71,6 +73,7 @@ export class StockInService extends StockDocumentService<any, CreateStockInDto, 
             ReferenceID: dto.ReferenceID,
             TotalItems: new Prisma.Decimal(totalItems),
             Description: dto.Description,
+            AccountID: dto.AccountID ?? null,
             Status: { connect: { ID: completedStatus.ID } },
             Creator: { connect: { ID: userId } },
             StockInItems: { create: itemsData },
@@ -78,25 +81,8 @@ export class StockInService extends StockDocumentService<any, CreateStockInDto, 
           include: { StockInItems: true },
         });
 
-        for (const it of created.StockInItems) {
-          const conv = await this.ledger.conversion(tx, it.ProductID, it.UnitID);
-          const base = new Prisma.Decimal(it.Quantity).mul(conv);
-          const price = Number(it.UnitPrice);
-          const unitCost = price > 0 ? new Prisma.Decimal(price).div(conv) : undefined;
-          if (unitCost) await this.ledger.applyAverageCostIn(tx, it.ProductID, base, unitCost);
-          await this.ledger.move(tx, {
-            productId: it.ProductID,
-            warehouseId,
-            qty: base,
-            refType: 'STOCK_IN',
-            refId: created.ID,
-            refCode: created.Code,
-            unitCost,
-            userId,
-            date: docDate,
-            notes: dto.Description,
-          });
-        }
+        await this.applyAll(tx, created.ID, userId);
+        await this.journal.postStockDoc(tx, 'STOCK_IN', created, userId);
 
         return tx.stockIn.findUniqueOrThrow({
           where: { ID: created.ID },
@@ -110,22 +96,38 @@ export class StockInService extends StockDocumentService<any, CreateStockInDto, 
     return this.serializeStockIn(stockIn);
   }
 
-  /** Ubah header. Ganti gudang = mutasi dipindah ke gudang baru. Item tidak dapat diubah. */
+  /**
+   * Ubah Item Masuk (seperti Ketoko: header & item dapat diubah). Item baru → mutasi & HPP lama dibalik
+   * lalu diterapkan ulang. Ganti gudang tanpa ganti item = mutasi dipindah ke gudang baru.
+   */
   async patchById(id: any, dto: Partial<UpdateStockInDto>, userId?: string) {
     const doc = await this.prisma.stockIn.findUnique({ where: { ID: Number(id) } });
     if (!doc) throw new NotFoundException('Barang masuk tidak ditemukan');
+    if (dto.Items && (!dto.Items.length || dto.Items.some((i) => !(Number(i.Quantity) > 0)))) {
+      throw new BadRequestException('Item wajib diisi dan jumlah harus lebih dari 0');
+    }
     const result = await this.prisma.$transaction(async (tx) => {
       const data: Prisma.StockInUncheckedUpdateInput = {};
-      if (dto.WarehouseID && Number(dto.WarehouseID) !== doc.WarehouseID) {
-        const wh = await this.ledger.resolveWarehouseId(tx, Number(dto.WarehouseID));
-        await this.ledger.relocateRef(tx, ['STOCK_IN'], doc.ID, wh, { refCode: doc.Code, userId });
-        data.WarehouseID = wh;
+      const newWh = dto.WarehouseID ? await this.ledger.resolveWarehouseId(tx, Number(dto.WarehouseID)) : doc.WarehouseID;
+      if (dto.Items) {
+        await this.reverseAll(tx, doc.ID, userId, `Ubah barang masuk ${doc.Code}`);
+        await tx.stockInItem.deleteMany({ where: { StockInID: doc.ID } });
+        data.StockInItems = { create: this.itemsData(dto.Items) } as any;
+        data.TotalItems = new Prisma.Decimal(dto.Items.reduce((a, i) => a + Number(i.Quantity), 0));
+        data.WarehouseID = newWh;
+      } else if (newWh !== doc.WarehouseID) {
+        await this.ledger.relocateRef(tx, ['STOCK_IN'], doc.ID, newWh, { refCode: doc.Code, userId });
+        data.WarehouseID = newWh;
       }
       if (dto.SupplierID !== undefined) data.SupplierID = dto.SupplierID || null;
       if (dto.Date) data.Date = new Date(dto.Date);
       if (dto.Description !== undefined) data.Description = dto.Description;
-      return tx.stockIn.update({ where: { ID: doc.ID }, data });
-    });
+      if (dto.AccountID !== undefined) data.AccountID = dto.AccountID || null;
+      const u = await tx.stockIn.update({ where: { ID: doc.ID }, data });
+      if (dto.Items) await this.applyAll(tx, doc.ID, userId ?? doc.CreatedByID);
+      await this.journal.postStockDoc(tx, 'STOCK_IN', u, userId);
+      return u;
+    }, { timeout: 30000 });
     await this.afterWrite();
     return this.serializeStockIn(result);
   }
@@ -135,32 +137,61 @@ export class StockInService extends StockDocumentService<any, CreateStockInDto, 
     if (!doc) throw new NotFoundException('Barang masuk tidak ditemukan');
     await this.prisma.$transaction(
       async (tx) => {
-        const priced = new Map<number, Prisma.Decimal>();
-        for (const it of doc.StockInItems) {
-          if (Number(it.UnitPrice) > 0) priced.set(it.ProductID, new Prisma.Decimal(it.UnitPrice).div(await this.ledger.conversion(tx, it.ProductID, it.UnitID)));
-        }
-        const nets = await this.ledger.netByRef(tx, ['STOCK_IN'], doc.ID);
-        for (const n of nets) {
-          const cost = priced.get(n.productId);
-          if (cost && n.net.gt(0)) await this.ledger.applyAverageCostOut(tx, n.productId, n.net, cost);
-          await this.ledger.move(tx, {
-            productId: n.productId,
-            warehouseId: n.warehouseId,
-            qty: n.net.neg(),
-            refType: 'STOCK_IN',
-            refId: doc.ID,
-            refCode: doc.Code,
-            unitCost: cost,
-            userId,
-            notes: `Hapus barang masuk ${doc.Code}`,
-          });
-        }
+        await this.reverseAll(tx, doc.ID, userId, `Hapus barang masuk ${doc.Code}`);
+        await this.journal.reverse(tx, REF.STOCK_IN, doc.ID);
         await tx.stockIn.delete({ where: { ID: doc.ID } });
       },
       { timeout: 30000 },
     );
     await this.afterWrite();
     return this.serializeStockIn(doc);
+  }
+
+  private itemsData(items: { ProductID: number; Quantity: number; UnitID: number; UnitPrice?: number; Subtotal?: number }[]) {
+    return items.map((item) => {
+      const unitPrice = item.UnitPrice ?? 0;
+      return {
+        ProductID: item.ProductID,
+        Quantity: new Prisma.Decimal(item.Quantity),
+        UnitID: item.UnitID,
+        UnitPrice: new Prisma.Decimal(unitPrice),
+        Subtotal: new Prisma.Decimal(item.Subtotal !== undefined ? item.Subtotal : item.Quantity * unitPrice),
+      };
+    });
+  }
+
+  /** Terapkan stok masuk + HPP rata-rata semua item dokumen. */
+  private async applyAll(tx: Prisma.TransactionClient, docId: number, userId: string) {
+    const d = await tx.stockIn.findUniqueOrThrow({ where: { ID: docId }, include: { StockInItems: true } });
+    for (const it of d.StockInItems) {
+      const conv = await this.ledger.conversion(tx, it.ProductID, it.UnitID);
+      const base = new Prisma.Decimal(it.Quantity).mul(conv);
+      const price = Number(it.UnitPrice);
+      const unitCost = price > 0 ? new Prisma.Decimal(price).div(conv) : undefined;
+      if (unitCost) await this.ledger.applyAverageCostIn(tx, it.ProductID, base, unitCost);
+      await this.ledger.move(tx, {
+        productId: it.ProductID, warehouseId: d.WarehouseID, qty: base, refType: 'STOCK_IN', refId: d.ID, refCode: d.Code,
+        unitCost, userId, date: d.Date, notes: d.Description ?? undefined,
+      });
+    }
+  }
+
+  /** Balik seluruh mutasi (dan HPP untuk item berharga) dokumen. */
+  private async reverseAll(tx: Prisma.TransactionClient, docId: number, userId: string | undefined, notes: string) {
+    const d = await tx.stockIn.findUniqueOrThrow({ where: { ID: docId }, include: { StockInItems: true } });
+    const priced = new Map<number, Prisma.Decimal>();
+    for (const it of d.StockInItems) {
+      if (Number(it.UnitPrice) > 0) priced.set(it.ProductID, new Prisma.Decimal(it.UnitPrice).div(await this.ledger.conversion(tx, it.ProductID, it.UnitID)));
+    }
+    const nets = await this.ledger.netByRef(tx, ['STOCK_IN'], d.ID);
+    for (const n of nets) {
+      const cost = priced.get(n.productId);
+      if (cost && n.net.gt(0)) await this.ledger.applyAverageCostOut(tx, n.productId, n.net, cost);
+      await this.ledger.move(tx, {
+        productId: n.productId, warehouseId: n.warehouseId, qty: n.net.neg(), refType: 'STOCK_IN', refId: d.ID, refCode: d.Code,
+        unitCost: cost, userId, notes,
+      });
+    }
   }
 
   private async afterWrite() {

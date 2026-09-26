@@ -7,27 +7,34 @@ export class CreatePointRedemptionDto {
   @IsInt()
   customerId: number;
 
-  @ApiProperty({ description: 'Redemption code' })
+  @ApiPropertyOptional({ description: 'No Transaksi (kosong = otomatis AP-YYYYMM-####)' })
+  @IsOptional()
   @IsString()
-  code: string;
+  code?: string;
 
-  @ApiProperty({ description: 'Points redeemed' })
+  @ApiProperty({ description: 'Jumlah Point Diambil' })
   @IsInt()
   pointsRedeemed: number;
 
-  @ApiProperty({ description: 'Reward name' })
+  @ApiPropertyOptional({ description: 'Hadiah / nama penukaran' })
+  @IsOptional()
   @IsString()
-  rewardName: string;
+  rewardName?: string;
 
-  @ApiProperty({ description: 'Reward value' })
+  @ApiPropertyOptional({ description: 'Nilai hadiah (Rp)' })
+  @IsOptional()
   @IsNumber()
-  rewardValue: number;
+  rewardValue?: number;
 
-  @ApiPropertyOptional({ description: 'Redemption date' })
+  @ApiPropertyOptional({ description: 'Tanggal' })
   @IsOptional()
   @IsDateString()
   date?: Date;
 
+  @ApiPropertyOptional({ description: 'Keterangan' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }
 
 export class UpdatePointRedemptionDto {

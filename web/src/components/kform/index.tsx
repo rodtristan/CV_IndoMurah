@@ -344,17 +344,32 @@ function sanitizeRichText(html: string): string {
 // ─── Images (max N, preview as data URLs until the API supports upload) ──
 
 export function KImageList({
-  images, onChange, max = 5,
-}: { images: string[]; onChange: (imgs: string[]) => void; max?: number }) {
+  images, onChange, max = 5, onUpload, onError,
+}: {
+  images: string[]; onChange: (imgs: string[]) => void; max?: number;
+  /** Unggah file ke server dan kembalikan URL-nya; tanpa ini gambar disimpan sebagai data URL. */
+  onUpload?: (file: File) => Promise<string>;
+  onError?: (message: string) => void;
+}) {
   const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
   const add = async (files: FileList | null) => {
     if (!files) return;
     const room = max - images.length;
     const picked = Array.from(files).slice(0, room);
-    const urls = await Promise.all(
-      picked.map((f) => new Promise<string>((res) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.readAsDataURL(f); })),
-    );
-    onChange([...images, ...urls]);
+    setBusy(true);
+    try {
+      const urls = await Promise.all(
+        picked.map((f) => onUpload
+          ? onUpload(f)
+          : new Promise<string>((res) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.readAsDataURL(f); })),
+      );
+      onChange([...images, ...urls]);
+    } catch (e) {
+      onError?.(e instanceof Error ? e.message : "Gagal mengunggah gambar");
+    } finally {
+      setBusy(false);
+    }
   };
   return (
     <div>
@@ -371,12 +386,12 @@ export function KImageList({
       </div>
       <button
         type="button"
-        disabled={images.length >= max}
+        disabled={images.length >= max || busy}
         onClick={() => input.current?.click()}
         className="inline-flex h-11 items-center gap-2 rounded border border-[#cfd4da] bg-white px-4 text-[15px] hover:bg-[#f3f4f6] disabled:opacity-50"
       >
         <ImagePlus className="size-4" />
-        Tambah Gambar
+        {busy ? "Mengunggah..." : "Tambah Gambar"}
       </button>
       <input ref={input} type="file" accept="image/*" multiple hidden onChange={(e) => { void add(e.target.files); e.target.value = ""; }} />
     </div>

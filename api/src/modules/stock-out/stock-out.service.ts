@@ -4,6 +4,7 @@ import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
 import { StockDocumentService } from '../../common/stock/stock-document.service';
 import { StockLedgerService } from '../../common/stock/stock-ledger.service';
+import { AutoJournalService, REF } from '../../common/accounting/auto-journal.service';
 import { Prisma } from '@prisma/client';
 import { CreateStockOutDto, UpdateStockOutDto } from './dto/stock-out.dto';
 
@@ -19,6 +20,7 @@ export class StockOutService extends StockDocumentService<any, CreateStockOutDto
     readonly redis: RedisService,
     readonly queryService: QueryService,
     private readonly ledger: StockLedgerService,
+    private readonly journal: AutoJournalService,
   ) {
     super(prisma, redis, queryService, {
       modelName: 'stockOut',
@@ -70,6 +72,7 @@ export class StockOutService extends StockDocumentService<any, CreateStockOutDto
             ReferenceID: dto.ReferenceID,
             TotalItems: new Prisma.Decimal(totalItems),
             Description: dto.Description,
+            AccountID: dto.AccountID ?? null,
             Status: { connect: { ID: completedStatus.ID } },
             Creator: { connect: { ID: userId } },
             StockOutItems: { create: itemsData },
@@ -77,20 +80,8 @@ export class StockOutService extends StockDocumentService<any, CreateStockOutDto
           include: { StockOutItems: true },
         });
 
-        for (const it of created.StockOutItems) {
-          const base = await this.ledger.toBaseQty(tx, it.ProductID, it.UnitID, it.Quantity);
-          await this.ledger.move(tx, {
-            productId: it.ProductID,
-            warehouseId,
-            qty: base.neg(),
-            refType: 'STOCK_OUT',
-            refId: created.ID,
-            refCode: created.Code,
-            userId,
-            date: docDate,
-            notes: dto.Description,
-          });
-        }
+        await this.applyAll(tx, created.ID, userId);
+        await this.journal.postStockDoc(tx, 'STOCK_OUT', created, userId);
 
         return tx.stockOut.findUniqueOrThrow({
           where: { ID: created.ID },
@@ -104,21 +95,34 @@ export class StockOutService extends StockDocumentService<any, CreateStockOutDto
     return this.serializeStockOut(stockIn);
   }
 
-  /** Ubah header. Ganti gudang = mutasi dipindah ke gudang baru. Item tidak dapat diubah. */
+  /** Ubah Item Keluar: header & item dapat diubah (mutasi lama dibalik lalu diterapkan ulang). */
   async patchById(id: any, dto: Partial<UpdateStockOutDto>, userId?: string) {
     const doc = await this.prisma.stockOut.findUnique({ where: { ID: Number(id) } });
     if (!doc) throw new NotFoundException('Barang keluar tidak ditemukan');
+    if (dto.Items && (!dto.Items.length || dto.Items.some((i) => !(Number(i.Quantity) > 0)))) {
+      throw new BadRequestException('Item wajib diisi dan jumlah harus lebih dari 0');
+    }
     const result = await this.prisma.$transaction(async (tx) => {
       const data: Prisma.StockOutUncheckedUpdateInput = {};
-      if (dto.WarehouseID && Number(dto.WarehouseID) !== doc.WarehouseID) {
-        const wh = await this.ledger.resolveWarehouseId(tx, Number(dto.WarehouseID));
-        await this.ledger.relocateRef(tx, ['STOCK_OUT'], doc.ID, wh, { refCode: doc.Code, userId });
-        data.WarehouseID = wh;
+      const newWh = dto.WarehouseID ? await this.ledger.resolveWarehouseId(tx, Number(dto.WarehouseID)) : doc.WarehouseID;
+      if (dto.Items) {
+        await this.ledger.reverseRef(tx, ['STOCK_OUT'], doc.ID, { refCode: doc.Code, userId, notes: `Ubah barang keluar ${doc.Code}` });
+        await tx.stockOutItem.deleteMany({ where: { StockOutID: doc.ID } });
+        data.StockOutItems = { create: this.itemsData(dto.Items) } as any;
+        data.TotalItems = new Prisma.Decimal(dto.Items.reduce((a, i) => a + Number(i.Quantity), 0));
+        data.WarehouseID = newWh;
+      } else if (newWh !== doc.WarehouseID) {
+        await this.ledger.relocateRef(tx, ['STOCK_OUT'], doc.ID, newWh, { refCode: doc.Code, userId });
+        data.WarehouseID = newWh;
       }
       if (dto.Date) data.Date = new Date(dto.Date);
       if (dto.Description !== undefined) data.Description = dto.Description;
-      return tx.stockOut.update({ where: { ID: doc.ID }, data });
-    });
+      if (dto.AccountID !== undefined) data.AccountID = dto.AccountID || null;
+      const u = await tx.stockOut.update({ where: { ID: doc.ID }, data });
+      if (dto.Items) await this.applyAll(tx, doc.ID, userId ?? doc.CreatedByID);
+      await this.journal.postStockDoc(tx, 'STOCK_OUT', u, userId);
+      return u;
+    }, { timeout: 30000 });
     await this.afterWrite();
     return this.serializeStockOut(result);
   }
@@ -129,12 +133,38 @@ export class StockOutService extends StockDocumentService<any, CreateStockOutDto
     await this.prisma.$transaction(
       async (tx) => {
         await this.ledger.reverseRef(tx, ['STOCK_OUT'], doc.ID, { refCode: doc.Code, userId, notes: `Hapus barang keluar ${doc.Code}` });
+        await this.journal.reverse(tx, REF.STOCK_OUT, doc.ID);
         await tx.stockOut.delete({ where: { ID: doc.ID } });
       },
       { timeout: 30000 },
     );
     await this.afterWrite();
     return this.serializeStockOut(doc);
+  }
+
+  private itemsData(items: { ProductID: number; Quantity: number; UnitID: number; UnitPrice?: number; Subtotal?: number }[]) {
+    return items.map((item) => {
+      const unitPrice = item.UnitPrice ?? 0;
+      return {
+        ProductID: item.ProductID,
+        Quantity: new Prisma.Decimal(item.Quantity),
+        UnitID: item.UnitID,
+        UnitPrice: new Prisma.Decimal(unitPrice),
+        Subtotal: new Prisma.Decimal(item.Subtotal !== undefined ? item.Subtotal : item.Quantity * unitPrice),
+      };
+    });
+  }
+
+  /** Keluarkan stok semua item dokumen (HPP rata-rata saat transaksi). */
+  private async applyAll(tx: Prisma.TransactionClient, docId: number, userId: string) {
+    const d = await tx.stockOut.findUniqueOrThrow({ where: { ID: docId }, include: { StockOutItems: true } });
+    for (const it of d.StockOutItems) {
+      const base = await this.ledger.toBaseQty(tx, it.ProductID, it.UnitID, it.Quantity);
+      await this.ledger.move(tx, {
+        productId: it.ProductID, warehouseId: d.WarehouseID, qty: base.neg(), refType: 'STOCK_OUT', refId: d.ID, refCode: d.Code,
+        userId, date: d.Date, notes: d.Description ?? undefined,
+      });
+    }
   }
 
   private async afterWrite() {

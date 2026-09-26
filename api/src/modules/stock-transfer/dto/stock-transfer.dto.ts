@@ -24,6 +24,16 @@ export class CreateStockTransferItemDto {
   @IsOptional()
   @IsNumber()
   Subtotal?: number;
+
+  @ApiPropertyOptional({ description: 'Tgl Exp' })
+  @IsOptional()
+  @IsString()
+  ExpDate?: string | null;
+
+  @ApiPropertyOptional({ description: 'Kode Produksi' })
+  @IsOptional()
+  @IsString()
+  ProductionCode?: string | null;
 }
 
 export class CreateStockTransferDto {
@@ -77,6 +87,13 @@ export class UpdateStockTransferDto {
   @IsOptional()
   @IsInt()
   StatusID?: number;
+
+  @ApiPropertyOptional({ type: [CreateStockTransferItemDto], description: 'Mengganti seluruh item' })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateStockTransferItemDto)
+  Items?: CreateStockTransferItemDto[];
 }
 
 export class UpdateStockTransferStatusDto {

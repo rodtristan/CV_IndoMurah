@@ -15,6 +15,7 @@ import {
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { SalePaymentService } from './sale-payment.service';
 import { CreateSalePaymentDto, UpdateSalePaymentDto } from './dto/sale-payment.dto';
+import { CreatePaymentBatchDto } from '../../common/dto/payment-batch.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 import { CurrentUser } from '../../common/decorators/current-user-decorator';
 import { ApiResponse } from '../../common/dto/api-response-dto';
@@ -47,6 +48,38 @@ export class SalePaymentController {
     return ApiResponse.paginated(data, total, skip, take);
   }
 
+  // ── Dokumen "Bayar Piutang" (multi faktur) ──
+  @Get('batches')
+  @ApiOperation({ summary: 'Daftar Pembayaran Piutang per dokumen. Query: from,to,partnerId,search,sort,dir,skip,take' })
+  async listBatches(@Query() query: Record<string, any>) {
+    const { data, total, skip, take } = await this.salePaymentService.listBatches(query);
+    return ApiResponse.paginated(data, total, skip, take);
+  }
+
+  @Get('outstanding/:customerId')
+  @ApiOperation({ summary: 'Faktur penjualan pelanggan yang masih punya sisa piutang' })
+  async outstanding(@Param('customerId', ParseIntPipe) customerId: number) {
+    return ApiResponse.ok(await this.salePaymentService.outstanding(customerId));
+  }
+
+  @Get('batch/:code')
+  @ApiOperation({ summary: 'Detail dokumen Bayar Piutang' })
+  async getBatch(@Param('code') code: string) {
+    return ApiResponse.ok(await this.salePaymentService.getBatch(decodeURIComponent(code)));
+  }
+
+  @Post('batch')
+  @ApiOperation({ summary: 'Simpan dokumen Bayar Piutang (banyak faktur + potongan)' })
+  async createBatch(@Body() dto: CreatePaymentBatchDto, @CurrentUser() user: any) {
+    return ApiResponse.ok(await this.salePaymentService.createBatch(dto, user.id), 'Pembayaran piutang tersimpan');
+  }
+
+  @Delete('batch/:code')
+  @ApiOperation({ summary: 'Hapus dokumen Bayar Piutang (semua baris dibalik)' })
+  async deleteBatch(@Param('code') code: string) {
+    return ApiResponse.ok(await this.salePaymentService.deleteBatch(decodeURIComponent(code)), 'Pembayaran dihapus');
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get sale payment by ID' })
   async findOne(@Param('id', ParseIntPipe) id: number, @Query() query: any) {
@@ -67,6 +100,12 @@ export class SalePaymentController {
   async create(@Body() dto: CreateSalePaymentDto, @CurrentUser() user: any) {
     const data = await this.salePaymentService.create(dto, user.id);
     return ApiResponse.ok(data, 'Sale payment created successfully');
+  }
+
+  @Put('cheques/status')
+  @ApiOperation({ summary: 'Status Lunas Cek/Bg: simpan centang lunas + tanggal lunas. Body: { Items: [{ ID, IsCleared, ClearedAt }] }' })
+  async setCleared(@Body() body: { Items: { ID: number; IsCleared: boolean; ClearedAt?: string | null }[] }, @CurrentUser() user: any) {
+    return ApiResponse.ok(await this.salePaymentService.setClearedBatch(body?.Items ?? [], user?.id), 'Status lunas tersimpan');
   }
 
   @Put(':id')

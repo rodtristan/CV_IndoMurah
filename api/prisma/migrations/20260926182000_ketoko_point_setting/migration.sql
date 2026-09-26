@@ -1,0 +1,14 @@
+-- AlterTable
+ALTER TABLE "PointSettings" ADD COLUMN     "DiscountPrintText" VARCHAR(1000),
+ADD COLUMN     "InvoiceMultiple" DECIMAL(15,2) NOT NULL DEFAULT 0,
+ADD COLUMN     "ItemPrintText" VARCHAR(1000),
+ADD COLUMN     "NominalPerPoint" DECIMAL(15,2) NOT NULL DEFAULT 0,
+ADD COLUMN     "NonMemberEarns" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "PeriodFrom" TIMESTAMP(3),
+ADD COLUMN     "PeriodTo" TIMESTAMP(3),
+ADD COLUMN     "PointType" VARCHAR(20) NOT NULL DEFAULT 'NONE',
+ADD COLUMN     "RedeemFrom" TIMESTAMP(3),
+ADD COLUMN     "RedeemTo" TIMESTAMP(3),
+ADD COLUMN     "RewardPrintText" VARCHAR(1000),
+ADD COLUMN     "ValidDays" INTEGER NOT NULL DEFAULT 0;
+

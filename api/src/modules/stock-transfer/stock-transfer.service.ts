@@ -65,6 +65,8 @@ export class StockTransferService extends StockDocumentService<
         UnitID: item.UnitID,
         UnitPrice: new Prisma.Decimal(unitPrice),
         Subtotal: new Prisma.Decimal(subtotal),
+        ExpDate: item.ExpDate ? new Date(item.ExpDate) : null,
+        ProductionCode: item.ProductionCode || null,
       };
     });
 
@@ -115,31 +117,64 @@ export class StockTransferService extends StockDocumentService<
     return this.serializeStockTransfer(stockTransfer);
   }
 
-  /** Ubah header; ganti gudang asal/tujuan = mutasi dipindahkan. Item tidak dapat diubah. */
+  /** Ubah Item Transfer: gudang, tanggal, keterangan dan (opsional) seluruh item. */
   async patchById(id: any, dto: Partial<UpdateStockTransferDto>, userId?: string) {
     const doc = await this.prisma.stockTransfer.findUnique({ where: { ID: Number(id) } });
     if (!doc) throw new NotFoundException('Transfer tidak ditemukan');
     const from = dto.FromWarehouseID ? Number(dto.FromWarehouseID) : doc.FromWarehouseID;
     const to = dto.ToWarehouseID ? Number(dto.ToWarehouseID) : doc.ToWarehouseID;
     if (from === to) throw new BadRequestException('Gudang asal dan tujuan tidak boleh sama');
+    if (dto.Items && (!dto.Items.length || dto.Items.some((i) => !(Number(i.Quantity) > 0)))) {
+      throw new BadRequestException('Item wajib diisi dan jumlah harus lebih dari 0');
+    }
     const result = await this.prisma.$transaction(async (tx) => {
       const data: Prisma.StockTransferUncheckedUpdateInput = {};
-      if (to !== doc.ToWarehouseID) {
-        const wh = await this.ledger.resolveWarehouseId(tx, to);
-        await this.ledger.relocateRef(tx, ['TRANSFER_IN'], doc.ID, wh, { refCode: doc.Code, userId });
-        data.ToWarehouseID = wh;
-      }
-      if (from !== doc.FromWarehouseID) {
-        const wh = await this.ledger.resolveWarehouseId(tx, from);
-        await this.ledger.relocateRef(tx, ['TRANSFER_OUT'], doc.ID, wh, { refCode: doc.Code, userId });
-        data.FromWarehouseID = wh;
+      const fromId = await this.ledger.resolveWarehouseId(tx, from);
+      const toId = await this.ledger.resolveWarehouseId(tx, to);
+      if (dto.Items) {
+        await this.ledger.reverseRef(tx, ['TRANSFER_IN', 'TRANSFER_OUT'], doc.ID, { refCode: doc.Code, userId, notes: `Ubah transfer ${doc.Code}` });
+        await tx.stockTransferItem.deleteMany({ where: { StockTransferID: doc.ID } });
+        data.TransferItems = { create: this.replaceItems(dto.Items) } as any;
+        data.TotalItems = new Prisma.Decimal(dto.Items.reduce((a, i) => a + Number(i.Quantity), 0));
+        data.FromWarehouseID = fromId;
+        data.ToWarehouseID = toId;
+      } else {
+        if (toId !== doc.ToWarehouseID) {
+          await this.ledger.relocateRef(tx, ['TRANSFER_IN'], doc.ID, toId, { refCode: doc.Code, userId });
+          data.ToWarehouseID = toId;
+        }
+        if (fromId !== doc.FromWarehouseID) {
+          await this.ledger.relocateRef(tx, ['TRANSFER_OUT'], doc.ID, fromId, { refCode: doc.Code, userId });
+          data.FromWarehouseID = fromId;
+        }
       }
       if (dto.Date) data.Date = new Date(dto.Date);
       if (dto.Notes !== undefined) data.Notes = dto.Notes;
-      return tx.stockTransfer.update({ where: { ID: doc.ID }, data });
-    });
+      const u = await tx.stockTransfer.update({ where: { ID: doc.ID }, data, include: { TransferItems: true } });
+      if (dto.Items) {
+        for (const it of u.TransferItems) {
+          const base = await this.ledger.toBaseQty(tx, it.ProductID, it.UnitID, it.Quantity);
+          const common = { productId: it.ProductID, refId: u.ID, refCode: u.Code, userId: userId ?? u.CreatedByID, date: u.Date, notes: u.Notes ?? undefined };
+          await this.ledger.move(tx, { ...common, warehouseId: fromId, qty: base.neg(), refType: 'TRANSFER_OUT' });
+          await this.ledger.move(tx, { ...common, warehouseId: toId, qty: base, refType: 'TRANSFER_IN' });
+        }
+      }
+      return u;
+    }, { timeout: 30000 });
     await this.afterWrite();
     return this.serializeStockTransfer(result);
+  }
+
+  private replaceItems(items: { ProductID: number; Quantity: number; UnitID: number; UnitPrice?: number; Subtotal?: number; ExpDate?: string | null; ProductionCode?: string | null }[]) {
+    return items.map((item) => ({
+      ProductID: item.ProductID,
+      Quantity: new Prisma.Decimal(item.Quantity),
+      UnitID: item.UnitID,
+      UnitPrice: new Prisma.Decimal(item.UnitPrice ?? 0),
+      Subtotal: new Prisma.Decimal(item.Subtotal ?? item.Quantity * (item.UnitPrice ?? 0)),
+      ExpDate: item.ExpDate ? new Date(item.ExpDate) : null,
+      ProductionCode: item.ProductionCode || null,
+    }));
   }
 
   async deleteById(id: any, userId?: string) {

@@ -1,14 +1,13 @@
 "use client";
 
-// One full-page transaction form for the four Ketoko back-office documents:
-// Pembelian, Penjualan, Retur Pembelian and Retur Penjualan.
-// Fields the current API does not accept stay in state (and show in the UI) but are not sent.
+// One full-page transaction form for the Ketoko back-office documents:
+// Pesanan Pembelian, Pembelian, Pesanan Penjualan, Penjualan, Retur Pembelian and Retur Penjualan.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Printer, Save } from "lucide-react";
+import { ChevronLeft, CreditCard, MapPin, Printer, Save } from "lucide-react";
 import { api } from "@/lib/api-client";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, localDate } from "@/lib/utils";
 import { usePageTitle } from "@/lib/page-title";
 import { Badge } from "@/components/ui/StatCard";
 import {
@@ -21,8 +20,11 @@ import {
   computeTotals, lineDiscount, lineSubtotal, newKey, num, round2, todayStr, toDateInput,
   type LineItem, type TaxMode, type TierDiscount,
 } from "./calc";
+import { LoadingState } from "@/components/ui/Loader";
+import { Modal } from "@/components/ui/Modal";
+import { EMPTY_PAY, SalePayDialog, summarizePay, type SalePayState } from "./SalePayDialog";
 
-export type TxnKind = "purchase" | "sale" | "purchase-return" | "sale-return";
+export type TxnKind = "purchase" | "purchase-order" | "sale" | "sale-order" | "purchase-return" | "sale-return";
 
 type Rec = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -33,7 +35,7 @@ interface Cfg {
   partnerEp: "supplier" | "customer";
   partnerLabel: string;
   partnerKey: "Supplier" | "Customer";
-  itemsKey: "PurchaseItems" | "SaleItems" | "ReturnItems";
+  itemsKey: "PurchaseItems" | "SaleItems" | "ReturnItems" | "PurchaseOrderItems" | "SaleOrderItems";
   priceField: "PurchasePrice" | "SellingPrice";
   include: string;
   isReturn: boolean;
@@ -45,15 +47,25 @@ interface Cfg {
 }
 
 const CFG: Record<TxnKind, Cfg> = {
+  "purchase-order": {
+    title: "Pesanan Pembelian", endpoint: "PurchaseOrders", listPath: "/purchase/order", partnerEp: "supplier", partnerLabel: "Supplier", partnerKey: "Supplier",
+    itemsKey: "PurchaseOrderItems", priceField: "PurchasePrice", isReturn: false, partnerIdField: "SupplierID",
+    include: "Supplier,Warehouse,Status,PurchaseOrderItems,PurchaseOrderItems.Product,PurchaseOrderItems.Unit",
+  },
   purchase: {
     title: "Pembelian", endpoint: "purchases", listPath: "/purchase/list", partnerEp: "supplier", partnerLabel: "Supplier", partnerKey: "Supplier",
     itemsKey: "PurchaseItems", priceField: "PurchasePrice", isReturn: false, partnerIdField: "SupplierID",
     include: "Supplier,Warehouse,PaymentMethod,PaymentStatus,Status,PurchaseItems,PurchaseItems.Product,PurchaseItems.Unit",
   },
+  "sale-order": {
+    title: "Pesanan Penjualan", endpoint: "SaleOrders", listPath: "/sale/order", partnerEp: "customer", partnerLabel: "Pelanggan", partnerKey: "Customer",
+    itemsKey: "SaleOrderItems", priceField: "SellingPrice", isReturn: false, partnerIdField: "CustomerID",
+    include: "Customer,SalesPerson,Warehouse,Status,SaleOrderItems,SaleOrderItems.Product,SaleOrderItems.Unit",
+  },
   sale: {
     title: "Penjualan", endpoint: "sales", listPath: "/sale/list", partnerEp: "customer", partnerLabel: "Pelanggan", partnerKey: "Customer",
     itemsKey: "SaleItems", priceField: "SellingPrice", isReturn: false, partnerIdField: "CustomerID",
-    include: "Customer,SalesPerson,Warehouse,PaymentMethod,PaymentStatus,SaleItems,SaleItems.Product,SaleItems.Unit",
+    include: "Customer,SalesPerson,Warehouse,PaymentMethod,PaymentStatus,SaleOrder,SalePayments,SaleItems,SaleItems.Product,SaleItems.Unit",
   },
   "purchase-return": {
     title: "Retur Pembelian", endpoint: "PurchaseReturns", listPath: "/purchase/returns", partnerEp: "supplier", partnerLabel: "Supplier", partnerKey: "Supplier",
@@ -73,6 +85,15 @@ type PayType = "TUNAI" | "KREDIT" | "DP";
 interface Opt { value: string; label: string }
 interface Picked { id: number; name: string }
 
+const PO_STATUS_OPTIONS = [
+  { value: "WAITING_PAYMENT", label: "Menunggu Pembayaran" },
+  { value: "PAID", label: "Sudah Dibayar" },
+  { value: "PROCESSED", label: "Diproses" },
+  { value: "SHIPPED", label: "Dikirim" },
+  { value: "DONE", label: "Selesai" },
+  { value: "CANCELLED", label: "Batal" },
+];
+
 const statusVariant: Record<string, string> = {
   DRAFT: "warning", CONFIRMED: "info", COMPLETED: "success", CANCELLED: "danger",
   PENDING: "warning", PAID: "success", PARTIAL: "info", INSTALMENT: "info",
@@ -83,7 +104,7 @@ const listOf = (d: unknown): Rec[] => (Array.isArray(d) ? (d as Rec[]) : Array.i
 function addDays(date: string, days: number): string {
   const d = new Date(`${date}T00:00:00`);
   d.setDate(d.getDate() + days);
-  return d.toISOString().split("T")[0];
+  return localDate(d);
 }
 function diffDays(a: string, b: string): number {
   return Math.round((new Date(`${b}T00:00:00`).getTime() - new Date(`${a}T00:00:00`).getTime()) / 86400000);
@@ -95,6 +116,9 @@ export function TransactionForm({ kind, id, copyFrom, presetRef }: { kind: TxnKi
   const isNew = !id;
   const isSale = kind === "sale";
   const isPurchase = kind === "purchase";
+  const isPO = kind === "purchase-order";
+  const isSO = kind === "sale-order";
+  const isOrder = isPO || isSO;
 
   // ─ header
   const [code, setCode] = useState("");
@@ -110,6 +134,9 @@ export function TransactionForm({ kind, id, copyFrom, presetRef }: { kind: TxnKi
   const [refDoc, setRefDoc] = useState<Picked | null>(null);
   const [refOptions, setRefOptions] = useState<Rec[]>([]);
   const [returnType, setReturnType] = useState("POTONG");
+  // ─ pesanan pembelian
+  const [orderStatus, setOrderStatus] = useState("WAITING_PAYMENT");
+  const [deliveryDate, setDeliveryDate] = useState(todayStr());
   // ─ money
   const [taxMode, setTaxMode] = useState<TaxMode>("NON");
   const [taxPercent, setTaxPercent] = useState("11");
@@ -118,15 +145,27 @@ export function TransactionForm({ kind, id, copyFrom, presetRef }: { kind: TxnKi
   const [tiers, setTiers] = useState<TierDiscount[]>([]);
   const [otherCost, setOtherCost] = useState("");
   const [otherCostAdds, setOtherCostAdds] = useState(true);
-  const [payType, setPayType] = useState<PayType>(isSale ? "TUNAI" : "KREDIT");
+  const [payType, setPayType] = useState<PayType>(isOrder ? "DP" : "KREDIT");
   const [dp, setDp] = useState("");
   const [deposit, setDeposit] = useState("");
-  const [commission, setCommission] = useState("");
   // ─ shipping (sale)
   const [shipStatus, setShipStatus] = useState("PENDING");
   const [shipDate, setShipDate] = useState("");
   const [tracking, setTracking] = useState("");
   const [shipAddress, setShipAddress] = useState("");
+  const [shipName, setShipName] = useState("");
+  const [shipCity, setShipCity] = useState("");
+  const [shipPhone, setShipPhone] = useState("");
+  const [courier, setCourier] = useState("");
+  const [showShip, setShowShip] = useState(false);
+  // ─ penjualan: pesanan, bayar
+  const [soId, setSoId] = useState("");
+  const [soOptions, setSoOptions] = useState<Opt[]>([]);
+  const [soDp, setSoDp] = useState(0);
+  const [depositBalance, setDepositBalance] = useState(0);
+  const [pay, setPay] = useState<SalePayState>(EMPTY_PAY);
+  const [showPay, setShowPay] = useState(false);
+  const [dpMethodId, setDpMethodId] = useState("");
   // ─ lines
   const [items, setItems] = useState<LineItem[]>([]);
   // ─ meta
@@ -143,8 +182,11 @@ export function TransactionForm({ kind, id, copyFrom, presetRef }: { kind: TxnKi
   const payStatusCode: string = record?.PaymentStatus?.Code ?? "";
   const editable = isNew
     ? true
-    : isSale ? !["PAID", "CANCELLED"].includes(payStatusCode) : statusCode === "DRAFT";
-  const itemsEditable = isNew;
+    : isSale ? payStatusCode !== "CANCELLED"
+      : isPurchase || isOrder ? !["CANCELLED", "COMPLETED"].includes(statusCode)
+        : statusCode === "DRAFT";
+  const itemsEditable = isNew || isPurchase || isSale
+    || (isPO && !(Number(record?.ReceivedQty ?? 0) > 0)) || (isSO && !(Number(record?.DeliveredQty ?? 0) > 0));
 
   usePageTitle(isNew ? `${cfg.title} Baru` : `${cfg.title} ${code}`);
 
@@ -160,16 +202,89 @@ export function TransactionForm({ kind, id, copyFrom, presetRef }: { kind: TxnKi
       setMethods(pms);
       if (isNew && !copyFrom) {
         const cash = pms.find((m) => m.code === "CASH") ?? pms[0];
-        if (cash) setMethodId(cash.value);
+        if (cash) { setMethodId(cash.value); setDpMethodId(cash.value); }
         const first = listOf(wh?.data)[0];
         if (first) setWarehouseId((w) => w || String(first.ID));
       }
       if (isPurchase) {
-        const po = await api.get<Rec[]>("PurchaseOrders", { $take: 100 }).catch(() => null);
-        setOrders(listOf(po?.data).map((p) => ({ value: String(p.ID), label: String(p.Code ?? p.ID) })));
+        const po = await api.get<Rec[]>("PurchaseOrders", { $take: 100, $orderBy: { Date: "desc" }, $include: "Supplier", $where: { ProcessStatus: { in: "OPEN,PARTIAL" } } }).catch(() => null);
+        setOrders(listOf(po?.data).map((p) => ({ value: String(p.ID), label: `${p.Code} - ${p.Supplier?.Name ?? ""}` })));
       }
     })();
   }, [isNew, copyFrom, isPurchase]);
+
+  // ── Pembelian dari pesanan: isi supplier, gudang, PPN dan item (sisa yang belum diterima)
+  const pickOrder = useCallback(async (orderId: string) => {
+    setPoId(orderId);
+    if (!orderId) return;
+    const res = await api.get<Rec>(`PurchaseOrders/${orderId}`, { $include: "Supplier,PurchaseOrderItems,PurchaseOrderItems.Product,PurchaseOrderItems.Unit" }, { skipCache: true }).catch(() => null);
+    const po = res?.data;
+    if (!po) return;
+    if (po.Supplier) setPartner({ id: po.Supplier.ID, name: po.Supplier.Name });
+    if (po.WarehouseID) setWarehouseId(String(po.WarehouseID));
+    if (po.TaxMode) setTaxMode(po.TaxMode as TaxMode);
+    if (Number(po.TaxPercent) > 0) setTaxPercent(String(Number(po.TaxPercent)));
+    setItems((po.PurchaseOrderItems ?? []).map((it: Rec) => ({
+      key: newKey(), productId: it.ProductID, code: it.Product?.Code ?? "", name: it.Product?.Name ?? "",
+      unitId: it.UnitID, unitName: it.Unit?.Name ?? "",
+      qty: String(Math.max(0, Number(it.Quantity) - Number(it.ReceivedQuantity ?? 0))),
+      price: String(Number(it.UnitPrice)),
+      discPercent: Number(it.DiscountPercent) ? String(Number(it.DiscountPercent)) : "",
+      discAmount: !Number(it.DiscountPercent) && Number(it.DiscountAmount) ? String(Number(it.DiscountAmount)) : "",
+      orderedQty: Number(it.Quantity), orderItemId: it.ID,
+    })).filter((l: LineItem) => num(l.qty) > 0));
+  }, []);
+
+  // ── Penjualan dari Pesanan Penjualan: isi pelanggan, sales, gudang, PPN, item (sisa yang belum dijual) & DP
+  const pickSaleOrder = useCallback(async (orderId: string) => {
+    setSoId(orderId);
+    if (!orderId) { setSoDp(0); return; }
+    const res = await api.get<Rec>(`SaleOrders/${orderId}`, { $include: "Customer,SalesPerson,SaleOrderItems,SaleOrderItems.Product,SaleOrderItems.Unit" }, { skipCache: true }).catch(() => null);
+    const so = res?.data;
+    if (!so) return;
+    if (so.Customer) setPartner({ id: so.Customer.ID, name: so.Customer.Name });
+    if (so.SalesPerson) setSalesPerson({ id: so.SalesPerson.ID, name: so.SalesPerson.Name });
+    if (so.WarehouseID) setWarehouseId(String(so.WarehouseID));
+    if (so.TaxMode) setTaxMode(so.TaxMode as TaxMode);
+    if (Number(so.TaxPercent) > 0) setTaxPercent(String(Number(so.TaxPercent)));
+    if (Number(so.DiscountAmount) > 0) setDiscAmount(String(Number(so.DiscountAmount)));
+    if (Number(so.OtherCost) > 0) { setOtherCost(String(Number(so.OtherCost))); setOtherCostAdds(so.OtherCostAdds !== false); }
+    setSoDp(Number(so.DownPayment ?? 0));
+    setItems((so.SaleOrderItems ?? []).map((it: Rec) => ({
+      key: newKey(), productId: it.ProductID, code: it.Product?.Code ?? "", name: it.Product?.Name ?? "",
+      unitId: it.UnitID, unitName: it.Unit?.Name ?? "",
+      qty: String(Math.max(0, Number(it.Quantity) - Number(it.DeliveredQuantity ?? 0))),
+      price: String(Number(it.UnitPrice)),
+      discPercent: Number(it.DiscountPercent) ? String(Number(it.DiscountPercent)) : "",
+      discAmount: !Number(it.DiscountPercent) && Number(it.DiscountAmount) ? String(Number(it.DiscountAmount)) : "",
+      orderedQty: Number(it.Quantity), orderItemId: it.ID,
+    })).filter((l: LineItem) => num(l.qty) > 0));
+  }, []);
+
+  // Pesanan terbuka & saldo deposit pelanggan (untuk Bayar)
+  useEffect(() => {
+    if (!isSale || !isNew) return;
+    if (!partner) { setSoOptions([]); setDepositBalance(0); return; }
+    void (async () => {
+      const [so, c] = await Promise.all([
+        api.get<Rec[]>("SaleOrders/open", { customerId: partner.id }, { skipCache: true }).catch(() => null),
+        api.get<Rec>(`customer/${partner.id}`, undefined, { skipCache: true }).catch(() => null),
+      ]);
+      setSoOptions(listOf(so?.data).map((o) => ({ value: String(o.ID), label: `${o.Code} - ${toDateInput(o.Date)} - ${formatCurrency(Number(o.Total))}` })));
+      setDepositBalance(Number(c?.data?.DepositBalance ?? 0));
+    })();
+  }, [isSale, isNew, partner]);
+
+  /** Default dari master Supplier/Pelanggan: jatuh tempo & pajak (Ketoko "mengacu pada data supplier"). */
+  const applyPartnerDefaults = useCallback(async (partnerId: number) => {
+    if (!isNew || cfg.isReturn) return;
+    const res = await api.get<Rec>(`${cfg.partnerEp}/${partnerId}`, undefined, { skipCache: true }).catch(() => null);
+    const p = res?.data;
+    if (!p) return;
+    if (Number(p.DueDays) > 0) setDueDate(addDays(date, Number(p.DueDays)));
+    if (p.TaxMode && p.TaxMode !== "DEFAULT") setTaxMode(p.TaxMode as TaxMode);
+    if (p.TaxValueSource === "PARTNER" && Number(p.TaxRate) > 0) setTaxPercent(String(Number(p.TaxRate)));
+  }, [isNew, cfg.isReturn, cfg.partnerEp, date]);
 
   // ── invoices selectable by a return
   const loadRefOptions = useCallback(async (partnerId?: number) => {
@@ -232,16 +347,28 @@ export function TransactionForm({ kind, id, copyFrom, presetRef }: { kind: TxnKi
         setNotes(r.Notes ?? r.Reason ?? "");
         if (!cfg.isReturn) {
           const tp = Number(r.TaxPercent ?? 0);
-          if (tp > 0) { setTaxMode("EXCLUDE"); setTaxPercent(String(tp)); }
+          setTaxMode((r.TaxMode as TaxMode) || (tp > 0 ? "EXCLUDE" : "NON"));
+          if (tp > 0) setTaxPercent(String(tp));
           const da = Number(r.DiscountAmount ?? 0);
           if (da > 0) setDiscAmount(String(da));
+          if (Number(r.OtherCost) > 0) setOtherCost(String(Number(r.OtherCost)));
+          if (r.OtherCostAdds === false) setOtherCostAdds(false);
+          if (r.ReferenceNo) setRefNo(r.ReferenceNo);
+        }
+        if (isOrder) {
+          setOrderStatus(r.OrderStatus ?? "WAITING_PAYMENT");
+          setDeliveryDate(toDateInput(r.DeliveryDate) || todayStr());
+          if (Number(r.DownPayment) > 0) setDp(String(Number(r.DownPayment)));
         }
         if (isSale) {
           setShipStatus(r.ShippingStatus ?? "PENDING");
           setShipDate(toDateInput(r.ShippingDate));
           setTracking(r.TrackingNumber ?? "");
-          if (!copyFrom) setPayType(Number(r.CashAmount ?? 0) >= Number(r.Total ?? 0) && Number(r.Total) > 0 ? "TUNAI" : Number(r.CashAmount ?? 0) > 0 ? "DP" : "KREDIT");
-          if (!copyFrom && Number(r.CashAmount) > 0) setDp(String(Number(r.CashAmount)));
+          setShipName(r.ShipName ?? ""); setShipAddress(r.ShipAddress ?? ""); setShipCity(r.ShipCity ?? ""); setShipPhone(r.ShipPhone ?? ""); setCourier(r.Courier ?? "");
+          if (!copyFrom && r.SaleOrderID) {
+            setSoId(String(r.SaleOrderID));
+            if (r.SaleOrder) setSoOptions([{ value: String(r.SaleOrderID), label: r.SaleOrder.Code }]);
+          }
         } else if (isPurchase && !copyFrom) {
           setPayType(Number(r.Paid ?? 0) >= Number(r.Total ?? 0) && Number(r.Total) > 0 ? "TUNAI" : Number(r.Paid ?? 0) > 0 ? "DP" : "KREDIT");
           if (Number(r.Paid) > 0) setDp(String(Number(r.Paid)));
@@ -264,6 +391,7 @@ export function TransactionForm({ kind, id, copyFrom, presetRef }: { kind: TxnKi
             unitId: it.UnitID, unitName: it.Unit?.Name ?? "", qty: String(Number(it.Quantity)), price: String(Number(it.UnitPrice)),
             discPercent: Number(it.DiscountPercent) ? String(Number(it.DiscountPercent)) : "",
             discAmount: !Number(it.DiscountPercent) && Number(it.DiscountAmount) ? String(Number(it.DiscountAmount)) : "",
+            receivedQty: it.ReceivedQuantity !== undefined ? Number(it.ReceivedQuantity) : it.DeliveredQuantity !== undefined ? Number(it.DeliveredQuantity) : undefined,
           })));
         }
       } catch (e) {
@@ -277,16 +405,21 @@ export function TransactionForm({ kind, id, copyFrom, presetRef }: { kind: TxnKi
 
   // ── totals
   const t = useMemo(() => computeTotals({ items, discPercent, discAmount, tiers, taxMode, taxPercent, otherCost, otherCostAdds }), [items, discPercent, discAmount, tiers, taxMode, taxPercent, otherCost, otherCostAdds]);
-  const paidNow = payType === "TUNAI" ? t.total : payType === "KREDIT" ? 0 : Math.min(num(dp), t.total);
-  const paid = isNew ? paidNow + num(deposit) : Number(record?.Paid ?? record?.CashAmount ?? 0);
+  const paidNow = isOrder ? Math.min(num(dp), t.total) : payType === "TUNAI" ? t.total : payType === "KREDIT" ? 0 : Math.min(num(dp), t.total);
+  const dpSoUsed = isSale && isNew ? round2(Math.min(soDp, depositBalance, t.total)) : 0;
+  const saleSum = summarizePay(t.total, dpSoUsed, pay);
+  const recordPaid = isSale
+    ? ((record?.SalePayments ?? []) as Rec[]).filter((p) => p.IsCleared !== false).reduce((a, p) => a + Number(p.Amount), 0)
+    : Number(record?.Paid ?? 0);
+  const paid = isNew ? (isSale ? saleSum.paid : paidNow + num(deposit)) : recordPaid;
   const remaining = Math.max(0, t.total - paid);
-  const change = isSale && isNew && payType === "DP" && num(dp) > t.total ? num(dp) - t.total : 0;
+  const change = isSale && isNew ? saleSum.change : 0;
 
   // ── save
   const validate = (): string => {
     if (!partner) return `${cfg.partnerLabel} wajib dipilih`;
     if (cfg.isReturn && isNew && !refDoc) return `${cfg.refLabel} wajib dipilih`;
-    if (isNew) {
+    if (isNew || itemsEditable) {
       const lines = cfg.isReturn ? items.filter((l) => num(l.qty) > 0) : items;
       if (lines.length === 0) return cfg.isReturn ? "Isi jumlah retur minimal satu item" : "Tambahkan minimal 1 item";
       if (lines.some((l) => num(l.qty) <= 0)) return "Jumlah item harus lebih dari 0";
@@ -315,6 +448,19 @@ export function TransactionForm({ kind, id, copyFrom, presetRef }: { kind: TxnKi
     notes,
   });
 
+  /** Baris Bayar → Payments API (DP SO & Bayar Deposit memakai saldo deposit pelanggan). */
+  const salePayments = () => {
+    const byCode = (c: string) => methods.find((m) => m.code === c)?.value;
+    const out: Rec[] = [];
+    if (dpSoUsed > 0) out.push({ InstrumentType: "DEPOSIT", Amount: dpSoUsed, Notes: "DP Pesanan" });
+    if (num(pay.deposit) > 0) out.push({ InstrumentType: "DEPOSIT", Amount: round2(num(pay.deposit)) });
+    if (num(pay.cash) > 0) out.push({ MethodID: Number(byCode("CASH") ?? methodId), Amount: round2(num(pay.cash)) });
+    if (num(pay.debit) > 0) out.push({ MethodID: Number(byCode("DEBIT") ?? methodId), Amount: round2(num(pay.debit)) });
+    if (num(pay.card) > 0) out.push({ MethodID: Number(byCode("CREDIT") ?? methodId), Amount: round2(num(pay.card)) });
+    if (num(pay.emoney) > 0) out.push({ MethodID: Number(byCode("EWALLET") ?? byCode("QRIS") ?? methodId), Amount: round2(num(pay.emoney)) });
+    return out;
+  };
+
   const save = async (print = false) => {
     setError("");
     const v = validate();
@@ -322,10 +468,18 @@ export function TransactionForm({ kind, id, copyFrom, presetRef }: { kind: TxnKi
     setSaving(true);
     try {
       let savedId = id;
-      const dateIso = date || undefined;
+      // Tanggal + jam saat ini (seperti Ketoko); edit tanpa ganti tanggal mempertahankan waktu asli.
+      const dateIso = (() => {
+        if (!date) return undefined;
+        if (!isNew && record?.Date && toDateInput(record.Date) === date) return String(record.Date);
+        const [y, m, d] = date.split("-").map(Number);
+        const now = new Date();
+        return new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds()).toISOString();
+      })();
       const wh = warehouseId ? Number(warehouseId) : undefined;
-      // Percent is informational on the API (only the nominal is used); "Include" tax is already inside the prices.
-      const apiTax = taxMode === "EXCLUDE" ? num(taxPercent) : 0;
+      // Server menghitung pajak dari mode + persen (Include = sudah termasuk harga).
+      const apiTax = taxMode === "NON" ? 0 : num(taxPercent);
+      const docExtra = { TaxMode: taxMode, OtherCost: num(otherCost), OtherCostAdds: otherCostAdds };
       const lineBody = (l: LineItem) => ({
         ProductID: l.productId, Quantity: num(l.qty), UnitID: l.unitId, UnitPrice: num(l.price),
         ...(cfg.isReturn ? {} : { DiscountPercent: num(l.discPercent), DiscountAmount: round2(lineDiscount(l)) }),
@@ -333,17 +487,30 @@ export function TransactionForm({ kind, id, copyFrom, presetRef }: { kind: TxnKi
 
       if (isNew) {
         let body: Rec;
-        if (isPurchase) {
+        if (isPO) {
+          body = {
+            SupplierID: partner!.id, WarehouseID: wh, Date: dateIso, DeliveryDate: deliveryDate || undefined, OrderStatus: orderStatus,
+            DiscountPercent: num(discPercent), DiscountAmount: round2(t.discount), TaxPercent: apiTax, ...docExtra,
+            DownPayment: round2(paidNow), Notes: notes || undefined, Items: items.map(lineBody),
+          };
+        } else if (isSO) {
+          body = {
+            CustomerID: partner!.id, SalesPersonID: salesPerson?.id, WarehouseID: wh, Date: dateIso, DeliveryDate: deliveryDate || undefined,
+            OrderStatus: orderStatus, DiscountPercent: num(discPercent), DiscountAmount: round2(t.discount), TaxPercent: apiTax, ...docExtra,
+            DownPayment: round2(paidNow), DPMethodID: dpMethodId ? Number(dpMethodId) : undefined, Notes: notes || undefined, Items: items.map(lineBody),
+          };
+        } else if (isPurchase) {
           body = {
             SupplierID: partner!.id, WarehouseID: wh, PurchaseOrderID: poId ? Number(poId) : undefined, Date: dateIso, DueDate: dueDate || undefined,
             PaymentMethodID: methodId ? Number(methodId) : undefined, DiscountPercent: num(discPercent), DiscountAmount: round2(t.discount),
-            TaxPercent: apiTax, Notes: notes || undefined, Items: items.map(lineBody),
+            TaxPercent: apiTax, ...docExtra, ReferenceNo: refNo || undefined, Notes: notes || undefined, Items: items.map(lineBody),
           };
         } else if (isSale) {
           body = {
             CustomerID: partner!.id, SalesPersonID: salesPerson?.id, WarehouseID: wh, Date: dateIso, DueDate: dueDate || undefined,
-            DiscountPercent: num(discPercent), DiscountAmount: round2(t.discount), TaxPercent: apiTax,
-            PaymentMethodID: methodId ? Number(methodId) : undefined, CashAmount: round2(payType === "DP" ? num(dp) : paidNow),
+            DiscountPercent: num(discPercent), DiscountAmount: round2(t.discount), TaxPercent: apiTax, ...docExtra, ReferenceNo: refNo || undefined,
+            SaleOrderID: soId ? Number(soId) : undefined, Payments: salePayments(),
+            ShipName: shipName || undefined, ShipAddress: shipAddress || undefined, ShipCity: shipCity || undefined, ShipPhone: shipPhone || undefined, Courier: courier || undefined,
             Notes: notes || undefined, Items: items.map(lineBody),
           };
         } else if (kind === "purchase-return") {
@@ -373,22 +540,44 @@ export function TransactionForm({ kind, id, copyFrom, presetRef }: { kind: TxnKi
         }
         if (isSale && (shipStatus !== "PENDING" || shipDate || tracking)) {
           await api.put("sales", `${res.data.ID}/shipping`, {
-            ShippingStatus: shipStatus, ShippingDate: shipDate || undefined, TrackingNumber: tracking || undefined,
+            ShippingStatus: shipStatus, ShippingDate: shipDate || undefined, TrackingNumber: tracking || undefined, Courier: courier || undefined,
           }).catch(() => undefined);
         }
       } else {
         let body: Rec;
-        if (isPurchase) {
-          body = { WarehouseID: wh, Date: dateIso, DueDate: dueDate || undefined, PaymentMethodID: methodId ? Number(methodId) : undefined, DiscountPercent: num(discPercent), DiscountAmount: round2(t.discount), TaxPercent: apiTax, Notes: notes };
+        if (isPO) {
+          body = {
+            SupplierID: partner!.id, WarehouseID: wh, Date: dateIso, DeliveryDate: deliveryDate || null, OrderStatus: orderStatus,
+            DiscountPercent: num(discPercent), DiscountAmount: round2(t.discount), TaxPercent: apiTax, ...docExtra,
+            DownPayment: round2(paidNow), Notes: notes, ...(itemsEditable ? { Items: items.map(lineBody) } : {}),
+          };
+        } else if (isSO) {
+          body = {
+            CustomerID: partner!.id, SalesPersonID: salesPerson?.id ?? null, WarehouseID: wh, Date: dateIso, DeliveryDate: deliveryDate || null,
+            OrderStatus: orderStatus, DiscountPercent: num(discPercent), DiscountAmount: round2(t.discount), TaxPercent: apiTax, ...docExtra,
+            DownPayment: round2(paidNow), DPMethodID: dpMethodId ? Number(dpMethodId) : undefined, Notes: notes,
+            ...(itemsEditable ? { Items: items.map(lineBody) } : {}),
+          };
+        } else if (isPurchase) {
+          body = {
+            WarehouseID: wh, Date: dateIso, DueDate: dueDate || undefined, PaymentMethodID: methodId ? Number(methodId) : undefined,
+            DiscountPercent: num(discPercent), DiscountAmount: round2(t.discount), TaxPercent: apiTax, ...docExtra,
+            ReferenceNo: refNo || null, Notes: notes, Items: items.map(lineBody),
+          };
         } else if (isSale) {
-          body = { CustomerID: partner!.id, SalesPersonID: salesPerson?.id, WarehouseID: wh, Date: dateIso, DueDate: dueDate || undefined, DiscountPercent: num(discPercent), DiscountAmount: round2(t.discount), TaxPercent: apiTax, PaymentMethodID: methodId ? Number(methodId) : undefined, Notes: notes };
+          body = {
+            CustomerID: partner!.id, SalesPersonID: salesPerson?.id ?? null, WarehouseID: wh, Date: dateIso, DueDate: dueDate || undefined,
+            DiscountPercent: num(discPercent), DiscountAmount: round2(t.discount), TaxPercent: apiTax, ...docExtra, ReferenceNo: refNo || null, Notes: notes,
+            ShipName: shipName || null, ShipAddress: shipAddress || null, ShipCity: shipCity || null, ShipPhone: shipPhone || null, Courier: courier || null,
+            ...(itemsEditable ? { Items: items.map(lineBody) } : {}),
+          };
         } else {
           body = { WarehouseID: wh, Date: dateIso, Reason: notes };
         }
         const res = await api.put<Rec>(cfg.endpoint, id!, body);
         if (!res.success) throw new Error(res.message || "Gagal menyimpan");
         if (isSale) {
-          await api.put("sales", `${id}/shipping`, { ShippingStatus: shipStatus, ShippingDate: shipDate || undefined, TrackingNumber: tracking || undefined }).catch(() => undefined);
+          await api.put("sales", `${id}/shipping`, { ShippingStatus: shipStatus, ShippingDate: shipDate || undefined, TrackingNumber: tracking || undefined, Courier: courier || undefined }).catch(() => undefined);
         }
       }
       if (print) printDocument({ ...buildDoc(), code: (record?.Code as string) || code || String(savedId) });
@@ -411,7 +600,7 @@ export function TransactionForm({ kind, id, copyFrom, presetRef }: { kind: TxnKi
     } finally { setSaving(false); }
   };
 
-  if (loading) return <div className="p-8 text-center text-muted">Memuat...</div>;
+  if (loading) return <LoadingState className="py-16" />;
 
   const dis = !editable;
   const statusBadge = statusCode || payStatusCode;
@@ -443,7 +632,7 @@ export function TransactionForm({ kind, id, copyFrom, presetRef }: { kind: TxnKi
         </button>
         <h2 className="text-lg font-semibold text-highlighted">{isNew ? `${cfg.title} Baru` : `${cfg.title} ${code}`}</h2>
         {statusBadge && <Badge variant={(statusVariant[statusBadge] ?? "default") as never}>{statusBadge}</Badge>}
-        {!isNew && !editable && <span className="text-sm text-muted">Hanya dapat dilihat (bukan status DRAFT)</span>}
+        {!isNew && !editable && <span className="text-sm text-muted">Hanya dapat dilihat (transaksi sudah selesai / batal)</span>}
         <div className="ml-auto flex flex-wrap gap-2">
           {nextActions.map((a) => (
             <button key={a.code} type="button" disabled={saving} onClick={() => void changeStatus(a.code)} className={cn("h-10 rounded border px-4 text-sm", a.code === "CANCELLED" ? "border-danger text-danger hover:bg-danger/10" : "border-info text-info hover:bg-info/10")}>
@@ -470,23 +659,23 @@ export function TransactionForm({ kind, id, copyFrom, presetRef }: { kind: TxnKi
               {kind === "purchase" || isSale ? (
                 <KInput label="Jatuh Tempo" type="date" value={dueDate} disabled={dis} onChange={(e) => setDueDate(e.target.value)} />
               ) : (
-                <KSelect label="Dari Kantor / Gudang" value={warehouseId} disabled={dis} onChange={setWarehouseId} options={warehouses} placeholder="Pilih gudang..." />
+                <KSelect label={isPO ? "Masuk Ke" : isSO ? "Keluar Dari" : "Dari Kantor / Gudang"} value={warehouseId} disabled={dis} onChange={setWarehouseId} options={warehouses} placeholder="Pilih gudang..." />
               )}
             </KRow>
             {(kind === "purchase" || isSale) && (
               <KRow>
                 <KNumber
-                  label="Tempo (hari)" value={dueDate ? diffDays(date, dueDate) : ""} disabled={dis} placeholder="0"
+                  label="Hari Jt" value={dueDate ? diffDays(date, dueDate) : ""} disabled={dis} placeholder="0"
                   onChange={(v) => setDueDate(v === "" ? "" : addDays(date, Math.max(0, Math.round(num(v)))))}
                 />
-                <KSelect label="Kantor / Gudang" value={warehouseId} disabled={dis} onChange={setWarehouseId} options={warehouses} placeholder="Pilih gudang..." />
+                <KSelect label={isPurchase ? "Masuk Ke" : "Keluar Dari"} value={warehouseId} disabled={dis} onChange={setWarehouseId} options={warehouses} placeholder="Pilih gudang..." />
               </KRow>
             )}
             <PartnerLookup
               label={cfg.partnerLabel} endpoint={cfg.partnerEp} value={partner?.name ?? ""}
               disabled={dis || (cfg.isReturn && !isNew) || (!isNew && isPurchase)}
-              onPick={(p) => { setPartner({ id: Number(p.value), name: p.label }); if (cfg.isReturn) { setRefDoc(null); setItems([]); } }}
-              onClear={() => { setPartner(null); if (cfg.isReturn) { setRefDoc(null); setItems([]); } }}
+              onPick={(p) => { setPartner({ id: Number(p.value), name: p.label }); void applyPartnerDefaults(Number(p.value)); if (cfg.isReturn) { setRefDoc(null); setItems([]); } if (isSale && soId) { setSoId(""); setSoDp(0); } }}
+              onClear={() => { setPartner(null); if (cfg.isReturn) { setRefDoc(null); setItems([]); } if (isSale) { setSoId(""); setSoDp(0); } }}
             />
             {cfg.isReturn && (
               isNew ? (
@@ -498,7 +687,7 @@ export function TransactionForm({ kind, id, copyFrom, presetRef }: { kind: TxnKi
                 <KInput label={cfg.refLabel} value={refDoc?.name ?? ""} readOnly />
               )
             )}
-            {isSale && (
+            {(isSale || isSO) && (
               <PartnerLookup
                 label="Sales" endpoint="sales-person" value={salesPerson?.name ?? ""} disabled={dis} placeholder="(opsional)"
                 onPick={(p) => setSalesPerson({ id: Number(p.value), name: p.label })} onClear={() => setSalesPerson(null)}
@@ -509,11 +698,25 @@ export function TransactionForm({ kind, id, copyFrom, presetRef }: { kind: TxnKi
             {isPurchase && (
               <KRow>
                 <KInput label="No. Faktur Supplier" value={refNo} disabled={dis} onChange={(e) => setRefNo(e.target.value)} />
-                <KSelect label="No. Pesanan Pembelian (PO)" value={poId} disabled={dis || !isNew} onChange={setPoId} options={orders} placeholder="(tanpa PO)" />
+                <KSelect label="Pesanan" value={poId} disabled={dis || !isNew} onChange={(v) => void pickOrder(v)} options={orders} placeholder="(tanpa pesanan)" />
               </KRow>
             )}
-            {isSale && <KInput label="No. Referensi / PO Pelanggan" value={refNo} disabled={dis} onChange={(e) => setRefNo(e.target.value)} />}
-            {!cfg.isReturn && (
+            {isSale && (
+              <KRow>
+                <KSelect label="Pesanan" value={soId} disabled={dis || !isNew || !partner} onChange={(v) => void pickSaleOrder(v)} options={soOptions} placeholder={partner ? "(tanpa pesanan)" : "Pilih pelanggan dahulu"} />
+                <KInput label="No. Referensi / PO Pelanggan" value={refNo} disabled={dis} onChange={(e) => setRefNo(e.target.value)} />
+              </KRow>
+            )}
+            {isOrder && (
+              <KRow>
+                <KSelect
+                  label="Status Pesanan" value={orderStatus} disabled={dis} onChange={(v) => setOrderStatus(v || "WAITING_PAYMENT")}
+                  options={PO_STATUS_OPTIONS} placeholder="Menunggu Pembayaran"
+                />
+                <KInput label="Tanggal Kirim" type="date" value={deliveryDate} disabled={dis} onChange={(e) => setDeliveryDate(e.target.value)} />
+              </KRow>
+            )}
+            {isPurchase && (
               <KSelect label="Metode Pembayaran" value={methodId} disabled={dis} onChange={setMethodId} options={methods} placeholder="Pilih metode..." />
             )}
             {cfg.isReturn && (
@@ -541,15 +744,17 @@ export function TransactionForm({ kind, id, copyFrom, presetRef }: { kind: TxnKi
         <KCard className="rounded-t-none border-t-0">
           {tab === "detail" && (
             <>
-              {!isNew && !cfg.isReturn && (
+              {!isNew && !cfg.isReturn && !itemsEditable && (
                 <KInfoBox variant="info" title="Keterangan">
-                  Rincian item tidak dapat diubah setelah transaksi tersimpan. Hapus transaksi dan buat ulang jika item perlu diganti.
+                  {isPO ? "Item pesanan tidak dapat diganti karena sebagian sudah diterima lewat pembelian." : isSO ? "Item pesanan tidak dapat diganti karena sebagian sudah dijual." : "Rincian item tidak dapat diubah setelah transaksi tersimpan."}
                 </KInfoBox>
               )}
               <ItemsGrid
                 items={items} onChange={setItems} readOnly={dis || !itemsEditable && !cfg.isReturn || (cfg.isReturn && !isNew)}
                 priceField={cfg.priceField} showDiscount={!cfg.isReturn}
                 qtyLimit={cfg.isReturn} lockAdd={cfg.isReturn}
+                showOrdered={(isPurchase && (!!poId || items.some((l) => l.orderedQty !== undefined))) || (isSale && (!!soId || items.some((l) => l.orderedQty !== undefined)))}
+                showReceived={isOrder && !isNew}
               />
               {cfg.isReturn && isNew && items.length > 0 && (
                 <button type="button" className="mt-3 h-9 rounded border border-[#cfd4da] bg-white px-3 text-sm hover:bg-[#f3f4f6]" onClick={() => setItems(items.map((l) => ({ ...l, qty: String(l.maxQty ?? l.qty) })))}>
@@ -580,7 +785,10 @@ export function TransactionForm({ kind, id, copyFrom, presetRef }: { kind: TxnKi
                     <KInput label="Tanggal Kirim" type="date" value={shipDate} disabled={dis} onChange={(e) => setShipDate(e.target.value)} />
                     <KInput label="No. Resi" value={tracking} disabled={dis} onChange={(e) => setTracking(e.target.value)} />
                   </KRow>
-                  <KTextarea label="Alamat Kirim" rows={2} value={shipAddress} disabled={dis} onChange={(e) => setShipAddress(e.target.value)} />
+                  <KInput label="Kurir" value={courier} disabled={dis} onChange={(e) => setCourier(e.target.value)} />
+                  <button type="button" onClick={() => setShowShip(true)} className="mt-1 inline-flex h-9 items-center gap-2 rounded border border-[#cfd4da] bg-white px-3 text-sm hover:bg-[#f3f4f6]">
+                    <MapPin className="size-4 text-[#8e44ad]" /> Alamat Kirim{shipAddress ? `: ${shipName ? `${shipName}, ` : ""}${shipAddress}${shipCity ? `, ${shipCity}` : ""}` : ""}
+                  </button>
                 </div>
               )}
             </KColumns>
@@ -594,8 +802,8 @@ export function TransactionForm({ kind, id, copyFrom, presetRef }: { kind: TxnKi
           {!cfg.isReturn ? (
             <>
               <KTextarea label="Keterangan" value={notes} disabled={dis} onChange={(e) => setNotes(e.target.value)} rows={3} />
-              {isSale && (
-                <KNumber label="Komisi Sales (Rp)" value={commission} disabled={dis} onChange={setCommission} hint="Komisi manual; berlaku jika sistem komisi pada master Sales tidak aktif." />
+              {isSale && salesPerson && (
+                <p className="mt-2 text-xs text-muted">Komisi sales dihitung dari pengaturan komisi pada master Sales dan dibayar lewat menu Komisi Sales setelah faktur lunas.</p>
               )}
             </>
           ) : (
@@ -618,7 +826,27 @@ export function TransactionForm({ kind, id, copyFrom, presetRef }: { kind: TxnKi
             </span>
           ))}
           {totalRow("Total", formatCurrency(t.total), true)}
-          {!cfg.isReturn && (
+          {isOrder && (
+            <>
+              {totalRow(isSO ? "DP Pesanan" : "Titip / DP", moneyInput(dp, setDp))}
+              {isSO && num(dp) > 0 && totalRow("Cara Bayar DP", (
+                <select value={dpMethodId} disabled={dis} onChange={(e) => setDpMethodId(e.target.value)} className="h-9 w-44 rounded border border-[#cfd4da] bg-white px-2 text-sm">
+                  {methods.filter((m) => m.code !== "DEPOSIT").map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+                </select>
+              ))}
+              {totalRow("Sisa", <span className={remaining > 0 ? "font-bold text-danger" : ""}>{formatCurrency(Math.max(0, t.total - paidNow))}</span>)}
+            </>
+          )}
+          {isSale && (
+            <div className="mt-3 border-t border-[#eceff2] pt-3">
+              {isNew && dpSoUsed > 0 && totalRow("DP SO/Pesanan", formatCurrency(dpSoUsed))}
+              {totalRow("Dibayar", formatCurrency(paid))}
+              {totalRow("Bayar Kredit (Piutang)", <span className={remaining > 0 ? "font-bold text-danger" : ""}>{formatCurrency(remaining)}</span>)}
+              {change > 0 && totalRow("Kembali", formatCurrency(change))}
+              {!isNew && remaining > 0 && <p className="mt-1 text-xs text-muted">Pelunasan piutang dicatat lewat menu Bayar Piutang.</p>}
+            </div>
+          )}
+          {!cfg.isReturn && !isOrder && !isSale && (
             <>
               <div className="mt-3 border-t border-[#eceff2] pt-3">
                 <KRadioGroup
@@ -653,12 +881,53 @@ export function TransactionForm({ kind, id, copyFrom, presetRef }: { kind: TxnKi
             <button type="button" disabled={saving} onClick={() => void save(true)} className="inline-flex h-10 items-center gap-2 rounded border border-[#4caf50] bg-white px-5 text-[15px] font-medium text-[#3d8b40] hover:bg-[#f1f8f1] disabled:opacity-60">
               <Printer className="size-4" /> Simpan &amp; Cetak
             </button>
+            {isSale && isNew && (
+              <button type="button" disabled={saving} onClick={() => { const v = validate(); if (v) { setError(v); return; } setShowPay(true); }} className="inline-flex h-10 items-center gap-2 rounded border border-[#cfd4da] bg-white px-5 text-[15px] hover:bg-[#f3f4f6] disabled:opacity-60">
+                <CreditCard className="size-4 text-[#c08a00]" /> Bayar
+              </button>
+            )}
+            {isSale && (
+              <button type="button" onClick={() => setShowShip(true)} className="inline-flex h-10 items-center gap-2 rounded border border-[#cfd4da] bg-white px-5 text-[15px] hover:bg-[#f3f4f6]">
+                <MapPin className="size-4 text-[#8e44ad]" /> Alamat Kirim
+              </button>
+            )}
           </>
         )}
         <button type="button" onClick={() => router.push(cfg.listPath)} className="h-10 rounded border border-[#cfd4da] bg-white px-5 text-[15px] hover:bg-[#f3f4f6]">
           {editable ? "Batal" : "Kembali"}
         </button>
       </div>
+
+      {isSale && (
+        <SalePayDialog
+          open={showPay} onClose={() => setShowPay(false)} total={t.total} dpSo={dpSoUsed} depositBalance={depositBalance}
+          value={pay} onChange={setPay} saving={saving} onSave={(print) => { setShowPay(false); void save(print); }}
+        />
+      )}
+      {isSale && (
+        <Modal open={showShip} onClose={() => setShowShip(false)} title="Alamat Kirim" size="md">
+          <div className="space-y-1">
+            <KInput label="Nama Penerima" value={shipName} disabled={dis} onChange={(e) => setShipName(e.target.value)} />
+            <KTextarea label="Alamat" rows={3} value={shipAddress} disabled={dis} onChange={(e) => setShipAddress(e.target.value)} />
+            <KRow>
+              <KInput label="Kota" value={shipCity} disabled={dis} onChange={(e) => setShipCity(e.target.value)} />
+              <KInput label="Telepon" value={shipPhone} disabled={dis} onChange={(e) => setShipPhone(e.target.value)} />
+            </KRow>
+            <KInput label="Kurir" value={courier} disabled={dis} onChange={(e) => setCourier(e.target.value)} />
+            <div className="flex justify-end gap-2 pt-2">
+              {partner && !dis && (
+                <button type="button" className="h-9 rounded border border-[#cfd4da] bg-white px-3 text-sm hover:bg-[#f3f4f6]" onClick={() => void api.get<Rec>(`customer/${partner.id}`, undefined, { skipCache: true }).then((r) => {
+                  const c = r.data; if (!c) return;
+                  setShipName(c.Name ?? ""); setShipAddress(c.Address ?? ""); setShipCity(c.City ?? ""); setShipPhone(c.Phone ?? c.Mobile ?? "");
+                }).catch(() => undefined)}>
+                  Salin dari data pelanggan
+                </button>
+              )}
+              <button type="button" className="h-9 rounded bg-[#4caf50] px-4 text-sm text-white" onClick={() => setShowShip(false)}>OK</button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

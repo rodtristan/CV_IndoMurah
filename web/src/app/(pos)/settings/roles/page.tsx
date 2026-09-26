@@ -10,6 +10,7 @@ import { KInfoBox, KInput, KSelect } from "@/components/kform";
 import { api } from "@/lib/api-client";
 import { usePageTitle } from "@/lib/page-title";
 import { apiError } from "../_lib/local";
+import { LoadingState } from "@/components/ui/Loader";
 
 // Hak akses kelompok = daftar menu yang di-assign ke role di server (RoleMenus), lewat
 // GET menus/role/:id, POST menus/role/:id/assign, DELETE menus/role/:id/revoke/:menuId.
@@ -149,7 +150,7 @@ export default function RolesPage() {
         {isAdminRole && <KInfoBox variant="warning" title="Penting" items={["Kelompok ADMINISTRATOR memiliki hak akses paling tinggi, sebaiknya tidak diubah."]} />}
 
         {loading ? (
-          <p className="py-10 text-center text-sm text-[#9aa3ad]">Memuat...</p>
+          <LoadingState />
         ) : !role ? (
           <p className="py-10 text-center text-sm text-[#9aa3ad]">Pilih atau buat Kelompok User terlebih dahulu.</p>
         ) : menuGroups.length === 0 ? (

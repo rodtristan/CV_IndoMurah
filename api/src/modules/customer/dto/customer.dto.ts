@@ -1,152 +1,48 @@
-import { IsString, IsOptional, IsBoolean, IsEmail, IsInt, IsNumber, Min, MaxLength } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+// Form Pelanggan Ketoko: tab "Data Umum" + tab "Data Pendukung Pajak".
+import { ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { IsIn, IsInt, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { PartnerTaxDto } from '../../../common/dto/partner.dto';
 
-export class CreateCustomerDto {
-  @ApiProperty({ description: 'Customer code' })
-  @IsString()
-  Code: string;
+/** Tipe Potongan: Pot. Daftar Item | Pot. Grup Per Item | Pot. Grup Per Faktur */
+export const CUSTOMER_DISCOUNT_TYPES = ['ITEM_LIST', 'GROUP_PER_ITEM', 'GROUP_PER_INVOICE'] as const;
 
-  @ApiProperty({ description: 'Customer name' })
-  @IsString()
-  Name: string;
-
-  @ApiPropertyOptional({ description: 'Phone number' })
-  @IsOptional()
-  @IsString()
-  Phone?: string;
-
-  @ApiPropertyOptional({ description: 'Email' })
-  @IsOptional()
-  @IsEmail()
-  Email?: string;
-
-  @ApiPropertyOptional({ description: 'Address' })
-  @IsOptional()
-  @IsString()
-  Address?: string;
-
-  @ApiPropertyOptional({ description: 'Notes' })
-  @IsOptional()
-  @IsString()
-  Notes?: string;
-
-  @ApiPropertyOptional({ description: 'Customer group ID' })
-  @IsOptional()
-  @IsInt()
-  CustomerGroupID?: number;
-
-  @ApiPropertyOptional({ description: 'Region (Wilayah) ID' })
-  @IsOptional()
-  @IsInt()
-  RegionID?: number;
-
-  @ApiPropertyOptional({ description: 'Sub-region (Sub Wilayah) ID' })
-  @IsOptional()
-  @IsInt()
-  SubRegionID?: number;
-
-  @ApiPropertyOptional({ description: 'City' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  City?: string;
-
-  @ApiPropertyOptional({ description: 'Tax ID (NPWP)' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(50)
-  TaxID?: string;
-
-  @ApiPropertyOptional({ description: 'Receivable credit limit (0 = unlimited)' })
+export class CreateCustomerDto extends PartnerTaxDto {
+  @ApiPropertyOptional({ description: 'Limit jumlah piutang (0 = tanpa limit)' })
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   CreditLimit?: number;
 
-  @ApiPropertyOptional({ description: 'Payment due days (0 = use settings)' })
+  @ApiPropertyOptional({ description: 'Limit hari piutang (0 = tanpa limit)' })
   @IsOptional()
   @IsInt()
   @Min(0)
-  DueDays?: number;
+  CreditDayLimit?: number;
 
-  @ApiPropertyOptional({ default: true, description: 'Is active' })
+  @ApiPropertyOptional({ description: 'Max jumlah kredit per nota (0 = tanpa limit)' })
   @IsOptional()
-  @IsBoolean()
-  IsActive?: boolean;
-}
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  MaxCreditAmount?: number;
 
-export class UpdateCustomerDto {
-  @ApiPropertyOptional({ description: 'Customer code' })
-  @IsOptional()
-  @IsString()
-  Code?: string;
-
-  @ApiPropertyOptional({ description: 'Customer name' })
-  @IsOptional()
-  @IsString()
-  Name?: string;
-
-  @ApiPropertyOptional({ description: 'Phone number' })
-  @IsOptional()
-  @IsString()
-  Phone?: string;
-
-  @ApiPropertyOptional({ description: 'Email' })
-  @IsOptional()
-  @IsEmail()
-  Email?: string;
-
-  @ApiPropertyOptional({ description: 'Address' })
-  @IsOptional()
-  @IsString()
-  Address?: string;
-
-  @ApiPropertyOptional({ description: 'Notes' })
-  @IsOptional()
-  @IsString()
-  Notes?: string;
-
-  @ApiPropertyOptional({ description: 'Customer group ID' })
+  @ApiPropertyOptional({ description: 'Grup pelanggan' })
   @IsOptional()
   @IsInt()
   CustomerGroupID?: number;
 
-  @ApiPropertyOptional({ description: 'Region (Wilayah) ID' })
+  @ApiPropertyOptional({ enum: CUSTOMER_DISCOUNT_TYPES })
   @IsOptional()
-  @IsInt()
-  RegionID?: number;
+  @IsIn(CUSTOMER_DISCOUNT_TYPES as unknown as string[])
+  DiscountType?: string;
 
-  @ApiPropertyOptional({ description: 'Sub-region (Sub Wilayah) ID' })
-  @IsOptional()
-  @IsInt()
-  SubRegionID?: number;
+  @ApiPropertyOptional() @IsOptional() @IsInt() RegionID?: number | null;
+  @ApiPropertyOptional() @IsOptional() @IsInt() SubRegionID?: number | null;
+  @ApiPropertyOptional({ description: 'Sales' }) @IsOptional() @IsInt() SalesPersonID?: number | null;
 
-  @ApiPropertyOptional({ description: 'City' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  City?: string;
-
-  @ApiPropertyOptional({ description: 'Tax ID (NPWP)' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(50)
-  TaxID?: string;
-
-  @ApiPropertyOptional({ description: 'Receivable credit limit (0 = unlimited)' })
-  @IsOptional()
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
-  CreditLimit?: number;
-
-  @ApiPropertyOptional({ description: 'Payment due days (0 = use settings)' })
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  DueDays?: number;
-
-  @ApiPropertyOptional({ description: 'Is active' })
-  @IsOptional()
-  @IsBoolean()
-  IsActive?: boolean;
+  // ── Data Pendukung Pajak (NPWP = TaxID di Data Umum) ──
+  @ApiPropertyOptional({ description: 'NIK' }) @IsOptional() @IsString() @MaxLength(50) TaxNIK?: string | null;
+  @ApiPropertyOptional({ description: 'Nama NPWP' }) @IsOptional() @IsString() @MaxLength(255) TaxName?: string | null;
+  @ApiPropertyOptional({ description: 'Alamat NPWP' }) @IsOptional() @IsString() @MaxLength(500) TaxAddress?: string | null;
 }
+
+export class UpdateCustomerDto extends PartialType(CreateCustomerDto) {}

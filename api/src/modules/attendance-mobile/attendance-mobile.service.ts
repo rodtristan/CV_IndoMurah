@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
+import { NotificationService } from '../notification/notification.service';
 import { AttendancePhotoStore } from './attendance-photo.store';
 import { attendanceDate, distanceMeters, minutesOf, officeParts } from './attendance-time';
 
@@ -32,7 +33,25 @@ export class AttendanceMobileService {
     private readonly jwt: JwtService,
     private readonly photos: AttendancePhotoStore,
     private readonly redis: RedisService,
+    private readonly notifications: NotificationService,
   ) {}
+
+  /** Beri tahu HRD/admin (lonceng web + push HP/desktop). Tidak menunggu. */
+  private notifyHrd(emp: Emp, kind: 'in' | 'out', row: { ID: number; Status?: { Code: string; Name: string } | null; Location?: { Name: string } | null }, at: Date, offline: boolean) {
+    const time = at.toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' });
+    const late = kind === 'in' && row.Status?.Code === 'LATE';
+    const parts = [`${emp.Name} (${emp.Code}) ${kind === 'in' ? 'masuk' : 'pulang'} pukul ${time} WIB`];
+    if (row.Location?.Name) parts.push(`di ${row.Location.Name}`);
+    if (late) parts.push('— TERLAMBAT');
+    if (offline) parts.push('(absen offline)');
+    void this.notifications.notifyAdmins({
+      title: kind === 'in' ? (late ? 'Karyawan Terlambat' : 'Absen Masuk') : 'Absen Pulang',
+      message: parts.join(' '),
+      typeCode: late ? 'ALERT' : 'INFO',
+      referenceType: 'Attendance',
+      referenceId: row.ID,
+    });
+  }
 
   async login(username: string, password: string) {
     const emp = await this.prisma.employee.findUnique({
@@ -181,6 +200,7 @@ export class AttendanceMobileService {
       include: { Status: true, Location: true },
     });
     await this.redis.invalidatePattern('attendance:*');
+    this.notifyHrd(emp, 'in', row, at, input.offline);
     return this.mapAttendance(row);
   }
 
@@ -210,6 +230,7 @@ export class AttendanceMobileService {
       include: { Status: true, Location: true },
     });
     await this.redis.invalidatePattern('attendance:*');
+    this.notifyHrd(emp, 'out', row, at, input.offline);
     return this.mapAttendance(row);
   }
 }

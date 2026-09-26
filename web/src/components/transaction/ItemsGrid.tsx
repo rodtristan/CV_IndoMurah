@@ -30,8 +30,12 @@ export function productToLine(p: LookupProduct, priceField: "PurchasePrice" | "S
 
 /** Keyboard-friendly item grid: Enter walks qty -> harga -> pot -> the "kode item" box, where Enter adds the item. */
 export function ItemsGrid({
-  items, onChange, readOnly, priceField, showDiscount = true, qtyLimit, lockAdd,
+  items, onChange, readOnly, priceField, showDiscount = true, qtyLimit, lockAdd, showOrdered, showReceived,
 }: {
+  /** Kolom "Jml Pesan" (pembelian dari pesanan) */
+  showOrdered?: boolean;
+  /** Kolom "Jml Terima" (pesanan pembelian) */
+  showReceived?: boolean;
   items: LineItem[];
   onChange: (items: LineItem[]) => void;
   readOnly?: boolean;
@@ -115,7 +119,9 @@ export function ItemsGrid({
               <th className="w-10 border-r border-[#d5d9de] px-2 py-2 font-bold">No</th>
               <th className="w-32 border-r border-[#d5d9de] px-2 py-2 font-bold">Kode</th>
               <th className="border-r border-[#d5d9de] px-2 py-2 font-bold">Nama Item</th>
+              {showOrdered && <th className="w-24 border-r border-[#d5d9de] px-2 py-2 text-right font-bold">Jml Pesan</th>}
               <th className="w-28 border-r border-[#d5d9de] px-2 py-2 text-right font-bold">Jumlah</th>
+              {showReceived && <th className="w-24 border-r border-[#d5d9de] px-2 py-2 text-right font-bold">Jml Terima</th>}
               <th className="w-24 border-r border-[#d5d9de] px-2 py-2 font-bold">Satuan</th>
               <th className="w-36 border-r border-[#d5d9de] px-2 py-2 text-right font-bold">Harga</th>
               {showDiscount && <th className="w-24 border-r border-[#d5d9de] px-2 py-2 text-right font-bold">Pot (%)</th>}
@@ -126,7 +132,7 @@ export function ItemsGrid({
           </thead>
           <tbody>
             {items.length === 0 ? (
-              <tr><td colSpan={11} className="h-28 text-center text-[16px] text-[#9aa3ad]">{lockAdd ? "Pilih faktur terlebih dahulu" : "Belum ada item. Klik \"Tambah Item\" atau ketik kode item di bawah lalu Enter."}</td></tr>
+              <tr><td colSpan={13} className="h-28 text-center text-[16px] text-[#9aa3ad]">{lockAdd ? "Pilih faktur terlebih dahulu" : "Belum ada item. Klik \"Tambah Item\" atau ketik kode item di bawah lalu Enter."}</td></tr>
             ) : items.map((r, i) => {
               const over = qtyLimit && r.maxQty !== undefined && num(r.qty) > r.maxQty;
               const input = (c: Col, v: string, w?: string) => (
@@ -152,7 +158,9 @@ export function ItemsGrid({
                     {r.maxQty !== undefined && <span className="ml-2 text-xs text-muted">(maks {r.maxQty})</span>}
                     {r.maxQty === undefined && r.stock !== undefined && <span className="ml-2 text-xs text-muted">(stok {r.stock})</span>}
                   </td>
+                  {showOrdered && <td className="border-r border-[#eceff2] px-2 py-1 text-right">{r.orderedQty ?? 0}</td>}
                   <td className="border-r border-[#eceff2] p-1">{input("qty", r.qty)}</td>
+                  {showReceived && <td className="border-r border-[#eceff2] px-2 py-1 text-right">{r.receivedQty ?? 0}</td>}
                   <td className="border-r border-[#eceff2] px-2 py-1">{r.unitName || "-"}</td>
                   <td className="border-r border-[#eceff2] p-1">{input("price", r.price)}</td>
                   {showDiscount && <td className="border-r border-[#eceff2] p-1">{input("discPercent", r.discPercent)}</td>}

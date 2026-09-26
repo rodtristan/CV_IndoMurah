@@ -17,6 +17,11 @@ export class GDriveService {
     return (this.config.get<string>(k) ?? '').trim();
   }
 
+  /** True bila kredensial Google Drive lengkap di .env. */
+  isConfigured(): boolean {
+    return ['GDRIVE_CLIENT_ID', 'GDRIVE_CLIENT_SECRET', 'GDRIVE_REFRESH_TOKEN'].every((k) => !!this.cfg(k));
+  }
+
   private assertConfigured() {
     for (const k of ['GDRIVE_CLIENT_ID', 'GDRIVE_CLIENT_SECRET', 'GDRIVE_REFRESH_TOKEN']) {
       if (!this.cfg(k)) throw new ServiceUnavailableException(`Google Drive belum dikonfigurasi (${k} kosong di .env)`);

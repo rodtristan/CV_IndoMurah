@@ -1,4 +1,4 @@
-import { api, API_BASE_URL } from "@/lib/api-client";
+import { api, API_BASE_URL, trackRequest } from "@/lib/api-client";
 
 const API_BASE = API_BASE_URL.replace(/\/$/, "");
 export const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
@@ -12,11 +12,11 @@ export async function uploadImage(file: File): Promise<string> {
   const form = new FormData();
   form.append("file", file);
   const token = api.getToken();
-  const res = await fetch(`${API_BASE}/files/image`, {
+  const res = await trackRequest(fetch(`${API_BASE}/files/image`, {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     body: form,
-  });
+  }));
   const json = await res.json().catch(() => ({}));
   if (!res.ok || !json?.data?.path) {
     const msg = Array.isArray(json?.message) ? json.message.join(", ") : json?.message;

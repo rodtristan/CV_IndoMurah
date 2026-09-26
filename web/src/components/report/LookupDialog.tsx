@@ -5,6 +5,7 @@ import { ArrowDownAZ, ArrowUpAZ, Check, ChevronLeft, ChevronRight, Search } from
 import { api } from "@/lib/api-client";
 import { Modal } from "@/components/ui/Modal";
 import { cn } from "@/lib/utils";
+import { LoadingState } from "@/components/ui/Loader";
 
 export interface LookupSource {
   endpoint: string;
@@ -177,7 +178,7 @@ export function LookupDialog({
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={3 + extra.length} className="px-3 py-6 text-center text-muted">Memuat...</td></tr>
+                <tr><td colSpan={3 + extra.length}><LoadingState className="py-6" /></td></tr>
               ) : rows.length === 0 ? (
                 <tr><td colSpan={3 + extra.length} className="px-3 py-6 text-center text-muted">Tidak ada data</td></tr>
               ) : (

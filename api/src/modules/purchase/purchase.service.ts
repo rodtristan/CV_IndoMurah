@@ -1,3 +1,5 @@
+import { recalcPurchaseOrderReceipt } from '../../common/stock/purchase-order-receipt';
+import { computeDocTotals, inventoryFactor } from '../../common/accounting/doc-totals';
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
@@ -114,7 +116,14 @@ export class PurchaseService {
         const warehouseId = await this.ledger.resolveWarehouseId(tx, dto.WarehouseID);
         const hasItems = !!dto.Items && dto.Items.length > 0;
         const items = hasItems ? await this.buildItems(tx, dto.Items!) : [];
-        const t = this.totals(hasItems ? items.reduce((s, i) => s + Number(i.Subtotal), 0) : dto.Subtotal || 0, dto.DiscountAmount || 0, dto.TaxPercent || 0);
+        const t = computeDocTotals({
+          subtotal: hasItems ? items.reduce((s, i) => s + Number(i.Subtotal), 0) : dto.Subtotal || 0,
+          discount: dto.DiscountAmount || 0,
+          taxMode: dto.TaxMode ?? (dto.TaxPercent ? 'EXCLUDE' : 'NON'),
+          taxPercent: dto.TaxPercent || 0,
+          otherCost: dto.OtherCost || 0,
+          otherCostAdds: dto.OtherCostAdds ?? true,
+        });
 
         const created = await tx.purchase.create({
           data: {
@@ -132,8 +141,12 @@ export class PurchaseService {
             Subtotal: new Prisma.Decimal(t.subtotal),
             DiscountPercent: new Prisma.Decimal(dto.DiscountPercent || 0),
             DiscountAmount: new Prisma.Decimal(t.discount),
-            TaxPercent: new Prisma.Decimal(dto.TaxPercent || 0),
+            TaxPercent: new Prisma.Decimal(t.taxPercent),
             TaxAmount: new Prisma.Decimal(t.tax),
+            TaxMode: dto.TaxMode ?? (dto.TaxPercent ? 'EXCLUDE' : 'NON'),
+            OtherCost: new Prisma.Decimal(t.otherCost),
+            OtherCostAdds: dto.OtherCostAdds ?? true,
+            ReferenceNo: dto.ReferenceNo || null,
             Total: new Prisma.Decimal(t.total),
             Paid: new Prisma.Decimal(0),
             Remaining: new Prisma.Decimal(t.total),
@@ -148,6 +161,7 @@ export class PurchaseService {
         await this.applyStock(tx, created.ID, userId);
         await this.journal.postPurchase(tx, created.ID, userId);
         await this.party.recalcSupplier(tx, supplier.ID);
+        await recalcPurchaseOrderReceipt(tx, created.PurchaseOrderID);
 
         return tx.purchase.findUniqueOrThrow({
           where: { ID: created.ID },
@@ -172,8 +186,9 @@ export class PurchaseService {
     const purchase = await this.prisma.purchase.findUnique({ where: { ID: id }, include: { PurchaseItems: true } });
     if (!purchase) throw new NotFoundException('Purchase not found');
     const status = await this.getStatusById(purchase.StatusID);
-    if (status?.Code !== 'DRAFT') {
-      throw new BadRequestException('Hanya pembelian berstatus DRAFT yang dapat diubah');
+    // Seperti Ketoko: pembelian dapat diedit selama belum dibatalkan / diselesaikan.
+    if (status?.Code === 'CANCELLED' || status?.Code === 'COMPLETED') {
+      throw new BadRequestException('Pembelian yang sudah dibatalkan / selesai tidak dapat diubah');
     }
     if (dto.Items?.some((i) => !(Number(i.Quantity) > 0))) throw new BadRequestException('Jumlah item harus lebih dari 0');
 
@@ -182,10 +197,18 @@ export class PurchaseService {
         const newWh = dto.WarehouseID ? await this.ledger.resolveWarehouseId(tx, dto.WarehouseID) : purchase.WarehouseID;
         const discount = dto.DiscountAmount !== undefined ? dto.DiscountAmount : Number(purchase.DiscountAmount);
         const taxPercent = dto.TaxPercent !== undefined ? dto.TaxPercent : Number(purchase.TaxPercent);
+        const taxMode = dto.TaxMode ?? purchase.TaxMode;
+        const otherCost = dto.OtherCost !== undefined ? dto.OtherCost : Number(purchase.OtherCost);
+        const otherCostAdds = dto.OtherCostAdds ?? purchase.OtherCostAdds;
+        // Nilai persediaan ikut berubah bila potongan / PPN / biaya berubah.
         const stockChanged =
           !!dto.Items ||
           newWh !== purchase.WarehouseID ||
-          Math.abs(discount - Number(purchase.DiscountAmount)) > 0.004;
+          Math.abs(discount - Number(purchase.DiscountAmount)) > 0.004 ||
+          taxMode !== purchase.TaxMode ||
+          Math.abs(taxPercent - Number(purchase.TaxPercent)) > 0.004 ||
+          Math.abs(otherCost - Number(purchase.OtherCost)) > 0.004 ||
+          otherCostAdds !== purchase.OtherCostAdds;
         const hadLedger = (await tx.stockLedger.count({ where: { RefType: 'PURCHASE', RefID: id } })) > 0;
 
         // 1) balik stok & HPP lama
@@ -200,6 +223,7 @@ export class PurchaseService {
         if (dto.DiscountPercent !== undefined) data.DiscountPercent = new Prisma.Decimal(dto.DiscountPercent);
         if (dto.TaxPercent !== undefined) data.TaxPercent = new Prisma.Decimal(dto.TaxPercent);
         if (dto.Notes !== undefined) data.Notes = dto.Notes;
+        if (dto.ReferenceNo !== undefined) data.ReferenceNo = dto.ReferenceNo || null;
         let subtotal = Number(purchase.Subtotal);
         if (dto.Items) {
           const items = await this.buildItems(tx, dto.Items);
@@ -207,11 +231,15 @@ export class PurchaseService {
           data.PurchaseItems = { create: items } as any;
           subtotal = items.reduce((s, i) => s + Number(i.Subtotal), 0);
         }
-        const t = this.totals(subtotal, discount, taxPercent);
+        const t = computeDocTotals({ subtotal, discount, taxMode, taxPercent, otherCost, otherCostAdds });
         Object.assign(data, {
           Subtotal: new Prisma.Decimal(t.subtotal),
           DiscountAmount: new Prisma.Decimal(t.discount),
+          TaxPercent: new Prisma.Decimal(t.taxPercent),
           TaxAmount: new Prisma.Decimal(t.tax),
+          TaxMode: taxMode,
+          OtherCost: new Prisma.Decimal(t.otherCost),
+          OtherCostAdds: otherCostAdds,
           Total: new Prisma.Decimal(t.total),
         });
         await tx.purchase.update({ where: { ID: id }, data });
@@ -222,6 +250,7 @@ export class PurchaseService {
         await this.party.recalcPurchase(tx, id);
         await this.journal.postPurchase(tx, id, userId);
         await this.party.recalcSupplier(tx, purchase.SupplierID);
+        await recalcPurchaseOrderReceipt(tx, purchase.PurchaseOrderID);
 
         return tx.purchase.findUniqueOrThrow({
           where: { ID: id },
@@ -268,6 +297,7 @@ export class PurchaseService {
         }
         await tx.purchase.update({ where: { ID: id }, data: { StatusID: newStatus.ID } });
         await this.party.recalcSupplier(tx, purchase.SupplierID);
+        await recalcPurchaseOrderReceipt(tx, purchase.PurchaseOrderID);
         return tx.purchase.findUniqueOrThrow({
           where: { ID: id },
           include: { Supplier: true, Warehouse: true, PurchaseItems: { include: { Product: true, Unit: true } } },
@@ -302,6 +332,7 @@ export class PurchaseService {
         await this.journal.reversePurchase(tx, id);
         await tx.purchase.delete({ where: { ID: id } });
         await this.party.recalcSupplier(tx, purchase.SupplierID);
+        await recalcPurchaseOrderReceipt(tx, purchase.PurchaseOrderID);
       },
       { timeout: 30000 },
     );
@@ -310,13 +341,6 @@ export class PurchaseService {
   }
 
   // ─── Stok & HPP ────────────────────────────────────────────────────────
-
-  private totals(subtotal: number, discount: number, taxPercent: number) {
-    const sub = r2(subtotal);
-    const disc = r2(Math.min(Math.max(discount, 0), sub));
-    const tax = r2((sub - disc) * (taxPercent / 100));
-    return { subtotal: sub, discount: disc, tax, total: r2(sub - disc + tax) };
-  }
 
   private async buildItems(tx: Tx, items: CreatePurchaseItemDto[]) {
     const out: Prisma.PurchaseItemCreateManyPurchaseInput[] = [];
@@ -342,8 +366,7 @@ export class PurchaseService {
   /** Harga pokok per satuan dasar per produk (rata-rata bila produk muncul di beberapa baris). */
   private async lineCosts(tx: Tx, purchaseId: number) {
     const p = await tx.purchase.findUniqueOrThrow({ where: { ID: purchaseId }, include: { PurchaseItems: true } });
-    const sub = Number(p.Subtotal);
-    const factor = sub > 0 ? Math.max(sub - Number(p.DiscountAmount), 0) / sub : 1;
+    const factor = inventoryFactor({ subtotal: Number(p.Subtotal), total: Number(p.Total), tax: Number(p.TaxAmount) });
     const agg = new Map<number, { qty: number; value: number }>();
     for (const it of p.PurchaseItems) {
       const base = Number(it.BaseQuantity) > 0 ? Number(it.BaseQuantity) : Number(it.Quantity);
@@ -401,6 +424,7 @@ export class PurchaseService {
     await Promise.all([
       this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`),
       this.redis.invalidatePattern('supplier:*'),
+      this.redis.invalidatePattern('purchase_orders:*'),
       this.ledger.invalidateCaches(),
     ]);
   }

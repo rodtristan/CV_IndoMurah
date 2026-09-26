@@ -76,6 +76,7 @@ model TransactionStatus {
   // Relations
   SaleReturns     SaleReturn[]
   PurchaseOrders  PurchaseOrder[]
+  SaleOrders      SaleOrder[]
   Purchases       Purchase[]
   StockIns        StockIn[]
   StockOuts       StockOut[]
@@ -158,6 +159,9 @@ model CustomerGroup {
 
   // Relations
   Customers Customer[]
+
+  // Ketoko: Level harga jual untuk grup (1-4)
+  PriceLevel Int @default(1)
 
   @@map("CustomerGroups")
 }
@@ -445,10 +449,12 @@ model User {
   UserMenus UserMenu[]
 
   // Relations - Purchase transactions
-  PurchaseOrders   PurchaseOrder[]
-  Purchases        Purchase[]
-  PurchasePayments PurchasePayment[]
-  PurchaseReturns  PurchaseReturn[]
+  PurchaseOrders          PurchaseOrder[]
+  SaleOrders              SaleOrder[]
+  SalesCommissionPayments SalesCommissionPayment[]
+  Purchases               Purchase[]
+  PurchasePayments        PurchasePayment[]
+  PurchaseReturns         PurchaseReturn[]
 
   // Relations - Stock transactions
   StockIns       StockIn[]
@@ -475,6 +481,7 @@ model User {
   Notifications          Notification[]
   NotificationSettings   NotificationSetting[]
   NotificationLogs       NotificationLog[]
+  PushSubscriptions      PushSubscription[]
   ApprovedLeaves         Leave[]
 
   // Relations - QC
@@ -659,6 +666,7 @@ model Unit {
   // Relations
   Products               Product[]
   PurchaseOrderItems     PurchaseOrderItem[]
+  SaleOrderItems         SaleOrderItem[]
   PurchaseItems          PurchaseItem[]
   StockInItems           StockInItem[]
   StockOutItems          StockOutItem[]
@@ -705,6 +713,7 @@ model Warehouse {
   Sales                  Sale[]
   Purchases              Purchase[]
   PurchaseOrders         PurchaseOrder[]
+  SaleOrders             SaleOrder[]
   SaleReturns            SaleReturn[]
   PurchaseReturns        PurchaseReturn[]
   SalePoints             SalePoint[]
@@ -724,6 +733,12 @@ model Warehouse {
   ProductionRequestItems ProductionRequestItem[]
 
   StockLedgers StockLedger[]
+
+  // Ketoko: Fungsi (Utama/Cabang/Gudang), No Fax, Kode Akun persediaan
+  Function  String   @default("WAREHOUSE") @db.VarChar(20)
+  Fax       String?  @db.VarChar(50)
+  AccountID Int?
+  Account   Account? @relation("WarehouseAccount", fields: [AccountID], references: [ID])
 
   @@map("Warehouses")
 }
@@ -824,6 +839,16 @@ model Supplier {
   BankAccountName   String? @db.VarChar(150)
   DueDays           Int     @default(0)
 
+  // Ketoko: field tambahan form Supplier
+  Country        String? @db.VarChar(100)
+  PostalCode     String? @db.VarChar(20)
+  Fax            String? @db.VarChar(50)
+  TaxMode        String  @default("DEFAULT") @db.VarChar(20)
+  TaxValueSource String  @default("DEFAULT") @db.VarChar(20)
+  TaxRate        Decimal @default(0) @db.Decimal(5, 2)
+
+  Products Product[]
+
   @@map("Suppliers")
 }
 
@@ -838,6 +863,8 @@ model Customer {
   TotalReceivable Decimal  @default(0) @db.Decimal(15, 2)
   CustomerGroupID Int
   PointBalance    Int      @default(0)
+  /// Saldo Awal point (Point Penjualan "SA"); saldo = awal + Σ point faktur − Σ ambil point
+  PointOpening    Int      @default(0)
   DepositBalance  Decimal  @default(0) @db.Decimal(15, 2)
   Notes           String?  @db.VarChar(1000)
   IsActive        Boolean  @default(true)
@@ -851,6 +878,7 @@ model Customer {
   SaleReturns      SaleReturn[]
   Services         Service[]
   MemberCards      MemberCard[]
+  SaleOrders       SaleOrder[]
 
   OpeningBalances OpeningBalance[]
 
@@ -863,6 +891,27 @@ model Customer {
   DueDays     Int        @default(0)
   Region      Region?    @relation(fields: [RegionID], references: [ID])
   SubRegion   SubRegion? @relation(fields: [SubRegionID], references: [ID])
+
+  // Ketoko: Data Umum (lengkap) & Data Pendukung Pajak
+  Province          String?      @db.VarChar(100)
+  Country           String?      @db.VarChar(100)
+  PostalCode        String?      @db.VarChar(20)
+  Fax               String?      @db.VarChar(50)
+  ContactPerson     String?      @db.VarChar(255)
+  BankAccountNumber String?      @db.VarChar(50)
+  BankAccountName   String?      @db.VarChar(150)
+  BankName          String?      @db.VarChar(100)
+  CreditDayLimit    Int          @default(0)
+  MaxCreditAmount   Decimal      @default(0) @db.Decimal(15, 2)
+  TaxMode           String       @default("DEFAULT") @db.VarChar(20)
+  TaxValueSource    String       @default("DEFAULT") @db.VarChar(20)
+  TaxRate           Decimal      @default(0) @db.Decimal(5, 2)
+  DiscountType      String       @default("ITEM_LIST") @db.VarChar(30)
+  SalesPersonID     Int?
+  SalesPerson       SalesPerson? @relation(fields: [SalesPersonID], references: [ID])
+  TaxNIK            String?      @db.VarChar(50)
+  TaxName           String?      @db.VarChar(255)
+  TaxAddress        String?      @db.VarChar(500)
 
   @@map("Customers")
 }
@@ -942,6 +991,30 @@ model SalesPerson {
 
   Sales Sale[]
 
+  // Ketoko: form Sales lengkap + sistem komisi
+  City               String?                  @db.VarChar(100)
+  Province           String?                  @db.VarChar(100)
+  Country            String?                  @db.VarChar(100)
+  PostalCode         String?                  @db.VarChar(20)
+  Fax                String?                  @db.VarChar(50)
+  ContactPerson      String?                  @db.VarChar(255)
+  BankAccountNumber  String?                  @db.VarChar(50)
+  BankAccountName    String?                  @db.VarChar(150)
+  BankName           String?                  @db.VarChar(100)
+  TaxID              String?                  @db.VarChar(50)
+  Notes              String?                  @db.VarChar(1000)
+  /// NONE | ITEM_PRICE (per barang harga jual) | INVOICE_TOTAL | PER_ITEM (dari master item)
+  CommissionSystem   String                   @default("NONE") @db.VarChar(20)
+  /// PERCENT | NOMINAL | TIME_PERCENT
+  CommissionType     String                   @default("PERCENT") @db.VarChar(20)
+  CommissionPercent  Decimal                  @default(0) @db.Decimal(7, 2)
+  CommissionNominal  Decimal                  @default(0) @db.Decimal(15, 2)
+  /// Persentase waktu: [{ fromDay, toDay, percent }] (maks 4 baris)
+  CommissionTiers    Json?
+  Customers          Customer[]
+  SaleOrders         SaleOrder[]
+  CommissionPayments SalesCommissionPayment[]
+
   @@map("SalesPersons")
 }
 
@@ -992,6 +1065,7 @@ model Product {
 
   // Relations
   PurchaseOrderItems     PurchaseOrderItem[]
+  SaleOrderItems         SaleOrderItem[]
   PurchaseItems          PurchaseItem[]
   PurchaseReturnItems    PurchaseReturnItem[]
   StockInItems           StockInItem[]
@@ -1031,6 +1105,48 @@ model Product {
   ProductionRequestItems ProductionRequestItem[]
 
   StockLedgers StockLedger[]
+
+  // ── Ketoko: form Item lengkap ──
+  /// GOODS (Barang) | ASSEMBLY (Rakitan) | SERVICE (Jasa) | NON_INVENTORY | EXPENSE (Biaya)
+  ItemType                String    @default("GOODS") @db.VarChar(20)
+  HasSerial               Boolean   @default(false)
+  SKU                     String?   @db.VarChar(100)
+  /// Rak (teks bebas, mis. "Rak1")
+  Shelf                   String?   @db.VarChar(100)
+  TaxIncludePercent       Decimal   @default(0) @db.Decimal(5, 2)
+  /// Status Jual: true = Masih dijual, false = Tidak dijual
+  IsSold                  Boolean   @default(true)
+  SupplierID              Int?
+  Supplier                Supplier? @relation(fields: [SupplierID], references: [ID])
+  Point                   Decimal   @default(0) @db.Decimal(15, 2)
+  SalesCommission         Decimal   @default(0) @db.Decimal(15, 2)
+  // Dimensi Barang (berat gram, ukuran cm)
+  Weight                  Decimal   @default(0) @db.Decimal(12, 2)
+  Length                  Decimal   @default(0) @db.Decimal(12, 2)
+  Width                   Decimal   @default(0) @db.Decimal(12, 2)
+  Height                  Decimal   @default(0) @db.Decimal(12, 2)
+  /// Potongan Harga Jual per grup: [{ groupId, p1, p2, p3, p4 }]
+  GroupDiscounts          Json?
+  // Akuntansi
+  CogsAccountID           Int?
+  SalesAccountID          Int?
+  ServiceIncomeAccountID  Int?
+  InventoryAccountID      Int?
+  NonInventoryAccountID   Int?
+  OtherInventoryAccountID Int?
+  LaborCostAccountID      Int?
+  OverheadAccountID       Int?
+  // Share Item
+  ShareEnabled            Boolean   @default(false)
+  YoutubeID               String?   @db.VarChar(50)
+  /// NEW (Baru) | USED (Bekas)
+  Condition               String    @default("NEW") @db.VarChar(10)
+  ShareWarehouseID        Int?
+  ShareDescription        String?   @db.Text
+  // Data Pendukung Pajak
+  TaxType                 String?   @db.VarChar(20)
+  TaxRefCode              String?   @db.VarChar(6)
+  TaxGoodsService         String?   @db.VarChar(10)
 
   @@map("Products")
 }
@@ -1111,8 +1227,10 @@ model Sale {
   Creator       User           @relation(fields: [CreatedByID], references: [ID])
   PaymentStatus PaymentStatus  @relation(fields: [PaymentStatusID], references: [ID])
   PaymentMethod PaymentMethod? @relation(fields: [PaymentMethodID], references: [ID])
+  SaleOrder     SaleOrder?     @relation(fields: [SaleOrderID], references: [ID])
 
   SaleItems            SaleItem[]
+  CommissionLines      SalesCommissionPaymentLine[]
   SalePayments         SalePayment[]
   SaleReturns          SaleReturn[]
   DefectReports        DefectReport[]
@@ -1122,6 +1240,29 @@ model Sale {
   VoucherID       Int?
   VoucherDiscount Decimal   @default(0) @db.Decimal(15, 2)
 
+  // Audit Ketoko: "User Ubah" & "Komputer" (diisi otomatis, lihat common/context)
+  UpdatedBy String? @db.VarChar(100)
+  Device    String? @db.VarChar(100)
+
+  // Ketoko: PPN Non/Include/Exclude, Biaya (ditambah ke total atau tidak)
+  TaxMode       String  @default("NON") @db.VarChar(10)
+  OtherCost     Decimal @default(0) @db.Decimal(15, 2)
+  OtherCostAdds Boolean @default(true)
+  /// No. referensi / PO pelanggan
+  ReferenceNo   String? @db.VarChar(100)
+
+  // Ketoko: penjualan dari Pesanan Penjualan (kolom Jml Pesan)
+  SaleOrderID Int?
+  // Ketoko "Alamat Kirim" + Data Pengiriman (Kurir)
+  ShipName    String? @db.VarChar(255)
+  ShipAddress String? @db.VarChar(1000)
+  ShipCity    String? @db.VarChar(100)
+  ShipPhone   String? @db.VarChar(50)
+  Courier     String? @db.VarChar(100)
+  /// Point Penjualan yang didapat dari faktur ini (Setting Point)
+  PointEarned Decimal @default(0) @db.Decimal(15, 2)
+
+  @@index([SaleOrderID])
   @@map("Sales")
 }
 
@@ -1168,6 +1309,13 @@ model SalePayment {
   Method  PaymentMethod @relation(fields: [MethodID], references: [ID])
   Creator User          @relation(fields: [CreatedByID], references: [ID])
 
+  // Ketoko "Bayar Hutang/Piutang": satu dokumen (BatchCode) melunasi banyak faktur.
+  // InstrumentType DISCOUNT = potongan pelunasan (tanpa kas).
+  BatchCode String? @db.VarChar(50)
+  /// Kode Akun kas/bank (menimpa akun default metode bayar)
+  AccountID Int?
+
+  @@index([BatchCode])
   @@map("SalePayments")
 }
 
@@ -1193,6 +1341,10 @@ model SaleReturn {
   Status    TransactionStatus @relation(fields: [StatusID], references: [ID])
 
   ReturnItems SaleReturnItem[]
+
+  // Audit Ketoko: "User Ubah" & "Komputer" (diisi otomatis, lihat common/context)
+  UpdatedBy String? @db.VarChar(100)
+  Device    String? @db.VarChar(100)
 
   @@map("SaleReturns")
 }
@@ -1254,6 +1406,24 @@ model PurchaseOrder {
   PurchaseOrderItems PurchaseOrderItem[]
   Purchases          Purchase[]
 
+  // Audit Ketoko: "User Ubah" & "Komputer" (diisi otomatis, lihat common/context)
+  UpdatedBy String? @db.VarChar(100)
+  Device    String? @db.VarChar(100)
+
+  // Ketoko: PPN Non/Include/Exclude, Biaya (ditambah ke total atau tidak)
+  TaxMode       String    @default("NON") @db.VarChar(10)
+  OtherCost     Decimal   @default(0) @db.Decimal(15, 2)
+  OtherCostAdds Boolean   @default(true)
+  /// Status Pesanan: WAITING_PAYMENT | PAID | PROCESSED | SHIPPED | DONE | CANCELLED
+  OrderStatus   String    @default("WAITING_PAYMENT") @db.VarChar(30)
+  DeliveryDate  DateTime?
+
+  /// Status Proses: OPEN (belum diterima) | PARTIAL (diterima sebagian) | DONE (diterima semua)
+  ProcessStatus String  @default("OPEN") @db.VarChar(10)
+  /// Σ jumlah pesan & Σ jumlah terima (satuan transaksi) untuk kolom daftar
+  OrderedQty    Decimal @default(0) @db.Decimal(15, 3)
+  ReceivedQty   Decimal @default(0) @db.Decimal(15, 3)
+
   @@map("PurchaseOrders")
 }
 
@@ -1273,6 +1443,9 @@ model PurchaseOrderItem {
   PurchaseOrder PurchaseOrder @relation(fields: [PurchaseOrderID], references: [ID], onDelete: Cascade)
   Product       Product       @relation(fields: [ProductID], references: [ID])
   Unit          Unit          @relation(fields: [UnitID], references: [ID])
+
+  /// Jml Terima: dari pembelian yang merujuk pesanan ini
+  ReceivedQuantity Decimal @default(0) @db.Decimal(15, 3)
 
   @@map("PurchaseOrderItems")
 }
@@ -1314,6 +1487,17 @@ model Purchase {
   PurchaseItems    PurchaseItem[]
   PurchasePayments PurchasePayment[]
   PurchaseReturns  PurchaseReturn[]
+
+  // Audit Ketoko: "User Ubah" & "Komputer" (diisi otomatis, lihat common/context)
+  UpdatedBy String? @db.VarChar(100)
+  Device    String? @db.VarChar(100)
+
+  // Ketoko: PPN Non/Include/Exclude, Biaya (ditambah ke total atau tidak)
+  TaxMode       String  @default("NON") @db.VarChar(10)
+  OtherCost     Decimal @default(0) @db.Decimal(15, 2)
+  OtherCostAdds Boolean @default(true)
+  /// No. faktur dari supplier
+  ReferenceNo   String? @db.VarChar(100)
 
   @@map("Purchases")
 }
@@ -1360,6 +1544,13 @@ model PurchasePayment {
   Method   PaymentMethod @relation(fields: [MethodID], references: [ID])
   Creator  User          @relation(fields: [CreatedByID], references: [ID])
 
+  // Ketoko "Bayar Hutang/Piutang": satu dokumen (BatchCode) melunasi banyak faktur.
+  // InstrumentType DISCOUNT = potongan pelunasan (tanpa kas).
+  BatchCode String? @db.VarChar(50)
+  /// Kode Akun kas/bank (menimpa akun default metode bayar)
+  AccountID Int?
+
+  @@index([BatchCode])
   @@map("PurchasePayments")
 }
 
@@ -1385,6 +1576,10 @@ model PurchaseReturn {
   Status    TransactionStatus @relation(fields: [StatusID], references: [ID])
 
   ReturnItems PurchaseReturnItem[]
+
+  // Audit Ketoko: "User Ubah" & "Komputer" (diisi otomatis, lihat common/context)
+  UpdatedBy String? @db.VarChar(100)
+  Device    String? @db.VarChar(100)
 
   @@map("PurchaseReturns")
 }
@@ -1437,6 +1632,13 @@ model StockIn {
 
   StockInItems StockInItem[]
 
+  // Audit Ketoko: "User Ubah" & "Komputer" (diisi otomatis, lihat common/context)
+  UpdatedBy String? @db.VarChar(100)
+  Device    String? @db.VarChar(100)
+
+  /// Ketoko "Kode Akun" lawan persediaan (default Setting Perkiraan)
+  AccountID Int?
+
   @@map("StockIns")
 }
 
@@ -1480,6 +1682,13 @@ model StockOut {
 
   StockOutItems StockOutItem[]
 
+  // Audit Ketoko: "User Ubah" & "Komputer" (diisi otomatis, lihat common/context)
+  UpdatedBy String? @db.VarChar(100)
+  Device    String? @db.VarChar(100)
+
+  /// Ketoko "Kode Akun" lawan persediaan (default Setting Perkiraan)
+  AccountID Int?
+
   @@map("StockOuts")
 }
 
@@ -1522,6 +1731,10 @@ model StockTransfer {
 
   TransferItems StockTransferItem[]
 
+  // Audit Ketoko: "User Ubah" & "Komputer" (diisi otomatis, lihat common/context)
+  UpdatedBy String? @db.VarChar(100)
+  Device    String? @db.VarChar(100)
+
   @@map("StockTransfers")
 }
 
@@ -1539,6 +1752,10 @@ model StockTransferItem {
   StockTransfer StockTransfer @relation(fields: [StockTransferID], references: [ID], onDelete: Cascade)
   Product       Product       @relation(fields: [ProductID], references: [ID])
   Unit          Unit          @relation(fields: [UnitID], references: [ID])
+
+  /// Ketoko Transfer Item: Tgl Exp & Kode Produksi
+  ExpDate        DateTime?
+  ProductionCode String?   @db.VarChar(100)
 
   @@map("StockTransferItems")
 }
@@ -1561,6 +1778,13 @@ model StockOpname {
   Status    StockOpnameStatus @relation(fields: [StatusID], references: [ID])
 
   OpnameItems StockOpnameItem[]
+
+  // Audit Ketoko: "User Ubah" & "Komputer" (diisi otomatis, lihat common/context)
+  UpdatedBy String? @db.VarChar(100)
+  Device    String? @db.VarChar(100)
+
+  /// Ketoko "Kode Akun" lawan persediaan (default Setting Perkiraan)
+  AccountID Int?
 
   @@map("StockOpnames")
 }
@@ -1619,6 +1843,11 @@ model Account {
 
   OpeningBalances OpeningBalance[]
 
+  BankDebitAccounts  Bank[]      @relation("BankDebitAccount")
+  BankCreditAccounts Bank[]      @relation("BankCreditAccount")
+  EMoneyAccounts     EMoney[]    @relation("EMoneyAccount")
+  WarehouseAccounts  Warehouse[] @relation("WarehouseAccount")
+
   @@map("Accounts")
 }
 
@@ -1639,6 +1868,10 @@ model Journal {
   Creator User @relation(fields: [CreatedByID], references: [ID])
 
   JournalEntries JournalEntry[]
+
+  // Audit Ketoko: "User Ubah" & "Komputer" (diisi otomatis, lihat common/context)
+  UpdatedBy String? @db.VarChar(100)
+  Device    String? @db.VarChar(100)
 
   @@map("Journals")
 }
@@ -1694,6 +1927,10 @@ model CashIn {
   Account Account @relation(fields: [AccountID], references: [ID])
   Creator User    @relation(fields: [CreatedByID], references: [ID])
 
+  // Audit Ketoko: "User Ubah" & "Komputer" (diisi otomatis, lihat common/context)
+  UpdatedBy String? @db.VarChar(100)
+  Device    String? @db.VarChar(100)
+
   @@map("CashIns")
 }
 
@@ -1714,6 +1951,10 @@ model CashOut {
   Account Account @relation(fields: [AccountID], references: [ID])
   Creator User    @relation(fields: [CreatedByID], references: [ID])
 
+  // Audit Ketoko: "User Ubah" & "Komputer" (diisi otomatis, lihat common/context)
+  UpdatedBy String? @db.VarChar(100)
+  Device    String? @db.VarChar(100)
+
   @@map("CashOuts")
 }
 
@@ -1733,6 +1974,10 @@ model CashTransfer {
   FromAccount Account @relation("CashTransferFrom", fields: [FromAccountID], references: [ID])
   ToAccount   Account @relation("CashTransferTo", fields: [ToAccountID], references: [ID])
   Creator     User    @relation(fields: [CreatedByID], references: [ID])
+
+  // Audit Ketoko: "User Ubah" & "Komputer" (diisi otomatis, lihat common/context)
+  UpdatedBy String? @db.VarChar(100)
+  Device    String? @db.VarChar(100)
 
   @@map("CashTransfers")
 }
@@ -1757,6 +2002,10 @@ model CustomerDeposit {
   Creator       User?          @relation(fields: [CreatedByID], references: [ID])
   PaymentMethod PaymentMethod? @relation(fields: [PaymentMethodID], references: [ID])
 
+  // Audit Ketoko: "User Ubah" & "Komputer" (diisi otomatis, lihat common/context)
+  UpdatedBy String? @db.VarChar(100)
+  Device    String? @db.VarChar(100)
+
   @@map("CustomerDeposits")
 }
 
@@ -1776,6 +2025,10 @@ model SupplierDeposit {
   Supplier Supplier @relation(fields: [SupplierID], references: [ID])
   Creator  User     @relation(fields: [CreatedByID], references: [ID])
 
+  // Audit Ketoko: "User Ubah" & "Komputer" (diisi otomatis, lihat common/context)
+  UpdatedBy String? @db.VarChar(100)
+  Device    String? @db.VarChar(100)
+
   @@map("SupplierDeposits")
 }
 
@@ -1792,6 +2045,24 @@ model PointSetting {
   CreatedAt          DateTime @default(now())
   UpdatedAt          DateTime @updatedAt
 
+  // Ketoko: form Point Pelanggan
+  /// NONE (Tidak memakai point) | DISCOUNT (Point menjadi potongan) | REWARD (Point tukar hadiah) | ITEM (Point item)
+  PointType         String    @default("NONE") @db.VarChar(20)
+  /// 1 Point kelipatan faktur (Rp)
+  InvoiceMultiple   Decimal   @default(0) @db.Decimal(15, 2)
+  PeriodFrom        DateTime?
+  PeriodTo          DateTime?
+  RedeemFrom        DateTime?
+  RedeemTo          DateTime?
+  NonMemberEarns    Boolean   @default(false)
+  /// Nilai tukar nominal per 1 point (Point menjadi potongan)
+  NominalPerPoint   Decimal   @default(0) @db.Decimal(15, 2)
+  /// Masa berlaku poin setiap transaksi (hari)
+  ValidDays         Int       @default(0)
+  RewardPrintText   String?   @db.VarChar(1000)
+  DiscountPrintText String?   @db.VarChar(1000)
+  ItemPrintText     String?   @db.VarChar(1000)
+
   @@map("PointSettings")
 }
 
@@ -1805,9 +2076,15 @@ model PointRedemption {
   Date           DateTime @default(now())
   CreatedByID    String
   CreatedAt      DateTime @default(now())
+  /// Keterangan Ambil Point
+  Notes          String?  @db.VarChar(500)
 
   Customer Customer @relation(fields: [CustomerID], references: [ID])
   Creator  User     @relation(fields: [CreatedByID], references: [ID])
+
+  // Audit Ketoko: "User Ubah" & "Komputer" (diisi otomatis, lihat common/context)
+  UpdatedBy String? @db.VarChar(100)
+  Device    String? @db.VarChar(100)
 
   @@map("PointRedemptions")
 }
@@ -2687,6 +2964,23 @@ model Notification {
   @@map("Notifications")
 }
 
+// Web Push (notifikasi sistem di HP / desktop), satu baris per browser/perangkat.
+model PushSubscription {
+  ID            Int       @id @default(autoincrement())
+  UserID        String
+  Endpoint      String    @unique
+  P256dh        String    @db.VarChar(255)
+  Auth          String    @db.VarChar(255)
+  UserAgent     String?   @db.VarChar(500)
+  CreatedAt     DateTime  @default(now())
+  LastSuccessAt DateTime?
+
+  User User @relation(fields: [UserID], references: [ID], onDelete: Cascade)
+
+  @@index([UserID])
+  @@map("PushSubscriptions")
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // STOCK MUTATION MODULE
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2728,6 +3022,10 @@ model StockMutation {
   Creator          User?            @relation(fields: [CreatedByID], references: [ID])
 
   Items StockMutationItem[]
+
+  // Audit Ketoko: "User Ubah" & "Komputer" (diisi otomatis, lihat common/context)
+  UpdatedBy String? @db.VarChar(100)
+  Device    String? @db.VarChar(100)
 
   @@map("StockMutations")
 }
@@ -2792,6 +3090,10 @@ model CashFlowTransaction {
   Account          Account          @relation(fields: [AccountID], references: [ID])
   Sale             Sale?            @relation(fields: [SaleId], references: [ID])
   Creator          User?            @relation(fields: [CreatedByID], references: [ID])
+
+  // Audit Ketoko: "User Ubah" & "Komputer" (diisi otomatis, lihat common/context)
+  UpdatedBy String? @db.VarChar(100)
+  Device    String? @db.VarChar(100)
 
   @@map("CashFlowTransactions")
 }
@@ -2952,6 +3254,10 @@ model QCCheck {
   QCCategory QCCategory      @relation(fields: [QCCategoryID], references: [ID])
   Creator    User?           @relation(fields: [CreatedByID], references: [ID])
   Results    QCCheckResult[]
+
+  // Audit Ketoko: "User Ubah" & "Komputer" (diisi otomatis, lihat common/context)
+  UpdatedBy String? @db.VarChar(100)
+  Device    String? @db.VarChar(100)
 
   @@map("QCChecks")
 }
@@ -3752,6 +4058,12 @@ model Bank {
   // Relations
   ChequePayments ChequePayment[]
 
+  // Ketoko: akun pembayaran kartu
+  DebitAccountID  Int?
+  CreditAccountID Int?
+  DebitAccount    Account? @relation("BankDebitAccount", fields: [DebitAccountID], references: [ID])
+  CreditAccount   Account? @relation("BankCreditAccount", fields: [CreditAccountID], references: [ID])
+
   @@map("Banks")
 }
 
@@ -3767,6 +4079,10 @@ model EMoney {
   SortOrder     Int      @default(0)
   CreatedAt     DateTime @default(now())
   UpdatedAt     DateTime @updatedAt
+
+  // Ketoko: akun penampung pembayaran e-money
+  AccountID Int?
+  Account   Account? @relation("EMoneyAccount", fields: [AccountID], references: [ID])
 
   @@map("EMoneys")
 }
@@ -3828,6 +4144,12 @@ model ShippingCost {
 
   Region    Region?    @relation(fields: [RegionID], references: [ID])
   SubRegion SubRegion? @relation(fields: [SubRegionID], references: [ID])
+  // Ketoko: Expedisi (Name), Dari Kota, Kota Tujuan, Negara, Biaya 1/2/3 (Cost = Biaya 1)
+  FromCity  String?    @db.VarChar(100)
+  ToCity    String?    @db.VarChar(100)
+  Country   String?    @db.VarChar(100)
+  Cost2     Decimal    @default(0) @db.Decimal(15, 2)
+  Cost3     Decimal    @default(0) @db.Decimal(15, 2)
 
   @@index([RegionID])
   @@index([SubRegionID])
@@ -3911,4 +4233,136 @@ model StockLedger {
   @@index([ProductID, WarehouseID, Date])
   @@index([RefType, RefID])
   @@map("StockLedgers")
+}
+
+// File gambar (logo laporan, gambar item) bila Google Drive belum dikonfigurasi.
+model StoredFile {
+  ID        String   @id @default(uuid())
+  Name      String   @db.VarChar(255)
+  MimeType  String   @db.VarChar(100)
+  SizeBytes Int
+  Data      Bytes
+  CreatedAt DateTime @default(now())
+
+  @@map("StoredFiles")
+}
+
+// ─── Pesanan Penjualan (Sales Order) ─────────────────────────
+// Tidak mengurangi stok. Penjualan yang merujuk pesanan mengisi "Jml Kirim".
+// DP pesanan dicatat sebagai Deposit Pelanggan (DepositID) lalu dipakai saat penjualan.
+model SaleOrder {
+  ID              Int       @id @default(autoincrement())
+  Code            String    @unique @db.VarChar(50)
+  Date            DateTime  @default(now())
+  CustomerID      Int
+  SalesPersonID   Int?
+  WarehouseID     Int?
+  Subtotal        Decimal   @default(0) @db.Decimal(15, 2)
+  DiscountPercent Decimal   @default(0) @db.Decimal(5, 2)
+  DiscountAmount  Decimal   @default(0) @db.Decimal(15, 2)
+  TaxMode         String    @default("NON") @db.VarChar(10)
+  TaxPercent      Decimal   @default(0) @db.Decimal(5, 2)
+  TaxAmount       Decimal   @default(0) @db.Decimal(15, 2)
+  OtherCost       Decimal   @default(0) @db.Decimal(15, 2)
+  OtherCostAdds   Boolean   @default(true)
+  Total           Decimal   @default(0) @db.Decimal(15, 2)
+  DownPayment     Decimal   @default(0) @db.Decimal(15, 2)
+  /// Deposit Pelanggan (DPIN) yang mencatat DP pesanan
+  DepositID       Int?
+  DueDate         DateTime?
+  DeliveryDate    DateTime?
+  /// WAITING_PAYMENT | PAID | PROCESSED | SHIPPED | DONE | CANCELLED
+  OrderStatus     String    @default("WAITING_PAYMENT") @db.VarChar(30)
+  /// OPEN | PARTIAL | DONE (dari penjualan yang merujuk pesanan)
+  ProcessStatus   String    @default("OPEN") @db.VarChar(10)
+  OrderedQty      Decimal   @default(0) @db.Decimal(15, 3)
+  DeliveredQty    Decimal   @default(0) @db.Decimal(15, 3)
+  StatusID        Int       @default(1)
+  Notes           String?   @db.VarChar(1000)
+  CreatedByID     String
+  CreatedAt       DateTime  @default(now())
+  UpdatedAt       DateTime  @updatedAt
+  UpdatedBy       String?   @db.VarChar(100)
+  Device          String?   @db.VarChar(100)
+
+  Customer    Customer          @relation(fields: [CustomerID], references: [ID])
+  SalesPerson SalesPerson?      @relation(fields: [SalesPersonID], references: [ID])
+  Warehouse   Warehouse?        @relation(fields: [WarehouseID], references: [ID])
+  Creator     User              @relation(fields: [CreatedByID], references: [ID])
+  Status      TransactionStatus @relation(fields: [StatusID], references: [ID])
+
+  SaleOrderItems SaleOrderItem[]
+  Sales          Sale[]
+
+  @@map("SaleOrders")
+}
+
+model SaleOrderItem {
+  ID                Int      @id @default(autoincrement())
+  SaleOrderID       Int
+  ProductID         Int
+  UnitID            Int
+  Quantity          Decimal  @db.Decimal(15, 3)
+  UnitPrice         Decimal  @db.Decimal(15, 2)
+  DiscountPercent   Decimal  @default(0) @db.Decimal(5, 2)
+  DiscountAmount    Decimal  @default(0) @db.Decimal(15, 2)
+  Subtotal          Decimal  @db.Decimal(15, 2)
+  /// Jml Kirim: dari penjualan yang merujuk pesanan ini
+  DeliveredQuantity Decimal  @default(0) @db.Decimal(15, 3)
+  CreatedAt         DateTime @default(now())
+
+  SaleOrder SaleOrder @relation(fields: [SaleOrderID], references: [ID], onDelete: Cascade)
+  Product   Product   @relation(fields: [ProductID], references: [ID])
+  Unit      Unit      @relation(fields: [UnitID], references: [ID])
+
+  @@map("SaleOrderItems")
+}
+
+// ─── Komisi Sales: Bayar Komisi Sales ─────────────────────────
+// Komisi hanya dapat dibayar untuk penjualan yang sudah lunas. Jurnal: Dr Beban Komisi / Cr Kas-Bank
+// (cek/BG diposting setelah cair lewat Status Lunas Cek/Bg Sales).
+model SalesCommissionPayment {
+  ID              Int       @id @default(autoincrement())
+  Code            String    @unique @db.VarChar(50)
+  Date            DateTime  @default(now())
+  SalesPersonID   Int
+  MethodID        Int?
+  InstrumentType  String    @default("CASH") @db.VarChar(20)
+  AccountID       Int?
+  Number          String?   @db.VarChar(100)
+  DueDate         DateTime?
+  IsCleared       Boolean   @default(true)
+  ClearedAt       DateTime?
+  PeriodFrom      DateTime?
+  PeriodTo        DateTime?
+  Notes           String?   @db.VarChar(1000)
+  TotalCommission Decimal   @default(0) @db.Decimal(15, 2)
+  TotalReturn     Decimal   @default(0) @db.Decimal(15, 2)
+  Total           Decimal   @default(0) @db.Decimal(15, 2)
+  CreatedByID     String
+  CreatedAt       DateTime  @default(now())
+  UpdatedAt       DateTime  @updatedAt
+  UpdatedBy       String?   @db.VarChar(100)
+  Device          String?   @db.VarChar(100)
+
+  SalesPerson SalesPerson                  @relation(fields: [SalesPersonID], references: [ID])
+  Creator     User                         @relation(fields: [CreatedByID], references: [ID])
+  Lines       SalesCommissionPaymentLine[]
+
+  @@map("SalesCommissionPayments")
+}
+
+model SalesCommissionPaymentLine {
+  ID               Int     @id @default(autoincrement())
+  PaymentID        Int
+  SaleID           Int
+  Commission       Decimal @default(0) @db.Decimal(15, 2)
+  ReturnCommission Decimal @default(0) @db.Decimal(15, 2)
+  Amount           Decimal @default(0) @db.Decimal(15, 2)
+
+  Payment SalesCommissionPayment @relation(fields: [PaymentID], references: [ID], onDelete: Cascade)
+  Sale    Sale                   @relation(fields: [SaleID], references: [ID])
+
+  @@unique([SaleID])
+  @@map("SalesCommissionPaymentLines")
 }

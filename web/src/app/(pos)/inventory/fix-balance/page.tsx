@@ -9,6 +9,7 @@ import { DocActions, ItemPicker, KReadOnly, fmt, nowLocal, num, useList, type Ro
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { api } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
+import { LoadingState } from "@/components/ui/Loader";
 
 interface Line {
   psId?: number;
@@ -148,7 +149,7 @@ export default function FixBalancePage() {
               {lines.length === 0 && (
                 <tr>
                   <td colSpan={9} className="h-52 text-center text-[18px] text-[#9aa3ad]">
-                    {loading ? "Memuat..." : warehouseId ? "No data" : "Pilih Dept/Gudang terlebih dahulu"}
+                    {loading ? <LoadingState className="py-4" /> : warehouseId ? "No data" : "Pilih Dept/Gudang terlebih dahulu"}
                   </td>
                 </tr>
               )}

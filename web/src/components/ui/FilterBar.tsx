@@ -22,10 +22,12 @@ interface FilterBarProps {
   loading?: boolean;
   /** Extra controls (add/edit/copy/delete icon buttons, utility buttons) rendered next to the search box. */
   actions?: React.ReactNode;
+  /** Nilai awal filter (mis. dari query string). */
+  initialValues?: Record<string, unknown>;
 }
 
-export function FilterBar({ fields, onFilter, onReset, loading, actions }: FilterBarProps) {
-  const [values, setValues] = useState<Record<string, unknown>>({});
+export function FilterBar({ fields, onFilter, onReset, loading, actions, initialValues }: FilterBarProps) {
+  const [values, setValues] = useState<Record<string, unknown>>(initialValues ?? {});
 
   const handleChange = useCallback((key: string, value: unknown) => {
     setValues((prev) => ({ ...prev, [key]: value }));

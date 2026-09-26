@@ -33,8 +33,10 @@ export function useRouteLoading(): boolean {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       timeoutRef.current = setTimeout(() => setNavigating(false), 8000);
     }
-    document.addEventListener("click", onClick);
-    return () => document.removeEventListener("click", onClick);
+    // Fase capture: <Link> Next.js memanggil preventDefault() di handler-nya
+    // sendiri, jadi di fase bubble klik navigasi selalu terlihat "dibatalkan".
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
   }, []);
 
   return navigating;

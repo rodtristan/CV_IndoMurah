@@ -3,6 +3,8 @@ import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
 import { Prisma } from '@prisma/client';
+import { computeDocTotals } from '../../common/accounting/doc-totals';
+import { recalcPurchaseOrderReceipt } from '../../common/stock/purchase-order-receipt';
 import {
   CreatePurchaseOrderDto,
   UpdatePurchaseOrderDto,
@@ -85,80 +87,138 @@ export class PurchaseOrderService {
     );
   }
 
-  async create(dto: CreatePurchaseOrderDto, userId: number) {
-    // Generate code
+  async create(dto: CreatePurchaseOrderDto, userId: number | string) {
+    const supplier = await this.prisma.supplier.findUnique({ where: { ID: dto.SupplierID } });
+    if (!supplier) throw new NotFoundException('Supplier tidak ditemukan');
     const code = await this.generateCode();
-
     const draftStatus = await this.getStatusByCode('DRAFT');
     const paymentStatus = await this.getPaymentStatusByCode('PENDING');
 
-    // Calculate totals for items
-    const itemsData = dto.Items.map((item) => {
-      const subtotal = item.UnitPrice * item.Quantity - (item.DiscountAmount || 0);
-      return {
-        ProductID: item.ProductID,
-        Quantity: new Prisma.Decimal(item.Quantity.toString()),
-        UnitID: item.UnitID,
-        UnitPrice: new Prisma.Decimal(item.UnitPrice.toString()),
-        DiscountAmount: new Prisma.Decimal((item.DiscountAmount || 0).toString()),
-        Subtotal: new Prisma.Decimal(subtotal.toString()),
-      };
-    });
-
-    const total = itemsData.reduce((sum, item) => sum + Number(item.Subtotal), 0);
-
-    const purchaseOrder = await this.prisma.purchaseOrder.create({
-      data: {
-        Code: code,
-        SupplierID: dto.SupplierID,
-        Date: dto.Date ? new Date(dto.Date) : new Date(),
-        DueDate: dto.DueDate ? new Date(dto.DueDate) : null,
-        Notes: dto.Notes,
-        Total: new Prisma.Decimal(total.toString()),
-        StatusID: draftStatus.ID,
-        PaymentStatusID: paymentStatus.ID,
-        CreatedByID: String(userId),
-        PurchaseOrderItems: {
-          create: itemsData,
+    const purchaseOrder = await this.prisma.$transaction(async (tx) => {
+      const items = this.buildItems(dto.Items);
+      const t = this.docTotals(items, dto);
+      const created = await tx.purchaseOrder.create({
+        data: {
+          Code: code,
+          SupplierID: dto.SupplierID,
+          WarehouseID: dto.WarehouseID ?? null,
+          Date: dto.Date ? new Date(dto.Date) : new Date(),
+          DueDate: dto.DueDate ? new Date(dto.DueDate) : null,
+          DeliveryDate: dto.DeliveryDate ? new Date(dto.DeliveryDate) : null,
+          OrderStatus: dto.OrderStatus ?? 'WAITING_PAYMENT',
+          Notes: dto.Notes ?? null,
+          ...this.totalsData(t, dto),
+          DownPayment: new Prisma.Decimal(Math.min(dto.DownPayment ?? 0, t.total)),
+          StatusID: draftStatus.ID,
+          PaymentStatusID: paymentStatus.ID,
+          CreatedByID: String(userId),
+          OrderedQty: new Prisma.Decimal(items.reduce((s, i) => s + Number(i.Quantity), 0)),
+          PurchaseOrderItems: { create: items },
         },
-      },
-      include: {
-        Supplier: true,
-        PurchaseOrderItems: { include: { Product: true, Unit: true } },
-      },
+      });
+      return tx.purchaseOrder.findUniqueOrThrow({
+        where: { ID: created.ID },
+        include: { Supplier: true, Warehouse: true, PurchaseOrderItems: { include: { Product: true, Unit: true } } },
+      });
     });
 
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
-
     return this.serializePurchaseOrder(purchaseOrder);
   }
 
   async update(id: number, dto: UpdatePurchaseOrderDto) {
-    const purchaseOrder = await this.prisma.purchaseOrder.findUnique({ where: { ID: id } });
-    if (!purchaseOrder) throw new NotFoundException('Purchase order not found');
-
-    const status = await this.getStatusById(purchaseOrder.StatusID);
-    if (status?.Code !== 'DRAFT') {
-      throw new BadRequestException('Can only update draft purchase orders');
+    const po = await this.prisma.purchaseOrder.findUnique({ where: { ID: id }, include: { PurchaseOrderItems: true } });
+    if (!po) throw new NotFoundException('Pesanan pembelian tidak ditemukan');
+    const status = await this.getStatusById(po.StatusID);
+    if (status?.Code === 'CANCELLED' || status?.Code === 'COMPLETED') {
+      throw new BadRequestException('Pesanan yang sudah selesai / batal tidak dapat diubah');
+    }
+    if (dto.Items && Number(po.ReceivedQty) > 0) {
+      throw new BadRequestException('Item pesanan tidak dapat diganti karena sebagian sudah diterima lewat pembelian');
     }
 
-    const updated = await this.prisma.purchaseOrder.update({
-      where: { ID: id },
-      data: {
-        SupplierID: dto.SupplierID,
-        Date: dto.Date ? new Date(dto.Date) : undefined,
-        DueDate: dto.DueDate ? new Date(dto.DueDate) : undefined,
-        Notes: dto.Notes,
-      },
-      include: {
-        Supplier: true,
-        PurchaseOrderItems: { include: { Product: true, Unit: true } },
-      },
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const items = dto.Items ? this.buildItems(dto.Items) : null;
+      const merged = {
+        TaxMode: dto.TaxMode ?? po.TaxMode,
+        TaxPercent: dto.TaxPercent ?? Number(po.TaxPercent),
+        DiscountPercent: dto.DiscountPercent ?? Number(po.DiscountPercent),
+        DiscountAmount: dto.DiscountAmount ?? Number(po.DiscountAmount),
+        OtherCost: dto.OtherCost ?? Number(po.OtherCost),
+        OtherCostAdds: dto.OtherCostAdds ?? po.OtherCostAdds,
+      };
+      const t = this.docTotals(items ?? po.PurchaseOrderItems, merged);
+      const data: Prisma.PurchaseOrderUncheckedUpdateInput = {
+        ...this.totalsData(t, merged),
+        DownPayment: new Prisma.Decimal(Math.min(dto.DownPayment ?? Number(po.DownPayment), t.total)),
+      };
+      if (dto.SupplierID !== undefined) data.SupplierID = dto.SupplierID;
+      if (dto.WarehouseID !== undefined) data.WarehouseID = dto.WarehouseID ?? null;
+      if (dto.Date) data.Date = new Date(dto.Date);
+      if (dto.DueDate !== undefined) data.DueDate = dto.DueDate ? new Date(dto.DueDate) : null;
+      if (dto.DeliveryDate !== undefined) data.DeliveryDate = dto.DeliveryDate ? new Date(dto.DeliveryDate) : null;
+      if (dto.OrderStatus !== undefined) data.OrderStatus = dto.OrderStatus;
+      if (dto.Notes !== undefined) data.Notes = dto.Notes ?? null;
+      if (items) {
+        await tx.purchaseOrderItem.deleteMany({ where: { PurchaseOrderID: id } });
+        data.PurchaseOrderItems = { create: items } as any;
+        data.OrderedQty = new Prisma.Decimal(items.reduce((s, i) => s + Number(i.Quantity), 0));
+      }
+      await tx.purchaseOrder.update({ where: { ID: id }, data });
+      await recalcPurchaseOrderReceipt(tx, id);
+      return tx.purchaseOrder.findUniqueOrThrow({
+        where: { ID: id },
+        include: { Supplier: true, Warehouse: true, PurchaseOrderItems: { include: { Product: true, Unit: true } } },
+      });
     });
 
     await this.redis.invalidatePattern(`${this.CACHE_PREFIX}:*`);
-
     return this.serializePurchaseOrder(updated);
+  }
+
+  private buildItems(items: CreatePurchaseOrderDto['Items']) {
+    return items.map((item) => {
+      const gross = item.UnitPrice * item.Quantity;
+      const disc = item.DiscountAmount ?? (gross * (item.DiscountPercent ?? 0)) / 100;
+      return {
+        ProductID: item.ProductID,
+        Quantity: new Prisma.Decimal(item.Quantity),
+        UnitID: item.UnitID,
+        UnitPrice: new Prisma.Decimal(item.UnitPrice),
+        DiscountPercent: new Prisma.Decimal(item.DiscountPercent ?? 0),
+        DiscountAmount: new Prisma.Decimal(Math.round(disc * 100) / 100),
+        Subtotal: new Prisma.Decimal(Math.round((gross - disc) * 100) / 100),
+      };
+    });
+  }
+
+  private docTotals(
+    items: { Subtotal: Prisma.Decimal | number }[],
+    h: { TaxMode?: string; TaxPercent?: number; DiscountPercent?: number; DiscountAmount?: number; OtherCost?: number; OtherCostAdds?: boolean },
+  ) {
+    const subtotal = items.reduce((s, i) => s + Number(i.Subtotal), 0);
+    const discount = h.DiscountAmount ?? (subtotal * (h.DiscountPercent ?? 0)) / 100;
+    return computeDocTotals({
+      subtotal, discount, taxMode: h.TaxMode ?? (h.TaxPercent ? 'EXCLUDE' : 'NON'), taxPercent: h.TaxPercent ?? 0,
+      otherCost: h.OtherCost ?? 0, otherCostAdds: h.OtherCostAdds ?? true,
+    });
+  }
+
+  private totalsData(
+    t: ReturnType<typeof computeDocTotals>,
+    h: { TaxMode?: string; TaxPercent?: number; DiscountPercent?: number; OtherCostAdds?: boolean },
+  ) {
+    return {
+      Subtotal: new Prisma.Decimal(t.subtotal),
+      DiscountPercent: new Prisma.Decimal(h.DiscountPercent ?? 0),
+      DiscountAmount: new Prisma.Decimal(t.discount),
+      TaxMode: h.TaxMode ?? (h.TaxPercent ? 'EXCLUDE' : 'NON'),
+      TaxPercent: new Prisma.Decimal(t.taxPercent),
+      TaxAmount: new Prisma.Decimal(t.tax),
+      OtherCost: new Prisma.Decimal(t.otherCost),
+      OtherCostAdds: h.OtherCostAdds ?? true,
+      Total: new Prisma.Decimal(t.total),
+    };
   }
 
   async addItem(id: number, dto: AddPurchaseOrderItemDto) {
@@ -271,20 +331,15 @@ export class PurchaseOrderService {
   }
 
   private async recalculateTotal(purchaseOrderId: number) {
-    const items = await this.prisma.purchaseOrderItem.findMany({
-      where: { PurchaseOrderID: purchaseOrderId },
-    });
-
-    const total = items.reduce((sum, item) => {
-      const unitPrice = Number(item.UnitPrice);
-      const quantity = Number(item.Quantity);
-      const discountAmount = Number(item.DiscountAmount);
-      return sum + unitPrice * quantity - discountAmount;
-    }, 0);
-
+    const po = await this.prisma.purchaseOrder.findUniqueOrThrow({ where: { ID: purchaseOrderId }, include: { PurchaseOrderItems: true } });
+    const h = {
+      TaxMode: po.TaxMode, TaxPercent: Number(po.TaxPercent), DiscountPercent: Number(po.DiscountPercent),
+      OtherCost: Number(po.OtherCost), OtherCostAdds: po.OtherCostAdds,
+    };
+    const t = this.docTotals(po.PurchaseOrderItems, h);
     await this.prisma.purchaseOrder.update({
       where: { ID: purchaseOrderId },
-      data: { Total: new Prisma.Decimal(total.toString()) },
+      data: { ...this.totalsData(t, h), OrderedQty: new Prisma.Decimal(po.PurchaseOrderItems.reduce((s, i) => s + Number(i.Quantity), 0)) },
     });
   }
 

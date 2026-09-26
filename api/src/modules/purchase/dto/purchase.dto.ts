@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsInt, IsArray, ValidateNested, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsInt, IsArray, ValidateNested, IsDateString, IsIn, IsBoolean, Min, MaxLength } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -91,6 +91,27 @@ export class CreatePurchaseDto {
   @ValidateNested({ each: true })
   @Type(() => CreatePurchaseItemDto)
   Items?: CreatePurchaseItemDto[];
+  @ApiPropertyOptional({ enum: ['NON', 'INCLUDE', 'EXCLUDE'], description: 'PPN' })
+  @IsOptional()
+  @IsIn(['NON', 'INCLUDE', 'EXCLUDE'])
+  TaxMode?: string;
+
+  @ApiPropertyOptional({ description: 'Biaya' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  OtherCost?: number;
+
+  @ApiPropertyOptional({ description: 'Biaya ditambahkan ke total' })
+  @IsOptional()
+  @IsBoolean()
+  OtherCostAdds?: boolean;
+
+  @ApiPropertyOptional({ description: 'No. faktur supplier' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  ReferenceNo?: string | null;
 }
 
 export class UpdatePurchaseDto {
@@ -140,6 +161,27 @@ export class UpdatePurchaseDto {
   @ValidateNested({ each: true })
   @Type(() => CreatePurchaseItemDto)
   Items?: CreatePurchaseItemDto[];
+  @ApiPropertyOptional({ enum: ['NON', 'INCLUDE', 'EXCLUDE'], description: 'PPN' })
+  @IsOptional()
+  @IsIn(['NON', 'INCLUDE', 'EXCLUDE'])
+  TaxMode?: string;
+
+  @ApiPropertyOptional({ description: 'Biaya' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  OtherCost?: number;
+
+  @ApiPropertyOptional({ description: 'Biaya ditambahkan ke total' })
+  @IsOptional()
+  @IsBoolean()
+  OtherCostAdds?: boolean;
+
+  @ApiPropertyOptional({ description: 'No. faktur supplier' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  ReferenceNo?: string | null;
 }
 
 export class UpdateStatusDto {

@@ -18,6 +18,7 @@ import { CreatePurchasePaymentDto, UpdatePurchasePaymentDto } from './dto/purcha
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 import { CurrentUser } from '../../common/decorators/current-user-decorator';
 import { ApiResponse } from '../../common/dto/api-response-dto';
+import { CreatePaymentBatchDto } from '../../common/dto/payment-batch.dto';
 
 @ApiTags('Purchase Payments')
 @ApiBearerAuth()
@@ -47,6 +48,38 @@ export class PurchasePaymentController {
     return ApiResponse.paginated(data, total, skip, take);
   }
 
+  // ── Dokumen "Bayar Hutang" (multi faktur) ──
+  @Get('batches')
+  @ApiOperation({ summary: 'Daftar Pembayaran Hutang per dokumen. Query: from,to,partnerId,search,sort,dir,skip,take' })
+  async listBatches(@Query() query: Record<string, any>) {
+    const { data, total, skip, take } = await this.purchasePaymentService.listBatches(query);
+    return ApiResponse.paginated(data, total, skip, take);
+  }
+
+  @Get('outstanding/:supplierId')
+  @ApiOperation({ summary: 'Faktur pembelian supplier yang masih punya sisa hutang' })
+  async outstanding(@Param('supplierId', ParseIntPipe) supplierId: number) {
+    return ApiResponse.ok(await this.purchasePaymentService.outstanding(supplierId));
+  }
+
+  @Get('batch/:code')
+  @ApiOperation({ summary: 'Detail dokumen Bayar Hutang' })
+  async getBatch(@Param('code') code: string) {
+    return ApiResponse.ok(await this.purchasePaymentService.getBatch(decodeURIComponent(code)));
+  }
+
+  @Post('batch')
+  @ApiOperation({ summary: 'Simpan dokumen Bayar Hutang (banyak faktur + potongan)' })
+  async createBatch(@Body() dto: CreatePaymentBatchDto, @CurrentUser() user: any) {
+    return ApiResponse.ok(await this.purchasePaymentService.createBatch(dto, user.id), 'Pembayaran hutang tersimpan');
+  }
+
+  @Delete('batch/:code')
+  @ApiOperation({ summary: 'Hapus dokumen Bayar Hutang (semua baris dibalik)' })
+  async deleteBatch(@Param('code') code: string) {
+    return ApiResponse.ok(await this.purchasePaymentService.deleteBatch(decodeURIComponent(code)), 'Pembayaran dihapus');
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get purchase payment by ID' })
   async findOne(@Param('id', ParseIntPipe) id: number, @Query() query: any) {
@@ -67,6 +100,12 @@ export class PurchasePaymentController {
   async create(@Body() dto: CreatePurchasePaymentDto, @CurrentUser() user: any) {
     const data = await this.purchasePaymentService.create(dto, user.id);
     return ApiResponse.ok(data, 'Purchase payment created successfully');
+  }
+
+  @Put('cheques/status')
+  @ApiOperation({ summary: 'Status Lunas Cek/Bg: simpan centang lunas + tanggal lunas. Body: { Items: [{ ID, IsCleared, ClearedAt }] }' })
+  async setCleared(@Body() body: { Items: { ID: number; IsCleared: boolean; ClearedAt?: string | null }[] }, @CurrentUser() user: any) {
+    return ApiResponse.ok(await this.purchasePaymentService.setClearedBatch(body?.Items ?? [], user?.id), 'Status lunas tersimpan');
   }
 
   @Put(':id')

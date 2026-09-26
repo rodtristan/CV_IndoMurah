@@ -19,6 +19,8 @@ function resolveApiBaseUrl(): string {
 
 export const API_BASE_URL = resolveApiBaseUrl();
 
+const CLIENT_LABEL = `IndoMurah Web:${process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0'}`;
+
 /** Turns a NestJS error body ({ message: string | string[] }) into one readable sentence. */
 function extractErrorMessage(errorData: unknown, status: number, statusText: string): string {
   const msg = (errorData as { message?: unknown } | null)?.message;
@@ -56,6 +58,16 @@ export function subscribeApiLoading(listener: () => void): () => void {
 
 export function getApiLoadingSnapshot(): boolean {
   return pendingRequestCount > 0;
+}
+
+/** Ikutkan fetch() manual (upload file, unduh Excel, dll) ke loader global. */
+export async function trackRequest<T>(promise: Promise<T>): Promise<T> {
+  beginRequest();
+  try {
+    return await promise;
+  } finally {
+    endRequest();
+  }
 }
 
 // ─── Types ──────────────────────────────────────────────────
@@ -254,6 +266,8 @@ interface RequestConfig {
   headers?: Record<string, string>;
   cache?: RequestCache;
   tags?: string[];
+  /** true = request latar belakang (polling) — tidak menyalakan loader global. */
+  silent?: boolean;
 }
 
 class ApiClient {
@@ -290,6 +304,8 @@ class ApiClient {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
+      // Kolom "Komputer" di daftar transaksi (seperti "Ketoko Web:2.0.0.5").
+      'X-Client': CLIENT_LABEL,
     };
     const token = this.getToken();
     if (token) {
@@ -334,7 +350,7 @@ class ApiClient {
   }
 
   private async processRequest<T>(config: RequestConfig): Promise<ApiResponse<T>> {
-    const { method, endpoint, body, params, headers, cache, tags } = config;
+    const { method, endpoint, body, params, headers, cache, tags, silent } = config;
     const url = this.buildUrl(endpoint, params);
     const reqHeaders = { ...this.getHeaders(), ...headers };
     const hasBody = body !== undefined && body !== null && method !== 'GET';
@@ -356,7 +372,7 @@ class ApiClient {
     if (cache) fetchOptions.cache = cache;
     if (tags) fetchOptions.next = { tags };
 
-    beginRequest();
+    if (!silent) beginRequest();
     try {
       const response = await fetch(url, fetchOptions);
 
@@ -367,7 +383,7 @@ class ApiClient {
 
       return await response.json();
     } finally {
-      endRequest();
+      if (!silent) endRequest();
     }
   }
 
@@ -376,7 +392,7 @@ class ApiClient {
     endpoint: string,
     body?: unknown,
     params?: ODataParams,
-    options?: { cache?: RequestCache; tags?: string[] }
+    options?: { cache?: RequestCache; tags?: string[]; silent?: boolean }
   ): Promise<ApiResponse<T>> {
     return this.processRequest<T>({
       method,
@@ -392,7 +408,7 @@ class ApiClient {
   async get<T>(
     endpoint: string,
     params?: ODataParams,
-    options?: { cache?: RequestCache; tags?: string[]; skipCache?: boolean }
+    options?: { cache?: RequestCache; tags?: string[]; skipCache?: boolean; silent?: boolean }
   ): Promise<ApiResponse<T>> {
     const cacheKey = `${endpoint}:${JSON.stringify(params || {})}`;
 

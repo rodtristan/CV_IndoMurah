@@ -1,3 +1,4 @@
+import { computeDocTotals } from '../../common/accounting/doc-totals';
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma-service';
 import { RedisService } from '../../common/redis/redis-service';
@@ -5,6 +6,10 @@ import { QueryService } from '../../common/query/query-service';
 import { StockLedgerService } from '../../common/stock/stock-ledger.service';
 import { PartyBalanceService } from '../../common/stock/party-balance.service';
 import { AutoJournalService } from '../../common/accounting/auto-journal.service';
+import { DepositLedgerService } from '../../common/accounting/deposit-ledger.service';
+import { ensureDepositMethod, isChequeInstrument, syncChequeMirror } from '../../common/accounting/payment-link';
+import { recalcSaleOrderDelivery } from '../../common/sales/sale-order-delivery';
+import { computeSalePoints, recalcCustomerPoints } from '../../common/sales/points';
 import { NotificationService } from '../notification/notification.service';
 import { Prisma } from '@prisma/client';
 import { CreateSaleDto, UpdateSaleDto, PaymentDto, UpdateStatusDto, UpdateShippingDto } from './dto/sale.dto';
@@ -29,6 +34,7 @@ export class SaleService {
     private ledger: StockLedgerService,
     private party: PartyBalanceService,
     private journal: AutoJournalService,
+    private deposits: DepositLedgerService,
   ) {}
 
   async findAll(query: Record<string, unknown>) {
@@ -88,6 +94,7 @@ export class SaleService {
 
     const customer = await this.prisma.customer.findUnique({ where: { ID: dto.CustomerID } });
     if (!customer) throw new BadRequestException(`Pelanggan dengan ID ${dto.CustomerID} tidak ditemukan`);
+    if (dto.SaleOrderID) await this.assertSaleOrder(dto.SaleOrderID, dto.CustomerID);
 
     const saleDate = dto.Date ? new Date(dto.Date) : new Date();
     if (Number.isNaN(saleDate.getTime())) throw new BadRequestException('Tanggal penjualan tidak valid');
@@ -96,7 +103,6 @@ export class SaleService {
     // Totals
     const subtotal = r2(dto.Items.reduce((sum, item) => sum + (item.UnitPrice * item.Quantity - (item.DiscountAmount || 0)), 0));
     const discountAmount = r2(dto.DiscountAmount || 0);
-    const cashAmount = r2(dto.CashAmount || 0);
     const paymentMethodId = dto.PaymentMethodID ?? dto.paymentMethodId ?? (await this.getCashMethodId(this.prisma));
     const requestedWarehouse = dto.WarehouseID ?? dto.warehouseId;
 
@@ -113,11 +119,17 @@ export class SaleService {
           voucherDiscount = v.discount;
         }
 
-        const afterDiscount = Math.max(r2(subtotal - discountAmount - voucherDiscount), 0);
-        const taxAmount = dto.TaxPercent ? r2(afterDiscount * (dto.TaxPercent / 100)) : 0;
-        const total = r2(afterDiscount + taxAmount);
-        const changeAmount = cashAmount > total ? r2(cashAmount - total) : 0;
-        const paid = cashAmount >= total ? total : cashAmount;
+        const taxMode = dto.TaxMode ?? (dto.TaxPercent ? 'EXCLUDE' : 'NON');
+        const docT = computeDocTotals({
+          subtotal, discount: discountAmount + voucherDiscount, taxMode, taxPercent: dto.TaxPercent || 0,
+          otherCost: dto.OtherCost || 0, otherCostAdds: dto.OtherCostAdds ?? true,
+        });
+        const taxAmount = docT.tax;
+        const total = docT.total;
+
+        // Bayar: DP SO / Tunai / Deposit / Debit / Kartu Kredit / E-Money; sisanya = Kredit (piutang)
+        const pay = await this.paymentLines(tx, dto, total, paymentMethodId);
+        const paid = pay.paid;
         const unpaid = r2(total - paid);
 
         // Batas kredit (0 = tanpa batas)
@@ -141,27 +153,8 @@ export class SaleService {
         }
 
         const paymentStatus = await this.getPaymentStatusByCode(tx, paid >= total ? 'PAID' : paid > 0 ? 'PARTIAL' : 'PENDING');
-
-        // Item: satuan dasar + HPP saat transaksi
-        const itemsData: Prisma.SaleItemCreateWithoutSaleInput[] = [];
-        for (const item of dto.Items) {
-          const product = await tx.product.findUnique({ where: { ID: item.ProductID }, select: { ID: true, UnitID: true, PurchasePrice: true } });
-          if (!product) throw new BadRequestException(`Produk dengan ID ${item.ProductID} tidak ditemukan`);
-          const unitId = item.UnitID ?? product.UnitID;
-          const baseQty = await this.ledger.toBaseQty(tx, product.ID, unitId, item.Quantity);
-          const itemDiscount = item.DiscountAmount || 0;
-          itemsData.push({
-            Product: { connect: { ID: product.ID } },
-            Unit: { connect: { ID: unitId } },
-            Quantity: new Prisma.Decimal(item.Quantity),
-            BaseQuantity: baseQty,
-            CostPrice: new Prisma.Decimal(product.PurchasePrice),
-            UnitPrice: new Prisma.Decimal(item.UnitPrice),
-            DiscountPercent: new Prisma.Decimal(item.DiscountPercent || 0),
-            DiscountAmount: new Prisma.Decimal(itemDiscount),
-            Subtotal: new Prisma.Decimal(r2(item.UnitPrice * item.Quantity - itemDiscount)),
-          });
-        }
+        const itemsData = await this.buildItems(tx, dto.Items);
+        const pointEarned = await computeSalePoints(tx, dto.CustomerID, total, saleDate);
 
         const newSale = await tx.sale.create({
           data: {
@@ -172,18 +165,29 @@ export class SaleService {
             SalesPersonID: dto.SalesPersonID,
             SalePointID: dto.SalePointID,
             WarehouseID: warehouseId,
+            SaleOrderID: dto.SaleOrderID ?? null,
             Subtotal: new Prisma.Decimal(subtotal),
             DiscountPercent: new Prisma.Decimal(dto.DiscountPercent || 0),
             DiscountAmount: new Prisma.Decimal(discountAmount),
             VoucherID: voucherId,
             VoucherDiscount: new Prisma.Decimal(voucherDiscount),
-            TaxPercent: new Prisma.Decimal(dto.TaxPercent || 0),
+            TaxPercent: new Prisma.Decimal(docT.taxPercent),
             TaxAmount: new Prisma.Decimal(taxAmount),
+            TaxMode: taxMode,
+            OtherCost: new Prisma.Decimal(docT.otherCost),
+            OtherCostAdds: dto.OtherCostAdds ?? true,
+            ReferenceNo: dto.ReferenceNo || null,
+            ShipName: dto.ShipName || null,
+            ShipAddress: dto.ShipAddress || null,
+            ShipCity: dto.ShipCity || null,
+            ShipPhone: dto.ShipPhone || null,
+            Courier: dto.Courier || null,
+            PointEarned: new Prisma.Decimal(pointEarned),
             Total: new Prisma.Decimal(total),
-            CashAmount: new Prisma.Decimal(cashAmount),
-            ChangeAmount: new Prisma.Decimal(changeAmount),
+            CashAmount: new Prisma.Decimal(pay.entered),
+            ChangeAmount: new Prisma.Decimal(pay.change),
             PaymentStatusID: paymentStatus.ID,
-            PaymentMethodID: paymentMethodId,
+            PaymentMethodID: pay.lines[0]?.methodId ?? paymentMethodId,
             Notes: dto.Notes,
             CreatedByID: userId,
             SaleItems: { create: itemsData },
@@ -192,37 +196,41 @@ export class SaleService {
         });
 
         // Stok keluar per gudang (ditolak bila stok tidak cukup)
-        for (const it of newSale.SaleItems) {
-          await this.ledger.move(tx, {
-            productId: it.ProductID,
-            warehouseId,
-            qty: new Prisma.Decimal(it.BaseQuantity).neg(),
-            refType: 'SALE',
-            refId: newSale.ID,
-            refCode: newSale.Code,
-            unitCost: it.CostPrice,
-            userId,
-            date: saleDate,
-          });
-        }
+        await this.applyStock(tx, newSale.ID, warehouseId, userId, saleDate);
 
-        // Pembayaran tunai/DP
-        if (paid > 0 && paymentMethodId) {
-          await tx.salePayment.create({
+        // Baris pembayaran (deposit dipakai, cek/BG menunggu cair)
+        for (const l of pay.lines) {
+          const cleared = !isChequeInstrument(l.inst);
+          const p = await tx.salePayment.create({
             data: {
               SaleID: newSale.ID,
-              MethodID: paymentMethodId,
-              Amount: new Prisma.Decimal(paid),
+              MethodID: l.methodId,
+              Amount: new Prisma.Decimal(l.amount),
               Date: saleDate,
-              ReferenceNumber: null,
+              ReferenceNumber: l.referenceNumber,
+              Notes: l.notes,
+              InstrumentType: l.inst,
+              DueDate: l.dueDate,
+              IsCleared: cleared,
+              ClearedAt: cleared ? saleDate : null,
+              AccountID: l.accountId,
               CreatedByID: userId,
             },
           });
-          await this.addPoints(tx, dto.CustomerID, newSale.ID, total);
+          if (l.inst === 'DEPOSIT') {
+            await this.deposits.useCustomerDeposit(tx, {
+              customerId: dto.CustomerID, salePaymentId: p.ID, amount: l.amount, date: saleDate, userId,
+              note: `Pembayaran penjualan ${code} memakai deposit`,
+            });
+          }
+          if (!cleared) await syncChequeMirror(tx, 'SALE_PAYMENT', p);
         }
 
         await this.journal.postSale(tx, newSale.ID, userId);
+        await this.party.recalcSale(tx, newSale.ID);
         await this.party.recalcCustomer(tx, customer.ID);
+        await recalcSaleOrderDelivery(tx, dto.SaleOrderID);
+        await recalcCustomerPoints(tx, customer.ID);
 
         return tx.sale.findUniqueOrThrow({
           where: { ID: newSale.ID },
@@ -267,40 +275,101 @@ export class SaleService {
   async update(id: number, dto: UpdateSaleDto, userId?: string) {
     const sale = await this.prisma.sale.findUnique({
       where: { ID: id },
-      include: { PaymentStatus: true },
+      include: { PaymentStatus: true, SaleReturns: { include: { Status: true } } },
     });
     if (!sale) throw new NotFoundException('Sale not found');
 
     const statusCode = sale.PaymentStatus?.Code?.toUpperCase();
-    if (statusCode === 'PAID' || statusCode === 'CANCELLED') {
-      throw new BadRequestException('Penjualan yang sudah lunas atau dibatalkan tidak dapat diubah');
+    // Seperti Ketoko: penjualan dapat diedit selama belum dibatalkan (pembayaran yang sudah ada tetap berlaku).
+    if (statusCode === 'CANCELLED') throw new BadRequestException('Penjualan yang dibatalkan tidak dapat diubah');
+    if (dto.Items) {
+      if (!dto.Items.length) throw new BadRequestException('Item penjualan tidak boleh kosong');
+      if (dto.Items.some((i) => !(Number(i.Quantity) > 0))) throw new BadRequestException('Jumlah item harus lebih dari 0');
+      if (sale.SaleReturns.some((r) => r.Status?.Code?.toUpperCase() !== 'CANCELLED')) {
+        throw new BadRequestException('Item tidak dapat diubah karena penjualan sudah memiliki retur');
+      }
     }
-
-    const updateData: Prisma.SaleUncheckedUpdateInput = {};
-    if (dto.CustomerID !== undefined) updateData.CustomerID = dto.CustomerID;
-    if (dto.SalesPersonID !== undefined) updateData.SalesPersonID = dto.SalesPersonID;
-    if (dto.SalePointID !== undefined) updateData.SalePointID = dto.SalePointID;
-    if (dto.Date) updateData.Date = new Date(dto.Date);
-    if (dto.DueDate !== undefined) updateData.DueDate = dto.DueDate ? new Date(dto.DueDate) : null;
-    if (dto.DiscountPercent !== undefined) updateData.DiscountPercent = new Prisma.Decimal(dto.DiscountPercent);
-    if (dto.DiscountAmount !== undefined) updateData.DiscountAmount = new Prisma.Decimal(dto.DiscountAmount);
-    if (dto.TaxPercent !== undefined) updateData.TaxPercent = new Prisma.Decimal(dto.TaxPercent);
-    if (dto.PaymentMethodID !== undefined) updateData.PaymentMethodID = dto.PaymentMethodID;
-    if (dto.Notes !== undefined) updateData.Notes = dto.Notes;
+    const customerId = dto.CustomerID ?? sale.CustomerID;
+    const soId = dto.SaleOrderID !== undefined ? dto.SaleOrderID ?? null : sale.SaleOrderID;
+    if (soId && soId !== sale.SaleOrderID) await this.assertSaleOrder(soId, customerId);
 
     const updated = await this.prisma.$transaction(
       async (tx) => {
-        if (dto.WarehouseID !== undefined && dto.WarehouseID !== null) {
-          const newWh = await this.ledger.resolveWarehouseId(tx, dto.WarehouseID);
-          if (newWh !== sale.WarehouseID) {
-            await this.ledger.relocateRef(tx, ['SALE'], id, newWh, { refCode: sale.Code, userId });
-            updateData.WarehouseID = newWh;
-          }
+        const updateData: Prisma.SaleUncheckedUpdateInput = {};
+        if (dto.CustomerID !== undefined) updateData.CustomerID = dto.CustomerID;
+        if (dto.SalesPersonID !== undefined) updateData.SalesPersonID = dto.SalesPersonID ?? null;
+        if (dto.SalePointID !== undefined) updateData.SalePointID = dto.SalePointID;
+        if (dto.SaleOrderID !== undefined) updateData.SaleOrderID = soId;
+        if (dto.Date) updateData.Date = new Date(dto.Date);
+        if (dto.DueDate !== undefined) updateData.DueDate = dto.DueDate ? new Date(dto.DueDate) : null;
+        if (dto.DiscountPercent !== undefined) updateData.DiscountPercent = new Prisma.Decimal(dto.DiscountPercent);
+        if (dto.PaymentMethodID !== undefined) updateData.PaymentMethodID = dto.PaymentMethodID;
+        if (dto.Notes !== undefined) updateData.Notes = dto.Notes;
+        if (dto.ReferenceNo !== undefined) updateData.ReferenceNo = dto.ReferenceNo || null;
+        for (const k of ['ShipName', 'ShipAddress', 'ShipCity', 'ShipPhone', 'Courier'] as const) {
+          if (dto[k] !== undefined) (updateData as any)[k] = dto[k] || null;
         }
+
+        // Gudang
+        let warehouseId = sale.WarehouseID;
+        if (dto.WarehouseID !== undefined && dto.WarehouseID !== null) {
+          warehouseId = await this.ledger.resolveWarehouseId(tx, dto.WarehouseID);
+          if (warehouseId !== sale.WarehouseID) updateData.WarehouseID = warehouseId;
+        }
+
+        // Item diganti: balik stok lama, simpan item baru, keluarkan stok baru
+        let subtotal = Number(sale.Subtotal);
+        if (dto.Items) {
+          await this.ledger.reverseRef(tx, ['SALE'], id, { refCode: sale.Code, userId, notes: `Ubah penjualan ${sale.Code}` });
+          const items = await this.buildItems(tx, dto.Items);
+          await tx.saleItem.deleteMany({ where: { SaleID: id } });
+          updateData.SaleItems = { create: items } as any;
+          subtotal = r2(dto.Items.reduce((s, i) => s + (i.UnitPrice * i.Quantity - (i.DiscountAmount || 0)), 0));
+          updateData.Subtotal = new Prisma.Decimal(subtotal);
+        } else if (warehouseId !== sale.WarehouseID && warehouseId) {
+          await this.ledger.relocateRef(tx, ['SALE'], id, warehouseId, { refCode: sale.Code, userId });
+        }
+
+        // Total dihitung ulang dari subtotal, potongan, PPN, biaya
+        const taxMode = dto.TaxMode ?? sale.TaxMode;
+        const discount = dto.DiscountAmount ?? Number(sale.DiscountAmount);
+        const t = computeDocTotals({
+          subtotal,
+          discount: discount + Number(sale.VoucherDiscount ?? 0),
+          taxMode,
+          taxPercent: dto.TaxPercent ?? Number(sale.TaxPercent),
+          otherCost: dto.OtherCost ?? Number(sale.OtherCost),
+          otherCostAdds: dto.OtherCostAdds ?? sale.OtherCostAdds,
+        });
+        Object.assign(updateData, {
+          DiscountAmount: new Prisma.Decimal(discount),
+          TaxMode: taxMode,
+          TaxPercent: new Prisma.Decimal(t.taxPercent),
+          TaxAmount: new Prisma.Decimal(t.tax),
+          OtherCost: new Prisma.Decimal(t.otherCost),
+          OtherCostAdds: dto.OtherCostAdds ?? sale.OtherCostAdds,
+          Total: new Prisma.Decimal(t.total),
+        });
+        const saleDate = dto.Date ? new Date(dto.Date) : sale.Date;
+        updateData.PointEarned = new Prisma.Decimal(await computeSalePoints(tx, customerId, t.total, saleDate));
+
         const u = await tx.sale.update({ where: { ID: id }, data: updateData });
+        if (dto.Items) await this.applyStock(tx, id, u.WarehouseID ?? warehouseId, userId ?? sale.CreatedByID, saleDate);
+
+        const o = await this.party.saleOutstanding(tx, id);
+        if (o && o.committed > o.total - o.returns + 0.005) {
+          throw new BadRequestException(`Total baru (${idr(o.total)}) lebih kecil dari pembayaran yang sudah ada (${idr(o.committed)})`);
+        }
+        await this.party.recalcSale(tx, id);
         await this.journal.postSale(tx, id, userId);
         await this.party.recalcCustomer(tx, u.CustomerID);
-        if (u.CustomerID !== sale.CustomerID) await this.party.recalcCustomer(tx, sale.CustomerID);
+        if (u.CustomerID !== sale.CustomerID) {
+          await this.party.recalcCustomer(tx, sale.CustomerID);
+          await recalcCustomerPoints(tx, sale.CustomerID);
+        }
+        await recalcCustomerPoints(tx, u.CustomerID);
+        await recalcSaleOrderDelivery(tx, u.SaleOrderID);
+        if (sale.SaleOrderID !== u.SaleOrderID) await recalcSaleOrderDelivery(tx, sale.SaleOrderID);
         return tx.sale.findUniqueOrThrow({
           where: { ID: id },
           include: {
@@ -327,14 +396,121 @@ export class SaleService {
     if (dto.ShippingStatus !== undefined) updateData.ShippingStatus = dto.ShippingStatus;
     if (dto.ShippingDate !== undefined) updateData.ShippingDate = dto.ShippingDate ? new Date(dto.ShippingDate) : null;
     if (dto.TrackingNumber !== undefined) updateData.TrackingNumber = dto.TrackingNumber;
+    if (dto.Courier !== undefined) updateData.Courier = dto.Courier || null;
 
     const updated = await this.prisma.sale.update({
       where: { ID: id },
       data: updateData,
       include: { Customer: true },
     });
-
+    await this.redis.invalidatePattern('sales:*');
     return this.serialize(updated);
+  }
+
+  // ─── Item, stok, pembayaran ─────────────────────────────────────────────
+
+  /** Item: satuan dasar + HPP saat transaksi. */
+  private async buildItems(tx: Tx, items: CreateSaleDto['Items']) {
+    const itemsData: Prisma.SaleItemCreateWithoutSaleInput[] = [];
+    for (const item of items) {
+      const product = await tx.product.findUnique({ where: { ID: item.ProductID }, select: { ID: true, UnitID: true, PurchasePrice: true } });
+      if (!product) throw new BadRequestException(`Produk dengan ID ${item.ProductID} tidak ditemukan`);
+      const unitId = item.UnitID ?? product.UnitID;
+      const baseQty = await this.ledger.toBaseQty(tx, product.ID, unitId, item.Quantity);
+      const itemDiscount = item.DiscountAmount || 0;
+      itemsData.push({
+        Product: { connect: { ID: product.ID } },
+        Unit: { connect: { ID: unitId } },
+        Quantity: new Prisma.Decimal(item.Quantity),
+        BaseQuantity: baseQty,
+        CostPrice: new Prisma.Decimal(product.PurchasePrice),
+        UnitPrice: new Prisma.Decimal(item.UnitPrice),
+        DiscountPercent: new Prisma.Decimal(item.DiscountPercent || 0),
+        DiscountAmount: new Prisma.Decimal(itemDiscount),
+        Subtotal: new Prisma.Decimal(r2(item.UnitPrice * item.Quantity - itemDiscount)),
+      });
+    }
+    return itemsData;
+  }
+
+  /** Keluarkan stok semua item faktur dari gudang (ditolak bila stok tidak cukup). */
+  private async applyStock(tx: Tx, saleId: number, warehouseId: number | null, userId: string, date: Date) {
+    const s = await tx.sale.findUniqueOrThrow({ where: { ID: saleId }, include: { SaleItems: true } });
+    const wh = warehouseId ?? (await this.ledger.resolveWarehouseId(tx, undefined));
+    for (const it of s.SaleItems) {
+      await this.ledger.move(tx, {
+        productId: it.ProductID,
+        warehouseId: wh,
+        qty: new Prisma.Decimal(it.BaseQuantity).neg(),
+        refType: 'SALE',
+        refId: s.ID,
+        refCode: s.Code,
+        unitCost: it.CostPrice,
+        userId,
+        date,
+      });
+    }
+  }
+
+  /**
+   * Baris dialog Bayar → pembayaran. Kelebihan bayar hanya boleh dari uang tunai (menjadi Kembali).
+   * Tanpa `Payments`, CashAmount lama tetap didukung (POS).
+   */
+  private async paymentLines(tx: Tx, dto: CreateSaleDto, total: number, fallbackMethodId?: number) {
+    const raw = dto.Payments?.length
+      ? dto.Payments.filter((p) => Number(p.Amount) > 0)
+      : Number(dto.CashAmount || 0) > 0
+        ? [{ MethodID: fallbackMethodId, InstrumentType: 'CASH', Amount: Number(dto.CashAmount) }]
+        : [];
+    const cashId = await this.getCashMethodId(tx);
+    const lines: {
+      methodId: number; isCash: boolean; inst: string; amount: number; accountId: number | null;
+      referenceNumber: string | null; dueDate: Date | null; notes: string | null;
+    }[] = [];
+    for (const p of raw as NonNullable<CreateSaleDto['Payments']>) {
+      let inst = p.InstrumentType ?? 'CASH';
+      let method = p.MethodID ? await tx.paymentMethod.findUnique({ where: { ID: p.MethodID } }) : null;
+      if (p.MethodID && !method) throw new BadRequestException('Metode pembayaran tidak ditemukan');
+      if (method?.Code === 'DEPOSIT') inst = 'DEPOSIT';
+      if (inst === 'DEPOSIT') method = await ensureDepositMethod(tx);
+      const methodId = method?.ID ?? cashId;
+      if (!methodId) throw new BadRequestException('Metode pembayaran wajib dipilih');
+      lines.push({
+        methodId,
+        isCash: inst === 'CASH' && (!method || method.Code === 'CASH'),
+        inst,
+        amount: r2(Number(p.Amount)),
+        accountId: inst === 'DEPOSIT' ? null : p.AccountID ?? null,
+        referenceNumber: p.ReferenceNumber || null,
+        dueDate: p.DueDate ? new Date(p.DueDate) : null,
+        notes: p.Notes || null,
+      });
+    }
+    const entered = r2(lines.reduce((a, l) => a + l.amount, 0));
+    let change = 0;
+    if (entered > total + 0.005) {
+      const excess = r2(entered - total);
+      const cash = r2(lines.filter((l) => l.isCash).reduce((a, l) => a + l.amount, 0));
+      if (excess > cash + 0.005) throw new BadRequestException('Pembayaran non-tunai melebihi total faktur');
+      change = excess;
+      let left = excess;
+      for (let i = lines.length - 1; i >= 0 && left > 0.005; i--) {
+        if (!lines[i].isCash) continue;
+        const d = Math.min(left, lines[i].amount);
+        lines[i].amount = r2(lines[i].amount - d);
+        left = r2(left - d);
+      }
+    }
+    const kept = lines.filter((l) => l.amount > 0.005);
+    const paid = r2(kept.filter((l) => !isChequeInstrument(l.inst)).reduce((a, l) => a + l.amount, 0));
+    return { lines: kept, entered, change, paid };
+  }
+
+  private async assertSaleOrder(saleOrderId: number, customerId: number) {
+    const so = await this.prisma.saleOrder.findUnique({ where: { ID: saleOrderId }, include: { Status: true } });
+    if (!so) throw new BadRequestException('Pesanan penjualan tidak ditemukan');
+    if (so.CustomerID !== customerId) throw new BadRequestException(`Pesanan ${so.Code} bukan milik pelanggan ini`);
+    if (so.Status.Code === 'CANCELLED' || so.OrderStatus === 'CANCELLED') throw new BadRequestException(`Pesanan ${so.Code} sudah dibatalkan`);
   }
 
   async payment(id: number, dto: PaymentDto, userId: string) {
@@ -356,7 +532,6 @@ export class SaleService {
       throw new BadRequestException(`Jumlah pembayaran (${idr(dto.Amount)}) melebihi sisa tagihan (${idr(Math.max(open, 0))})`);
     }
 
-    const currentPaid = sale.SalePayments.reduce((sum, p) => sum + Number(p.Amount), 0);
     const paymentMethodId = dto.PaymentMethodID ?? sale.PaymentMethodID ?? (await this.getCashMethodId(this.prisma));
     if (!paymentMethodId) throw new BadRequestException('Metode pembayaran wajib diisi');
 
@@ -375,11 +550,7 @@ export class SaleService {
       const after = await this.party.recalcSale(tx, id);
       await this.journal.postSalePayment(tx, p.ID, userId);
       await this.party.recalcCustomer(tx, sale.CustomerID);
-
-      // Poin diberikan saat pelunasan pertama
-      if (after && after.remaining <= 0.005 && currentPaid === 0) {
-        await this.addPoints(tx, sale.CustomerID, id, Number(sale.Total));
-      }
+      void after;
     });
 
     await this.afterWrite();
@@ -430,6 +601,8 @@ export class SaleService {
           },
         });
         await this.party.recalcCustomer(tx, sale.CustomerID);
+        await recalcCustomerPoints(tx, sale.CustomerID);
+        await recalcSaleOrderDelivery(tx, sale.SaleOrderID);
         return u;
       },
       { timeout: 30000 },
@@ -469,6 +642,8 @@ export class SaleService {
         await this.journal.reverseSale(tx, id);
         await tx.sale.delete({ where: { ID: id } });
         await this.party.recalcCustomer(tx, sale.CustomerID);
+        await recalcCustomerPoints(tx, sale.CustomerID);
+        await recalcSaleOrderDelivery(tx, sale.SaleOrderID);
       },
       { timeout: 30000 },
     );
@@ -526,25 +701,8 @@ export class SaleService {
       this.redis.invalidatePattern('sales:*'),
       this.redis.invalidatePattern('customer:*'),
       this.redis.invalidatePattern('voucher:*'),
+      this.redis.invalidatePattern('sale_orders:*'),
     ]);
-  }
-
-  private async addPoints(tx: Prisma.TransactionClient, customerId: number, saleId: number, totalAmount: number) {
-    const setting = await tx.pointSetting.findFirst({ where: { IsActive: true } });
-    if (!setting) return;
-
-    const minimumTransaction = Number(setting.MinimumTransaction);
-    if (totalAmount < minimumTransaction) return;
-
-    const pointsPerRupiah = Number(setting.PointsPerRupiah);
-    const points = Math.floor(totalAmount * pointsPerRupiah);
-
-    if (points <= 0) return;
-
-    await tx.customer.update({
-      where: { ID: customerId },
-      data: { PointBalance: { increment: points } },
-    });
   }
 
   private async getCashMethodId(client: Prisma.TransactionClient | PrismaService): Promise<number | undefined> {

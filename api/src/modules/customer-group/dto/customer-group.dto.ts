@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsDecimal } from 'class-validator';
+import { IsBoolean, IsDecimal, IsInt, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 
@@ -37,6 +37,13 @@ export class CreateCustomerGroupDto {
   @IsOptional()
   @IsNumber()
   sortOrder?: number;
+
+  @ApiPropertyOptional({ description: 'Level harga jual (1-4)' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(4)
+  priceLevel?: number;
 }
 
 export class UpdateCustomerGroupDto {
@@ -76,4 +83,11 @@ export class UpdateCustomerGroupDto {
   @IsOptional()
   @IsNumber()
   sortOrder?: number;
+
+  @ApiPropertyOptional({ description: 'Level harga jual (1-4)' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(4)
+  priceLevel?: number;
 }

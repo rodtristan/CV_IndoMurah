@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsBoolean, IsNumber, IsInt, IsNumberString } from 'class-validator';
+import { IsBoolean, IsInt, IsNumber, IsNumberString, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 
 export class CreateShippingCostDto {
   @ApiProperty({ example: 'ONG001' })
@@ -43,6 +43,36 @@ export class CreateShippingCostDto {
   @IsNumber()
   @IsOptional()
   SortOrder?: number;
+
+  @ApiPropertyOptional({ description: 'Dari Kota' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  FromCity?: string | null;
+
+  @ApiPropertyOptional({ description: 'Kota Tujuan' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  ToCity?: string | null;
+
+  @ApiPropertyOptional({ description: 'Negara' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  Country?: string | null;
+
+  @ApiPropertyOptional({ description: 'Biaya 2' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  Cost2?: number;
+
+  @ApiPropertyOptional({ description: 'Biaya 3' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  Cost3?: number;
 }
 
 export class UpdateShippingCostDto {
@@ -90,4 +120,34 @@ export class UpdateShippingCostDto {
   @IsNumber()
   @IsOptional()
   SortOrder?: number;
+
+  @ApiPropertyOptional({ description: 'Dari Kota' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  FromCity?: string | null;
+
+  @ApiPropertyOptional({ description: 'Kota Tujuan' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  ToCity?: string | null;
+
+  @ApiPropertyOptional({ description: 'Negara' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  Country?: string | null;
+
+  @ApiPropertyOptional({ description: 'Biaya 2' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  Cost2?: number;
+
+  @ApiPropertyOptional({ description: 'Biaya 3' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  Cost3?: number;
 }

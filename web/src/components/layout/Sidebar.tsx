@@ -84,15 +84,15 @@ const MENU_GROUPS: MenuGroup[] = [
       {
         label: "Data Lainnya",
         children: [
-          { label: "Data Jenis", href: "/master/categories" },
-          { label: "Data Merek", href: "/master/brands" },
-          { label: "Data Satuan", href: "/master/units" },
-          { label: "Dept./Gudang", href: "/master/warehouses" },
-          { label: "Daftar Rak", href: "/master/shelves" },
-          { label: "Data Bank", href: "/master/banks" },
+          { label: "Point Pelanggan", href: "/master/point-settings" },
+          { label: "Daftar Satuan", href: "/master/units" },
+          { label: "Daftar Merek", href: "/master/brands" },
+          { label: "Daftar Jenis", href: "/master/categories" },
+          { label: "Daftar Bank", href: "/master/banks" },
           { label: "Daftar E-Money", href: "/master/e-money" },
           { label: "Daftar Ongkir", href: "/master/shipping-costs" },
-          { label: "Point Pelanggan", href: "/master/point-settings" },
+          { label: "Dept./Gudang", href: "/master/warehouses" },
+          { label: "Daftar Rak", href: "/master/shelves" },
           { label: "Sale Point", href: "/master/sale-points" },
         ],
       },
@@ -104,11 +104,17 @@ const MENU_GROUPS: MenuGroup[] = [
     icon: Truck,
     iconColor: "#7B1FA2",
     items: [
-      { label: "Pesanan Pembelian", href: "/purchase/order", disabled: true },
-      { label: "Daftar Pembelian", href: "/purchase/list" },
+      { label: "Pesanan Pembelian", href: "/purchase/order" },
+      { label: "Pembelian", href: "/purchase/list" },
       { label: "Retur Pembelian", href: "/purchase/returns" },
-      { label: "Daftar Pembayaran", href: "/purchase/payments" },
-      { label: "Status Lunas Bg/Cek", href: "/purchase/payments/cheque" },
+      { label: "History Harga Beli", href: "/purchase/price-history" },
+      {
+        label: "Bayar Hutang",
+        children: [
+          { label: "Daftar Pembayaran", href: "/purchase/payments" },
+          { label: "Status Lunas Bg/Cek", href: "/purchase/payments/cheque" },
+        ],
+      },
     ],
   },
   {
@@ -118,13 +124,27 @@ const MENU_GROUPS: MenuGroup[] = [
     iconColor: "#43A047",
     items: [
       { label: "Kasir (POS)", href: "/sale/pos", badge: "baru" },
-      { label: "Daftar Penjualan", href: "/sale/list" },
+      { label: "Pesanan Penjualan", href: "/sale/order" },
+      { label: "Penjualan", href: "/sale/list" },
       { label: "Retur Penjualan", href: "/sale/returns" },
-      { label: "Daftar Pembayaran", href: "/sale/payments" },
-      { label: "Status Lunas Cek/Bg", href: "/sale/payments/cheque" },
-      { label: "History Harga Jual", href: "/sale/price-history" },
       { label: "Point Penjualan", href: "/sale/points" },
+      { label: "History Harga Jual", href: "/sale/price-history" },
       { label: "Data Pengiriman", href: "/sale/shipping" },
+      {
+        label: "Bayar Piutang",
+        children: [
+          { label: "Daftar Pembayaran", href: "/sale/payments" },
+          { label: "Status Lunas Cek/Bg", href: "/sale/payments/cheque" },
+        ],
+      },
+      {
+        label: "Komisi Sales",
+        children: [
+          { label: "Daftar Pembayaran Sales", href: "/sale/commission" },
+          { label: "Status Lunas Cek/Bg Sales", href: "/sale/commission/cheque" },
+        ],
+      },
+      { label: "Ekspor CSV Faktur Penjualan", href: "/sale/export-csv" },
     ],
   },
   {

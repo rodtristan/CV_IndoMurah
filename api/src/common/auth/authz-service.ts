@@ -24,7 +24,7 @@ export interface UserAccess {
 }
 
 const ACCESS_TTL = 30; // detik
-const ADMIN_ROLE_NAMES = ['administrator', 'admin'];
+export const ADMIN_ROLE_NAMES = ['administrator', 'admin'];
 
 @Injectable()
 export class AuthzService {

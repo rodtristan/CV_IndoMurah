@@ -1,91 +1,86 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { PageWrapper, Card } from "@/components/layout/PageWrapper";
-import { ConfirmModal } from "@/components/ui/Modal";
-import { DataTable } from "@/components/ui/DataTable";
-import { FilterBar } from "@/components/ui/FilterBar";
-import { GridActions, RowEditIcon } from "@/components/ui/GridActions";
-import { api } from "@/lib/api-client";
+import { useState } from "react";
+import { History } from "lucide-react";
+import { KetokoList, kcol, type KListColumn, type KListFilter, type KRow, type KSortOption } from "@/components/ui/KetokoList";
+import { PartnerHistoryModal } from "@/components/master/PartnerHistoryModal";
+
+// Kolom Daftar Pelanggan Ketoko (+ kolom data pelanggan lainnya di sebelah kanan).
+const COLUMNS: KListColumn[] = [
+  kcol.text("Code", "Kode", 90),
+  kcol.text("Name", "Nama", 180),
+  kcol.text("Address", "Alamat", 200),
+  kcol.text("City", "Kota", 110),
+  kcol.text("Province", "Provinsi", 110),
+  kcol.text("Phone", "Telepon", 120),
+  kcol.text("ContactPerson", "Kontak", 110),
+  kcol.text("Email", "Email", 170),
+  { ...kcol.int("TransactionCount", "Jml Transaksi", 110), sortKey: false },
+  { ...kcol.money("TotalSpent", "Total Belanja", 130), sortKey: false },
+  kcol.text("CustomerGroup.Name", "Grup Pelanggan", 130),
+  kcol.text("Region.Name", "Wilayah", 110),
+  kcol.text("SubRegion.Name", "Sub Wilayah", 110),
+  kcol.text("SalesPerson.Name", "Sales", 120),
+  kcol.money("CreditLimit", "Limit Piutang", 120),
+  kcol.int("DueDays", "Jatuh Tempo", 100),
+  kcol.money("TotalReceivable", "Piutang", 120),
+  kcol.int("PointBalance", "Point", 80),
+  kcol.money("DepositBalance", "Deposit", 120),
+  kcol.text("Country", "Negara", 100),
+  kcol.text("PostalCode", "Kode Pos", 90),
+  kcol.text("Fax", "Fax", 110),
+  kcol.text("TaxID", "NPWP", 150),
+  kcol.text("Notes", "Keterangan", 200),
+];
+
+const SORTS: KSortOption[] = [
+  { value: "Code", label: "Kode" },
+  { value: "Name", label: "Nama" },
+  { value: "Address", label: "Alamat" },
+  { value: "City", label: "Kota" },
+  { value: "Province", label: "Provinsi" },
+  { value: "Phone", label: "Telepon" },
+  { value: "Email", label: "Email" },
+  { value: "CustomerGroup.Name", label: "Grup Pelanggan" },
+  { value: "Region.Name", label: "Wilayah" },
+  { value: "CreatedAt", label: "Tanggal Input" },
+];
+
+const FILTERS: KListFilter[] = [
+  { key: "group", label: "Grup Pelanggan", type: "select", optionsFrom: { endpoint: "customer-group" }, where: (v) => ({ CustomerGroupID: Number(v) }) },
+  { key: "region", label: "Wilayah", type: "select", optionsFrom: { endpoint: "region" }, where: (v) => ({ RegionID: Number(v) }) },
+  { key: "sales", label: "Sales", type: "select", optionsFrom: { endpoint: "sales-person" }, where: (v) => ({ SalesPersonID: Number(v) }) },
+];
+
+const SEARCH = ["Code", "Name", "Address", "City", "Province", "Phone", "Email", "ContactPerson"];
 
 export default function CustomersPage() {
-  const [data, setData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState("");
-  const router = useRouter();
-  const [showDelete, setShowDelete] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [selected, setSelected] = useState<any | null>(null);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await api.get("customer", { $search: search || undefined, $include: "CustomerGroup" } as any).catch(() => ({ success: false, data: { data: [] } } as any));
-      if (res.success) setData(res.data || []);
-    } finally { setLoading(false); }
-  }, [search]);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  const handleDelete = async () => {
-    if (!selected) return;
-    setSaving(true);
-    try {
-      await api.delete("customer", selected.ID).catch(() => ({}));
-      setShowDelete(false);
-      setSelected(null);
-      fetchData();
-    } finally { setSaving(false); }
-  };
-
-  const columns = [
-    { key: "edit", label: "", width: 36, render: (_: unknown, row: any) => <RowEditIcon onClick={() => openEdit(row)} /> },
-    { key: "Code", label: "Kode", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "Name", label: "Nama Pelanggan" },
-    { key: "Phone", label: "Telepon", render: (v: unknown) => v ? <span>{v as string}</span> : <span className="text-muted">-</span> },
-    { key: "Address", label: "Alamat", render: (v: unknown) => v ? <span className="text-muted">{v as string}</span> : <span className="text-muted">-</span> },
-    { key: "CustomerGroup.Name", label: "Grup", render: (v: unknown) => <span className="text-xs uppercase">{(v as string) || "-"}</span> },
-  ];
-
-  const openCreate = () => router.push("/master/customers/new");
-  const openEdit = (row: any) => router.push(`/master/customers/${row.ID}`);
-  const openCopy = () => { if (selected) router.push(`/master/customers/new?copyFrom=${selected.ID}`); };
-
+  const [history, setHistory] = useState<KRow | null>(null);
   return (
-    <PageWrapper>
-      <Card className="p-4">
-        <FilterBar
-          fields={[{ key: "search", label: "Kata Kunci", type: "text", placeholder: "Cari pelanggan..." }]}
-          onFilter={(v) => setSearch((v.search as string) || "")}
-          loading={loading}
-          actions={
-            <GridActions
-              onAdd={openCreate}
-              onEdit={() => selected && openEdit(selected)}
-              onCopy={openCopy}
-              onDelete={() => selected && setShowDelete(true)}
-              disableEdit={!selected}
-              disableCopy={!selected}
-              disableDelete={!selected}
-            />
-          }
-        />
-        <div className="mt-4">
-          <DataTable data={data} columns={columns} loading={loading} selectedId={selected?.ID ?? null} onRowClick={(row) => setSelected(row)} emptyMessage="Tidak ada pelanggan" />
-        </div>
-      </Card>
-
-      <ConfirmModal
-        open={showDelete}
-        onClose={() => setShowDelete(false)}
-        onConfirm={handleDelete}
-        title="Hapus Data"
-        message={`Yakin ingin menghapus "${selected?.Name}"? Tindakan ini tidak dapat dibatalkan.`}
-        confirmText="Hapus"
-        variant="danger"
-        loading={saving}
+    <>
+      <KetokoList
+        title="Daftar Pelanggan"
+        endpoint="customer"
+        basePath="/master/customers"
+        include="CustomerGroup,Region,SubRegion,SalesPerson"
+        searchFields={SEARCH}
+        searchPlaceholder="Kode / nama / alamat / telepon"
+        filters={FILTERS}
+        sortOptions={SORTS}
+        defaultSort="Name"
+        columns={COLUMNS}
+        extraActions={(sel) => (
+          <button
+            type="button"
+            disabled={!sel}
+            onClick={() => sel && setHistory(sel)}
+            className="flex h-9 items-center gap-1.5 rounded border border-[#cfd4da] bg-white px-3 text-[13px] text-[#333] hover:bg-[#f3f4f6] disabled:opacity-40"
+          >
+            <History className="size-4 text-[#6b7580]" /> History Transaksi
+          </button>
+        )}
       />
-    </PageWrapper>
+      <PartnerHistoryModal open={!!history} onClose={() => setHistory(null)} partner={history} kind="customer" />
+    </>
   );
 }

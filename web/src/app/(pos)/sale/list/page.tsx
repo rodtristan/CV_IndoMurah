@@ -1,63 +1,62 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { ArrowLeftRight, Download } from "lucide-react";
-import { api } from "@/lib/api-client";
-import { Badge } from "@/components/ui/StatCard";
-import { TransactionList } from "@/components/transaction/TransactionList";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { ArrowLeftRight } from "lucide-react";
+import { TransactionList, TAX_MODE_LABEL, kcol, type TxnColumn } from "@/components/transaction/TransactionList";
+import type { KListFilter } from "@/components/ui/KetokoList";
 
-const variants: Record<string, string> = { PAID: "success", PARTIAL: "warning", PENDING: "default", CANCELLED: "danger" };
-const labels: Record<string, string> = { PAID: "Lunas", PARTIAL: "Sebagian", PENDING: "Kredit", CANCELLED: "Batal" };
-const methods: Record<string, string> = { CASH: "Tunai", TRANSFER: "Transfer", DEBIT: "Debit", QRIS: "QRIS", CREDIT: "Kredit" };
+const PAY_STATUS: Record<string, string> = { PAID: "Lunas", PARTIAL: "Sebagian", PENDING: "Kredit", CANCELLED: "Batal" };
 
-// Exports the sales matching the list's active filters (keyword, gudang, pelanggan, status,
-// periode, urutan) across all pages as CSV. `query` comes from TransactionList.
-async function exportSalesCsv(query: Record<string, unknown>) {
-  const rows: any[] = [];
-  for (let skip = 0; skip < 20000; skip += 500) {
-    const r = await api.get<any[]>("sales", { ...query, $include: "Customer,SalesPerson,PaymentStatus,PaymentMethod", $take: 500, $skip: skip }, { skipCache: true });
-    const d = r.data ?? [];
-    rows.push(...d);
-    if (d.length < 500) break;
-  }
-  // Quote every cell; neutralise spreadsheet formulas (=, +, -, @) in text cells.
-  const esc = (v: unknown) => {
-    let t = String(v ?? "");
-    if (/^[=+\-@]/.test(t) && !/^-?\d+(\.\d+)?$/.test(t)) t = `'${t}`;
-    return `"${t.replace(/"/g, '""')}"`;
-  };
-  const head = ["No. Transaksi", "Tanggal", "Pelanggan", "Sales", "Metode", "Status", "Subtotal", "Diskon", "Pajak", "Total"];
-  const lines = rows.map((s) => [s.Code, String(s.Date ?? "").slice(0, 10), s.Customer?.Name, s.SalesPerson?.Name, s.PaymentMethod?.Name, s.PaymentStatus?.Code, s.Subtotal, s.DiscountAmount, s.TaxAmount, s.Total].map(esc).join(","));
-  const blob = new Blob(["\uFEFF" + [head.map(esc).join(","), ...lines].join("\r\n")], { type: "text/csv;charset=utf-8" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `faktur-penjualan-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
+// Kolom Daftar Penjualan Ketoko: No Transaksi, Tanggal, Dept/Gudang, Nama, Sales, Pajak, Total,
+// Keterangan, User Buat, User Ubah, Komputer (+ Status Bayar).
+const COLUMNS: TxnColumn[] = [
+  kcol.text("Code", "No Transaksi", 150),
+  kcol.datetime("Date", "Tanggal", 150),
+  kcol.text("Warehouse.Code", "Dept/Gudang", 100),
+  kcol.text("Customer.Name", "Nama", 170),
+  kcol.text("SalesPerson.Name", "Sales", 120),
+  { key: "TaxMode", label: "Pajak", width: 80, render: (v) => TAX_MODE_LABEL[String(v)] ?? "" },
+  kcol.money("Total", "Total", 120),
+  { key: "PaymentStatus.Code", label: "Status Bayar", width: 100, render: (v) => PAY_STATUS[String(v)] ?? String(v ?? "") },
+  kcol.text("Notes", "Keterangan", 180),
+];
+
+const SORTS = [
+  { value: "Date", label: "Tanggal" },
+  { value: "Code", label: "No Transaksi" },
+  { value: "Customer.Name", label: "Nama Pelanggan" },
+  { value: "SalesPerson.Name", label: "Sales" },
+  { value: "Total", label: "Total" },
+];
+const STATUS_FILTER = {
+  relation: "PaymentStatus",
+  label: "Status Bayar",
+  options: Object.entries(PAY_STATUS).map(([value, label]) => ({ value, label })),
+};
+const EXTRA_FILTERS: KListFilter[] = [
+  { key: "sales", label: "Sales", type: "select", optionsFrom: { endpoint: "sales-person", label: (p) => `${p.Code} - ${p.Name}` }, where: (v) => ({ SalesPersonID: Number(v) }) },
+];
+const PARTNER = { field: "CustomerID" as const, endpoint: "customer", label: "Pelanggan" };
+const SEARCH = ["Code", "Notes", "ReferenceNo", "Customer.Name", "Customer.Code", "SalesPerson.Name"];
 
 export default function SaleListPage() {
   const router = useRouter();
   return (
     <TransactionList
+      title="Daftar Penjualan"
       endpoint="sales"
       basePath="/sale/list"
-      include="Customer,Warehouse,SalesPerson,Creator,PaymentStatus,PaymentMethod"
+      include="Customer,Warehouse,SalesPerson,Creator,PaymentStatus"
       deleteLabel="Penjualan"
       emptyMessage="Tidak ada penjualan"
-      searchPlaceholder="No. transaksi..."
-      filterPartner={{ field: "CustomerID", endpoint: "customer", label: "Pelanggan" }}
-      statusFilter={{
-        relation: "PaymentStatus",
-        options: [{ value: "PAID", label: "Lunas" }, { value: "PENDING", label: "Kredit / Tertunda" }, { value: "PARTIAL", label: "Sebagian" }, { value: "CANCELLED", label: "Batal" }],
-      }}
-      sortOptions={[{ value: "Date", label: "Tanggal" }, { value: "Code", label: "No. Transaksi" }, { value: "Total", label: "Total" }, { value: "CreatedAt", label: "Waktu Input" }]}
-      canDelete={(r) => r.PaymentStatus?.Code === "PENDING"}
-      extraActions={(row, { query }) => (
-        <>
-        <button type="button" title="Ekspor faktur penjualan sesuai filter ke CSV" onClick={() => void exportSalesCsv(query).catch((e) => toast.error(e instanceof Error ? e.message : "Gagal mengekspor CSV"))} className="inline-flex h-9 items-center gap-1.5 rounded border border-default bg-white px-3 text-sm hover:bg-bg"><Download className="size-4" /> Ekspor CSV</button>
+      searchPlaceholder="No. transaksi / pelanggan..."
+      searchFields={SEARCH}
+      filterPartner={PARTNER}
+      statusFilter={STATUS_FILTER}
+      extraFilters={EXTRA_FILTERS}
+      sortOptions={SORTS}
+      canDelete={(r) => r.PaymentStatus?.Code === "PENDING" || r.PaymentStatus?.Code === "CANCELLED"}
+      extraActions={(row) => (
         <button
           type="button"
           disabled={!row}
@@ -67,19 +66,8 @@ export default function SaleListPage() {
         >
           <ArrowLeftRight className="size-4" /> Retur
         </button>
-        </>
       )}
-      columns={[
-        { key: "Code", label: "No. Transaksi", render: (v) => <span className="font-mono text-xs">{v as string}</span> },
-        { key: "Date", label: "Tanggal", render: (v) => formatDate(v as string) },
-        { key: "Customer", label: "Pelanggan", render: (v) => (v as { Name?: string })?.Name || "-" },
-        { key: "SalesPerson", label: "Sales", render: (v) => (v as { Name?: string })?.Name || "-" },
-        { key: "Warehouse", label: "Gudang", render: (v) => (v as { Name?: string })?.Name || "-" },
-        { key: "PaymentMethod.Code", label: "Metode", render: (_, row) => <span className="text-xs">{methods[row.PaymentMethod?.Code] || row.PaymentMethod?.Code || "-"}</span> },
-        { key: "PaymentStatus.Code", label: "Status", render: (v) => <Badge variant={(variants[v as string] || "default") as never}>{labels[v as string] || (v as string)}</Badge> },
-        { key: "Total", label: "Total", align: "right", render: (v) => <span className="font-semibold">{formatCurrency(v as number)}</span> },
-        { key: "Creator.Name", label: "Kasir", render: (_, row) => row.Creator?.Name || "-" },
-      ]}
+      columns={COLUMNS}
     />
   );
 }

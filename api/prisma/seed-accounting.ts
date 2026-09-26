@@ -28,13 +28,17 @@ const COA: Row[] = [
   { code: '4-1300', name: 'Pendapatan Ongkos Kirim', type: 'REVENUE' },
   { code: '4-9000', name: 'Pendapatan Lain-lain', type: 'REVENUE' },
   { code: '5-1000', name: 'Harga Pokok Penjualan', type: 'COST' },
+  { code: '5-1100', name: 'Potongan Pembelian', type: 'COST' },
   { code: '5-1200', name: 'Retur Pembelian', type: 'COST' },
   { code: '5-1300', name: 'Selisih Stok', type: 'COST' },
+  { code: '5-1310', name: 'Item Masuk', type: 'COST' },
+  { code: '5-1320', name: 'Item Keluar', type: 'COST' },
   { code: '6-1000', name: 'Beban Gaji', type: 'EXPENSE' },
   { code: '6-1100', name: 'Beban Sewa', type: 'EXPENSE' },
   { code: '6-1200', name: 'Beban Listrik, Air & Telepon', type: 'EXPENSE' },
   { code: '6-1300', name: 'Beban Pengiriman', type: 'EXPENSE' },
   { code: '6-1400', name: 'Beban Penyusutan', type: 'EXPENSE' },
+  { code: '6-1500', name: 'Beban Komisi Sales', type: 'EXPENSE' },
   { code: '6-9000', name: 'Beban Lain-lain', type: 'EXPENSE' },
 ];
 
@@ -42,9 +46,9 @@ const COA: Row[] = [
 const SETTINGS: Record<string, string> = {
   cash: '1-1100', bank: '1-1200', inventory: '1-1400', receivable: '1-1300', payable: '2-1100',
   sales: '4-1000', salesDiscount: '4-1100', cogs: '5-1000', salesReturn: '4-1200',
-  purchaseReturn: '5-1200', vatOut: '2-1200', vatIn: '1-1500', custDeposit: '2-1300',
-  suppDeposit: '1-1600', shipping: '6-1300', stockDiff: '5-1300', retained: '3-2000',
-  currentProfit: '3-3000', otherIncome: '4-9000', otherExpense: '6-9000',
+  purchaseReturn: '5-1200', purchaseDiscount: '5-1100', vatOut: '2-1200', vatIn: '1-1500', custDeposit: '2-1300',
+  suppDeposit: '1-1600', shipping: '6-1300', stockDiff: '5-1300', stockIn: '5-1310', stockOut: '5-1320', retained: '3-2000',
+  currentProfit: '3-3000', otherIncome: '4-9000', otherExpense: '6-9000', salesCommission: '6-1500',
 };
 
 export async function seedAccounting(prisma: any) {

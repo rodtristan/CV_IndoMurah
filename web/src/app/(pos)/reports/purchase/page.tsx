@@ -7,13 +7,13 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { StatCard } from "@/components/ui/StatCard";
 import { api } from "@/lib/api-client";
-import { formatCurrency, formatNumber, formatDate } from "@/lib/utils";
+import { formatCurrency, formatNumber, formatDate, localDate } from "@/lib/utils";
 
 export default function PurchaseReportPage() {
   const [startDate, setStartDate] = useState(() => {
-    const d = new Date(); d.setDate(1); return d.toISOString().split("T")[0];
+    const d = new Date(); d.setDate(1); return localDate(d);
   });
-  const [endDate, setEndDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [endDate, setEndDate] = useState(() => localDate());
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
 

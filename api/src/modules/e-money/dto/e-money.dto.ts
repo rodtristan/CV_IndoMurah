@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsBoolean, IsNumber } from 'class-validator';
+import { IsBoolean, IsInt, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CreateEMoneyDto {
   @ApiProperty({ example: 'EMN001' })
@@ -34,6 +34,11 @@ export class CreateEMoneyDto {
   @IsNumber()
   @IsOptional()
   SortOrder?: number;
+
+  @ApiPropertyOptional({ description: 'Akun penampung e-money' })
+  @IsOptional()
+  @IsInt()
+  AccountID?: number | null;
 }
 
 export class UpdateEMoneyDto {
@@ -71,4 +76,9 @@ export class UpdateEMoneyDto {
   @IsNumber()
   @IsOptional()
   SortOrder?: number;
+
+  @ApiPropertyOptional({ description: 'Akun penampung e-money' })
+  @IsOptional()
+  @IsInt()
+  AccountID?: number | null;
 }

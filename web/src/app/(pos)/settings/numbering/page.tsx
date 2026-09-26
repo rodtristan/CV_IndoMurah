@@ -10,6 +10,7 @@ import { api } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import { usePageTitle } from "@/lib/page-title";
 import { apiError } from "../_lib/local";
+import { LoadingState } from "@/components/ui/Loader";
 
 interface ModuleDef { type: string; label: string; defPrefix: string }
 
@@ -158,7 +159,7 @@ export default function NumberingSettingsPage() {
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan={4} className="py-8 text-center text-[#9aa3ad]">Memuat...</td></tr>
+                    <tr><td colSpan={4}><LoadingState /></td></tr>
                   ) : list.map((m) => {
                     const r = rows[m.type];
                     return (

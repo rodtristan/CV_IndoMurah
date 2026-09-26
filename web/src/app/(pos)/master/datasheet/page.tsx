@@ -7,6 +7,7 @@ import { FilterBar } from "@/components/ui/FilterBar";
 import { KInfoBox, KSaveBar } from "@/components/kform";
 import { api, odata } from "@/lib/api-client";
 import { usePageTitle } from "@/lib/page-title";
+import { LoadingState } from "@/components/ui/Loader";
 
 interface ProductRow {
   ID: number; Code: string; Barcode?: string | null; Name: string; PurchasePrice: string | number;
@@ -119,7 +120,7 @@ export default function DatasheetPage() {
             </thead>
             <tbody>
               {rows.length === 0 && (
-                <tr><td colSpan={9} className="h-32 text-center text-[#9aa3ad]">{loading ? "Memuat..." : "Tidak ada item"}</td></tr>
+                <tr><td colSpan={9} className="h-32 text-center text-[#9aa3ad]">{loading ? <LoadingState className="py-4" /> : "Tidak ada item"}</td></tr>
               )}
               {rows.map((r, i) => {
                 const d = drafts[r.ID];

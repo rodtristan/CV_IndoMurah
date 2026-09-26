@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { Suspense, useState, useCallback, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { PageWrapper, Card } from "@/components/layout/PageWrapper";
 import { DataTable } from "@/components/ui/DataTable";
 import { FilterBar } from "@/components/ui/FilterBar";
@@ -20,7 +21,8 @@ interface StockCardRow {
   saldo: number;
 }
 
-export default function StockCardPage() {
+function StockCardInner() {
+  const initialProduct = useSearchParams().get("productId") ?? "";
   const [products, setProducts] = useState<Product[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [rows, setRows] = useState<StockCardRow[]>([]);
@@ -78,6 +80,11 @@ export default function StockCardPage() {
     }
   }, []);
 
+  // Dibuka dari tombol "Kartu Stok" di Daftar Item → langsung tampilkan item terpilih.
+  useEffect(() => {
+    if (initialProduct) void fetchCard({ productId: initialProduct });
+  }, [initialProduct, fetchCard]);
+
   const columns = [
     { key: "date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
     { key: "reference", label: "No. Referensi" },
@@ -114,6 +121,7 @@ export default function StockCardPage() {
             { key: "dateTo", label: "Sampai Tanggal", type: "date" },
           ]}
           onFilter={fetchCard}
+          initialValues={initialProduct ? { productId: initialProduct } : undefined}
           loading={loading}
           actions={
             <UtilityButton icon={Printer} onClick={() => window.print()}>
@@ -133,4 +141,8 @@ export default function StockCardPage() {
       </Card>
     </PageWrapper>
   );
+}
+
+export default function StockCardPage() {
+  return <Suspense fallback={null}><StockCardInner /></Suspense>;
 }

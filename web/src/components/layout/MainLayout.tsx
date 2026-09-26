@@ -1,6 +1,7 @@
 "use client";
 
-import { Bell, Menu, ChevronLeft, ChevronDown, LogOut, Settings, UserRound, ShoppingCart, Package, Archive, CreditCard, Calendar, CheckCheck } from "lucide-react";
+import { Bell, BellOff, BellRing, AlertTriangle, Info, Menu, ChevronLeft, ChevronDown, LogOut, Settings, UserRound, ShoppingCart, Package, Archive, CreditCard, Calendar, CheckCheck } from "lucide-react";
+import { toast } from "sonner";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -8,7 +9,8 @@ import { cn, formatTimeAgo } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api-client";
 import { POSSidebar } from "./Sidebar";
-import { GlobalPageLoader, TopProgressBar } from "@/components/ui/Loader";
+import { FetchingIndicator, GlobalPageLoader, LoadingState, Spinner, TopProgressBar } from "@/components/ui/Loader";
+import { disablePush, enablePush, getPushState, registerServiceWorker, resyncPush, sendTestPush, type PushState } from "@/lib/push";
 import { usePageTitleOverride } from "@/lib/page-title";
 
 interface MainLayoutProps {
@@ -99,7 +101,81 @@ const NOTIF_TYPE_ICON: Record<string, React.ComponentType<{ className?: string }
   PAYMENT: CreditCard,
   APPOINTMENT: Calendar,
   REMINDER: Bell,
+  ALERT: AlertTriangle,
+  INFO: Info,
 };
+
+const NOTIF_REFERENCE_URL: Record<string, string> = {
+  Sale: "/sale/list",
+  Purchase: "/purchase/list",
+  Product: "/master/items",
+  Attendance: "/hr/attendance",
+};
+
+/** Kontrol notifikasi sistem (Web Push) untuk perangkat yang sedang dipakai. */
+function DevicePushControl() {
+  const [state, setState] = useState<PushState | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    getPushState().then(setState).catch(() => setState("unsupported"));
+  }, []);
+
+  const run = async (fn: () => Promise<unknown>, ok?: string) => {
+    setBusy(true);
+    try {
+      const msg = await fn();
+      if (ok || typeof msg === "string") toast.success(ok ?? String(msg));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Gagal mengatur notifikasi");
+    } finally {
+      setBusy(false);
+      setState(await getPushState().catch(() => "unsupported" as PushState));
+    }
+  };
+
+  if (state === null) return null;
+  return (
+    <div className="border-t border-default px-3 py-2.5 text-xs">
+      {state === "on" ? (
+        <div className="flex items-center gap-2">
+          <BellRing className="size-4 shrink-0 text-success" />
+          <span className="flex-1 text-toned">Notifikasi aktif di perangkat ini</span>
+          <button disabled={busy} onClick={() => run(sendTestPush)} className="text-primary hover:underline disabled:opacity-50">
+            Tes
+          </button>
+          <button disabled={busy} onClick={() => run(disablePush, "Notifikasi perangkat dimatikan")} className="text-muted hover:underline disabled:opacity-50">
+            Matikan
+          </button>
+        </div>
+      ) : state === "off" ? (
+        <button
+          disabled={busy}
+          onClick={() => run(enablePush, "Notifikasi aktif — akan muncul di HP/desktop ini walau tab ditutup")}
+          className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 font-medium text-white hover:bg-primary/90 disabled:opacity-60"
+        >
+          {busy ? <Spinner className="size-3.5" /> : <BellRing className="size-4" />}
+          Aktifkan notifikasi di HP / desktop ini
+        </button>
+      ) : state === "denied" ? (
+        <p className="flex items-start gap-2 text-toned">
+          <BellOff className="mt-0.5 size-4 shrink-0 text-danger" />
+          Notifikasi diblokir browser. Klik ikon gembok di address bar → Notifications → Allow, lalu muat ulang.
+        </p>
+      ) : state === "ios-needs-install" ? (
+        <p className="flex items-start gap-2 text-toned">
+          <BellOff className="mt-0.5 size-4 shrink-0 text-muted" />
+          iPhone/iPad: tekan Share → Add to Home Screen, buka dari ikon tersebut, lalu aktifkan notifikasi di sini.
+        </p>
+      ) : (
+        <p className="flex items-start gap-2 text-muted">
+          <BellOff className="mt-0.5 size-4 shrink-0" />
+          Browser ini tidak mendukung notifikasi sistem (butuh Chrome/Edge/Firefox via https).
+        </p>
+      )}
+    </div>
+  );
+}
 
 function NotificationBell() {
   const [open, setOpen] = useState(false);
@@ -107,32 +183,78 @@ function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastCount = useRef<number | null>(null);
 
-  const fetchUnreadCount = useCallback(async () => {
-    const res = await api.get<{ count: number }>("notifications/unread-count").catch(() => ({ success: false } as any));
-    if (res.success && res.data) setUnreadCount(res.data.count);
+  const goTo = useCallback((referenceType?: string | null) => {
+    const url = referenceType ? NOTIF_REFERENCE_URL[referenceType] : undefined;
+    if (url) router.push(url);
+  }, [router]);
+
+  const loadList = useCallback(async (silent: boolean) => {
+    const res = await api
+      .get<any[]>("notifications", { $include: "Type", $orderBy: { CreatedAt: "desc" }, $take: 10 } as any, { skipCache: true, silent })
+      .catch(() => ({ success: false, data: [] } as any));
+    return res.success ? (res.data as any[]) || [] : null;
   }, []);
 
-  const fetchList = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await api.get<any[]>("notifications", { $include: "Type", $orderBy: { CreatedAt: "desc" }, $take: 10 } as any)
-        .catch(() => ({ success: false, data: [] } as any));
-      if (res.success) setItems(res.data || []);
-    } finally { setLoading(false); }
-  }, []);
+  /** Polling latar belakang (tidak menyalakan loader). Bila ada notifikasi baru, tampilkan toast. */
+  const refreshCount = useCallback(async () => {
+    const res = await api
+      .get<{ count: number }>("notifications/unread-count", undefined, { skipCache: true, silent: true })
+      .catch(() => ({ success: false } as any));
+    if (!res.success || !res.data) return;
+    const count = Number(res.data.count) || 0;
+    const prev = lastCount.current;
+    lastCount.current = count;
+    setUnreadCount(count);
+    if (prev !== null && count > prev) {
+      const latest = await loadList(true);
+      if (!latest) return;
+      setItems(latest);
+      latest
+        .filter((n) => !n.IsRead)
+        .slice(0, Math.min(count - prev, 3))
+        .reverse()
+        .forEach((n) =>
+          toast(n.Title, {
+            description: n.Message,
+            icon: <Bell className="size-4 text-primary" />,
+            action: NOTIF_REFERENCE_URL[n.ReferenceType] ? { label: "Lihat", onClick: () => goTo(n.ReferenceType) } : undefined,
+          }),
+        );
+    }
+  }, [goTo, loadList]);
 
   useEffect(() => {
-    fetchUnreadCount();
-    pollRef.current = setInterval(fetchUnreadCount, 30000);
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [fetchUnreadCount]);
+    refreshCount();
+    const poll = setInterval(refreshCount, 30000);
+    const onFocus = () => refreshCount();
+    window.addEventListener("focus", onFocus);
+    // Push masuk saat tab terbuka → perbarui lonceng segera (tanpa menunggu polling).
+    const onSwMessage = (e: MessageEvent) => {
+      if (e.data?.type === "push-received") refreshCount();
+    };
+    navigator.serviceWorker?.addEventListener("message", onSwMessage);
+    // Daftarkan service worker & sinkronkan langganan push ke user yang sedang login.
+    registerServiceWorker().then(() => resyncPush());
+    return () => {
+      clearInterval(poll);
+      window.removeEventListener("focus", onFocus);
+      navigator.serviceWorker?.removeEventListener("message", onSwMessage);
+    };
+  }, [refreshCount]);
 
-  const toggle = () => {
+  const toggle = async () => {
     const next = !open;
     setOpen(next);
-    if (next) fetchList();
+    if (!next) return;
+    setLoading(true);
+    try {
+      const list = await loadList(false);
+      if (list) setItems(list);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleClickItem = async (item: any) => {
@@ -140,23 +262,24 @@ function NotificationBell() {
       await api.patch("notifications", `${item.ID}/read`, {}).catch(() => ({}));
       setItems((prev) => prev.map((n) => (n.ID === item.ID ? { ...n, IsRead: true } : n)));
       setUnreadCount((c) => Math.max(0, c - 1));
+      lastCount.current = Math.max(0, (lastCount.current ?? 1) - 1);
     }
     setOpen(false);
-    if (item.ReferenceType === "Sale") router.push("/sale/list");
-    else if (item.ReferenceType === "Purchase") router.push("/purchase/list");
-    else if (item.ReferenceType === "Product") router.push("/master/items");
+    goTo(item.ReferenceType);
   };
 
   const markAllRead = async () => {
     await api.patch("notifications", "mark-all-read", {}).catch(() => ({}));
     setItems((prev) => prev.map((n) => ({ ...n, IsRead: true })));
     setUnreadCount(0);
+    lastCount.current = 0;
   };
 
   return (
     <div className="relative">
       <button
         onClick={toggle}
+        aria-label="Notifikasi"
         className="relative flex size-9 items-center justify-center rounded-lg text-toned transition-colors hover:bg-bg hover:text-highlighted"
       >
         <Bell className="size-5" />
@@ -182,7 +305,7 @@ function NotificationBell() {
             </div>
             <div className="max-h-96 overflow-y-auto">
               {loading ? (
-                <p className="px-3 py-6 text-center text-sm text-muted">Memuat...</p>
+                <LoadingState text="Memuat notifikasi..." className="py-6" />
               ) : items.length === 0 ? (
                 <p className="px-3 py-6 text-center text-sm text-muted">Tidak ada notifikasi</p>
               ) : (
@@ -205,7 +328,7 @@ function NotificationBell() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className={cn("text-sm text-highlighted", !item.IsRead && "font-semibold")}>{item.Title}</p>
-                        <p className="truncate text-xs text-muted">{item.Message}</p>
+                        <p className="line-clamp-2 text-xs text-muted">{item.Message}</p>
                         <p className="mt-0.5 text-[11px] text-muted">{formatTimeAgo(item.CreatedAt)}</p>
                       </div>
                       {!item.IsRead && <span className="mt-1.5 size-2 shrink-0 rounded-full bg-primary" />}
@@ -214,6 +337,7 @@ function NotificationBell() {
                 })
               )}
             </div>
+            <DevicePushControl />
           </div>
         </>
       )}
@@ -284,6 +408,7 @@ export function MainLayout({ children }: MainLayoutProps) {
   return (
     <div className="flex h-screen overflow-hidden bg-bg">
       <TopProgressBar />
+      <FetchingIndicator />
       {/* Sidebar */}
       <aside
         className={cn(

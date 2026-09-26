@@ -54,6 +54,11 @@ export class CreateStockOpnameDto {
   @ValidateNested({ each: true })
   @Type(() => CreateStockOpnameItemDto)
   Items: CreateStockOpnameItemDto[];
+
+  @ApiPropertyOptional({ description: 'Kode Akun lawan persediaan' })
+  @IsOptional()
+  @IsInt()
+  AccountID?: number | null;
 }
 
 export class UpdateStockOpnameDto {
@@ -76,6 +81,11 @@ export class UpdateStockOpnameDto {
   @IsOptional()
   @IsInt()
   StatusID?: number;
+
+  @ApiPropertyOptional({ description: 'Kode Akun lawan persediaan' })
+  @IsOptional()
+  @IsInt()
+  AccountID?: number | null;
 }
 
 export class UpdateStockOpnameStatusDto {

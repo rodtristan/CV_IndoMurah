@@ -4,6 +4,7 @@ import { BaseController } from '../../common/templates/base.controller';
 import { ProductService } from './product.service';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
+import { ApiResponse } from '../../common/dto/api-response-dto';
 
 @ApiTags('Products')
 @ApiBearerAuth()
@@ -14,7 +15,7 @@ export class ProductController extends BaseController<
   CreateProductDto,
   UpdateProductDto
 > {
-  constructor(productService: ProductService) {
+  constructor(private readonly productService: ProductService) {
     super(productService, {
       modelName: 'Product',
       pluralName: 'Products',
@@ -42,6 +43,12 @@ export class ProductController extends BaseController<
   @ApiOperation({ summary: 'Get count of products' })
   async getCount(@Query() query: any) {
     return super.getCount(query);
+  }
+
+  @Get('minimum-stock')
+  @ApiOperation({ summary: 'Stock Minimum (Ketoko). Query: warehouseId, itemFrom, itemTo, supplierId, categoryId, sort, dir' })
+  async minimumStock(@Query() query: Record<string, string>) {
+    return ApiResponse.ok(await this.productService.minimumStock(query));
   }
 
   @Get(':id')

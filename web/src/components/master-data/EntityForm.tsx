@@ -12,6 +12,7 @@ import { api } from "@/lib/api-client";
 import { createWithAutoCode } from "@/lib/auto-code";
 import { usePageTitle } from "@/lib/page-title";
 import type { EntityConfig, FieldDef, Values } from "./types";
+import { LoadingState } from "@/components/ui/Loader";
 
 function isEmpty(v: unknown): boolean {
   return v === undefined || v === null || String(v).trim() === "";
@@ -21,7 +22,7 @@ export function EntityForm({ config, id, copyFrom }: { config: EntityConfig; id?
   const router = useRouter();
   const isNew = !id;
   const hasCode = config.hasCode !== false;
-  usePageTitle(`${isNew ? "Tambah" : "Edit"} ${config.singular}`);
+  usePageTitle(config.formTitle ? config.formTitle(isNew) : `${isNew ? "Tambah" : "Edit"} ${config.singular}`);
 
   const [v, setV] = useState<Values>(config.defaults);
   const [code, setCode] = useState("");
@@ -72,7 +73,7 @@ export function EntityForm({ config, id, copyFrom }: { config: EntityConfig; id?
     for (const f of fields) {
       if (f.required && isEmpty(v[f.key])) e[f.key] = `${f.label} wajib diisi`;
     }
-    if (hasCode && !isNew && isEmpty(code)) e.__code = "Kode wajib diisi";
+    if (hasCode && (!isNew || config.codeRequired) && isEmpty(code)) e.__code = `${config.codeLabel ?? "Kode"} wajib diisi`;
     return { ...e, ...(config.validate?.(v) ?? {}) };
   };
 
@@ -96,7 +97,8 @@ export function EntityForm({ config, id, copyFrom }: { config: EntityConfig; id?
     try {
       const payload = config.toPayload(v);
       if (isNew) {
-        if (hasCode) await createWithAutoCode(config.endpoint, config.codePrefix, config.codeKey ?? "code", payload);
+        if (hasCode && config.codeEditable && code.trim()) await api.post(config.endpoint, { ...payload, [config.codeKey ?? "code"]: code.trim() });
+        else if (hasCode) await createWithAutoCode(config.endpoint, config.codePrefix, config.codeKey ?? "code", payload);
         else await api.post(config.endpoint, payload);
       } else {
         await api.patch(config.endpoint, id!, { ...payload, ...(hasCode ? { [config.codeKey ?? "code"]: code } : {}) });
@@ -161,7 +163,7 @@ export function EntityForm({ config, id, copyFrom }: { config: EntityConfig; id?
   const section = config.sections.find((s) => s.title === tab) ?? config.sections[0];
   const multi = config.sections.length > 1;
 
-  if (loading) return <PageWrapper><KCard><p className="py-10 text-center text-[#9aa3ad]">Memuat data...</p></KCard></PageWrapper>;
+  if (loading) return <PageWrapper><KCard><LoadingState /></KCard></PageWrapper>;
 
   return (
     <PageWrapper>
@@ -188,7 +190,16 @@ export function EntityForm({ config, id, copyFrom }: { config: EntityConfig; id?
         <KColumns>
           {hasCode && section === config.sections[0] && (
             <div>
-              <KCode label={config.codeLabel ?? "Kode"} value={code} isNew={isNew} onChange={isNew ? undefined : setCode} />
+              {config.codeEditable ? (
+                <KInput
+                  label={config.codeRequired ? `${config.codeLabel ?? "Kode"} *` : config.codeLabel ?? "Kode"}
+                  value={code} maxLength={50}
+                  placeholder={isNew && !config.codeRequired ? "Auto" : undefined}
+                  onChange={(e) => setCode(e.target.value)}
+                />
+              ) : (
+                <KCode label={config.codeLabel ?? "Kode"} value={code} isNew={isNew} onChange={isNew ? undefined : setCode} />
+              )}
               {errors.__code && <p className="-mt-2 mb-2 text-[13px] text-danger">{errors.__code}</p>}
             </div>
           )}

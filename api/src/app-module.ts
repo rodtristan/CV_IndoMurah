@@ -68,11 +68,8 @@ import { PurchasePaymentModule } from './modules/purchase-payment/purchase-payme
 import { PurchaseReturnModule } from './modules/purchase-return/purchase-return.module';
 
 // Sale Transaction Modules
-// SaleOrderModule is intentionally NOT registered — sale-order.service.ts
-// targets `prisma.saleOrder`/`saleOrderItem`, but no SaleOrder/SaleOrderItem
-// model exists anywhere in prisma/schema.prisma (not a naming bug — the
-// model was never defined). Not used by the frontend. Excluded from the
-// TS build too (see tsconfig.json/tsconfig.build.json `exclude`).
+import { SaleOrderModule } from './modules/sale-order/sale-order.module';
+import { SalesCommissionModule } from './modules/sales-commission/sales-commission.module';
 import { SaleModule } from './modules/sale/sale.module';
 import { SalePaymentModule } from './modules/sale-payment/sale-payment.module';
 import { SaleReturnModule } from './modules/sale-return/sale-return.module';
@@ -313,6 +310,8 @@ import { LoggingInterceptor } from './common/interceptors/logging-interceptor';
 
     // Sale Transaction Modules
     SaleModule,          // Penjualan
+    SaleOrderModule,     // Pesanan Penjualan
+    SalesCommissionModule, // Komisi Sales (Bayar Komisi, Status Lunas Cek/Bg Sales)
     SalePaymentModule,   // Pembayaran Penjualan
     SaleReturnModule,    // Retur Penjualan
     SalePointModule,     // Poin Penjualan

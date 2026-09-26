@@ -39,3 +39,23 @@ export function printDocument(doc: PrintDoc) {
   </body></html>`);
   w.document.close();
 }
+
+/** Cetak daftar sederhana (judul + tabel) — Data Pengiriman, Status Lunas, dll. */
+export function printTable(opts: { title: string; subtitle?: string; columns: string[]; rows: (string | number)[][]; rightCols?: number[]; footer?: string }) {
+  const w = window.open("", "_blank", "width=1000,height=700");
+  if (!w) return;
+  const right = new Set(opts.rightCols ?? []);
+  const head = opts.columns.map((c, i) => `<th${right.has(i) ? ' class="r"' : ""}>${esc(c)}</th>`).join("");
+  const body = opts.rows.map((r) => `<tr>${r.map((v, i) => `<td${right.has(i) ? ' class="r"' : ""}>${esc(String(v ?? ""))}</td>`).join("")}</tr>`).join("");
+  w.document.write(`<!doctype html><html><head><title>${esc(opts.title)}</title><style>
+    body{font-family:Arial,sans-serif;font-size:12px;margin:24px;color:#111}
+    h1{font-size:18px;margin:0 0 4px} p{margin:0 0 10px;color:#444} table{border-collapse:collapse;width:100%}
+    th,td{border:1px solid #999;padding:4px 6px} th{background:#eee;text-align:left} .r{text-align:right}
+  </style></head><body>
+    <h1>${esc(opts.title)}</h1>${opts.subtitle ? `<p>${esc(opts.subtitle)}</p>` : ""}
+    <table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
+    ${opts.footer ? `<p style="margin-top:10px">${esc(opts.footer)}</p>` : ""}
+    <script>window.onload=function(){window.print()}</script>
+  </body></html>`);
+  w.document.close();
+}

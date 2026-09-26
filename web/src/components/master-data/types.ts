@@ -40,6 +40,8 @@ export interface ListColumn {
   width?: string | number;
   align?: "left" | "center" | "right";
   render?: (value: unknown, row: any) => ReactNode; // eslint-disable-line @typescript-eslint/no-explicit-any
+  /** Field server untuk Urut Berdasar / klik header; false = tidak bisa diurutkan. */
+  sortKey?: string | false;
 }
 
 export interface EntityConfig {
@@ -55,6 +57,11 @@ export interface EntityConfig {
   codePrefix: string;
   codeKey?: "Code" | "code";
   codeLabel?: string;
+  /** Kode diketik user (Ketoko: Jenis/Merek/Satuan/Gudang/Bank); kosong = Auto kecuali codeRequired. */
+  codeEditable?: boolean;
+  codeRequired?: boolean;
+  /** Judul halaman form (default "Tambah/Edit <singular>"). */
+  formTitle?: (isNew: boolean) => string;
   searchFields: string[];
   searchPlaceholder?: string;
   include?: string;
@@ -67,6 +74,9 @@ export interface EntityConfig {
   validate?: (v: Values) => Record<string, string>;
   /** Column header hint of the help text at the top of the form. */
   intro?: ReactNode;
+  /** Pilihan "Urut Berdasar" (default: semua kolom). */
+  sortOptions?: { value: string; label: string }[];
+  defaultSort?: string;
   /** Optional extra filter dropdowns on the list. */
   filters?: { key: string; label: string; options: { value: string; label: string }[]; where: (val: string) => Record<string, unknown> }[];
 }

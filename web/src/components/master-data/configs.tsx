@@ -36,118 +36,121 @@ const activeField: FieldDef = { key: "isActive", label: "Status", type: "checkbo
 // ─── Data Jenis ──────────────────────────────────────────────────────
 
 export const categoryConfig: EntityConfig = {
-  singular: "Jenis", plural: "Data Jenis", basePath: "/master/categories", endpoint: "categories",
-  codePrefix: "JNS", searchFields: ["code", "name"], searchPlaceholder: "Cari kode / nama jenis",
-  columns: [codeCol, { key: "Name", label: "Nama Jenis" }, descCol(), statusCol],
+  singular: "Jenis", plural: "Daftar Jenis", basePath: "/master/categories", endpoint: "categories",
+  codePrefix: "JNS", codeLabel: "Jenis", codeEditable: true, codeRequired: true,
+  formTitle: (isNew) => `${isNew ? "Tambah" : "Edit"} Jenis`,
+  searchFields: ["code", "name"], searchPlaceholder: "Cari jenis / keterangan",
+  columns: [
+    { key: "Code", label: "Jenis", width: 220 },
+    { key: "Name", label: "Keterangan", width: 360 },
+  ],
+  sortOptions: [{ value: "Code", label: "Jenis" }, { value: "Name", label: "Keterangan" }],
   sections: [{
     title: "Data Jenis",
     fields: [
-      { key: "name", label: "Nama Jenis", required: true, hint: "Pengelompokan item, mis. Makanan, Minuman, ATK, Snack, Obat-obatan." },
-      { key: "description", label: "Keterangan", type: "textarea", rows: 3 },
-      { key: "icon", label: "Ikon", placeholder: "Opsional", hint: "Nama ikon untuk tampilan kasir (opsional)." },
-      activeField,
+      { key: "name", label: "Keterangan", required: true },
     ],
   }],
-  defaults: { name: "", description: "", icon: "", isActive: true },
-  fromRow: (r) => ({ name: str(r.Name), description: str(r.Description), icon: str(r.Icon), isActive: r.IsActive !== false }),
-  toPayload: (v) => ({ name: v.name.trim(), description: v.description || undefined, icon: v.icon || undefined, isActive: !!v.isActive }),
+  defaults: { name: "" },
+  fromRow: (r) => ({ name: str(r.Name) }),
+  toPayload: (v) => ({ name: v.name.trim() }),
 };
 
 // ─── Data Merek ──────────────────────────────────────────────────────
 
 export const brandConfig: EntityConfig = {
-  singular: "Merek", plural: "Data Merek", basePath: "/master/brands", endpoint: "brand",
-  codePrefix: "MRK", searchFields: ["code", "name"], searchPlaceholder: "Cari kode / nama merek",
-  columns: [codeCol, { key: "Name", label: "Nama Merek" }, descCol(), statusCol],
+  singular: "Merek", plural: "Daftar Merek", basePath: "/master/brands", endpoint: "brand",
+  codePrefix: "MRK", codeLabel: "Merek", codeEditable: true, codeRequired: true,
+  formTitle: (isNew) => `${isNew ? "Tambah" : "Edit"} Merek`,
+  searchFields: ["code", "name"], searchPlaceholder: "Cari merek / keterangan",
+  columns: [
+    { key: "Code", label: "Merek", width: 220 },
+    { key: "Name", label: "Keterangan", width: 360 },
+  ],
+  sortOptions: [{ value: "Code", label: "Merek" }, { value: "Name", label: "Keterangan" }],
   sections: [{
     title: "Data Merek",
     fields: [
-      { key: "name", label: "Nama Merek", required: true, hint: "Digunakan untuk mendefinisikan merek dari sebuah item." },
-      { key: "description", label: "Keterangan", type: "textarea", rows: 3 },
-      activeField,
+      { key: "name", label: "Keterangan", required: true },
     ],
   }],
-  defaults: { name: "", description: "", isActive: true },
-  fromRow: (r) => ({ name: str(r.Name), description: str(r.Description), isActive: r.IsActive !== false }),
-  toPayload: (v) => ({ name: v.name.trim(), description: v.description || undefined, isActive: !!v.isActive }),
+  defaults: { name: "" },
+  fromRow: (r) => ({ name: str(r.Name) }),
+  toPayload: (v) => ({ name: v.name.trim() }),
 };
 
 // ─── Data Satuan (with konversi) ─────────────────────────────────────
 
-interface ConvRow extends Record<string, unknown> { unit: string; factor: string }
-
 export const unitConfig: EntityConfig = {
-  singular: "Satuan", plural: "Data Satuan", basePath: "/master/units", endpoint: "unit",
-  codePrefix: "SAT", searchFields: ["code", "name"], searchPlaceholder: "Cari kode / nama satuan",
-  columns: [codeCol, { key: "Name", label: "Nama Satuan" }, { key: "Abbreviation", label: "Singkatan", render: (v) => str(v) || "-" }, descCol(), statusCol],
+  singular: "Satuan", plural: "Daftar Satuan", basePath: "/master/units", endpoint: "unit",
+  codePrefix: "SAT", codeLabel: "Satuan", codeEditable: true, codeRequired: true,
+  formTitle: (isNew) => `${isNew ? "Tambah" : "Edit"} Satuan`,
+  searchFields: ["code", "name"], searchPlaceholder: "Cari satuan / keterangan",
+  columns: [
+    { key: "Code", label: "Satuan", width: 220 },
+    { key: "Name", label: "Keterangan", width: 360 },
+  ],
+  sortOptions: [{ value: "Code", label: "Satuan" }, { value: "Name", label: "Keterangan" }],
   sections: [{
     title: "Data Satuan",
     fields: [
-      { key: "name", label: "Nama Satuan", required: true, hint: "Ukuran / unit item barang, mis. PCS, DUS, PAK, BAL." },
-      { key: "abbreviation", label: "Singkatan", placeholder: "mis. pcs" },
-      { key: "description", label: "Keterangan", type: "textarea", rows: 3, full: true },
-      activeField,
-      {
-        key: "conversions", label: "Konversi Satuan", type: "custom", local: true, full: true,
-        hint: "Contoh: 1 DUS = 24 PCS. Nilai konversi juga diatur per item pada tab Satuan dan Harga Jual.",
-        render: (v, set) => (
-          <KEditableGrid<ConvRow>
-            columns={[
-              { key: "unit", label: "Satuan Dasar (mis. PCS)", type: "text" },
-              { key: "factor", label: "Jumlah per satuan ini", type: "number", width: "200px" },
-            ]}
-            rows={(v.conversions as ConvRow[]) ?? []}
-            onChange={(rows) => set({ conversions: rows })}
-            newRow={() => ({ unit: "", factor: "1" })}
-            addLabel="Tambah Konversi"
-            emptyText="Belum ada konversi"
-          />
-        ),
-      },
+      { key: "name", label: "Keterangan", required: true },
     ],
   }],
-  defaults: { name: "", abbreviation: "", description: "", isActive: true, conversions: [] },
-  fromRow: (r) => ({ name: str(r.Name), abbreviation: str(r.Abbreviation), description: str(r.Description), isActive: r.IsActive !== false, conversions: [] }),
-  toPayload: (v) => ({ name: v.name.trim(), abbreviation: v.abbreviation?.trim() || undefined, description: v.description || undefined, isActive: !!v.isActive }),
+  defaults: { name: "" },
+  fromRow: (r) => ({ name: str(r.Name) }),
+  toPayload: (v) => ({ name: v.name.trim() }),
 };
 
 // ─── Dept./Gudang ────────────────────────────────────────────────────
 
+const WAREHOUSE_FN: Record<string, string> = { MAIN: "Utama", BRANCH: "Cabang", WAREHOUSE: "Gudang" };
+const accountLabel = (r: any) => `${r.Code} - ${r.Name}`; // eslint-disable-line @typescript-eslint/no-explicit-any
+const accountCell = (rel: string) => (_v: unknown, r: any) => (r[rel] ? `${r[rel].Code} - ${r[rel].Name}` : ""); // eslint-disable-line @typescript-eslint/no-explicit-any
+
 export const warehouseConfig: EntityConfig = {
-  singular: "Gudang", plural: "Dept./Gudang", basePath: "/master/warehouses", endpoint: "warehouse",
-  codePrefix: "GDG", searchFields: ["code", "name", "address"], searchPlaceholder: "Cari kode / nama gudang",
+  singular: "Dept./Gudang", plural: "Dept./Gudang", basePath: "/master/warehouses", endpoint: "warehouse",
+  codePrefix: "GDG", codeEditable: true, codeRequired: true,
+  formTitle: (isNew) => `${isNew ? "Tambah" : "Edit"} Dept./Gudang`,
+  searchFields: ["code", "name", "address"], searchPlaceholder: "Cari kode / nama kantor", include: "Account",
   columns: [
-    codeCol, { key: "Name", label: "Keterangan" }, { key: "Address", label: "Alamat", render: (v) => str(v) || "-" },
-    { key: "Phone", label: "Telepon", render: (v) => str(v) || "-" },
-    { key: "IsDefault", label: "Default", width: 90, render: (v) => (v ? <Badge on yes="Default" /> : "-") },
-    statusCol,
+    { key: "Code", label: "Kode", width: 90 },
+    { key: "Function", label: "Fungsi", width: 100, render: (v) => WAREHOUSE_FN[str(v)] ?? str(v) },
+    { key: "Name", label: "Keterangan", width: 160 },
+    { key: "Account.Code", label: "Akun", width: 280, render: accountCell("Account") },
+    { key: "Address", label: "Alamat", width: 200 },
+    { key: "Phone", label: "Telepon", width: 120 },
+    { key: "Fax", label: "Fax", width: 120 },
+    { key: "IsDefault", label: "Default", width: 80, render: (v) => (v ? "Ya" : "") },
   ],
+  sortOptions: [{ value: "Code", label: "Kode" }, { value: "Name", label: "Keterangan" }, { value: "Function", label: "Fungsi" }],
   sections: [{
     title: "Data Gudang",
     fields: [
-      { key: "name", label: "Keterangan (Nama)", required: true },
       {
-        key: "function", label: "Fungsi", type: "select", local: true,
-        options: [
-          { value: "gudang", label: "Gudang" }, { value: "departemen", label: "Departemen" },
-          { value: "cabang", label: "Cabang (Beda Lokasi)" }, { value: "canvas", label: "Mobile Canvas" },
-        ],
-        hint: "Memisahkan stok sebagai departemen, gudang, cabang beda lokasi atau mobile canvas.",
+        key: "function", label: "Fungsi", type: "select", required: true,
+        options: [{ value: "MAIN", label: "Utama" }, { value: "BRANCH", label: "Cabang" }, { value: "WAREHOUSE", label: "Gudang" }],
       },
-      { key: "address", label: "Alamat", type: "textarea", rows: 3 },
+      { key: "name", label: "Nama Kantor", required: true },
+      { key: "address", label: "Alamat" },
       { key: "phone", label: "Telepon" },
-      { key: "isDefault", label: "Gudang Default", type: "checkbox", caption: "Jadikan gudang default" },
-      activeField,
+      { key: "fax", label: "No Fax" },
+      {
+        key: "accountId", label: "Kode Akun", type: "select",
+        optionsFrom: { endpoint: "account", label: accountLabel },
+        hint: "Akun persediaan untuk dept./gudang ini.",
+      },
+      { key: "isDefault", label: "Gudang Default", type: "checkbox", caption: "Jadikan dept./gudang default transaksi" },
     ],
   }],
-  defaults: { name: "", function: "gudang", address: "", phone: "", isDefault: false, isActive: true },
+  defaults: { function: "WAREHOUSE", name: "", address: "", phone: "", fax: "", accountId: "", isDefault: false },
   fromRow: (r) => ({
-    name: str(r.Name), function: "gudang", address: str(r.Address), phone: str(r.Phone),
-    isDefault: !!r.IsDefault, isActive: r.IsActive !== false,
+    function: str(r.Function || "WAREHOUSE"), name: str(r.Name), address: str(r.Address), phone: str(r.Phone), fax: str(r.Fax),
+    accountId: str(r.AccountID ?? ""), isDefault: !!r.IsDefault,
   }),
   toPayload: (v) => ({
-    name: v.name.trim(), address: v.address || undefined, phone: v.phone || undefined,
-    isDefault: !!v.isDefault, isActive: !!v.isActive,
+    function: v.function, name: v.name.trim(), address: v.address || null, phone: v.phone || null, fax: v.fax || null,
+    accountId: v.accountId ? Number(v.accountId) : null, isDefault: !!v.isDefault,
   }),
 };
 
@@ -211,41 +214,34 @@ export const salePointConfig: EntityConfig = {
 
 export const customerGroupConfig: EntityConfig = {
   singular: "Grup Pelanggan", plural: "Daftar Grup Pelanggan", basePath: "/master/customer-groups",
-  endpoint: "customer-group", codePrefix: "GRP", searchFields: ["code", "name"],
+  endpoint: "customer-group", codePrefix: "GRP", codeEditable: true, codeRequired: true,
+  formTitle: (isNew) => `${isNew ? "Tambah" : "Edit"} Grup Pelanggan`,
+  searchFields: ["code", "name"],
   columns: [
-    codeCol, { key: "Name", label: "Nama Grup" },
-    { key: "DiscountPercent", label: "Potongan (%)", align: "right", width: 110, render: (v) => num(v).toFixed(2) },
-    { key: "PointMultiplier", label: "Pengali Point", align: "right", width: 100, render: (v) => num(v).toFixed(2) },
-    descCol(), statusCol,
+    { key: "Code", label: "Kode", width: 180 },
+    { key: "Name", label: "Grup", width: 180 },
+    { key: "DiscountPercent", label: "Potongan", align: "right", width: 260, render: (v) => num(v).toFixed(2) },
+    { key: "PriceLevel", label: "Level Harga", align: "right", width: 300 },
   ],
-  intro: null,
+  sortOptions: [{ value: "Code", label: "Kode" }, { value: "Name", label: "Grup" }, { value: "DiscountPercent", label: "Potongan" }, { value: "PriceLevel", label: "Level Harga" }],
   sections: [{
     title: "Data Grup",
     fields: [
-      { key: "name", label: "Nama Grup", required: true, hint: "Contoh: General / Umum, Bronze, Silver, Gold." },
-      { key: "discountPercent", label: "Potongan (%)", type: "number", hint: "Potongan otomatis untuk anggota grup." },
-      { key: "pointMultiplier", label: "Pengali Point", type: "number", hint: "1 = normal, 2 = point dobel." },
-      { key: "sortOrder", label: "Urutan", type: "number" },
-      { key: "description", label: "Keterangan", type: "textarea", rows: 3, full: true },
-      activeField,
+      { key: "name", label: "Grup", required: true, hint: "Contoh: General, Bronze, Silver, Gold." },
+      { key: "discountPercent", label: "Potongan (%)", type: "number", hint: "Potongan untuk pelanggan grup ini (Tipe Potongan Grup Per Item / Per Faktur)." },
+      {
+        key: "priceLevel", label: "Level Harga", type: "select", required: true,
+        options: [1, 2, 3, 4].map((n) => ({ value: String(n), label: String(n) })),
+        hint: "Level harga jual yang dipakai untuk item dengan harga jual berdasarkan level.",
+      },
     ],
   }],
-  defaults: { name: "", discountPercent: "0", pointMultiplier: "1", sortOrder: "0", description: "", isActive: true },
-  fromRow: (r) => ({
-    name: str(r.Name),
-    discountPercent: str(r.DiscountPercent ?? 0),
-    pointMultiplier: str(r.PointMultiplier ?? 1),
-    sortOrder: str(r.SortOrder ?? 0),
-    description: str(r.Description),
-    isActive: r.IsActive !== false,
-  }),
+  defaults: { name: "", discountPercent: "0", priceLevel: "1" },
+  fromRow: (r) => ({ name: str(r.Name), discountPercent: str(r.DiscountPercent ?? 0), priceLevel: str(r.PriceLevel ?? 1) }),
   toPayload: (v) => ({
     name: v.name.trim(),
     discountPercent: num(v.discountPercent),
-    pointMultiplier: num(v.pointMultiplier),
-    sortOrder: num(v.sortOrder),
-    description: v.description || undefined,
-    isActive: !!v.isActive,
+    priceLevel: Math.min(4, Math.max(1, Math.trunc(num(v.priceLevel) || 1))),
   }),
   validate: (v): Record<string, string> => (num(v.discountPercent) < 0 || num(v.discountPercent) > 100 ? { discountPercent: "Potongan harus 0 - 100" } : {}),
 };
@@ -435,130 +431,118 @@ export const voucherConfig: EntityConfig = {
 
 export const bankConfig: EntityConfig = {
   singular: "Bank", plural: "Daftar Bank", basePath: "/master/banks",
-  endpoint: "bank", codePrefix: "BNK", searchFields: ["code", "name"],
+  endpoint: "bank", codePrefix: "BNK", codeEditable: true, codeRequired: true, codeLabel: "Kode",
+  formTitle: (isNew) => `${isNew ? "Tambah" : "Edit"} Bank`,
+  searchFields: ["code", "name"], include: "DebitAccount,CreditAccount",
   columns: [
-    codeCol, { key: "Name", label: "Nama Bank" },
-    { key: "AccountNumber", label: "No. Rekening", width: 150, render: (v) => str(v) || "-" },
-    { key: "AccountName", label: "Atas Nama", render: (v) => str(v) || "-" },
-    { key: "Branch", label: "Cabang", render: (v) => str(v) || "-" },
-    statusCol,
+    { key: "Code", label: "Kode Bank", width: 160 },
+    { key: "Name", label: "Nama Bank", width: 260 },
+    { key: "DebitAccount.Code", label: "Bayar Kartu Debit", width: 240, render: accountCell("DebitAccount") },
+    { key: "CreditAccount.Code", label: "Bayar Kartu Kredit", width: 240, render: accountCell("CreditAccount") },
+    { key: "AccountNumber", label: "No. Rekening", width: 140 },
+    { key: "AccountName", label: "Atas Nama", width: 160 },
+    { key: "Branch", label: "Cabang", width: 120 },
   ],
+  sortOptions: [{ value: "Code", label: "Kode Bank" }, { value: "Name", label: "Nama Bank" }],
   sections: [{
     title: "Data Bank",
     fields: [
       { key: "name", label: "Nama Bank", required: true },
+      { key: "debitAccountId", label: "Bayar Kartu Debit", type: "select", optionsFrom: { endpoint: "account", label: accountLabel }, hint: "Akun kas/bank penerima pembayaran kartu debit." },
+      { key: "creditAccountId", label: "Bayar Kartu Kredit", type: "select", optionsFrom: { endpoint: "account", label: accountLabel }, hint: "Akun piutang kartu kredit." },
+      { key: "accountNumber", label: "No. Rekening" },
+      { key: "accountName", label: "Atas Nama" },
       { key: "branch", label: "Cabang" },
-      { key: "accountNumber", label: "Nomor Rekening" },
-      { key: "accountName", label: "Atas Nama Rekening" },
-      { key: "description", label: "Keterangan", type: "textarea", rows: 3 },
-      activeField,
     ],
   }],
-  defaults: { name: "", branch: "", accountNumber: "", accountName: "", description: "", isActive: true },
+  defaults: { name: "", debitAccountId: "", creditAccountId: "", accountNumber: "", accountName: "", branch: "" },
   fromRow: (r) => ({
-    name: str(r.Name),
-    branch: str(r.Branch),
-    accountNumber: str(r.AccountNumber),
-    accountName: str(r.AccountName),
-    description: str(r.Description),
-    isActive: r.IsActive !== false,
+    name: str(r.Name), debitAccountId: str(r.DebitAccountID ?? ""), creditAccountId: str(r.CreditAccountID ?? ""),
+    accountNumber: str(r.AccountNumber), accountName: str(r.AccountName), branch: str(r.Branch),
   }),
   toPayload: (v) => ({
     name: v.name.trim(),
-    branch: v.branch || undefined,
-    accountNumber: v.accountNumber || undefined,
-    accountName: v.accountName || undefined,
-    description: v.description || undefined,
-    isActive: !!v.isActive,
+    debitAccountId: v.debitAccountId ? Number(v.debitAccountId) : null,
+    creditAccountId: v.creditAccountId ? Number(v.creditAccountId) : null,
+    accountNumber: v.accountNumber || undefined, accountName: v.accountName || undefined, branch: v.branch || undefined,
   }),
 };
 
 export const eMoneyConfig: EntityConfig = {
   singular: "E-Money", plural: "Daftar E-Money", basePath: "/master/e-money",
-  endpoint: "e-money", codePrefix: "EMN", codeKey: "Code", searchFields: ["code", "name"],
+  endpoint: "e-money", codePrefix: "EMN", codeKey: "Code", codeEditable: true, codeRequired: true,
+  formTitle: (isNew) => `${isNew ? "Tambah" : "Edit"} E-Money`,
+  searchFields: ["code", "name"], include: "Account",
   columns: [
-    codeCol, { key: "Name", label: "Nama E-Money" },
-    { key: "AccountNumber", label: "No. Akun", width: 150, render: (v) => str(v) || "-" },
-    { key: "AccountName", label: "Atas Nama", render: (v) => str(v) || "-" },
-    statusCol,
+    { key: "Code", label: "Kode", width: 160 },
+    { key: "Name", label: "Nama E-Money", width: 240 },
+    { key: "Account.Code", label: "Akun", width: 260, render: accountCell("Account") },
+    { key: "AccountNumber", label: "No. Akun", width: 150 },
+    { key: "AccountName", label: "Atas Nama", width: 180 },
+    { key: "Description", label: "Keterangan", width: 220 },
   ],
+  sortOptions: [{ value: "Code", label: "Kode" }, { value: "Name", label: "Nama E-Money" }],
   sections: [{
     title: "Data E-Money",
     fields: [
-      { key: "name", label: "Nama E-Money", required: true, hint: "Contoh: GoPay, OVO, DANA, QRIS." },
-      { key: "accountNumber", label: "Nomor Akun" },
-      { key: "accountName", label: "Atas Nama Akun" },
+      { key: "name", label: "Nama E-Money", required: true, hint: "Contoh: GoPay, OVO, DANA, ShopeePay, QRIS." },
+      { key: "accountId", label: "Akun", type: "select", optionsFrom: { endpoint: "account", label: accountLabel }, hint: "Akun penampung pembayaran e-money." },
+      { key: "accountNumber", label: "No. Akun" },
+      { key: "accountName", label: "Atas Nama" },
       { key: "description", label: "Keterangan", type: "textarea", rows: 3 },
-      activeField,
     ],
   }],
-  defaults: { name: "", accountNumber: "", accountName: "", description: "", isActive: true },
+  defaults: { name: "", accountId: "", accountNumber: "", accountName: "", description: "" },
   fromRow: (r) => ({
-    name: str(r.Name),
-    accountNumber: str(r.AccountNumber),
-    accountName: str(r.AccountName),
-    description: str(r.Description),
-    isActive: r.IsActive !== false,
+    name: str(r.Name), accountId: str(r.AccountID ?? ""), accountNumber: str(r.AccountNumber), accountName: str(r.AccountName), description: str(r.Description),
   }),
   // e-money DTO is PascalCase.
   toPayload: (v) => ({
-    Name: v.name.trim(),
-    AccountNumber: v.accountNumber || undefined,
-    AccountName: v.accountName || undefined,
-    Description: v.description || undefined,
-    IsActive: !!v.isActive,
+    Name: v.name.trim(), AccountID: v.accountId ? Number(v.accountId) : null,
+    AccountNumber: v.accountNumber || undefined, AccountName: v.accountName || undefined, Description: v.description || undefined,
   }),
 };
 
 export const shippingConfig: EntityConfig = {
   singular: "Ongkir", plural: "Daftar Ongkir", basePath: "/master/shipping-costs",
-  endpoint: "shipping-cost", codePrefix: "ONG", codeKey: "Code", searchFields: ["code", "name"], include: "region,subRegion",
+  endpoint: "shipping-cost", codePrefix: "ONG", codeKey: "Code", hasCode: true,
+  formTitle: (isNew) => `${isNew ? "Tambah" : "Edit"} Ongkir`,
+  searchFields: ["name", "fromCity", "toCity", "country"], searchPlaceholder: "Cari expedisi / kota",
   columns: [
-    codeCol, { key: "Name", label: "Nama Expedisi" },
-    { key: "Region", label: "Region", render: (_v, r) => r.Region?.Name ?? "-" },
-    { key: "SubRegion", label: "Sub Region", render: (_v, r) => r.SubRegion?.Name ?? "-" },
-    { key: "Cost", label: "Tarif (Rp)", align: "right", render: (v) => num(v).toLocaleString("id-ID") },
-    { key: "EstimatedDays", label: "Estimasi (Hari)", align: "right", render: (v) => v ? `${v} hari` : "-" },
-    statusCol,
+    { key: "Name", label: "Expedisi", width: 140 },
+    { key: "FromCity", label: "Dari Kota", width: 140 },
+    { key: "ToCity", label: "Kota Tujuan", width: 140 },
+    { key: "Country", label: "Negara", width: 120 },
+    { key: "Cost", label: "Biaya 1", align: "right", width: 120, render: (v) => num(v).toLocaleString("en-US", { minimumFractionDigits: 2 }) },
+    { key: "Cost2", label: "Biaya 2", align: "right", width: 120, render: (v) => num(v).toLocaleString("en-US", { minimumFractionDigits: 2 }) },
+    { key: "Cost3", label: "Biaya 3", align: "right", width: 120, render: (v) => num(v).toLocaleString("en-US", { minimumFractionDigits: 2 }) },
+    { key: "Description", label: "Keterangan", width: 220 },
   ],
+  sortOptions: [
+    { value: "Name", label: "Expedisi" }, { value: "FromCity", label: "Dari Kota" }, { value: "ToCity", label: "Kota Tujuan" }, { value: "Cost", label: "Biaya 1" },
+  ],
+  defaultSort: "Name",
   sections: [{
     title: "Data Ongkir",
     fields: [
-      { key: "name", label: "Nama Expedisi", required: true, hint: "Contoh: JNE, J&T, SiCepat, Pos Indonesia" },
-      {
-        key: "regionId", label: "Region/Wilayah", type: "select",
-        optionsFrom: { endpoint: "region", label: (r: any) => `${r.Code} - ${r.Name}` },
-        hint: "Wilayah tujuan expedisi",
-      },
-      {
-        key: "subRegionId", label: "Sub Region", type: "select",
-        optionsFrom: { endpoint: "sub-region", label: (r: any) => `${r.Code} - ${r.Name}` },
-        hint: "Sub wilayah tujuan expedisi",
-      },
-      { key: "cost", label: "Tarif (Rp)", type: "number", required: true },
-      { key: "estimatedDays", label: "Estimasi Pengiriman (Hari)", type: "number" },
-      { key: "description", label: "Keterangan", type: "textarea", rows: 3 },
-      activeField,
+      { key: "name", label: "Expedisi", required: true, hint: "Contoh: JNE, TIKI, J&T, SiCepat, Pos Indonesia" },
+      { key: "fromCity", label: "Dari Kota" },
+      { key: "toCity", label: "Kota Tujuan" },
+      { key: "country", label: "Negara" },
+      { key: "cost", label: "Biaya 1", type: "number", required: true },
+      { key: "cost2", label: "Biaya 2", type: "number" },
+      { key: "cost3", label: "Biaya 3", type: "number" },
+      { key: "description", label: "Keterangan", type: "textarea", rows: 3, hint: "Contoh: 1(REG), 2(YES), 3(Express)" },
     ],
   }],
-  defaults: { name: "", regionId: "", subRegionId: "", cost: "0", estimatedDays: "0", description: "", isActive: true },
+  defaults: { name: "", fromCity: "", toCity: "", country: "Indonesia", cost: "0", cost2: "0", cost3: "0", description: "" },
   fromRow: (r) => ({
-    name: str(r.Name),
-    regionId: str(r.RegionID ?? ""),
-    subRegionId: str(r.SubRegionID ?? ""),
-    cost: str(r.Cost ?? 0),
-    estimatedDays: str(r.EstimatedDays ?? 0),
-    description: str(r.Description),
-    isActive: r.IsActive !== false,
+    name: str(r.Name), fromCity: str(r.FromCity), toCity: str(r.ToCity), country: str(r.Country),
+    cost: str(r.Cost ?? 0), cost2: str(r.Cost2 ?? 0), cost3: str(r.Cost3 ?? 0), description: str(r.Description),
   }),
   // shipping-cost DTO is PascalCase.
   toPayload: (v) => ({
-    Name: v.name.trim(),
-    RegionID: v.regionId ? Number(v.regionId) : undefined,
-    SubRegionID: v.subRegionId ? Number(v.subRegionId) : undefined,
-    Cost: num(v.cost),
-    EstimatedDays: v.estimatedDays ? parseInt(v.estimatedDays) : undefined,
-    Description: v.description || undefined,
-    IsActive: !!v.isActive,
+    Name: v.name.trim(), FromCity: v.fromCity || null, ToCity: v.toCity || null, Country: v.country || null,
+    Cost: num(v.cost), Cost2: num(v.cost2), Cost3: num(v.cost3), Description: v.description || undefined,
   }),
 };

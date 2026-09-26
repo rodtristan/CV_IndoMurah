@@ -1,10 +1,10 @@
 "use client";
 
 // Ketoko "Item Baru" / "Edit Item" full-page form. Used by /master/items/new and
-// /master/items/[id]. Saved: Data Umum (Product), all units (ProductUnit: konversi,
-// jual/beli) and all price tiers (ProductPrice: STANDARD, LEVEL2-4, QTY1-4) — see
-// ./product-pricing. Tabs whose data has no storage in the API are shown disabled with
-// a notice instead of silently discarding what the user types.
+// /master/items/[id]. Semua tab tersimpan: Data Umum + Dimensi + Potongan per grup +
+// Akuntansi + Share Item + Data Pendukung Pajak (Product), satuan (ProductUnit),
+// harga (ProductPrice: STANDARD, LEVEL2-4, QTY1-4, lihat ./product-pricing) dan
+// gambar (ProductImage, file diunggah lewat /files/image).
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -21,6 +21,9 @@ import {
   fetchProductPrices, fetchProductUnits, saveUnitsAndPrices, type PriceToSave, type UnitToSave,
 } from "./product-pricing";
 import type { Product, Category, Brand, Unit, Warehouse, Account } from "@/lib/types";
+import { uploadImage } from "@/lib/upload-image";
+import { toast } from "sonner";
+import { LoadingState } from "@/components/ui/Loader";
 
 // ─── Types ─────────────────────────────────────────────────────────────
 
@@ -54,7 +57,7 @@ const emptyUnitRow = (): UnitRow => ({
 const emptyDiscountRow = (): DiscountRow => ({ group: "", p1: "0", p2: "0", p3: "0", p4: "0" });
 
 const initialForm = (): FormState => ({
-  tipe: "barang", serial: false, code: "", name: "", categoryId: "", subCategoryId: "", brandId: "", rak: "",
+  tipe: "GOODS", serial: false, code: "", name: "", categoryId: "", subCategoryId: "", brandId: "", rak: "",
   statusJual: "dijual", minimumStock: "0", supplierId: "", warehouseId: "", description: "", isActive: true,
   priceType: "satu", unitId: "", barcode: "", sku: "", pokok: "0", proc: "0", jual: "0", poin: "0", komisi: "0",
   unitRows: [emptyUnitRow()],
@@ -62,7 +65,7 @@ const initialForm = (): FormState => ({
   discounts: [],
   acc: {},
   images: [],
-  shareEnabled: false, youtubeId: "", kondisi: "baru", stokShare: "", subKeterangan: "",
+  shareEnabled: false, youtubeId: "", kondisi: "NEW", stokShare: "", subKeterangan: "",
   taxType: "", taxInclude: "0", taxRef: "", taxOption: "",
 });
 
@@ -78,34 +81,34 @@ const TABS = [
   { key: "pajak", label: "Data Pendukung Pajak" },
 ];
 
-// Tabs whose data has no column/table in the API yet (shown read-only with a notice).
-const UNSUPPORTED_TABS = ["dimensi", "potongan", "akuntansi", "gambar", "share", "marketplace", "pajak"];
+// Integrasi marketplace (Tokopedia/Shopee/...) tidak tersedia di aplikasi ini.
+const UNSUPPORTED_TABS = ["marketplace"];
 
-
-// Customer groups (no list endpoint yet) — same seeded set used by /master/customers.
-const GROUP_OPTIONS: KOption[] = [
-  { value: "1", label: "GENERAL - Umum" }, { value: "2", label: "RETAIL - Retail" },
-  { value: "3", label: "WHOLESALE - Grosir" }, { value: "4", label: "VIP - VIP" },
+const ITEM_TYPES = [
+  { value: "GOODS", label: "Barang" },
+  { value: "SERVICE", label: "Jasa" },
+  { value: "NON_INVENTORY", label: "Non Inventory" },
+  { value: "EXPENSE", label: "Biaya" },
+  { value: "ASSEMBLY", label: "Rakitan" },
 ];
 
-const ACCOUNT_FIELDS: { key: string; label: string; match: RegExp }[] = [
-  { key: "hpp", label: "Harga Pokok Penjualan", match: /harga pokok|hpp|cogs/i },
-  { key: "pendJual", label: "Pendapatan Jual", match: /pendapatan.*(jual|penjualan)|penjualan|sales/i },
-  { key: "pendJasa", label: "Pendapatan Jasa", match: /pendapatan.*jasa|jasa/i },
-  { key: "persediaan", label: "Persediaan", match: /^persediaan|inventory/i },
-  { key: "biayaNonInv", label: "Biaya Non Inventory", match: /non inventory|perlengkapan|biaya/i },
-  { key: "persLain", label: "Persediaan Lainnya", match: /persediaan lain/i },
-  { key: "tenaga", label: "Biaya Tenaga Kerja", match: /tenaga kerja|gaji/i },
-  { key: "overhead", label: "Biaya Overhead", match: /overhead/i },
+const ACCOUNT_FIELDS: { key: string; label: string; match: RegExp; column: string }[] = [
+  { key: "hpp", label: "Harga Pokok Penjualan", match: /harga pokok|hpp|cogs/i, column: "CogsAccountID" },
+  { key: "pendJual", label: "Pendapatan Jual", match: /pendapatan.*(jual|penjualan)|penjualan|sales/i, column: "SalesAccountID" },
+  { key: "pendJasa", label: "Pendapatan Jasa", match: /pendapatan.*jasa|jasa/i, column: "ServiceIncomeAccountID" },
+  { key: "persediaan", label: "Persediaan", match: /^persediaan|inventory/i, column: "InventoryAccountID" },
+  { key: "biayaNonInv", label: "Biaya Non Inventory", match: /non inventory|perlengkapan|biaya/i, column: "NonInventoryAccountID" },
+  { key: "persLain", label: "Persediaan Lainnya", match: /persediaan lain|dalam proses/i, column: "OtherInventoryAccountID" },
+  { key: "tenaga", label: "Biaya Tenaga Kerja", match: /tenaga kerja|gaji/i, column: "LaborCostAccountID" },
+  { key: "overhead", label: "Biaya Overhead", match: /overhead/i, column: "OverheadAccountID" },
 ];
+/** Akun yang aktif per Tipe Item (sama seperti Ketoko). */
 const ACCOUNTS_BY_TIPE: Record<string, string[]> = {
-  barang: ["hpp", "pendJual", "persediaan"],
-  varian: ["hpp", "pendJual", "persediaan"],
-  jasa: ["pendJasa"],
-  non_inventory: ["biayaNonInv"],
-  biaya: ["biayaNonInv"],
-  rakitan_proses: ["hpp", "pendJual", "persediaan", "persLain", "tenaga", "overhead"],
-  rakitan_non: ["hpp", "pendJual", "persediaan"],
+  GOODS: ["hpp", "pendJual", "persediaan"],
+  SERVICE: ["pendJasa"],
+  NON_INVENTORY: ["biayaNonInv"],
+  EXPENSE: ["biayaNonInv"],
+  ASSEMBLY: ["hpp", "pendJual", "persediaan", "persLain", "tenaga", "overhead"],
 };
 
 const num = (v: string | number | null | undefined) => {
@@ -119,6 +122,73 @@ function list<T>(res: { data?: unknown }): T[] {
   if (Array.isArray(d)) return d as T[];
   const inner = (d as { data?: unknown } | undefined)?.data;
   return Array.isArray(inner) ? (inner as T[]) : [];
+}
+
+// ─── Product ⇄ form (field tambahan Ketoko) ─────────────────────────────
+
+const sv = (v: unknown) => (v === null || v === undefined ? "" : String(v));
+
+function extraFromProduct(p: Record<string, unknown>): Partial<FormState> {
+  const acc: Record<string, string> = {};
+  for (const a of ACCOUNT_FIELDS) if (p[a.column]) acc[a.key] = String(p[a.column]);
+  const gd = Array.isArray(p.GroupDiscounts) ? (p.GroupDiscounts as { groupId: number; p1: number; p2: number; p3: number; p4: number }[]) : [];
+  return {
+    tipe: sv(p.ItemType) || "GOODS",
+    serial: Boolean(p.HasSerial),
+    sku: sv(p.SKU),
+    rak: sv(p.Shelf),
+    taxInclude: sv(p.TaxIncludePercent ?? 0),
+    statusJual: p.IsSold === false ? "tidak" : "dijual",
+    supplierId: sv(p.SupplierID),
+    poin: sv(p.Point ?? 0),
+    komisi: sv(p.SalesCommission ?? 0),
+    berat: sv(p.Weight ?? 0), panjang: sv(p.Length ?? 0), lebar: sv(p.Width ?? 0), tinggi: sv(p.Height ?? 0),
+    discounts: gd.map((d) => ({ group: String(d.groupId), p1: String(d.p1), p2: String(d.p2), p3: String(d.p3), p4: String(d.p4) })),
+    acc,
+    shareEnabled: Boolean(p.ShareEnabled),
+    youtubeId: sv(p.YoutubeID),
+    kondisi: sv(p.Condition) || "NEW",
+    stokShare: sv(p.ShareWarehouseID),
+    subKeterangan: sv(p.ShareDescription),
+    taxType: sv(p.TaxType),
+    taxRef: sv(p.TaxRefCode),
+    taxOption: sv(p.TaxGoodsService),
+  };
+}
+
+function extraPayload(f: FormState): Record<string, unknown> {
+  const n = (v: string) => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
+  const idOrNull = (v?: string) => (v ? Number(v) : null);
+  const enabled = new Set(ACCOUNTS_BY_TIPE[f.tipe] ?? []);
+  const accPayload: Record<string, number | null> = {};
+  for (const a of ACCOUNT_FIELDS) {
+    const k = a.column.charAt(0).toLowerCase() + a.column.slice(1).replace(/ID$/, "Id");
+    accPayload[k] = enabled.has(a.key) ? idOrNull(f.acc[a.key]) : null;
+  }
+  return {
+    itemType: f.tipe,
+    hasSerial: f.serial,
+    SKU: f.sku.trim() || null,
+    shelf: f.rak.trim() || null,
+    taxIncludePercent: Math.min(100, Math.max(0, n(f.taxInclude))),
+    isSold: f.statusJual !== "tidak",
+    supplierId: idOrNull(f.supplierId),
+    point: Math.max(0, n(f.poin)),
+    salesCommission: Math.max(0, n(f.komisi)),
+    weight: Math.max(0, n(f.berat)), length: Math.max(0, n(f.panjang)), width: Math.max(0, n(f.lebar)), height: Math.max(0, n(f.tinggi)),
+    groupDiscounts: f.discounts
+      .filter((d) => d.group)
+      .map((d) => ({ groupId: Number(d.group), p1: Math.min(100, Math.max(0, n(d.p1))), p2: Math.min(100, Math.max(0, n(d.p2))), p3: Math.min(100, Math.max(0, n(d.p3))), p4: Math.min(100, Math.max(0, n(d.p4))) })),
+    ...accPayload,
+    shareEnabled: f.shareEnabled,
+    youtubeId: f.youtubeId.trim() || null,
+    condition: f.kondisi === "USED" ? "USED" : "NEW",
+    shareWarehouseId: idOrNull(f.stokShare),
+    shareDescription: f.subKeterangan || null,
+    taxType: f.taxType || null,
+    taxRefCode: f.taxRef.trim() || null,
+    taxGoodsService: f.taxOption || null,
+  };
 }
 
 // ─── Component ─────────────────────────────────────────────────────────
@@ -142,6 +212,9 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
   const [units, setUnits] = useState<Unit[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [groups, setGroups] = useState<{ ID: number; Code: string; Name: string }[]>([]);
+  const [suppliers, setSuppliers] = useState<{ ID: number; Code: string; Name: string }[]>([]);
+  const [imageRows, setImageRows] = useState<{ ID: number; Url: string }[]>([]);
 
   usePageTitle(isNew ? "Item Baru" : itemName ? itemName : "Edit Item");
 
@@ -152,15 +225,17 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
     let alive = true;
     (async () => {
       const safe = <T,>(p: Promise<{ data?: unknown }>) => p.then((r) => list<T>(r)).catch(() => [] as T[]);
-      const [c, b, u, w, a] = await Promise.all([
+      const [c, b, u, w, a, g, sp] = await Promise.all([
         safe<Category>(api.get("categories", odata().take(200).toParams())),
         safe<Brand>(api.get("brand", odata().take(200).toParams())),
         safe<Unit>(api.get("unit", odata().take(200).toParams())),
         safe<Warehouse>(api.get("warehouse", odata().take(200).toParams())),
         safe<Account>(api.get("account", odata().take(500).toParams())),
+        safe<{ ID: number; Code: string; Name: string }>(api.get("customer-group", odata().take(100).toParams())),
+        safe<{ ID: number; Code: string; Name: string }>(api.get("supplier", odata().take(100).orderBy("Name").toParams())),
       ]);
       if (!alive) return;
-      setCategories(c); setBrands(b); setUnits(u); setWarehouses(w); setAccounts(a);
+      setCategories(c); setBrands(b); setUnits(u); setWarehouses(w); setAccounts(a); setGroups(g); setSuppliers(sp);
     })();
     return () => { alive = false; };
   }, []);
@@ -177,10 +252,14 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
         if (!alive) return;
         if (!res.success || !p) { setLoadError("Item tidak ditemukan."); return; }
         setItemName(p.Name);
-        const [pUnits, pPrices] = await Promise.all([
+        const [pUnits, pPrices, pImages] = await Promise.all([
           fetchProductUnits(p.ID).catch(() => []),
           fetchProductPrices(p.ID).catch(() => []),
+          api.get<{ ID: number; Url: string }[]>("product-image", { $where: { ProductID: p.ID }, $orderBy: { SortOrder: "asc" }, $take: 10 } as never, { skipCache: true })
+            .then((r) => (Array.isArray(r.data) ? r.data : []))
+            .catch(() => [] as { ID: number; Url: string }[]),
         ]);
+        if (id) setImageRows(pImages);
         if (!alive) return;
         const loadedUnits = pUnits.length
           ? [...pUnits].sort((a, b) => Number(b.isBase) - Number(a.isBase) || a.conversion - b.conversion)
@@ -218,6 +297,8 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
           minimumStock: String(p.MinimumStock ?? 0),
           description: p.Description || "",
           isActive: p.IsActive,
+          ...extraFromProduct(p as unknown as Record<string, unknown>),
+          images: id ? pImages.map((x) => x.Url) : [],
           priceType: loadedType,
           unitRows: rows,
         }));
@@ -345,6 +426,28 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
     }
   };
 
+  /** Samakan ProductImage dengan daftar gambar di tab Gambar (urutan = SortOrder, pertama = utama). */
+  const syncImages = async (productId: number) => {
+    const current = productId === Number(id) ? imageRows : [];
+    const keep = new Set(f.images);
+    for (const row of current) if (!keep.has(row.Url)) await api.delete("product-image", row.ID).catch(() => undefined);
+    const existing = new Map(current.map((r) => [r.Url, r.ID]));
+    const next: { ID: number; Url: string }[] = [];
+    for (let i = 0; i < f.images.length; i++) {
+      const url = f.images[i];
+      const body = { productId, url, sortOrder: i, isPrimary: i === 0 };
+      const exId = existing.get(url);
+      if (exId) {
+        await api.patch("product-image", exId, { sortOrder: i, isPrimary: i === 0 }).catch(() => undefined);
+        next.push({ ID: exId, Url: url });
+      } else {
+        const r = await api.post<{ ID: number }>("product-image", body);
+        if (r.data?.ID) next.push({ ID: r.data.ID, Url: url });
+      }
+    }
+    setImageRows(next);
+  };
+
   const validate = () => {
     const e: { name?: string; unit?: string } = {};
     if (!f.name.trim()) e.name = "Nama Item harus diisi.";
@@ -378,6 +481,7 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
         minimumStock: num(f.minimumStock),
         description: f.description || null,
         isActive: f.isActive,
+        ...extraPayload(f),
       };
       const productId = id ?? createdId;
       if (productId) {
@@ -388,6 +492,7 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
         } catch (err) {
           throw new Error(`Data umum tersimpan, tetapi satuan/harga gagal disimpan: ${err instanceof Error ? err.message : err}`);
         }
+        await syncImages(Number(productId));
         setItemName(payload.name);
         if (!id) { router.replace(`/master/items/${productId}?saved=1`); return; }
         setNotice("Data item berhasil disimpan.");
@@ -415,6 +520,7 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
         } catch (err) {
           throw new Error(`Item dibuat, tetapi satuan/harga gagal disimpan: ${err instanceof Error ? err.message : err}. Klik Simpan untuk mencoba lagi.`);
         }
+        await syncImages(Number(newId));
         router.replace(`/master/items/${newId}?saved=1`);
       }
     } catch (e) {
@@ -429,7 +535,7 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
   const shareLink = id && typeof window !== "undefined" ? `${window.location.origin}/share/item/${id}` : "[simpan data item terlebih dahulu]";
 
   if (loadError) return <PageWrapper><KCard><p className="text-danger">{loadError}</p></KCard></PageWrapper>;
-  if (!loaded) return <PageWrapper><KCard><p className="text-sm text-[#6b7280]">Memuat data item...</p></KCard></PageWrapper>;
+  if (!loaded) return <PageWrapper><KCard><LoadingState text="Memuat data item..." /></KCard></PageWrapper>;
 
   return (
     <PageWrapper>
@@ -445,6 +551,7 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
         <div className="border border-t-0 border-[#c9d3df] bg-white p-5">
           {tab === "umum" && (
             <div className="max-w-[1070px]">
+              <KRadioGroup label="Tipe Item" value={f.tipe} onChange={(v) => set("tipe", v)} options={ITEM_TYPES} />
               <KCode label="Kode Item" value={f.code} isNew={isNew} onChange={isNew ? undefined : (v) => set("code", v)}
                 fieldClassName="max-w-[320px]" />
               <KField label="Nama Item">
@@ -455,12 +562,21 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
                 />
                 {errors.name && <p className="mt-1 text-[13px] text-danger">{errors.name}</p>}
               </KField>
-              <KSelect label="Jenis" value={f.categoryId} onChange={(v) => set("categoryId", v)} options={opts(categories)} />
-              <KSelect label="Merek" value={f.brandId} onChange={(v) => set("brandId", v)} options={opts(brands)} />
-              <KNumber label="Stok Minimum" value={f.minimumStock} onChange={(v) => set("minimumStock", v)} />
-              <KSelect label="Dept/Gudang" value={f.warehouseId} onChange={(v) => set("warehouseId", v)} options={opts(warehouses)} />
-              <KTextarea label="Keterangan" rows={3} value={f.description} onChange={(e) => set("description", e.target.value)} />
-              <KCheckbox label="Aktif" caption="Item aktif" checked={f.isActive} onChange={(v) => set("isActive", v)} />
+              <KRow>
+                <KSelect label="Jenis" value={f.categoryId} onChange={(v) => set("categoryId", v)} options={categories.map((c) => ({ value: String(c.ID), label: `${c.Code} - ${c.Name}` }))} />
+                <KSelect label="Merek" value={f.brandId} onChange={(v) => set("brandId", v)} options={opts(brands)} />
+              </KRow>
+              <KInput label="Rak" value={f.rak} onChange={(e) => set("rak", e.target.value)} maxLength={100} fieldClassName="max-w-[320px]" />
+              <KNumber label="Pajak Include %" value={f.taxInclude} onChange={(v) => set("taxInclude", v)} min={0} max={100} fieldClassName="max-w-[320px]" />
+              <KRadioGroup label="Status Jual" inline value={f.statusJual} onChange={(v) => set("statusJual", v)} options={[
+                { value: "dijual", label: "Masih dijual" }, { value: "tidak", label: "Tidak dijual" },
+              ]} />
+              <KNumber label="Stok Minimum" value={f.minimumStock} onChange={(v) => set("minimumStock", v)} fieldClassName="max-w-[320px]" />
+              <KSelect label="Supplier" value={f.supplierId} onChange={(v) => set("supplierId", v)} options={suppliers.map((x) => ({ value: String(x.ID), label: x.Name }))} fieldClassName="max-w-[320px]" />
+              <KSelect label="Dept/Gudang Default" value={f.warehouseId} onChange={(v) => set("warehouseId", v)} options={opts(warehouses)} fieldClassName="max-w-[320px]"
+                hint="Gudang default untuk stok awal / transaksi item ini." />
+              <KCheckbox label="Serial Number" caption="Item memakai nomor seri" checked={f.serial} onChange={(v) => set("serial", v)} />
+              <KTextarea label="Keterangan" rows={4} value={f.description} onChange={(e) => set("description", e.target.value)} />
             </div>
           )}
 
@@ -484,6 +600,10 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
                     <KNumber label="Proc %" value={f.proc} onChange={setProc} />
                     <KNumber label="Harga Jual" value={f.jual} onChange={setJual} />
                   </KRow>
+                  <KRow>
+                    <KNumber label="Poin" value={f.poin} onChange={(v) => set("poin", v)} min={0} />
+                    <KNumber label="Komisi Sales" value={f.komisi} onChange={(v) => set("komisi", v)} min={0} />
+                  </KRow>
                 </div>
               ) : (
                 <div>
@@ -491,6 +611,10 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
                     <KRow>
                       <KInput label="Kode Barcode (satuan dasar)" value={f.barcode} onChange={(e) => set("barcode", e.target.value)} />
                       <KNumber label="Harga Pokok (per satuan dasar)" value={f.pokok} onChange={(v) => set("pokok", v)} />
+                    </KRow>
+                    <KRow>
+                      <KNumber label="Poin" value={f.poin} onChange={(v) => set("poin", v)} min={0} />
+                      <KNumber label="Komisi Sales" value={f.komisi} onChange={(v) => set("komisi", v)} min={0} />
                     </KRow>
                   </div>
                   <KInfoBox title="KETERANGAN" items={[
@@ -513,9 +637,8 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
           )}
 
           {UNSUPPORTED_TABS.includes(tab) && (
-            <KInfoBox variant="warning" title="Belum tersimpan">
-              Data pada tab ini belum didukung oleh server sehingga tidak ikut disimpan. Isian dinonaktifkan agar tidak ada
-              data yang hilang tanpa pemberitahuan.
+            <KInfoBox variant="warning" title="Tidak tersedia">
+              Sinkronisasi marketplace (Tokopedia/Shopee/Lazada/Bukalapak) tidak tersedia di aplikasi ini.
             </KInfoBox>
           )}
           <fieldset disabled={UNSUPPORTED_TABS.includes(tab)} className="m-0 min-w-0 border-0 p-0 disabled:opacity-60">
@@ -537,7 +660,7 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
           {tab === "potongan" && (
             <KEditableGrid<DiscountRow>
               columns={[
-                { key: "group", label: "Kode Grup", type: "select", options: GROUP_OPTIONS, width: "260px" },
+                { key: "group", label: "Kode Grup", type: "select", options: groups.map((g) => ({ value: String(g.ID), label: `${g.Code} - ${g.Name}` })), width: "260px" },
                 { key: "p1", label: "Potongan 1 (%)", type: "number" },
                 { key: "p2", label: "Potongan 2 (%)", type: "number" },
                 { key: "p3", label: "Potongan 3 (%)", type: "number" },
@@ -574,7 +697,7 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
                 "Apabila size gambar terlalu besar silahkan lakukan proses crop atau resize ukuran.",
                 "Jika melakukan duplikasi data, gambar tidak terduplikasi, silahkan upload gambar kembali.",
               ]} />
-              <KImageList images={f.images} onChange={(v) => set("images", v)} max={5} />
+              <KImageList images={f.images} onChange={(v) => set("images", v)} max={5} onUpload={uploadImage} onError={(m) => toast.error(m)} />
             </div>
           )}
 
@@ -591,7 +714,7 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
                 <p>Contoh :Url video youtube : https://youtu.be/5aS9fMYzeyc / Yang di input : 5aS9fMYzeyc</p>
               </KInfoBox>
               <KRadioGroup label="Kondisi Barang" inline value={f.kondisi} onChange={(v) => set("kondisi", v)} options={[
-                { value: "baru", label: "Baru" }, { value: "bekas", label: "Bekas" },
+                { value: "NEW", label: "Baru" }, { value: "USED", label: "Bekas" },
               ]} />
               <KSelect label="Stok Share" placeholder="Pilih departemen/gudang stok" value={f.stokShare} onChange={(v) => set("stokShare", v)} options={opts(warehouses)} />
               <KRichText label="Sub Keterangan" value={f.subKeterangan} onChange={(v) => set("subKeterangan", v)} />
@@ -622,12 +745,11 @@ export function ItemForm({ id, copyFrom, justSaved }: { id?: string; copyFrom?: 
                 "Referensi Kode Barang dan Jasa Harus sesuai dengan Referensi DJP.",
               ]} />
               <KSelect label="Jenis Pajak" value={f.taxType} onChange={(v) => set("taxType", v)} options={[
-                { value: "ppn", label: "PPN" }, { value: "ppnbm", label: "PPnBM" }, { value: "non", label: "Non Pajak" },
+                { value: "PPN", label: "PPN" }, { value: "PPNBM", label: "PPnBM" }, { value: "NON", label: "Non Pajak" },
               ]} />
-              <KNumber label="Pajak Include %" value={f.taxInclude} onChange={(v) => set("taxInclude", v)} />
               <KInput label="Kode Referensi Barang Jasa" maxLength={6} value={f.taxRef} onChange={(e) => set("taxRef", e.target.value)} />
               <KSelect label="Opsi Barang Jasa" value={f.taxOption} onChange={(v) => set("taxOption", v)} options={[
-                { value: "barang", label: "Barang" }, { value: "jasa", label: "Jasa" },
+                { value: "GOODS", label: "Barang" }, { value: "SERVICE", label: "Jasa" },
               ]} />
             </div>
           )}

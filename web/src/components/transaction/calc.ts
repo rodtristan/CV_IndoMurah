@@ -1,3 +1,4 @@
+import { localDate } from "@/lib/utils";
 // Shared math + types for the full-page transaction forms (pembelian, penjualan, retur).
 
 export type TaxMode = "NON" | "INCLUDE" | "EXCLUDE";
@@ -16,6 +17,12 @@ export interface LineItem {
   /** stock / max returnable qty shown as a hint next to the qty cell */
   maxQty?: number;
   stock?: number;
+  /** Jml Pesan (pembelian dari pesanan) */
+  orderedQty?: number;
+  /** Jml Terima (pesanan pembelian) */
+  receivedQty?: number;
+  /** ID baris pesanan asal (pembelian dari pesanan) */
+  orderItemId?: number;
 }
 
 export type TierDiscount = { key: string; percent: string; amount: string };
@@ -69,5 +76,12 @@ export function computeTotals(t: TotalsInput) {
 }
 
 export const round2 = (n: number) => Math.round(n * 100) / 100;
-export const todayStr = () => new Date().toISOString().split("T")[0];
-export const toDateInput = (v?: string | null) => (v ? String(v).split("T")[0] : "");
+export const todayStr = () => localDate();
+/** Nilai <input type="date"> dari ISO/tanggal server — memakai tanggal lokal (WIB), bukan bagian tanggal UTC. */
+export const toDateInput = (v?: string | null) => {
+  if (!v) return "";
+  const s = String(v);
+  if (!s.includes("T")) return s.slice(0, 10);
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? s.split("T")[0] : localDate(d);
+};

@@ -9,7 +9,7 @@ import { StatCard, Badge } from "@/components/ui/StatCard";
 import { DataTable } from "@/components/ui/DataTable";
 import { Package, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 import { api } from "@/lib/api-client";
-import { formatNumber, formatDate } from "@/lib/utils";
+import { formatNumber, formatDate, localDate } from "@/lib/utils";
 
 const TYPE_LABEL: Record<string, string> = {
   IN: "Barang Masuk",
@@ -33,9 +33,9 @@ export default function StockMutationReportPage() {
   const [productId, setProductId] = useState("");
   const [warehouseId, setWarehouseId] = useState("");
   const [startDate, setStartDate] = useState(() => {
-    const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().split("T")[0];
+    const d = new Date(); d.setMonth(d.getMonth() - 1); return localDate(d);
   });
-  const [endDate, setEndDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [endDate, setEndDate] = useState(() => localDate());
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
 

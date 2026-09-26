@@ -1,109 +1,138 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { PageWrapper, Card } from "@/components/layout/PageWrapper";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
-import { FilterBar } from "@/components/ui/FilterBar";
-import { Badge } from "@/components/ui/StatCard";
-import { Modal } from "@/components/ui/Modal";
-import { DataTable } from "@/components/ui/DataTable";
-import { GridActions, RowEditIcon } from "@/components/ui/GridActions";
+// Data Pengiriman Ketoko: Kata Kunci, No Resi, Kurir, Status Kirim, Urut Berdasar; kolom No Transaksi,
+// Dari, Kepada, TotalPesan, Status, TglKirim, No Resi, Kurir. Edit → Status Kirim, Tanggal Kirim, No Resi, Kurir.
+
+import { useRef, useState } from "react";
+import { Printer } from "lucide-react";
+import { toast } from "sonner";
 import { api } from "@/lib/api-client";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { localDateTime } from "@/lib/utils";
+import { KetokoList, kcol, type KListColumn, type KListFilter, type KRow } from "@/components/ui/KetokoList";
+import { Modal } from "@/components/ui/Modal";
+import { KInput, KSelect } from "@/components/kform";
+import { printTable } from "@/components/transaction/print";
+
+const STATUS: Record<string, string> = { PENDING: "Belum", SHIPPED: "Sudah" };
+
+const COLUMNS: KListColumn[] = [
+  kcol.text("Code", "No Transaksi", 160),
+  { key: "Warehouse.Code", label: "Dari", width: 90, render: (v) => String(v ?? "TOKO") },
+  { key: "Customer.Name", label: "Kepada", width: 180, render: (v, r) => String(r.ShipName || v || "") },
+  { key: "TotalQty", label: "TotalPesan", width: 110, align: "right", sortKey: false, render: (v) => Number(v ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2 }) },
+  { key: "ShippingStatus", label: "Status", width: 90, render: (v) => STATUS[String(v ?? "PENDING")] ?? String(v ?? "") },
+  kcol.datetime("ShippingDate", "TglKirim", 160),
+  kcol.text("TrackingNumber", "No Resi", 140),
+  kcol.text("Courier", "Kurir", 120),
+  { key: "ShipAddress", label: "Alamat Kirim", width: 240, render: (v, r) => [v, r.ShipCity].filter(Boolean).join(", ") },
+];
+
+const FILTERS: KListFilter[] = [
+  { key: "resi", label: "No Resi", type: "text", where: (v) => ({ TrackingNumber: { contains: v } }) },
+  { key: "kurir", label: "Kurir", type: "text", where: (v) => ({ Courier: { contains: v } }) },
+  { key: "status", label: "Status Kirim", type: "select", options: [{ value: "PENDING", label: "Belum" }, { value: "SHIPPED", label: "Sudah" }], where: (v) => ({ ShippingStatus: v }) },
+];
+const SORTS = [
+  { value: "Code", label: "No Transaksi" },
+  { value: "Date", label: "Tanggal" },
+  { value: "Customer.Name", label: "Kepada" },
+  { value: "ShippingDate", label: "Tanggal Kirim" },
+  { value: "TrackingNumber", label: "No Resi" },
+];
+const SEARCH = ["Code", "Customer.Name", "ShipName", "ShipAddress", "TrackingNumber", "Courier"];
+const BASE_WHERE = { "PaymentStatus.Code": { ne: "CANCELLED" } };
+
+const mapRows = (rows: KRow[]) => rows.map((r) => ({
+  ...r,
+  TotalQty: (r.SaleItems ?? []).reduce((a: number, i: KRow) => a + Number(i.Quantity ?? 0), 0),
+}));
 
 export default function SaleShippingPage() {
-  const [statusFilter, setStatusFilter] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [rows, setRows] = useState<any[]>([]);
-  const [selected, setSelected] = useState<any>(null);
-  const [editRow, setEditRow] = useState<any>(null);
+  const reloadRef = useRef<() => void>(() => undefined);
+  const lastRows = useRef<KRow[]>([]);
+  const [edit, setEdit] = useState<KRow | null>(null);
+  const [form, setForm] = useState({ status: "PENDING", date: "", resi: "", courier: "" });
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ shippingStatus: "PENDING", shippingDate: "", trackingNumber: "" });
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params: any = { $include: "Customer", $orderBy: { Date: "desc" }, $take: 200 };
-      if (statusFilter) params.$where = { ShippingStatus: statusFilter };
-      const res = await api.get("sales", params).catch(() => ({ success: false, data: [] } as any));
-      if (res.success) setRows(res.data || []);
-    } finally { setLoading(false); }
-  }, [statusFilter]);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  const openEdit = (row: any) => {
-    setEditRow(row);
+  const openEdit = (row: KRow) => {
+    setEdit(row);
     setForm({
-      shippingStatus: row.ShippingStatus || "PENDING",
-      shippingDate: row.ShippingDate ? row.ShippingDate.split("T")[0] : "",
-      trackingNumber: row.TrackingNumber || "",
+      status: row.ShippingStatus || "PENDING",
+      date: row.ShippingDate ? localDateTime(new Date(row.ShippingDate)) : localDateTime(new Date()),
+      resi: row.TrackingNumber ?? "",
+      courier: row.Courier ?? "",
     });
   };
 
-  const handleSave = async () => {
-    if (!editRow) return;
-    const payload = {
-      ShippingStatus: form.shippingStatus,
-      ShippingDate: form.shippingDate || undefined,
-      TrackingNumber: form.trackingNumber || undefined,
-    };
+  const save = async () => {
+    if (!edit) return;
     setSaving(true);
     try {
-      const res = await api.put("sales", `${editRow.ID}/shipping`, payload).catch(() => ({ success: false } as any));
-      if (res.success) {
-        setEditRow(null);
-        fetchData();
-      }
+      await api.put("sales", `${edit.ID}/shipping`, {
+        ShippingStatus: form.status,
+        ShippingDate: form.date ? new Date(form.date).toISOString() : undefined,
+        TrackingNumber: form.resi,
+        Courier: form.courier,
+      });
+      toast.success("Data pengiriman tersimpan");
+      setEdit(null);
+      reloadRef.current();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Gagal menyimpan");
     } finally { setSaving(false); }
   };
 
-  const columns = [
-    { key: "edit", label: "", width: 36, render: (_: unknown, row: any) => <RowEditIcon onClick={() => openEdit(row)} /> },
-    { key: "Code", label: "No. Transaksi", render: (v: unknown) => <span className="font-mono text-xs">{v as string}</span> },
-    { key: "Date", label: "Tanggal", render: (v: unknown) => formatDate(v as string) },
-    { key: "Customer.Name", label: "Pelanggan", render: (_: unknown, row: any) => row.Customer?.Name || "-" },
-    { key: "Total", label: "Total", align: "right" as const, render: (v: unknown) => formatCurrency(v as number) },
-    { key: "TrackingNumber", label: "No. Resi", render: (v: unknown) => (v as string) || <span className="text-muted">-</span> },
-    { key: "ShippingDate", label: "Tgl Kirim", render: (v: unknown) => v ? formatDate(v as string) : <span className="text-muted">-</span> },
-    {
-      key: "ShippingStatus", label: "Status Kirim",
-      render: (v: unknown) => <Badge variant={v === "SHIPPED" ? "success" : "warning"}>{v === "SHIPPED" ? "Terkirim" : "Pending"}</Badge>,
-    },
-  ];
+  const print = () => printTable({
+    title: "Daftar Pengiriman",
+    columns: ["No Transaksi", "Dari", "Kepada", "TotalPesan", "Status", "TglKirim", "No Resi", "Kurir"],
+    rows: lastRows.current.map((r) => [
+      r.Code, r.Warehouse?.Code ?? "TOKO", r.ShipName || r.Customer?.Name || "", Number(r.TotalQty ?? 0).toFixed(2),
+      STATUS[r.ShippingStatus ?? "PENDING"] ?? "", r.ShippingDate ? new Date(r.ShippingDate).toLocaleString("id-ID") : "", r.TrackingNumber ?? "", r.Courier ?? "",
+    ]),
+    rightCols: [3],
+  });
 
   return (
-    <PageWrapper>
-      <Card className="p-4">
-        <p className="mb-4 text-sm text-muted">
-          Data Pengiriman digunakan untuk mengubah status pengiriman/ekspedisi setiap transaksi penjualan.
-        </p>
-        <FilterBar
-          fields={[{ key: "status", label: "Status Kirim", type: "select", options: [{ value: "", label: "Semua" }, { value: "PENDING", label: "Pending" }, { value: "SHIPPED", label: "Terkirim" }] }]}
-          onFilter={(v) => setStatusFilter((v.status as string) || "")}
-          loading={loading}
-          actions={<GridActions onEdit={() => selected && openEdit(selected)} disableEdit={!selected} />}
-        />
-        <div className="mt-4">
-          <DataTable data={rows} columns={columns} loading={loading} emptyMessage="Tidak ada data transaksi" selectedId={selected?.ID ?? null} onRowClick={(row) => setSelected(row)} />
-        </div>
-      </Card>
-
-      <Modal open={!!editRow} onClose={() => setEditRow(null)} title="Edit Data Pengiriman" size="md"
-        footer={<><Button variant="outline" onClick={() => setEditRow(null)}>Batal</Button><Button variant="primary" onClick={handleSave} loading={saving}>Simpan</Button></>}>
-        <div className="space-y-4">
-          <Select
-            label="Status Kirim"
-            value={form.shippingStatus}
-            onChange={(e) => setForm((f) => ({ ...f, shippingStatus: e.target.value }))}
-            options={[{ value: "PENDING", label: "Pending" }, { value: "SHIPPED", label: "Terkirim" }]}
-          />
-          <Input label="Tanggal Kirim" type="date" value={form.shippingDate} onChange={(e) => setForm((f) => ({ ...f, shippingDate: e.target.value }))} />
-          <Input label="No. Resi" value={form.trackingNumber} onChange={(e) => setForm((f) => ({ ...f, trackingNumber: e.target.value }))} />
+    <>
+      <KetokoList
+        title="Daftar Pengiriman"
+        endpoint="sales"
+        include="Customer,Warehouse,SaleItems"
+        searchFields={SEARCH}
+        searchPlaceholder="No transaksi / pelanggan / alamat"
+        filters={FILTERS}
+        sortOptions={SORTS}
+        defaultSort="Code"
+        columns={COLUMNS}
+        baseWhere={BASE_WHERE}
+        mapRows={(rows) => { const m = mapRows(rows); lastRows.current = m; return m; }}
+        canAdd={false}
+        canCopy={false}
+        canDelete={false}
+        onEdit={openEdit}
+        extraActions={(_sel, reload) => {
+          reloadRef.current = reload;
+          return (
+            <button type="button" onClick={print} className="inline-flex h-9 items-center gap-1.5 rounded border border-default bg-white px-3 text-sm hover:bg-bg">
+              <Printer className="size-4" /> Cetak
+            </button>
+          );
+        }}
+        emptyMessage="Tidak ada data pengiriman"
+      />
+      <Modal open={!!edit} onClose={() => setEdit(null)} title="Edit Pengiriman" size="md">
+        <div className="space-y-1">
+          <KInput label="No Transaksi" value={edit?.Code ?? ""} readOnly className="border-dashed bg-[#f7f8fa]" />
+          <KSelect label="Status Kirim" value={form.status} onChange={(v) => setForm({ ...form, status: v || "PENDING" })} options={[{ value: "SHIPPED", label: "Sudah" }, { value: "PENDING", label: "Belum" }]} />
+          <KInput label="Tanggal Kirim" type="datetime-local" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+          <KInput label="No Resi" value={form.resi} onChange={(e) => setForm({ ...form, resi: e.target.value })} />
+          <KInput label="Kurir" value={form.courier} onChange={(e) => setForm({ ...form, courier: e.target.value })} />
+          <div className="flex gap-2 pt-2">
+            <button type="button" disabled={saving} onClick={() => void save()} className="h-10 rounded border border-[#cfd4da] bg-white px-4 text-sm hover:bg-[#f3f4f6]">✔ Simpan</button>
+            <button type="button" onClick={() => setEdit(null)} className="h-10 rounded border border-[#cfd4da] bg-white px-4 text-sm hover:bg-[#f3f4f6]">Kembali</button>
+          </div>
         </div>
       </Modal>
-    </PageWrapper>
+    </>
   );
 }

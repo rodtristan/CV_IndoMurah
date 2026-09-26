@@ -31,7 +31,6 @@
   "include": ["src/**/*", "prisma/**/*", "prisma.config.ts"],
   "exclude": [
     "node_modules",
-    "dist",
-    "src/modules/sale-order/**"
+    "dist"
   ]
 }

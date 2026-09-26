@@ -5,13 +5,15 @@
 // Jenis "Deposit" (InstrumentType DEPOSIT, no MethodID needed) pays from the customer/supplier deposit balance.
 // Every save posts the automatic journal on the API; cek/BG only post when marked lunas (cair).
 
+import { toDateInput } from "@/components/transaction/calc";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, Pencil, Plus, Trash2 } from "lucide-react";
 import { KCard, KInput, KNumber, KRow, KSelect } from "@/components/kform";
 import { ConfirmDelete, fmt, fmtDate, num, useList, type Row } from "@/components/kform/erp";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { api } from "@/lib/api-client";
-import { cn } from "@/lib/utils";
+import { cn, localDate } from "@/lib/utils";
+import { LoadingState } from "@/components/ui/Loader";
 
 type Kind = "purchase" | "sale";
 
@@ -29,8 +31,8 @@ const CFG = {
 const INSTRUMENTS = [{ value: "CASH", label: "Tunai / Transfer" }, { value: "CEK", label: "Cek" }, { value: "BG", label: "Bilyet Giro (BG)" }, { value: "DEPOSIT", label: "Deposit" }];
 const CHEQUES = INSTRUMENTS.filter((i) => i.value === "CEK" || i.value === "BG");
 const instLabel = (v: string) => INSTRUMENTS.find((i) => i.value === v)?.label ?? v;
-const dateInput = (iso?: string | null) => (iso ? String(iso).slice(0, 10) : "");
-const today = () => new Date().toISOString().slice(0, 10);
+const dateInput = (iso?: string | null) => toDateInput(iso);
+const today = () => localDate();
 const btn = "inline-flex h-9 items-center gap-1.5 rounded border border-[#cfd4da] bg-white px-3 text-sm hover:bg-[#f3f4f6] disabled:cursor-not-allowed disabled:opacity-50";
 
 interface FormState { id?: number; parentId: string; methodId: string; amount: string; instrument: string; date: string; dueDate: string; ref: string; notes: string }
@@ -159,7 +161,7 @@ export function PaymentPage({ kind, chequeOnly = false }: { kind: Kind; chequeOn
                   ))}
                 </tr></thead>
                 <tbody>
-                  {loading && <tr><td colSpan={9} className="h-24 text-center text-[#9aa3ad]">Memuat...</td></tr>}
+                  {loading && <tr><td colSpan={9}><LoadingState className="py-6" /></td></tr>}
                   {!loading && rows.length === 0 && <tr><td colSpan={9} className="h-24 text-center text-[#9aa3ad]">Tidak ada data</td></tr>}
                   {!loading && rows.map((r) => (
                     <tr key={r.ID} onClick={() => setSel(r)} className={cn("cursor-pointer border-b border-[#eceff2] hover:bg-[#f6f7f9]", sel?.ID === r.ID && "bg-primary/10")}>

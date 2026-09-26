@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsNumber } from 'class-validator';
+import { IsBoolean, IsInt, IsNumber, IsOptional, IsString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 
@@ -40,6 +40,16 @@ export class CreateBankDto {
   @IsOptional()
   @IsNumber()
   sortOrder?: number;
+
+  @ApiPropertyOptional({ description: 'Akun Bayar Kartu Debit' })
+  @IsOptional()
+  @IsInt()
+  debitAccountId?: number | null;
+
+  @ApiPropertyOptional({ description: 'Akun Bayar Kartu Kredit' })
+  @IsOptional()
+  @IsInt()
+  creditAccountId?: number | null;
 }
 
 export class UpdateBankDto {
@@ -82,4 +92,14 @@ export class UpdateBankDto {
   @IsOptional()
   @IsNumber()
   sortOrder?: number;
+
+  @ApiPropertyOptional({ description: 'Akun Bayar Kartu Debit' })
+  @IsOptional()
+  @IsInt()
+  debitAccountId?: number | null;
+
+  @ApiPropertyOptional({ description: 'Akun Bayar Kartu Kredit' })
+  @IsOptional()
+  @IsInt()
+  creditAccountId?: number | null;
 }

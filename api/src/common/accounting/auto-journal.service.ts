@@ -20,6 +20,10 @@ export const REF = {
   CUSTOMER_DEPOSIT: 'CUSTOMER_DEPOSIT',
   SUPPLIER_DEPOSIT: 'SUPPLIER_DEPOSIT',
   CHEQUE_PAYMENT: 'CHEQUE_PAYMENT',
+  SALES_COMMISSION: 'SALES_COMMISSION',
+  STOCK_IN: 'STOCK_IN',
+  STOCK_OUT: 'STOCK_OUT',
+  STOCK_OPNAME: 'STOCK_OPNAME',
 } as const;
 
 export interface JournalLineInput {
@@ -305,9 +309,11 @@ export class AutoJournalService {
       return null;
     }
     const isDeposit = p.InstrumentType === 'DEPOSIT';
-    const a = await this.accounts(tx, isDeposit ? ['receivable', 'custDeposit'] : ['receivable']);
-    const debitAcc = isDeposit ? a.custDeposit : await this.paymentAccount(tx, p.MethodID, p.InstrumentType);
-    const desc = `${isDeposit ? 'Pemakaian deposit' : 'Pembayaran'} penjualan ${p.Sale.Code}${p.ReferenceNumber ? ` (${p.ReferenceNumber})` : ''}`;
+    const isDiscount = p.InstrumentType === 'DISCOUNT';
+    const a = await this.accounts(tx, isDeposit ? ['receivable', 'custDeposit'] : isDiscount ? ['receivable', 'salesDiscount'] : ['receivable']);
+    // Potongan pelunasan: Dr Potongan Penjualan; Kode Akun pilihan user menimpa akun metode bayar.
+    const debitAcc = isDeposit ? a.custDeposit : isDiscount ? a.salesDiscount : p.AccountID ?? (await this.paymentAccount(tx, p.MethodID, p.InstrumentType));
+    const desc = `${isDeposit ? 'Pemakaian deposit' : isDiscount ? 'Potongan pelunasan' : 'Pembayaran'} penjualan ${p.Sale.Code}${p.ReferenceNumber ? ` (${p.ReferenceNumber})` : ''}`;
     const amount = Number(p.Amount);
     return this.post(tx, {
       referenceType: REF.SALE_PAYMENT, referenceId: p.ID, date: p.InstrumentType === 'CEK' || p.InstrumentType === 'BG' ? p.ClearedAt ?? p.Date : p.Date,
@@ -315,6 +321,61 @@ export class AutoJournalService {
       lines: [
         { accountId: debitAcc, debit: amount },
         { accountId: a.receivable, credit: amount },
+      ],
+    });
+  }
+
+  /**
+   * Item Masuk / Item Keluar / Stock Opname: nilai = Σ mutasi ledger dokumen × HPP per satuan dasar.
+   *   nilai > 0 (stok bertambah): Dr Persediaan / Cr Kode Akun (default Item Masuk / Selisih Stok)
+   *   nilai < 0 (stok berkurang): Dr Kode Akun (default Item Keluar / Selisih Stok) / Cr Persediaan
+   * Idempoten: jurnal lama dokumen selalu dibalik dulu.
+   */
+  async postStockDoc(
+    tx: Tx,
+    kind: 'STOCK_IN' | 'STOCK_OUT' | 'STOCK_OPNAME',
+    doc: { ID: number; Code: string; Date: Date; AccountID?: number | null; CreatedByID?: string | null },
+    userId?: string,
+  ) {
+    const ref = REF[kind];
+    await this.reverse(tx, ref, doc.ID);
+    const ledgerType = kind === 'STOCK_OPNAME' ? 'OPNAME' : kind;
+    const rows = await tx.stockLedger.findMany({ where: { RefType: ledgerType, RefID: doc.ID }, select: { QtyIn: true, QtyOut: true, UnitCost: true } });
+    const value = r2(rows.reduce((a, x) => a + (Number(x.QtyIn) - Number(x.QtyOut)) * Number(x.UnitCost), 0));
+    if (Math.abs(value) < 0.005) return null;
+    const key = kind === 'STOCK_IN' ? 'stockIn' : kind === 'STOCK_OUT' ? 'stockOut' : 'stockDiff';
+    const a = await this.accounts(tx, doc.AccountID ? ['inventory'] : ['inventory', key]);
+    const counter = doc.AccountID ?? a[key];
+    const label = kind === 'STOCK_IN' ? 'Item masuk' : kind === 'STOCK_OUT' ? 'Item keluar' : 'Stock opname';
+    const amount = Math.abs(value);
+    return this.post(tx, {
+      referenceType: ref, referenceId: doc.ID, date: doc.Date, description: `${label} ${doc.Code}`,
+      userId: userId ?? doc.CreatedByID ?? 'system', referenceNumber: doc.Code,
+      lines: value > 0
+        ? [{ accountId: a.inventory, debit: amount }, { accountId: counter, credit: amount }]
+        : [{ accountId: counter, debit: amount }, { accountId: a.inventory, credit: amount }],
+    });
+  }
+
+  /**
+   * Bayar Komisi Sales: Dr Beban Komisi Sales, Cr Kas/Bank (Kode Akun pilihan / akun metode bayar).
+   * Cek/BG yang belum cair tidak diposting (diposting saat Status Lunas Cek/Bg Sales dicentang).
+   */
+  async postCommissionPayment(tx: Tx, paymentId: number, userId?: string) {
+    const p = await tx.salesCommissionPayment.findUnique({ where: { ID: paymentId }, include: { SalesPerson: { select: { Name: true } } } });
+    if (!p) throw new NotFoundException(`Pembayaran komisi #${paymentId} tidak ditemukan`);
+    await this.reverse(tx, REF.SALES_COMMISSION, p.ID);
+    const amount = Number(p.Total);
+    if (!p.IsCleared || !(amount > 0)) return null;
+    const a = await this.accounts(tx, ['salesCommission']);
+    const creditAcc = p.AccountID ?? (p.MethodID ? await this.paymentAccount(tx, p.MethodID, p.InstrumentType) : (await this.accounts(tx, ['cash'])).cash);
+    const desc = `Bayar komisi sales ${p.SalesPerson.Name} ${p.Code}${p.Number ? ` (${p.Number})` : ''}`;
+    return this.post(tx, {
+      referenceType: REF.SALES_COMMISSION, referenceId: p.ID, date: p.ClearedAt && p.InstrumentType !== 'CASH' ? p.ClearedAt : p.Date,
+      description: desc, userId: userId ?? p.CreatedByID, referenceNumber: p.Code,
+      lines: [
+        { accountId: a.salesCommission, debit: amount },
+        { accountId: creditAcc, credit: amount },
       ],
     });
   }
@@ -356,9 +417,11 @@ export class AutoJournalService {
       return null;
     }
     const isDeposit = p.InstrumentType === 'DEPOSIT';
-    const a = await this.accounts(tx, isDeposit ? ['payable', 'suppDeposit'] : ['payable']);
-    const creditAcc = isDeposit ? a.suppDeposit : await this.paymentAccount(tx, p.MethodID, p.InstrumentType);
-    const desc = `${isDeposit ? 'Pemakaian deposit' : 'Pembayaran'} pembelian ${p.Purchase.Code}${p.ReferenceNumber ? ` (${p.ReferenceNumber})` : ''}`;
+    const isDiscount = p.InstrumentType === 'DISCOUNT';
+    const a = await this.accounts(tx, isDeposit ? ['payable', 'suppDeposit'] : isDiscount ? ['payable', 'purchaseDiscount'] : ['payable']);
+    // Potongan pelunasan: Cr Potongan Pembelian; Kode Akun pilihan user menimpa akun metode bayar.
+    const creditAcc = isDeposit ? a.suppDeposit : isDiscount ? a.purchaseDiscount : p.AccountID ?? (await this.paymentAccount(tx, p.MethodID, p.InstrumentType));
+    const desc = `${isDeposit ? 'Pemakaian deposit' : isDiscount ? 'Potongan pelunasan' : 'Pembayaran'} pembelian ${p.Purchase.Code}${p.ReferenceNumber ? ` (${p.ReferenceNumber})` : ''}`;
     const amount = Number(p.Amount);
     return this.post(tx, {
       referenceType: REF.PURCHASE_PAYMENT, referenceId: p.ID, date: p.InstrumentType === 'CEK' || p.InstrumentType === 'BG' ? p.ClearedAt ?? p.Date : p.Date,

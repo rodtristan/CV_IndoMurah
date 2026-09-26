@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { KCard, KEditableGrid, KInfoBox, KSaveBar, KSelect } from "@/components/kform";
 import { KReadOnly, fmt, num, useList, type Row } from "@/components/kform/erp";
 import { PageWrapper } from "@/components/layout/PageWrapper";
+import { localDate } from "@/lib/utils";
 
 interface R extends Record<string, unknown> { trxNo: string; date: string; dueDate: string; accountId: string; amount: string }
 
@@ -42,7 +43,7 @@ export default function OpeningDebtPage({ kind }: { kind: "payable" | "receivabl
           ]}
           rows={rows}
           onChange={(r) => { setRows(r); setSaved(false); }}
-          newRow={() => ({ trxNo: "", date: new Date().toISOString().slice(0, 10), dueDate: new Date().toISOString().slice(0, 10), accountId: "", amount: "" })}
+          newRow={() => ({ trxNo: "", date: localDate(), dueDate: localDate(), accountId: "", amount: "" })}
           addLabel="Tambah"
         />
         <div className="mt-3 max-w-[360px]"><KReadOnly label="Total" value={fmt(total)} align="right" /></div>

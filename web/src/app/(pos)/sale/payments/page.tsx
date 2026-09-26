@@ -1,7 +1,7 @@
 "use client";
 
-import { PaymentPage } from "@/components/payments/PaymentPage";
+import { PaymentBatchList } from "@/components/payments/PaymentBatch";
 
 export default function Page() {
-  return <PaymentPage kind="sale" />;
+  return <PaymentBatchList kind="sale" />;
 }

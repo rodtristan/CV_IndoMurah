@@ -23,6 +23,7 @@ import {
   type PriceLevel, type ProductPriceInfo, type ProductUnitInfo,
 } from "@/components/master/product-pricing";
 import { printDocument } from "@/components/transaction/print";
+import { LoadingState } from "@/components/ui/Loader";
 
 // ─── Types ──────────────────────────────────────────────────
 
@@ -300,7 +301,7 @@ function CustomerModal({ open, onClose, onSelect }: { open: boolean; onClose: ()
               <p className="text-xs text-muted">Pelanggan tidak dikenal (walk-in)</p>
             </div>
           </button>
-          {loading && <p className="py-2 text-center text-xs text-muted">Memuat...</p>}
+          {loading && <LoadingState text="Memuat item..." className="py-3" />}
           {customers.map((c) => (
             <button
               key={c.ID}

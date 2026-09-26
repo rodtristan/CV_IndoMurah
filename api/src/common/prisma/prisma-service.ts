@@ -60,6 +60,17 @@ function buildDatabaseUrl(): string {
 // @Injectable() → class ini bisa di-inject ke service lain via constructor
 // extends PrismaClient → PrismaService ADALAH PrismaClient dengan tambahan fitur NestJS
 // implements OnModuleInit, OnModuleDestroy → hook ke lifecycle NestJS
+import { AUDITED_MODELS, currentContext } from '../context/request-context';
+
+/** Isi Device (create) dan UpdatedBy + Device (update) dari konteks request. */
+function stampAudit(model: string | undefined, data: any, op: 'create' | 'update') {
+  if (!model || !AUDITED_MODELS.has(model) || !data || typeof data !== 'object' || Array.isArray(data)) return;
+  const ctx = currentContext();
+  if (!ctx) return;
+  if (ctx.device && data.Device === undefined) data.Device = ctx.device;
+  if (op === 'update' && ctx.username && data.UpdatedBy === undefined) data.UpdatedBy = ctx.username;
+}
+
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
@@ -97,6 +108,24 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       // hash-nya untuk verifikasi.
       omit: { user: { Password: true }, employee: { PasswordHash: true } },
     });
+
+    // Kolom audit transaksi (User Ubah / Komputer) diisi terpusat untuk semua create/update,
+    // termasuk di dalam $transaction. Klien hasil $extends tetap memuat method kelas ini.
+    const extended = this.$extends({
+      query: {
+        $allModels: {
+          async create({ model, args, query }) { stampAudit(model, (args as any).data, 'create'); return query(args); },
+          async update({ model, args, query }) { stampAudit(model, (args as any).data, 'update'); return query(args); },
+          async upsert({ model, args, query }) {
+            stampAudit(model, (args as any).create, 'create');
+            stampAudit(model, (args as any).update, 'update');
+            return query(args);
+          },
+        },
+      },
+    });
+    // eslint-disable-next-line no-constructor-return
+    return extended as unknown as PrismaService;
   }
 
   // ── Dipanggil saat aplikasi NestJS START ──────────────────────────

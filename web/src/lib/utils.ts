@@ -114,3 +114,13 @@ export function parseFilterParams(params: Record<string, unknown>): Record<strin
   }
   return result;
 }
+
+/** Tanggal lokal "YYYY-MM-DD" (untuk <input type="date">) — toISOString() memakai UTC dan mundur sehari sebelum 07:00 WIB. */
+export function localDate(d: Date = new Date()): string {
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
+/** Tanggal+jam lokal "YYYY-MM-DDTHH:mm" (untuk <input type="datetime-local">). */
+export function localDateTime(d: Date = new Date()): string {
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}

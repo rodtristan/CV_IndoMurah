@@ -5,6 +5,7 @@ import { PointRedemptionService } from './point-redemption.service';
 import { CreatePointRedemptionDto, UpdatePointRedemptionDto } from './dto/point-redemption.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth-guard';
 import { CurrentUser } from '../../common/decorators/current-user-decorator';
+import { ApiResponse } from '../../common/dto/api-response-dto';
 
 @ApiTags('PointRedemption')
 @ApiBearerAuth()
@@ -15,7 +16,7 @@ export class PointRedemptionController extends BaseController<
   CreatePointRedemptionDto,
   UpdatePointRedemptionDto
 > {
-  constructor(pointRedemptionService: PointRedemptionService) {
+  constructor(private readonly pointRedemptionService: PointRedemptionService) {
     super(pointRedemptionService, {
       modelName: 'PointRedemption',
       pluralName: 'PointRedemptions',
@@ -40,6 +41,11 @@ export class PointRedemptionController extends BaseController<
   @Get('count')
   async getCount(@Query() query: any) {
     return super.getCount(query);
+  }
+
+  @Get('ledger')
+  async ledger(@Query('customerId') customerId: string, @Query('from') from?: string, @Query('to') to?: string) {
+    return ApiResponse.ok(await this.pointRedemptionService.ledger(Number(customerId), from, to));
   }
 
   @Get(':id')

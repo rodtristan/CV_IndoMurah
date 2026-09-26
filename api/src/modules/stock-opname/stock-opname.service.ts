@@ -4,6 +4,7 @@ import { RedisService } from '../../common/redis/redis-service';
 import { QueryService } from '../../common/query/query-service';
 import { StockDocumentService } from '../../common/stock/stock-document.service';
 import { StockLedgerService } from '../../common/stock/stock-ledger.service';
+import { AutoJournalService, REF } from '../../common/accounting/auto-journal.service';
 import { Prisma } from '@prisma/client';
 import { CreateStockOpnameDto, UpdateStockOpnameDto } from './dto/stock-opname.dto';
 
@@ -23,6 +24,7 @@ export class StockOpnameService extends StockDocumentService<
     readonly redis: RedisService,
     readonly queryService: QueryService,
     private readonly ledger: StockLedgerService,
+    private readonly journal: AutoJournalService,
   ) {
     super(prisma, redis, queryService, {
       modelName: 'stockOpname',
@@ -96,6 +98,7 @@ export class StockOpnameService extends StockDocumentService<
             Warehouse: { connect: { ID: warehouseId } },
             TotalItems: new Prisma.Decimal(totalItems),
             Notes: dto.Notes,
+            AccountID: dto.AccountID ?? null,
             Status: { connect: { ID: completedStatus.ID } },
             Creator: { connect: { ID: userId } },
             OpnameItems: {
@@ -129,6 +132,8 @@ export class StockOpnameService extends StockDocumentService<
           });
         }
 
+        await this.journal.postStockDoc(tx, 'STOCK_OPNAME', created, userId);
+
         return tx.stockOpname.findUniqueOrThrow({
           where: { ID: created.ID },
           include: { Warehouse: true, Status: true, Creator: true, OpnameItems: { include: { Product: true, Unit: true } } },
@@ -151,7 +156,12 @@ export class StockOpnameService extends StockDocumentService<
     const data: Prisma.StockOpnameUncheckedUpdateInput = {};
     if (dto.Date) data.Date = new Date(dto.Date);
     if (dto.Notes !== undefined) data.Notes = dto.Notes;
-    const result = await this.prisma.stockOpname.update({ where: { ID: doc.ID }, data });
+    if (dto.AccountID !== undefined) data.AccountID = dto.AccountID || null;
+    const result = await this.prisma.$transaction(async (tx) => {
+      const u = await tx.stockOpname.update({ where: { ID: doc.ID }, data });
+      await this.journal.postStockDoc(tx, 'STOCK_OPNAME', u);
+      return u;
+    });
     await this.afterWrite();
     return this.serializeStockOpname(result);
   }
@@ -162,6 +172,7 @@ export class StockOpnameService extends StockDocumentService<
     await this.prisma.$transaction(
       async (tx) => {
         await this.ledger.reverseRef(tx, ['OPNAME'], doc.ID, { refCode: doc.Code, userId, notes: `Hapus opname ${doc.Code}` });
+        await this.journal.reverse(tx, REF.STOCK_OPNAME, doc.ID);
         await tx.stockOpname.delete({ where: { ID: doc.ID } });
       },
       { timeout: 30000 },

@@ -1,3 +1,4 @@
+import { currentContext } from '../context/request-context';
 // ================================================================
 // jwt-strategy.ts — Strategi Validasi JWT Token
 // ================================================================
@@ -56,6 +57,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!access.exists || !access.isActive) {
       throw new UnauthorizedException('Akun tidak aktif. Silakan hubungi administrator.');
     }
+
+    // Konteks request untuk kolom audit (User Ubah) di transaksi.
+    const ctx = currentContext();
+    if (ctx) { ctx.userId = payload.id; ctx.username = payload.username; }
 
     return {
       id: payload.id,

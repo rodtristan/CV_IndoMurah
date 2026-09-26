@@ -1,40 +1,61 @@
 "use client";
 
-import { Badge } from "@/components/ui/StatCard";
-import { TransactionList } from "@/components/transaction/TransactionList";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { TransactionList, TAX_MODE_LABEL, kcol, type TxnColumn } from "@/components/transaction/TransactionList";
 
-const statusColors: Record<string, string> = { PENDING: "warning", PAID: "success", PARTIAL: "info", INSTALMENT: "info", CANCELLED: "danger" };
-const statusLabels: Record<string, string> = { PENDING: "Kredit", PAID: "Lunas", PARTIAL: "Sebagian", INSTALMENT: "Cicilan", CANCELLED: "Batal" };
+const PAY_LABEL: Record<string, string> = { PENDING: "Kredit", PAID: "Lunas", PARTIAL: "Sebagian", INSTALMENT: "Cicilan", CANCELLED: "Batal" };
+const STATUS_LABEL: Record<string, string> = { DRAFT: "Draft", CONFIRMED: "Dikonfirmasi", COMPLETED: "Selesai", CANCELLED: "Batal" };
+
+// Kolom Daftar Pembelian Ketoko (+ jatuh tempo & pembayaran di sebelah kanan).
+const COLUMNS: TxnColumn[] = [
+  kcol.text("Code", "No Transaksi", 150),
+  kcol.datetime("Date", "Tanggal", 150),
+  kcol.text("Warehouse.Code", "Dept/Gudang", 100),
+  kcol.text("Supplier.Code", "Kode Supplier", 110),
+  kcol.text("Supplier.Name", "Nama", 170),
+  { key: "TaxMode", label: "Pajak", width: 80, render: (v) => TAX_MODE_LABEL[String(v)] ?? "" },
+  kcol.money("Total", "Total", 120),
+  kcol.text("Notes", "Keterangan", 180),
+  kcol.text("ReferenceNo", "No. Faktur Supplier", 150),
+  kcol.date("DueDate", "Jatuh Tempo", 110),
+  kcol.money("Paid", "Dibayar", 120),
+  kcol.money("Remaining", "Sisa", 120),
+  { key: "PaymentStatus.Code", label: "Status Bayar", width: 100, render: (v) => PAY_LABEL[String(v)] ?? String(v ?? "") },
+  { key: "Status.Code", label: "Status", width: 110, render: (v) => STATUS_LABEL[String(v)] ?? String(v ?? "") },
+  kcol.text("PurchaseOrder.Code", "No. Pesanan", 150),
+];
+
+const SORTS = [
+  { value: "Date", label: "Tanggal" },
+  { value: "Code", label: "No Transaksi" },
+  { value: "Supplier.Name", label: "Nama Supplier" },
+  { value: "Total", label: "Total" },
+  { value: "DueDate", label: "Jatuh Tempo" },
+  { value: "CreatedAt", label: "Waktu Input" },
+];
+
+const STATUS_FILTER = {
+  relation: "PaymentStatus", label: "Status Bayar",
+  options: [{ value: "PENDING", label: "Kredit" }, { value: "PARTIAL", label: "Sebagian" }, { value: "PAID", label: "Lunas" }],
+};
+const PARTNER = { field: "SupplierID" as const, endpoint: "supplier", label: "Supplier" };
+const SEARCH = ["Code", "Notes", "ReferenceNo", "Supplier.Name", "Supplier.Code"];
 
 export default function PurchaseListPage() {
   return (
     <TransactionList
+      title="Daftar Pembelian"
       endpoint="purchases"
       basePath="/purchase/list"
-      include="Supplier,Warehouse,PaymentStatus,Status"
+      include="Supplier,Warehouse,PaymentStatus,Status,PurchaseOrder"
       deleteLabel="Pembelian"
       emptyMessage="Tidak ada pembelian"
-      searchPlaceholder="No. transaksi..."
-      filterPartner={{ field: "SupplierID", endpoint: "supplier", label: "Supplier" }}
-      statusFilter={{
-        relation: "PaymentStatus",
-        options: [{ value: "PENDING", label: "Kredit" }, { value: "PARTIAL", label: "Sebagian" }, { value: "PAID", label: "Lunas" }, { value: "CANCELLED", label: "Batal" }],
-      }}
-      sortOptions={[{ value: "Date", label: "Tanggal" }, { value: "Code", label: "No. Transaksi" }, { value: "Total", label: "Total" }, { value: "CreatedAt", label: "Waktu Input" }]}
-      canDelete={(r) => r.Status?.Code === "DRAFT"}
-      columns={[
-        { key: "Code", label: "No. Transaksi", render: (v) => <span className="font-mono text-xs">{v as string}</span> },
-        { key: "Date", label: "Tanggal", render: (v) => formatDate(v as string) },
-        { key: "DueDate", label: "Jatuh Tempo", render: (v) => (v ? formatDate(v as string) : "-") },
-        { key: "Supplier", label: "Supplier", render: (v) => (v as { Name?: string })?.Name || "-" },
-        { key: "Warehouse", label: "Gudang", render: (v) => (v as { Name?: string })?.Name || "-" },
-        { key: "Status.Code", label: "Status", render: (v) => <Badge variant={((v as string) === "DRAFT" ? "warning" : "info") as never}>{v as string}</Badge> },
-        { key: "PaymentStatus.Code", label: "Pembayaran", render: (v) => <Badge variant={(statusColors[v as string] || "default") as never}>{statusLabels[v as string] || (v as string)}</Badge> },
-        { key: "Total", label: "Total", align: "right", render: (v) => <span className="font-semibold">{formatCurrency(v as number)}</span> },
-        { key: "Paid", label: "Dibayar", align: "right", render: (v) => <span className="text-success">{formatCurrency(v as number)}</span> },
-        { key: "Remaining", label: "Sisa", align: "right", render: (v) => <span className={Number(v) > 0 ? "font-bold text-danger" : ""}>{formatCurrency(v as number)}</span> },
-      ]}
+      searchPlaceholder="No. transaksi / supplier..."
+      searchFields={SEARCH}
+      filterPartner={PARTNER}
+      statusFilter={STATUS_FILTER}
+      sortOptions={SORTS}
+      canDelete={(r) => ["DRAFT", "CANCELLED"].includes(r.Status?.Code)}
+      columns={COLUMNS}
     />
   );
 }

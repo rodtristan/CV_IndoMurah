@@ -1,25 +1,33 @@
 "use client";
 
-import { ListPage } from "@/components/kform/erp";
-import { fmtDate, fmt } from "@/components/kform/erp";
+import { TransactionList, kcol, type TxnColumn } from "@/components/transaction/TransactionList";
+
+const total = (r: Record<string, any>) => (r.StockInItems ?? []).reduce((a: number, i: Record<string, any>) => a + Number(i.Subtotal ?? 0), 0); // eslint-disable-line @typescript-eslint/no-explicit-any
+
+// Daftar Item Masuk Ketoko: No Transaksi, Tanggal, Dept/Gudang, Total, Keterangan, User Buat, User Ubah, Komputer.
+const COLUMNS: TxnColumn[] = [
+  kcol.text("Code", "No Transaksi", 160),
+  kcol.datetime("Date", "Tanggal", 160),
+  kcol.text("Warehouse.Code", "Dept/Gudang", 110),
+  { key: "Total", label: "Total", width: 130, align: "right", sortKey: false, render: (_v, r) => total(r).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+  kcol.text("Description", "Keterangan", 220),
+];
+const SORTS = [{ value: "Date", label: "Tanggal" }, { value: "Code", label: "No Transaksi" }, { value: "Warehouse.Code", label: "Dept/Gudang" }];
+const SEARCH = ["Code", "Description"];
 
 export default function StockInPage() {
   return (
-    <ListPage
+    <TransactionList
+      title="Daftar Item Masuk"
       endpoint="stock-in"
-      base="/inventory/stock-in"
-      include="warehouse,supplier,status"
-      searchFields="Code,Description"
-      rowLabel={(r) => r.Code}
-      columns={[
-        { key: "Code", label: "No Transaksi", render: (v) => <span className="font-mono text-xs">{String(v)}</span> },
-        { key: "Date", label: "Tanggal", render: (v) => fmtDate(v as string) },
-        { key: "Warehouse.Name", label: "Dept/Gudang", render: (_, r) => r.Warehouse?.Name ?? "-" },
-        { key: "Supplier.Name", label: "Supplier", render: (_, r) => r.Supplier?.Name ?? "-" },
-        { key: "Description", label: "Keterangan", render: (v) => (v as string) || "-" },
-        { key: "TotalItems", label: "Total Item", align: "right", render: (v) => fmt(v, 0) },
-        { key: "Status.Name", label: "Status", render: (_, r) => r.Status?.Name ?? r.Status?.Code ?? "-" },
-      ]}
+      basePath="/inventory/stock-in"
+      include="Warehouse,StockInItems"
+      deleteLabel="Item Masuk"
+      emptyMessage="Tidak ada item masuk"
+      searchPlaceholder="No transaksi / keterangan"
+      searchFields={SEARCH}
+      sortOptions={SORTS}
+      columns={COLUMNS}
     />
   );
 }

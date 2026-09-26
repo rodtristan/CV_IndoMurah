@@ -231,7 +231,8 @@ export function assertNoSensitiveQueryFields(query: Record<string, any> | undefi
     names.push(key.replace(/\[.*$/, ''));
   }
 
-  const bad = names.find((n) => n && isSensitiveKey(n.trim()));
+  // Path relasi ("Customer.Name") dicek per segmen.
+  const bad = names.flatMap((n) => String(n ?? '').split('.')).find((n) => n && isSensitiveKey(n.trim()));
   if (bad) {
     throw new BadRequestException(`Field "${bad.trim()}" tidak boleh dipakai dalam query`);
   }
@@ -251,6 +252,19 @@ export class QueryService {
     if (!key) return key;
     const capitalized = key.charAt(0).toUpperCase() + key.slice(1);
     return capitalized.replace(/Id\b/g, 'ID');
+  }
+
+  private deepMerge(a: any, b: any): any {
+    if (!a || typeof a !== 'object' || !b || typeof b !== 'object') return b;
+    const out = { ...a };
+    for (const [k, v] of Object.entries(b)) out[k] = k in out ? this.deepMerge(out[k], v) : v;
+    return out;
+  }
+
+  /** "A.B.C" + value → { A: { B: { C: value } } } dengan nama field dinormalisasi. */
+  private nestPath(path: string, value: unknown): Record<string, any> {
+    const parts = String(path).split('.').filter(Boolean).map((p) => this.normalizeFieldKey(p));
+    return parts.reduceRight<any>((acc, part) => ({ [part]: acc }), value) as Record<string, any>;
   }
 
   private normalizeFieldPath(path: string): string {
@@ -328,6 +342,17 @@ export class QueryService {
           continue;
         }
 
+        // Kolom relasi: $where[Purchase.SupplierID]=5 → { Purchase: { SupplierID: 5 } } (relasi to-one)
+        if (field.includes('.')) {
+          const leaf = field.split('.').pop()!;
+          const cond = value && typeof value === 'object' && !Array.isArray(value)
+            ? this.parseOperators(this.normalizeFieldKey(leaf), value as Record<string, any>)
+            : this.castValue(value as any);
+          const nested = this.nestPath(field, cond);
+          const top = Object.keys(nested)[0];
+          where[top] = this.deepMerge(where[top], nested[top]);
+          continue;
+        }
         const normalizedField = this.normalizeFieldKey(field);
         if (value && typeof value === 'object' && !Array.isArray(value)) {
           // Advanced operator: $where[field][$gt]=10
@@ -364,9 +389,10 @@ export class QueryService {
         : defaultSearchFields || [];
 
       if (searchFields.length > 0) {
-        where.OR = searchFields.map((field) => ({
-          [this.normalizeFieldKey(field)]: { contains: String(searchStr).trim(), mode: 'insensitive' },
-        }));
+        // "Customer.Name" → { Customer: { Name: { contains } } } (relasi to-one)
+        where.OR = searchFields.map((field) =>
+          this.nestPath(field, { contains: String(searchStr).trim(), mode: 'insensitive' }),
+        );
       }
     }
 
@@ -426,6 +452,13 @@ export class QueryService {
 
       case 'lte':
         return { lte: this.castNumeric(value) };
+
+      // Rentang teks (mis. Item Dari/Sampai berdasarkan kode) — tanpa konversi angka/tanggal
+      case 'sgte':
+        return { gte: String(value) };
+
+      case 'slte':
+        return { lte: String(value) };
 
       case 'ieq':
         return { equals: String(value).toLowerCase(), mode: 'insensitive' };
@@ -787,28 +820,28 @@ export class QueryService {
     return { not: { gte: startOfDay, lte: endOfDay } };
   }
 
+  /**
+   * Tanggal saja ("YYYY-MM-DD") dibaca sebagai hari kalender WIB (Asia/Jakarta):
+   * gte → 00:00:00 WIB, lte → 23:59:59.999 WIB. Timestamp lengkap dipakai apa adanya.
+   */
+  private dayBoundary(value: string, end: boolean): Date | null {
+    const v = String(value).trim();
+    const d = /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(`${v}T${end ? '23:59:59.999' : '00:00:00.000'}+07:00`) : new Date(v);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
   private parseDateGt(value: string, inclusive: boolean): Record<string, any> {
-    const date = new Date(value);
-    if (isNaN(date.getTime())) {
-      return inclusive ? { gt: value } : { gt: value };
-    }
-    const key = inclusive ? 'gte' : 'gt';
-    if (inclusive) {
-      date.setUTCHours(23, 59, 59, 999);
-    }
-    return { [key]: date };
+    // gt tanggal X (eksklusif) = setelah hari X berakhir; gte = sejak hari X dimulai.
+    const d = this.dayBoundary(value, !inclusive);
+    if (!d) return { gt: value };
+    return inclusive ? { gte: d } : { gt: d };
   }
 
   private parseDateLt(value: string, inclusive: boolean): Record<string, any> {
-    const date = new Date(value);
-    if (isNaN(date.getTime())) {
-      return inclusive ? { lt: value } : { lt: value };
-    }
-    const key = inclusive ? 'lte' : 'lt';
-    if (inclusive) {
-      date.setUTCHours(0, 0, 0, 0);
-    }
-    return { [key]: date };
+    // lte tanggal X = sampai akhir hari X; lt = sebelum hari X dimulai.
+    const d = this.dayBoundary(value, inclusive);
+    if (!d) return { lt: value };
+    return inclusive ? { lte: d } : { lt: d };
   }
 
   private parseDateBetween(value: string): Record<string, any> {
@@ -950,6 +983,8 @@ export class QueryService {
           case 'gte': return { [field]: { gte: value } };
           case 'lt': return { [field]: { lt: value } };
           case 'lte': return { [field]: { lte: value } };
+          case 'sgte': return { [field]: { gte: String(value) } };
+          case 'slte': return { [field]: { lte: String(value) } };
           case 'contains': return { [field]: { contains: value, mode: 'insensitive' } };
           case 'startswith': return { [field]: { startsWith: value, mode: 'insensitive' } };
           case 'endswith': return { [field]: { endsWith: value, mode: 'insensitive' } };
@@ -1117,7 +1152,8 @@ export class QueryService {
       if (!allowAll && allowedSortFields && !allowedSortFields.includes(rawField) && !allowedSortFields.includes(this.normalizeFieldKey(rawField))) continue;
       const dir = String(direction).toLowerCase();
       if (dir === 'asc' || dir === 'desc') {
-        orderByArray.push({ [this.normalizeFieldKey(rawField)]: dir });
+        // "Customer.Name" → { Customer: { Name: 'asc' } } (urut berdasarkan kolom relasi)
+        orderByArray.push(this.nestPath(rawField, dir));
       }
     }
 

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateWarehouseDto {
@@ -29,6 +29,22 @@ export class CreateWarehouseDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ description: 'Fungsi: MAIN (Utama) | BRANCH (Cabang) | WAREHOUSE (Gudang)' })
+  @IsOptional()
+  @IsIn(['MAIN', 'BRANCH', 'WAREHOUSE'])
+  function?: string;
+
+  @ApiPropertyOptional({ description: 'No Fax' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  fax?: string | null;
+
+  @ApiPropertyOptional({ description: 'Kode akun persediaan' })
+  @IsOptional()
+  @IsInt()
+  accountId?: number | null;
 }
 
 export class UpdateWarehouseDto {
@@ -61,4 +77,20 @@ export class UpdateWarehouseDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ description: 'Fungsi: MAIN (Utama) | BRANCH (Cabang) | WAREHOUSE (Gudang)' })
+  @IsOptional()
+  @IsIn(['MAIN', 'BRANCH', 'WAREHOUSE'])
+  function?: string;
+
+  @ApiPropertyOptional({ description: 'No Fax' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  fax?: string | null;
+
+  @ApiPropertyOptional({ description: 'Kode akun persediaan' })
+  @IsOptional()
+  @IsInt()
+  accountId?: number | null;
 }
